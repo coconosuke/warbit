@@ -10,7 +10,7 @@ for (const f of fs.readdirSync(app)) fs.copyFileSync(path.join(app, f), path.joi
 fs.copyFileSync(path.join(ROOT, 'DESIGN.md'), path.join(out, 'DESIGN.md'));
 const vsrc = fs.readFileSync(path.join(ROOT, 'src/engine/data/version.js'), 'utf8');
 const ver = /export const VERSION = '([^']+)'/.exec(vsrc)[1];
-const url = process.env.PAGES_URL || 'https://coconosuke.github.io/hardentry/';
+const url = process.env.PAGES_URL || 'https://coconosuke.github.io/warbit/';
 fs.writeFileSync(path.join(out, 'README.md'), `# HARD ENTRY（仮）
 
 リアル寄りの戦術FPS。スマホ（iPhone・Android）の横持ちで遊べます。

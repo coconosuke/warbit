@@ -13,15 +13,16 @@ export const CH = 64;
 
 // 色（独自）
 const C = {
-  lush: hex('#4f6b33'), dry: hex('#6d7041'), dark: hex('#405a2c'), dirt: hex('#6f5c43'), rock: hex('#6e6a63'), mount: hex('#55603f'),
+  // 11-19: BattleBit の落ち着いた色に（草と葉の緑を黄みのオリーブへ寄せ、鮮やかさを抜く）
+  lush: hex('#56653a'), dry: hex('#6f6e47'), dark: hex('#47563a'), dirt: hex('#6c5c45'), rock: hex('#6e6a63'), mount: hex('#5a6145'),
   sand: hex('#8e7d5e'), road: hex('#3f3e3b'), edge: hex('#69645a'), pad: hex('#6f6653'), mud: hex('#5e4f3b'),
-  wheat: hex('#a69a55'), wheat2: hex('#968a49'), plow: hex('#5d4a35'), plow2: hex('#6e5940'), pasture: hex('#476532'), paved: hex('#a39d90'), yard: hex('#8c8a83'),
+  wheat: hex('#a69a55'), wheat2: hex('#968a49'), plow: hex('#5d4a35'), plow2: hex('#6e5940'), pasture: hex('#526238'), paved: hex('#a39d90'), yard: hex('#8c8a83'),
 };
-const BUSH = [hex('#3e5b2b'), hex('#46652f'), hex('#365226'), hex('#4c6a31')];
+const BUSH = [hex('#44532f'), hex('#4b5b33'), hex('#3d4a2b'), hex('#525f36')];
 const WALKC = hex('#a29d91');
 const MATCOL = { [M.BRICK]: '#a77a5e', [M.CONCRETE]: '#a3a39b', [M.DRYWALL]: '#d6d0c2', [M.WOOD]: '#8a6a44', [M.METAL]: '#7d878a', [M.FABRIC]: '#a28f68', [M.EARTH]: '#6f5c43', [M.FENCE]: '#8a9094', [M.CAR]: '#6c7a86' };
 const MATLAYER = { [M.BRICK]: LAYER.brick, [M.CONCRETE]: LAYER.concrete, [M.DRYWALL]: LAYER.plaster, [M.WOOD]: LAYER.wood, [M.METAL]: LAYER.metal, [M.FABRIC]: LAYER.fabric, [M.EARTH]: LAYER.dirt, [M.FENCE]: LAYER.metal, [M.CAR]: LAYER.paint };
-const PINE = [hex('#355f33'), hex('#3c6a37'), hex('#2f5630')], OAK = [hex('#557f36'), hex('#5f8a3b'), hex('#4d7532')], TRUNK = hex('#5a4330');
+const PINE = [hex('#3a5136'), hex('#41583a'), hex('#344a32')], OAK = [hex('#56683a'), hex('#5e7040'), hex('#4f6136')], TRUNK = hex('#58463a');
 const ROADC = hex('#4a4845'), LINEC = hex('#d8d2b8');
 
 const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -509,7 +510,7 @@ export function buildWarGrass(ww, k, dens = 1) {
     const y = heightAt(ww, x, z) - 0.04, wheat = gk[q] === 1;
     const H = wheat ? 0.78 + r() * 0.32 : 0.2 + r() * 0.36;
     const base = [col[q * 3], col[q * 3 + 1], col[q * 3 + 2]];
-    const cB = mulc(base, 0.72), cT = wheat ? mixc(base, [0.86, 0.77, 0.45], 0.45) : mixc(mulc(base, 1.3), [0.62, 0.68, 0.32], 0.18 + r() * 0.15);
+    const cB = mulc(base, 0.72), cT = wheat ? mixc(base, [0.8, 0.74, 0.48], 0.4) : mixc(mulc(base, 1.18), [0.56, 0.57, 0.4], 0.12 + r() * 0.12);
     const nb = wheat ? 4 : 3, rot = r() * 6.283;
     for (let b = 0; b < nb; b++) {
       const a = rot + b * (6.283 / nb) + (r() - 0.5) * 0.6, wd = (wheat ? 0.035 : 0.055) + r() * 0.03;

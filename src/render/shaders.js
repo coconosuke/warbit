@@ -326,7 +326,7 @@ void main(){
 }`;
 export const COMP_FS = `
 uniform sampler2D uSrc; uniform sampler2D uBloom; uniform float uBloomK; uniform float uExposure; uniform float uVig;
-uniform float uNVG; uniform float uFlashW; uniform float uDamage; uniform float uSupp; uniform float uGas; uniform float uTime2; uniform float uSat; uniform float uBlur; uniform vec2 uTexel2; uniform float uPeek; uniform float uSmoke;
+uniform float uNVG; uniform float uFlashW; uniform float uDamage; uniform float uSupp; uniform float uGas; uniform float uTime2; uniform float uSat; uniform vec4 uGrade; uniform vec3 uLift; uniform vec3 uGain; uniform float uBlur; uniform vec2 uTexel2; uniform float uPeek; uniform float uSmoke;
 in vec2 vUV; layout(location=0) out vec4 oCol;
 vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 void main(){
@@ -357,6 +357,16 @@ void main(){
   float lum = dot(m, vec3(0.2126, 0.7152, 0.0722));
   m = mix(vec3(lum), m, uSat);
   m = pow(m, vec3(1.0 / 2.2));
+  // 色の調整（大規模戦。BattleBit の落ち着いた色: 彩度を抑え、明るい所の鮮やかさをさらに抜き、コントラストを少しゆるめ、
+  //  暗い所を青灰色に少し持ち上げる（もやのかかった空気）。uGrade = (コントラスト, 持ち上げ, 明るい所の色抜き, -)）
+  if (uGrade.x > 0.0) {
+    float l2 = dot(m, vec3(0.2126, 0.7152, 0.0722));
+    // 明るい所の色抜きは、日の当たった草や葉（緑・黄み）に効かせる。空の青はそのまま
+    m = mix(vec3(l2), m, 1.0 - uGrade.z * smoothstep(0.3, 0.8, l2) * smoothstep(-0.02, 0.05, m.g - m.b));
+    m = (m - 0.46) * uGrade.x + 0.46;
+    m = m * (1.0 - uGrade.y) + uLift * uGrade.y;
+    m *= uGain;
+  }
   m *= 1.0 - uVig * smoothstep(0.15, 0.75, r2);
   if (uPeek > 1.5) {
     // ミラー: 丸い鏡の中だけ見える。縁は金属の輪、外は暗い

@@ -210,6 +210,13 @@ function cloth(sr, seed, dur = 0.3, f = 2600) { const r = rng(seed), out = buf(s
 function draw(sr, seed) { const r = rng(seed), out = buf(sr, 0.4); mixInto(out, cloth(sr, seed, 0.25), 0, 0.8); mixInto(out, clack(sr, r, 1900, 0.06, 0.7), S(sr, 0.22), 1); return fadeEdges(normalize(out, 0.5), sr); }
 function cuffs(sr, seed) { const r = rng(seed), out = buf(sr, 0.7); for (let k = 0; k < 14; k++) { const m = S(sr, 0.015); const z = noise(m, r); bp(z, 3000 + k * 60, 4, sr); mulEnv(z, expEnv(m, sr, 0.0002, 0.003)); mixInto(out, z, S(sr, 0.05 + k * 0.035), 0.8); } return fadeEdges(normalize(out, 0.55), sr); }
 function bandage(sr, seed) { const r = rng(seed), out = buf(sr, 0.8); const n = S(sr, 0.6); const z = noise(n, r); bp(z, 2000, 0.8, sr); for (let i = 0; i < n; i++) z[i] *= 0.5 + 0.5 * Math.sin(i / sr * 60 + r()); mulEnv(z, env(n, sr, 0.05, 0.55, 1.2)); mixInto(out, z, 0, 1); return fadeEdges(normalize(out, 0.5), sr); }
+// 息: 吸う（短く上がる）・吐く（長く下がる）・息切れ（あえぐ2回）
+function breathS(sr, seed, kind) {
+  const r = rng(seed), d = kind === 'in' ? 0.42 : kind === 'out' ? 0.75 : 1.3, out = buf(sr, d);
+  const parts = kind === 'gasp' ? [[0, 0.45, 900], [0.6, 0.55, 750]] : [[0, d * 0.95, kind === 'in' ? 1150 : 820]];
+  for (const [t0, dur, f] of parts) { const n = S(sr, dur); const z = noise(n, r); bp(z, f, 0.9, sr); lp(z, 2600, sr); mulEnv(z, kind === 'in' ? env(n, sr, dur * 0.7, dur * 0.3, 1.5) : env(n, sr, dur * 0.12, dur * 0.85, 1.6)); mixInto(out, z, S(sr, t0), 1); }
+  return fadeEdges(normalize(out, kind === 'gasp' ? 0.42 : 0.3), sr);
+}
 function sprayS(sr, seed) { const r = rng(seed), out = buf(sr, 0.7); const n = S(sr, 0.6); const z = noise(n, r); hp(z, 2500, sr); mulEnv(z, env(n, sr, 0.03, 0.55, 1.2)); mixInto(out, z, 0, 1); return fadeEdges(normalize(out, 0.55), sr); }
 function glassBreak(sr, seed) { const r = rng(seed), out = buf(sr, 1.0); mixInto(out, impact(sr, seed, 'glass'), 0, 1); for (let k = 0; k < 30; k++) { const n = S(sr, 0.06); const s = sine(n, sr, 2500 + r() * 6500); mulEnv(s, expEnv(n, sr, 0.0003, 0.012)); mixInto(out, s, S(sr, 0.05 + r() * 0.7), 0.25 * (1 - k / 40)); } return fadeEdges(normalize(out, 0.8), sr); }
 function wallBreak(sr, seed) { const r = rng(seed), out = buf(sr, 0.9); mixInto(out, impact(sr, seed, 'hard'), 0, 1); const n = S(sr, 0.8); const z = noise(n, r); lp(z, 1800, sr); mulEnv(z, env(n, sr, 0.02, 0.75, 2)); mixInto(out, z, S(sr, 0.03), 0.6); mixInto(out, thump(sr, r, 120, 60, 0.2, 0.6), 0, 1); return fadeEdges(normalize(out, 0.85), sr); }
@@ -268,7 +275,7 @@ export const SFX = {
   magOut: [(sr, i) => magOut(sr, 800 + i), 2], magIn: [(sr, i) => magIn(sr, 810 + i), 2], pump: [(sr, i) => pump(sr, 820 + i), 1], bolt: [(sr, i) => boltS(sr, 1020 + i), 2], shellIn: [(sr, i) => shellIn(sr, 830 + i), 2], shellStart: [(sr, i) => cloth(sr, 840 + i, 0.2, 2000), 1],
   dry: [(sr, i) => dry(sr, 850 + i), 1], draw: [(sr, i) => draw(sr, 860 + i), 2], fmode: [(sr, i) => dry(sr, 870 + i), 1], click: [(sr, i) => dry(sr, 880 + i), 1],
   cuffs: [(sr, i) => cuffs(sr, 900 + i), 1], cuffsStart: [(sr, i) => cloth(sr, 910 + i, 0.35, 1800), 1], mirror: [(sr, i) => cloth(sr, 920 + i, 0.3, 3200), 1], act: [(sr, i) => cloth(sr, 930 + i, 0.25, 2400), 2],
-  bandage: [(sr, i) => bandage(sr, 940 + i), 1], spray: [(sr, i) => sprayS(sr, 950 + i), 1], nvg: [(sr, i) => nvgWhine(sr, 960 + i), 1], drone: [(sr, i) => droneLoop(sr, 970 + i), 1],
+  bandage: [(sr, i) => bandage(sr, 940 + i), 1], inhale: [(sr, i) => breathS(sr, 1100 + i, 'in'), 2], exhale: [(sr, i) => breathS(sr, 1110 + i, 'out'), 2], gasp: [(sr, i) => breathS(sr, 1120 + i, 'gasp'), 1], spray: [(sr, i) => sprayS(sr, 950 + i), 1], nvg: [(sr, i) => nvgWhine(sr, 960 + i), 1], drone: [(sr, i) => droneLoop(sr, 970 + i), 1],
   ring: [(sr) => ring(sr), 1], radioOn: [(sr, i) => radioClick(sr, 980 + i, true), 2], radioOff: [(sr, i) => radioClick(sr, 990 + i, false), 2],
   beep: [(sr) => beep(sr, 1900, 0.07, 0.45), 1], heart: [(sr, i) => heart(sr, 1010 + i), 1],
   // 画面の音

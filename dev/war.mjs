@@ -1,5 +1,5 @@
 // 大規模戦の世界の見た目の確認用（Playwright から window.__war を使う）
-import { Renderer, gfxOf } from '../src/render/renderer.js';
+import { Renderer, gfxOf, WAR_GRADE } from '../src/render/renderer.js';
 import { buildRiverbend } from '../src/war/maps/riverbend.js';
 import { buildKit } from './kitworld.mjs';
 import { buildRange } from '../src/war/maps/range.js';
@@ -21,7 +21,9 @@ function frame(o = {}) {
   if (o.yaw != null) cam.yaw = o.yaw; if (o.pitch != null) cam.pitch = o.pitch;
   if (o.warm) r.warmWar(cam.x, cam.z);
   const t = performance.now();
-  r.render({ cam, lights: [], post: { exposure: r.sky.exposure ?? 1 }, dt: 0.016 });
+  // ゲームと同じ仕上げ（色の調整・彩度・周辺減光）。?raw で調整なし
+  const raw = new URLSearchParams(location.search).has('raw');
+  r.render({ cam, lights: [], post: { exposure: r.sky.exposure ?? 1, vig: 0.32, grade: raw ? null : WAR_GRADE, sat: raw ? 0.97 : 1.08 * WAR_GRADE.sat }, dt: 0.016 });
   const ms = performance.now() - t;
   document.getElementById('info').textContent = `world ${worldMs.toFixed(0)}ms build ${r.buildMs.toFixed(0)}ms draws ${r.stats.draws} tris ${(r.stats.tris / 1000).toFixed(1)}k chunks ${r.stats.chunks} cpu ${ms.toFixed(1)}ms`;
   return { draws: r.stats.draws, tris: r.stats.tris, ms };

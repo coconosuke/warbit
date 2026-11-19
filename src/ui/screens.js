@@ -99,14 +99,14 @@ export class Screens {
   _title() {
     const a = this.app;
     const el = this._mk('title', `
-      <div class="wt-logo">${warLogo()}<p>大人数の撃ち合い · ${sizeLabel(16)} 〜 ${sizeLabel(64)}</p></div>
+      <div class="wt-logo">${warLogo()}</div>
       <div class="wt-me" data-a="me" role="button"><span>${PERSON}</span><b>${esc(a.profile.name)}</b></div>
       <nav class="wt-menu" aria-label="メニュー">
-        <button class="wm main" data-a="play"><b>PLAY</b><span>対戦 · 足りない人数はボット</span></button>
-        <button class="wm" data-a="range"><b>SHOOTING RANGE</b><span>射撃場 · 銃を試す</span></button>
-        <button class="wm" data-a="settings"><b>SETTINGS</b><span>設定</span></button>
+        <button class="wm main" data-a="play"><b>PLAY</b></button>
+        <button class="wm" data-a="range"><b>SHOOTING RANGE</b></button>
+        <button class="wm" data-a="settings"><b>SETTINGS</b></button>
       </nav>
-      <div class="t-foot"><span>ヘッドホン推奨</span><span class="ver">互換${COMPAT} · v${VERSION}</span></div>`);
+      <div class="t-foot"><span class="ver">互換${COMPAT} · v${VERSION}</span></div>`);
     this._acts(el, {
       play: () => this.open('play'),
       range: () => a.startWar({ wmode: 'range' }),
@@ -122,10 +122,10 @@ export class Screens {
     const card = (id) => {
       const MD = WAR_MODES[id];
       const sizes = Object.entries(MD.sizes);
-      return `<div class="wp-card"><div class="wp-h"><b>${MD.en}</b><span>${esc(MD.name)}</span></div><p>${esc(MD.desc)}</p>
-        <div class="wp-sizes">${sizes.map(([k, z]) => `<button class="wp-size${last.wmode === id && last.size === k ? ' last' : ''}" data-a="go" data-m="${id}" data-k="${k}"><b>${sizeLabel(z.per)}</b><small>${id === 'conquest' ? `チケット ${z.tickets}` : id === 'tdm' ? `${z.kills} キル` : `${MD.score} 点`}</small></button>`).join('')}</div></div>`;
+      return `<div class="wp-card"><div class="wp-h"><b>${MD.en}</b></div>
+        <div class="wp-sizes">${sizes.map(([k, z]) => `<button class="wp-size${last.wmode === id && last.size === k ? ' last' : ''}" data-a="go" data-m="${id}" data-k="${k}"><b>${sizeLabel(z.per)}</b><small>${id === 'conquest' ? `${z.tickets} TICKETS` : id === 'tdm' ? `${z.kills} KILLS` : `${MD.score} POINTS`}</small></button>`).join('')}</div></div>`;
     };
-    const el = this._mk('play', `<div class="sc-wrap"><header class="sc-head">${BACK}<h2>PLAY</h2><span class="hint">MAP · ${esc(M.en)}（${esc(M.name)}）· 足りない人数はボットが入る</span></header>
+    const el = this._mk('play', `<div class="sc-wrap"><header class="sc-head">${BACK}<h2>PLAY</h2><span class="hint">MAP · ${esc(M.en)}</span></header>
       <div class="wp-modes">${WAR_MODE_LIST.map(card).join('')}</div></div>`, 'dim');
     el.querySelectorAll('[data-a="go"]').forEach(b => onTap(b, () => { a.audio.ui('go'); a.startWar({ wmode: b.dataset.m, size: b.dataset.k }); }));
     this._acts(el, {});
@@ -527,12 +527,13 @@ export class Screens {
       row('射撃ボタン（左）', '', 'leftFire'); ch('leftFire', [[true, '表示'], [false, '非表示']]);
       row('射撃ボタンで視点移動', '押したままドラッグ', 'fireLook'); ch('fireLook', [[true, 'オン'], [false, 'オフ']]);
       row('利き手', 'ボタンの左右を反転', 'handed'); ch('handed', [['right', '右'], ['left', '左']]);
-      note('キーボード: WASD 移動／Shift 走る／マウス 視点（画面をクリック）／左クリック 射撃／右クリック ADS／Q・E リーン／C しゃがみ／Z 伏せ／Space 乗り越え／R リロード（長押しで高速）／G 投げ物／1・2 武器／X 射撃モード／T ライト／Y 近接（銃床）／Tab スコア表／M 地図／Esc 一時停止');
+      note('キーボード: WASD 移動／Shift 走る（構えている間は息止め）／マウス 視点（画面をクリック）／左クリック 射撃／右クリック ADS／Q・E リーン／C しゃがみ／Z 伏せ／Space 乗り越え／R リロード（長押しで高速）／G 投げ物／1・2 武器／X 射撃モード／T ライト／Y 近接（銃床）／Tab スコア表／M 地図／Esc 一時停止');
     } else if (tab === 'sens') {
       row('視点', '', 'sens'); sl('sens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ADS', '等倍', 'sensAds'); sl('sensAds', 0.2, 1.5, 0.05, pct);
       row('スコープ', '倍率あり（4倍が基準。倍率に合わせて変わる）', 'sensScope'); sl('sensScope', 0.1, 1.2, 0.05, pct);
       row('射撃中', '射撃ボタンで視点移動', 'sensFire'); sl('sensFire', 0.3, 1.5, 0.05, pct);
+      row('応答曲線', 'ゆっくり動かすと細かく、速く振ると速く', 'aimCurve'); ch('aimCurve', [[true, 'オン'], [false, 'オフ']]);
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);
       row('エイムアシスト', '照準が敵へ少し寄る', 'aimAssist'); ch('aimAssist', [['off', 'オフ'], ['weak', '弱'], ['strong', '標準']]);
       row('ジャイロ', '端末の傾きで照準', 'gyro'); ch('gyro', [['off', 'オフ'], ['ads', 'ADS時'], ['always', '常時']]);

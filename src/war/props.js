@@ -146,7 +146,7 @@ export function stoneWall(ww, x0, z0, x1, z1, o = {}) {
   });
 }
 export function hedge(ww, x0, z0, x1, z1, o = {}) {
-  const h = o.h ?? 1.5, th = o.th ?? 1.0, col = o.col || '#3d5c2b';
+  const h = o.h ?? 1.5, th = o.th ?? 1.0, col = o.col || '#41522f';
   segRun(ww, x0, z0, x1, z1, 8, (ax, a, b, c, d, y, k) => {
     const hh = h * (0.92 + ((k * 3) % 4) * 0.05);
     addBox(ww, ax ? { x0: a, z0: b - th / 2, x1: c, z1: b + th / 2, y0: y - 0.1, y1: y + hh, mat: M.FABRIC, kind: 'hedge', col, layer: 21, bev: 0.18, far: true } : { x0: a - th / 2, z0: b, x1: a + th / 2, z1: d, y0: y - 0.1, y1: y + hh, mat: M.FABRIC, kind: 'hedge', col, layer: 21, bev: 0.18, far: true });
@@ -264,7 +264,7 @@ export function stall(ww, cx, cz, rot = 0, o = {}) {
 export function planter(ww, x0, z0, x1, z1, o = {}) {
   const y = o.y ?? Math.min(heightAt(ww, x0, z0), heightAt(ww, x1, z1), heightAt(ww, x0, z1), heightAt(ww, x1, z0)), h = o.h ?? 0.7;
   addBox(ww, { x0, z0, x1, z1, y0: y - 0.15, y1: y + h, mat: M.CONCRETE, kind: 'cover', col: o.col || '#b5b0a5', layer: 1, bev: 0.06, far: true });
-  if (o.bush !== false) addBox(ww, { x0: x0 + 0.25, z0: z0 + 0.25, x1: x1 - 0.25, z1: z1 - 0.25, y0: y + h, y1: y + h + 0.5, mat: M.FABRIC, kind: 'hedge', col: '#4a6b33', layer: 21, bev: 0.15, far: true });
+  if (o.bush !== false) addBox(ww, { x0: x0 + 0.25, z0: z0 + 0.25, x1: x1 - 0.25, z1: z1 - 0.25, y0: y + h, y1: y + h + 0.5, mat: M.FABRIC, kind: 'hedge', col: '#4a5a34', layer: 21, bev: 0.15, far: true });
   else addBox(ww, { x0: x0 + 0.15, z0: z0 + 0.15, x1: x1 - 0.15, z1: z1 - 0.15, y0: y + h, y1: y + h + 0.04, mat: M.EARTH, kind: 'trim', col: '#5a4a36', layer: 9, detail: true, walk: false });
 }
 // 噴水（丸い石の縁・水の面・真ん中の台）。拠点の旗の柱はこの真ん中に立つ

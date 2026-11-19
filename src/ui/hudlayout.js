@@ -7,6 +7,7 @@ export const BTN = {
   ads: { name: '構える（ADS）', ax: 'r', ay: 'b', x: 178, y: 68, s: 58, icon: 'ads' },
   reload: { name: 'リロード', ax: 'r', ay: 'b', x: 36, y: 205, s: 50, icon: 'reload' },
   crouch: { name: 'しゃがむ（長押しで伏せ）', ax: 'r', ay: 'b', x: 36, y: 40, s: 50, icon: 'crouch' },
+  breath: { name: '息止め（構えている間）', ax: 'r', ay: 'b', x: 240, y: 126, s: 50, icon: 'breath', warOnly: true, adsOnly: true },
   vault: { name: '乗り越え', ax: 'r', ay: 'b', x: 160, y: 200, s: 48, icon: 'vault' },
   melee: { name: '近接（銃床で殴る）', ax: 'r', ay: 'b', x: 160, y: 254, s: 44, icon: 'melee' },
   leanL: { name: '左にリーン', ax: 'l', ay: 'b', x: 36, y: 168, s: 48, icon: 'leanL' },
@@ -49,6 +50,8 @@ export const ICONS = {
   ads: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 5v4M12 15v4M5 12h4M15 12h4" stroke="currentColor" stroke-width="2"/>',
   // リロード: 弾丸を円の矢印が囲む（主なスマホFPSと同じ形。11-13 14:35）
   reload: '<path d="M19.36 7.75A8.5 8.5 0 1 1 14.2 3.79" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M17.1 4.5L12.7 6.1 14 1z" fill="currentColor"/><path d="M9.7 11C9.7 9.1 10.85 7.55 12 7 13.15 7.55 14.3 9.1 14.3 11zM9.6 11.7h4.8v4.8H9.6zM9.1 16.9h5.8v1.3H9.1z" fill="currentColor"/>',
+  // 息止め: 肺の形
+  breath: '<path d="M12 3v7M12 9c-1.5 1.5-3 2-4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 9c1.5 1.5 3 2 4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9.6 7.6C6.3 7 3.6 11 3.4 16.3c-.1 2.6 1.2 3.9 3.2 3.4 2.6-.6 3.6-2.3 3.6-5.3V8.2zM14.4 7.6c3.3-.6 6 3.4 6.2 8.7.1 2.6-1.2 3.9-3.2 3.4-2.6-.6-3.6-2.3-3.6-5.3V8.2z" fill="currentColor"/>',
   crouch: '<circle cx="13" cy="5" r="2.5" fill="currentColor"/><path d="M12 8l-3 6h6l-2 6M9 14l-3 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
   vault: '<path d="M3 20h18M7 20v-7h10v7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 9c3-6 9-6 13-1l-2-3M18 8l-3 1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   leanL: '<path d="M10 4l-4 4 4 4M6 8h8a5 5 0 0 1 0 10h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',

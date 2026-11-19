@@ -21,7 +21,7 @@ import { gunModel } from '../render/guns.js';
 import { roomGraph } from '../engine/ai/nav.js';
 import { LINES } from '../audio/lines.js';
 import { vfovOf } from './settings.js';
-import { gfxOf, WAR_SKY } from '../render/renderer.js';
+import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
 import { CLASSES, CLASS_LIST, classGuns, classSecs } from '../war/classes.js';
@@ -164,7 +164,21 @@ export class Match {
     // 急に遅く・速くならないように、0.12秒かけて寄せる（11-12: エイムがなめらかに動かない）
     this.aaK = this.aaK == null ? want : this.aaK + (want - this.aaK) * (1 - Math.exp(-dt / 0.12));
     const slow = inp.mouse ? 1 : this.aaK;
-    let dx = inp.lookDX * k * slow, dy = inp.lookDY * k * slow * 0.9;
+    let rdx = inp.lookDX, rdy = inp.lookDY;
+    if (!inp.mouse) {
+      // タッチの見回し（11-19 の要望: 遠くを狙うとかくつく）
+      //  1) 応答曲線: 指の速さ（なめらかにした値）で倍率を変える。ゆっくり＝細かく（約0.45倍）、ふつう＝ほぼ等倍、速く振る＝少し速く（1.2倍）
+      //  2) 届いた量を一度にではなく 約20ms かけて足す（指の動きの届く間隔と、こまの間隔がずれても動きが一定になる）
+      const raw = Math.hypot(rdx, rdy), v = raw / Math.max(dt, 1 / 240);
+      this.lkV = this.lkV == null ? v : this.lkV + (v - this.lkV) * (1 - Math.exp(-dt / (v > this.lkV ? 0.05 : 0.09)));
+      const t = Math.max(0, Math.min(1, (this.lkV - 25) / 700)), sm = t * t * (3 - 2 * t);
+      const curve = st.aimCurve === false ? 1 : 0.45 + 0.75 * Math.pow(sm, 0.6);
+      this.lkBX = (this.lkBX || 0) + rdx * curve; this.lkBY = (this.lkBY || 0) + rdy * curve;
+      const f = 1 - Math.exp(-dt / 0.02);
+      rdx = this.lkBX * f; rdy = this.lkBY * f; this.lkBX -= rdx; this.lkBY -= rdy;
+      if (Math.abs(this.lkBX) < 1e-4) this.lkBX = 0; if (Math.abs(this.lkBY) < 1e-4) this.lkBY = 0;
+    }
+    let dx = rdx * k * slow, dy = rdy * k * slow * 0.9;
     // ジャイロ
     const gy = st.gyro || 'off';
     if (gy === 'always' || (gy === 'ads' && ads > 0.5)) { const g = (st.gyroSens || 1) * DEG * (ads > 0.5 ? 0.7 : 1); dx -= inp.gyroX * g * (st.gyroInvX ? -1 : 1); dy -= inp.gyroY * g * (st.gyroInvY ? -1 : 1); }
@@ -291,8 +305,11 @@ export class Match {
       mx: inp.mx, mz: inp.mz, yaw: this.yaw, pitch: this.pitch,
       // ローレディは人の操作からはなくした（0.1.13。撃てなくなるだけで使う理由がない）。AI は今までどおり使う（銃を下げて歩く・投降など）
       fire: inp.fire && !this.app.input.radial, ads: this.adsOn, low: false, stance: this.stance, lean: this.leanSide, sprint: inp.sprint,
+      // 息止め: ボタン（構えている間だけ出る）か、構えているときの Shift（BattleBit と同じ。走りにはならない）
+      breath: inp.hold.has('breath') || (this.adsOn && !!(this.app.input.keys && this.app.input.keys.has('ShiftLeft'))),
       act: this.acts.length ? this.acts.splice(0) : null, power: 0.75,
     };
+    if (cmd.breath && this.adsOn) cmd.sprint = false;
     if (this.droneId != null) { cmd.mx = 0; cmd.mz = 0; cmd.fire = false; }
     if (this.camView != null) {
       const S = this.S;
@@ -612,7 +629,7 @@ export class Match {
           if (e.k === 'locked' && e.id !== me && S.byId[e.id] && S.byId[e.id].kind === 'swat') this._say(S.byId[e.id], 'swat_locked');
           break;
         }
-        case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
+        case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', fullhp: '体力が満タン', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
         case 'nade': { if (e.type === 'frag' || e.type === 'impact') break; if (e.type === 'smoke') { for (let i = 0; i < 6; i++) fx.smoke(e.x, e.y + 0.5, e.z, 0.9, [0.62, 0.63, 0.64], 0.6, 3); au.sfx('gasPop', [e.x, e.y, e.z], { rate: 0.8 }); break; } if (e.type === 'cs') { for (let i = 0; i < 8; i++) fx.smoke(e.x, e.y + 0.4, e.z, 1.2, [0.85, 0.85, 0.8], 0.5, 6); au.sfx('gasPop', [e.x, e.y, e.z]); } else { fx.explosion(e.x, e.y, e.z, 3, e.type === 'flash' ? 'flash' : 'stinger'); au.sfx(e.type === 'flash' ? 'flashbang' : 'stinger', [e.x, e.y, e.z]); } const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 10) * 0.6); break; }
         case 'boom': case 'c2': { fx.explosion(e.x, e.y, e.z, Math.min(5, e.r || 3), e.kind || 'c2'); au.sfx('explosion', [e.x, e.y, e.z], { vol: 1.2 }); const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 18)); this._heatUp(0.5 * Math.max(0, 1 - d / 40)); break; }
         case 'flashed': if (e.id === me) { this.flashW = Math.max(this.flashW, Math.min(1, 0.4 + e.k * 1.2)); au.deafen(2 + 4 * e.k); } break;
@@ -671,6 +688,9 @@ export class Match {
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'revive': hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
         case 'bandaged': if (e.id === me) au.sfx('bandage', null); break;
+        case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); break;
+        case 'exhale': if (e.id === me) au.sfx('exhale', null, { vol: 0.6 }); break;
+        case 'inhale': if (e.id === me) au.sfx('inhale', null, { vol: 0.6 }); break;
         // 置いた物（置ける盾・有刺鉄線）
         case 'depset': au.sfx(e.k === 'wire' ? 'impMetal' : 'barricade', [e.x, e.y + 0.3, e.z], { vol: e.id === me ? 0.55 : 0.8, rate: e.k === 'wire' ? 1.4 : 0.8 }); break;
         case 'depbreak': if (e.why !== 'pick') { fx.debris(e.x, e.y, e.z, e.k === 'wire' ? [0.55, 0.56, 0.54] : [0.24, 0.26, 0.25]); au.sfx('impMetal', [e.x, e.y, e.z], { vol: 1, rate: 0.7 }); } else au.sfx('draw', [e.x, e.y, e.z], { vol: 0.5 }); break;
@@ -916,7 +936,7 @@ export class Match {
     const room = roomOf(this.w, cam.x, cam.y - 1, cam.z);
     r.render({
       cam, doors: S.doors, lights, dt,
-      post: { smoke: smk, exposure: this.exposure * (st.bright || 1) * (S.war ? 1 : 1), nvg: nvg && !p.peek, flash, damage: Math.max(this.dmgK * 0.8, lowHp), supp: Math.max(this.suppK * 0.8, oobK * 0.7), gas, blur: Math.max(this.blurK, gas * 0.5, p.stun > 0 ? 0.4 : 0, flash * 0.6), vig: (p.peek ? 0.15 : (st.vignette === false ? 0.08 : 0.32)) + 0.22 * (this.hpK || 0), sat: (st.sat ?? 1.08) * (S.war ? 0.9 : 1) * (1 - 0.85 * oobK) * (1 - 0.45 * (this.hpK || 0)) * (1 - 0.7 * (this.deathK || 0)), peek: p.peek ? (p.peek.k === 'mirror' ? 2 : 1) : 0 },
+      post: { smoke: smk, exposure: this.exposure * (st.bright || 1) * (S.war ? 1 : 1), nvg: nvg && !p.peek, flash, damage: Math.max(this.dmgK * 0.8, lowHp), supp: Math.max(this.suppK * 0.8, oobK * 0.7), gas, blur: Math.max(this.blurK, gas * 0.5, p.stun > 0 ? 0.4 : 0, flash * 0.6), vig: (p.peek ? 0.15 : (st.vignette === false ? 0.08 : 0.32)) + 0.22 * (this.hpK || 0), grade: S.war ? WAR_GRADE : null, sat: (st.sat ?? 1.08) * (S.war ? WAR_GRADE.sat : 1) * (1 - 0.85 * oobK) * (1 - 0.45 * (this.hpK || 0)) * (1 - 0.7 * (this.deathK || 0)), peek: p.peek ? (p.peek.k === 'mirror' ? 2 : 1) : 0 },
       vm: fp ? { fov: (st.vmFov || 54) * DEG, room } : null, shadows: st.shadows !== 'off' && st.quality !== 'low',
       ambMin: nvg ? 0.02 : 0,
     });

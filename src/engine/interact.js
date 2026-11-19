@@ -804,12 +804,14 @@ export function shout(S, a, ev, line) {
   return true;
 }
 
+export function needsHeal(a) { return a.hp < a.maxHp - 0.01 || (a.bleed || 0) > 0 || !!(a.inj && a.inj.arm && a.hp < a.maxHp); }
 function selectGear(S, a, id, ev) {
   const G = GEAR[id];
   if (!G) return;
   const g = a.inv.gear.find(x => x.id === id);
   if (!g || g.n <= 0) { ev.push({ e: 'deny', id: a.id, why: 'nogear' }); return; }
-  if (G.kind === 'heal') { if (a.act) return; if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage, kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
+  // 回復の道具は、体力が満タンで血も止まっているときは使えない（11-13 20:50。道具が変わっても同じ）
+  if (G.kind === 'heal') { if (a.act) return; if (!needsHeal(a)) { ev.push({ e: 'deny', id: a.id, why: 'fullhp' }); return; } if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage, kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
   if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy') {
     // 手に持つ（slot 2）。引き金で投げる・吹きつける・前に置く
     a.ws.gear = id;

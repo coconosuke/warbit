@@ -3,7 +3,7 @@
 import { createGame, step } from '../engine/engine.js';
 import { ActorView } from '../render/actors.js';
 import { FX } from '../render/fx.js';
-import { gfxOf } from '../render/renderer.js';
+import { gfxOf, WAR_GRADE } from '../render/renderer.js';
 import { heightAt } from '../war/world.js';
 
 const DEG = Math.PI / 180;
@@ -62,6 +62,6 @@ export class TitleScene {
     this.fx.update(dt);
     this.fx.lights([], () => []);
     const r = this.app.renderer;
-    r.render({ cam, doors: [], lights: [], dt, post: { exposure: (r.sky ? r.sky.exposure : 1) * (this.app.settings.bright || 1), vig: dim ? 0.62 : 0.38, sat: (this.app.settings.sat ?? 1.08) * 0.9 }, shadows: this.app.settings.quality !== 'low' });
+    r.render({ cam, doors: [], lights: [], dt, post: { exposure: (r.sky ? r.sky.exposure : 1) * (this.app.settings.bright || 1), vig: dim ? 0.62 : 0.38, grade: WAR_GRADE, sat: (this.app.settings.sat ?? 1.08) * WAR_GRADE.sat }, shadows: this.app.settings.quality !== 'low' });
   }
 }

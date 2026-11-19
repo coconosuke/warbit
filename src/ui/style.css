@@ -140,13 +140,13 @@ ul, ol { margin: 4px 0; padding-left: 1.3em; line-height: 1.55; }
 .wm:active, .wm.down { transform: translateX(6px); }
 #stage[data-size="s"] .wm { min-height: 40px; } #stage[data-size="s"] .wm.main { min-height: 46px; } #stage[data-size="s"] .wt-menu { bottom: calc(var(--sb) + 24px); gap: 4px; }
 .screen.play .sc-head h2, .screen.result .wr-head h2 { letter-spacing: .14em; }
-.wp-modes { flex: 1; min-height: 0; display: flex; gap: 10px; }
-.wp-card { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px; background: linear-gradient(180deg, rgba(26,31,36,.92), rgba(12,15,18,.94)); border: 1px solid rgba(255,255,255,.13); }
+.wp-modes { flex: 1; min-height: 0; display: flex; gap: 10px; align-items: flex-start; }
+.wp-card { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 14px; background: linear-gradient(180deg, rgba(26,31,36,.92), rgba(12,15,18,.94)); border: 1px solid rgba(255,255,255,.13); }
 .wp-h b { display: block; font: 900 1.3em/1.1 var(--f-head); letter-spacing: .1em; }
 .wp-h span { font: 700 .82em var(--f-body); color: #f2b33d; }
 .wp-card p { flex: 1; margin: 0; font: 500 .82em/1.5 var(--f-body); color: #cfd6dc; min-height: 0; overflow: hidden; }
-.wp-sizes { display: flex; flex-direction: column; gap: 5px; }
-.wp-size { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 42px; padding: 0 12px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18); }
+.wp-sizes { display: flex; flex-direction: column; gap: 6px; }
+.wp-size { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 50px; padding: 0 12px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18); }
 .wp-size b { font: 900 1.05em var(--f-head); letter-spacing: .08em; white-space: nowrap; } .wp-size small { font: 600 max(11px, .78em) var(--f-body); color: #aab4bd; white-space: nowrap; }
 .wp-size.last { border-color: #f2b33d; } .wp-size:active, .wp-size.down { background: #f2b33d; color: #17120a; } .wp-size:active small { color: #3b2c0e; }
 #stage[data-size="s"] .wp-card { padding: 8px; gap: 4px; } #stage[data-size="s"] .wp-card p { font-size: 11px; line-height: 1.4; } #stage[data-size="s"] .wp-size { min-height: 38px; }
@@ -333,7 +333,13 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-ammo .cnt span { font-size: 12px; color: #cfd6dc; margin-left: 2px; }
 .hud-ammo .mags { display: flex; gap: 2px; }
 .hud-ammo .mags i { width: 5px; height: 12px; border: 1px solid rgba(255,255,255,.6); border-radius: 1px; background: linear-gradient(0deg, #fff calc(var(--f) * 100%), transparent 0); }
-.hud-cross { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 6px; }
+.hud-breath { position: absolute; left: 50%; top: calc(50% + 64px); width: 84px; height: 4px; margin-left: -42px; border-radius: 2px; background: rgba(0,0,0,.45); box-shadow: 0 0 0 1px rgba(255,255,255,.25); opacity: 0; transition: opacity .25s; pointer-events: none; }
+.hud-breath.on { opacity: 1; }
+.hud-breath i { display: block; height: 100%; width: 100%; border-radius: 2px; background: #dfe8ee; }
+.hud-breath.gasp i { background: #e2574c; }
+.hb.ads-off { visibility: hidden; pointer-events: none; }
+#hud.editing .hb.ads-off { visibility: visible; pointer-events: auto; }
+.hud-cross { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 6px; transform: translateZ(0); will-change: transform; }
 .hud-cross i { position: absolute; background: var(--cross, #fff); box-shadow: 0 0 2px rgba(0,0,0,.9); }
 .hud-cross .c { width: 2px; height: 2px; left: -1px; top: -1px; }
 .hud-cross .t, .hud-cross .b { width: 2px; height: 7px; left: -1px; }

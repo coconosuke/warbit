@@ -183,6 +183,8 @@ export function moveActor(S, w, a, inp, dt, ev) {
   // 足元（家具の上にも立てる）
   const g = standAt(w, a.x, a.z, a.y);
   if (g < -50) { a.y -= 9.8 * dt; if (a.y < -20) { a.y = 0; } }
+  // 下り坂・縁石・低い段を下りるとき: 足は地面につけたまま（宙に浮いた扱いで照準が広がったり点滅したりしないように。11-13 20:50）
+  else if (a.y - g > 0.04 && a.ground && !a.air && (a.vy || 0) > -0.6 && a.y - g <= 0.42) { a.y = g; a.vy = 0; a.airTop = null; }
   else if (a.y - g > 0.04) {
     if (a.airTop == null) a.airTop = a.y;
     a.vy -= 9.8 * dt; a.y += a.vy * dt;
@@ -190,6 +192,7 @@ export function moveActor(S, w, a, inp, dt, ev) {
   }
   else { a.y = g; a.vy = 0; a.airTop = null; a.air = false; }
   a.ground = a.y - g < 0.05;
+  a.airT = a.ground ? 0 : (a.airT || 0) + dt;
   // 歩きの位相と足音
   const dist = Math.hypot(a.x - ox, a.z - oz);
   if (ev && S.deps && S.deps.length) stepWire(S, a, dist, ev);

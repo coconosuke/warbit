@@ -53,6 +53,8 @@ export class Hud {
     // 中央の物
     this.cross = el('div', 'hud-cross', '<i class="c"></i><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i>'); r.appendChild(this.cross);
     this.reticle = el('div', 'hud-reticle'); r.appendChild(this.reticle);
+    // 息の残り（息止めの間と、戻るまで。構えているときだけ）
+    this.breathEl = el('div', 'hud-breath', '<i></i>'); r.appendChild(this.breathEl);
     this.hitm = el('div', 'hud-hit'); r.appendChild(this.hitm);
     this.dmg = el('div', 'hud-dmg'); r.appendChild(this.dmg);
     this.prog = el('div', 'hud-prog', '<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg"/></svg><div class="lb"></div>'); r.appendChild(this.prog);
@@ -114,10 +116,11 @@ export class Hud {
       if (def.pvp && !this.mode.drone) hide = true;
       if (def.noWar && this.mode.war) hide = true;
       if (def.rangeOnly && !this.mode.range) hide = true;
+      if (def.warOnly && !this.mode.war) hide = true;
       // 設定で消したボタン（左の射撃）: 配置を動かしたことがあっても消す（動かすと設定が効かなくなっていた）
       const offBySetting = def.opt === 'leftFire' && this.S.leftFire === false;
       if (offBySetting) hide = true;
-      if (this.editing) hide = (def.pve && !this.mode.pve) || (def.rangeOnly && !this.mode.range) ? true : false;
+      if (this.editing) hide = (def.pve && !this.mode.pve) || (def.rangeOnly && !this.mode.range) || (def.warOnly && !this.mode.war) ? true : false;
       e.classList.toggle('hidden', hide && !this.editing);
       const [x, y] = this.posOf(def, ov);
       const s = (ov.s || 1) * def.s * k;
@@ -222,11 +225,28 @@ export class Hud {
     // 照準
     const ads = p ? p.ads : 0;
     const optic = v.optic;
-    this.cross.classList.toggle('hidden', !p || ads > 0.6 || this.S.crosshair === 'none' || v.hideCross);
-    if (p && ads <= 0.6) {
-      const g = Math.max(3, Math.min(40, (v.spread || 2) * 5));
+    // 照準の十字: 構え始め・やめの途中で出たり消えたりしないよう、消す 0.6・出す 0.45 の幅を持たせる。
+    // 開きはなめらかに追い、1px 単位で変える（小数の位置で線がにじんで点滅して見えないように。11-13 20:50）
+    const hideNow = this.cache.crossHid ? ads > 0.45 : ads > 0.6;
+    this.cache.crossHid = hideNow;
+    this.cross.classList.toggle('hidden', !p || hideNow || this.S.crosshair === 'none' || v.hideCross);
+    if (p && !hideNow) {
+      const gt = Math.max(3, Math.min(40, (v.spread || 2) * 5)), now = performance.now(), dtc = Math.min(0.1, Math.max(0, (now - (this.cache.gapT || now)) / 1000));
+      this.cache.gapT = now;
+      this.cache.gapS = this.cache.gapS == null ? gt : this.cache.gapS + (gt - this.cache.gapS) * (1 - Math.exp(-dtc * 14));
+      const g = Math.round(this.cache.gapS);
       if (this.cache.gap !== g) { this.cache.gap = g; this.cross.style.setProperty('--gap', g + 'px'); }
       this.cross.classList.toggle('dot', this.S.crosshair === 'dot');
+    }
+    // 息止め: ボタンは構えている間だけ出す。息の残りの棒は、止めている間と戻るまで
+    {
+      const ws = p && p.ws, on = !!(p && p.alive && ads > 0.6);
+      const bk = on ? 1 : 0;
+      if (this.btn.breath && this.cache.brOn !== bk && !this.editing) { this.cache.brOn = bk; this.btn.breath.classList.toggle('ads-off', !on); }
+      if (this.btn.breath) this._flag('breath', !!(ws && ws.holding));
+      const br = ws && ws.br != null ? ws.br : 1, show = on && (br < 0.995 || (ws && ws.holding));
+      const key = show ? Math.round(br * 100) + (ws.gasp > 0 ? 'g' : '') : '';
+      if (this.cache.brKey !== key) { this.cache.brKey = key; this.breathEl.classList.toggle('on', show); this.breathEl.classList.toggle('gasp', !!(ws && ws.gasp > 0)); if (show) this.breathEl.firstChild.style.width = (br * 100).toFixed(0) + '%'; }
     }
     const retOn = !!(optic && ads > 0.85 && !optic.scope);
     this.reticle.className = 'hud-reticle' + (retOn ? ' on ' + optic.kind : '');

@@ -41,7 +41,7 @@ export function spreadDeg(S, a, W, wi) {
   if (a.inj.arm) s *= 1.4;
   if (a.flash > 0.2 || (a.gas > 0 && a.armor.head !== 'gasmask')) s *= 1.6;
   if (a.supp > 0) s *= 1 + 0.4 * a.supp;
-  if (!a.ground || a.vault) s += 4;
+  if ((!a.ground && (a.airT || 0) > 0.12) || a.vault) s += 4;
   return s;
 }
 
@@ -75,12 +75,32 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   //  ゆっくりした8の字のずれ ＋ 息（約4秒で上下）＋ 手の小さなふるえ。しゃがむと半分、伏せると4分の1、動くと大きい、
   //  腕のけがで大きい、リーンで少し大きい。走ったあとは息が上がって大きく速くなり（数秒で戻る。move.js a.fat）、
   //  止まって構えていると1.5秒で少し落ち着く。時間と体の状態だけで決まる（乱数なし）ので、オンラインのゲストの手元とホストでほぼ同じになる
+  // 息止め（BattleBit の Shift。research/WARBIT.md の 16）: 構えている間、押している間だけ揺れがほとんど止まる（0.25秒で効く）。
+  //  息は約5秒（走った直後は短い）。切れると2.5秒は息が上がって揺れが大きく、その間は止められない。離すと約4秒で戻る
+  {
+    if (ws.br == null) ws.br = 1;
+    const want = !!inp.breath && a.ads > 0.6 && !a.sprint && !a.down;
+    if (ws.gasp > 0) ws.gasp = Math.max(0, ws.gasp - dt);
+    if (want && ws.br > 0 && !(ws.gasp > 0) && (ws.holding || ws.br > 0.2)) {
+      if (!ws.holding) ev.push({ e: 'inhale', id: a.id });
+      ws.holding = true;
+      ws.hold = Math.min(1, (ws.hold || 0) + dt / 0.25);
+      ws.br -= dt / 5 * (1 + 0.8 * (a.fat || 0));
+      if (ws.br <= 0) { ws.br = 0; ws.gasp = 2.5; ws.holding = false; ev.push({ e: 'gasp', id: a.id }); }
+    } else {
+      if (ws.holding) ev.push({ e: 'exhale', id: a.id });
+      ws.holding = false;
+      ws.hold = Math.max(0, (ws.hold || 0) - dt / 0.2);
+      if (!(ws.gasp > 0)) ws.br = Math.min(1, ws.br + dt / 4);
+    }
+  }
   if (W && a.ads > 0.01) {
     const still = (a.spd || 0) < 0.3 && a.ads > 0.95;
     ws.calm = still ? Math.min(1, (ws.calm || 0) + dt / 1.5) : Math.max(0, (ws.calm || 0) - dt * 4);
     const fat = a.fat || 0;
     const A = swayOf(W) * a.ads * a.ads * (a.st > 1.5 ? 0.25 : a.st > 0.5 ? 0.5 : 1) * (1 + Math.min(1.5, (a.spd || 0) / 2.4) * 1.5) * (a.inj && a.inj.arm ? 1.8 : 1)
-      * (Math.abs(a.lean || 0) > 0.3 ? 1.15 : 1) * (1 + 0.4 * fat) * (1 - 0.3 * ws.calm);
+      * (Math.abs(a.lean || 0) > 0.3 ? 1.15 : 1) * (1 + 0.4 * fat) * (1 - 0.3 * ws.calm)
+      * (1 - 0.9 * (ws.hold || 0)) * (1 + 0.9 * Math.min(1, (ws.gasp || 0) / 2.5));
     const t = S.t * S.dt + a.id * 7.3;
     // 息: ふだんは 1.55 rad/秒（約4秒）。走ったあとは大きく、速い息（2.7 rad/秒）が混ざる
     const br = 0.55 * (1 + 1.2 * fat) * Math.sin(t * 1.55) + 0.75 * fat * Math.sin(t * 2.7 + 0.5);
