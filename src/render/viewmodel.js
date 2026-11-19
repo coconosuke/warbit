@@ -58,6 +58,12 @@ export class ViewModel {
       B.box(-0.03 * k, 0.05 * k, -0.008, 0.03 * k, 0.07 * k, 0.008, LAYER.rubber, hex('#15170f'));
       const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
     }
+    if (id === 'binoc') {
+      // 双眼鏡（この作品の形: 2本の筒と真ん中の橋）
+      for (const x of [-0.033, 0.033]) { B.box(x - 0.021, -0.021, -0.06, x + 0.021, 0.021, 0.05, LAYER.rubber, hex('#2a2c26')); B.box(x - 0.024, -0.024, 0.05, x + 0.024, 0.024, 0.064, LAYER.rubber, hex('#1d1f1a')); }
+      B.box(-0.012, -0.01, -0.03, 0.012, 0.012, 0.03, LAYER.metal, hex('#3a3c34'));
+      const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
+    }
     if (id === 'medkit') {
       // 医療キット（この作品の形: 暗い色の布の袋に、白い札と赤い十字）
       B.box(-0.05, -0.032, -0.03, 0.05, 0.032, 0.03, LAYER.cloth, hex('#3a3d2e'));
@@ -197,7 +203,8 @@ export class ViewModel {
     if ((ws.st === 'reload' || longRl) && ws.rd > 0) {
       rel = 1 - (longRl ? ws.lt : ws.t) / ws.rd;
       const b = bell(rel);
-      roll -= 0.5 * b; pitch += 0.12 * b; px -= 0.025 * b; py += 0.02 * b; pz -= 0.02 * b;
+      // 11-20: 銃を画面の中ほどへ寄せて、少し下げ・遠くする（前は右へ大きく持ち上がって画面をふさぎ、手が見えなかった）
+      roll -= 0.5 * b; pitch += 0.1 * b; px -= 0.045 * b; py -= 0.01 * b; pz += 0.03 * b;
       if (P.revolver || P.breakAction) { roll -= 0.4 * b; }
       else {
         if (rel > 0.12 && rel < 0.35) magOff = -0.3 * sm((rel - 0.12) / 0.23);
@@ -221,7 +228,9 @@ export class ViewModel {
       } else pumpOff = -(P.pumpZ || 0.08) * bell(pr);
     }
     // 投げ物を持っている
-    const nade = ws.slot === 2 && ws.gear && GEAR[ws.gear] && (GEAR[ws.gear].kind === 'nade' || GEAR[ws.gear].kind === 'ammo' || GEAR[ws.gear].kind === 'medkit');
+    const nade = ws.slot === 2 && ws.gear && GEAR[ws.gear] && (GEAR[ws.gear].kind === 'nade' || GEAR[ws.gear].kind === 'ammo' || GEAR[ws.gear].kind === 'medkit' || GEAR[ws.gear].kind === 'binoc');
+    // 双眼鏡をのぞききったら、手と双眼鏡は描かない（のぞき窓の絵だけ）
+    if (ws.slot === 2 && ws.gear === 'binoc' && a.ads > 0.9) this.scoped = true;
     this.nade = nade ? ws.gear : null;
     // 世界へ
     let gR = R, gU = U, gF = F;

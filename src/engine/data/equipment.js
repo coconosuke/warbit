@@ -37,6 +37,8 @@ export const GEAR = {
   taser: { name: 'テーザー（予備）', kind: 'taserGear', max: 1, desc: '副武器とは別に持つテーザー。' },
   chem: { name: 'ケミライト', kind: 'chem', max: 8, desc: '光る棒。確認した部屋に置いて印にする。' },
   // 大規模戦の弾薬箱（援護・突撃。research/WARBIT.md の 32）
+  // 双眼鏡（偵察・分隊長。BattleBit: 偵察は双眼鏡、分隊長は SOFLAM。research §35）: 構えると 6 倍。引き金で遠く（800m）の敵に印
+  binoc: { name: '双眼鏡', kind: 'binoc', max: 1, zoom: 6, desc: '手に持って構えると 6 倍で見える。引き金を押すと、狙っている向きの敵に印をつける（800m まで）。' },
   // 医療キット（衛生だけ。BattleBit 2.0: 仲間の体力を戻せるのは衛生の医療キットだけ。research §33）
   medkit: { name: '医療キット', kind: 'medkit', max: 1, desc: '手に持って引き金を押している間、前 2.5m の傷ついた仲間（いなければ自分）の体力を戻し、血を止める。なくならない。' },
   ammobig: { name: '大きい弾薬箱', kind: 'ammo', max: 2, desc: '足もとの前に置く。近くに立った味方に弾倉を補給する（弾 244 発分）。置いたら拾えない。' },

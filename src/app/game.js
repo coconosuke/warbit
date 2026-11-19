@@ -11,6 +11,9 @@ import { smokeBetween } from '../engine/nades.js';
 import { sensForZoom } from './settings.js';
 import { TC } from '../ui/teamcol.js';
 // 大規模戦のエイムアシストの強さ: [体の上での見回しの速さ]（敵の見かけの動きには 1 - これ だけついていく）
+// 双眼鏡を構えている時の倍率（構えきるまでは 1）
+const BINOC_OPTIC = { kind: 'binoc', scope: true, zoom: 6 };
+function binocZoom(p) { const ws = p && p.ws; return ws && ws.slot === 2 && ws.gear === 'binoc' && GEAR.binoc ? (p.ads > 0.5 ? GEAR.binoc.zoom : 1) : 0; }
 const AA_WAR = { off: [1], weak: [0.85], mid: [0.75], strong: [0.65], max: [0.55] };
 import { sideOf, isOpen } from '../engine/doors.js';
 import { WEAPONS, zoomOf, opticOf, zoomsOf, swayCamK, scopePip } from '../engine/data/weapons.js';
@@ -160,7 +163,7 @@ export class Match {
     const st = this.app.settings, p = this.p;
     const W = curW(p), wi = curWeapon(p);
     const ads = p.ads;
-    const zoom = zoomOf(wi);
+    const zoom = binocZoom(p) || zoomOf(wi);
     let k = (inp.mouse ? 0.0022 : 0.0052) * (st.sens || 1);
     // 倍率の照準器は「スコープ」の感度（4倍が基準）を倍率に合わせて変える（画面の上で同じ速さ。2倍は0.72・8倍は0.23）
     if (ads > 0.5) k *= zoom >= 1.5 ? sensForZoom(st, zoom) : (st.sensAds || 0.75);
@@ -441,7 +444,7 @@ export class Match {
     this._lastAim = [cyaw, cpitch];
     const kk = 1 - Math.exp(-dt / 0.08), ww = this._aimW || [0, 0];
     ww[0] += ((dt > 0 ? wy / dt : 0) - ww[0]) * kk; ww[1] += ((dt > 0 ? wp / dt : 0) - ww[1]) * kk; this._aimW = ww;
-    const o = opticOf(wi);
+    const o = binocZoom(p) ? BINOC_OPTIC : opticOf(wi);
     const a = Math.max(0, Math.min(1, (p.ads - 0.7) / 0.25)), k = a * a * (3 - 2 * a);
     if (!o.scope || k <= 0 || this._pipMode) { this._scopeFx = null; return; }
     const R = Math.min(H, Wd) * (0.3 + 0.13 * k); // 接眼レンズの像の半径（目に寄るほど大きい）
@@ -966,7 +969,7 @@ export class Match {
       const lookFree = !p.tased && !p.cuffed && !p.vault;
       const cyaw = lookFree ? this.yaw : p.yaw, cpitch = lookFree ? Math.max(-1.45, Math.min(1.45, this.pitch)) : p.pitch;
       const W = curW(p), wi = curWeapon(p);
-      const zoom = zoomOf(wi);
+      const zoom = binocZoom(p) || zoomOf(wi);
       const fov0 = vfovOf(st.hfov);
       // スコープ（11-19 23:27: BattleBit に合わせる）: どの倍率も画面ぜんたいを倍率どおりに寄せ、筒の黒い輪を重ねる。輪の外も同じ倍率で見える。
       //  前は 6倍未満だけ「レンズの中だけ拡大（外は寄せない）」で、倍率を変えると周りの見え方が変わっていた
@@ -1277,7 +1280,7 @@ export class Match {
       gearSel: this.gearSel, gearId: p.ws.gear, team: this.team,
       spread: wi ? spreadDeg(S, p, WEAPONS[wi.id], wi) : 2,
       giveup: S.war && S.m.mode !== 'range' && p.alive && p.down ? (this.time - (this._guT ?? -99) < 2.5 ? 2 : 1) : 0,
-      optic: null, canVault: this.vaultOK !== false, rally: this._rallyBtn(),
+      optic: p.ws && p.ws.slot === 2 && p.ws.gear === 'binoc' ? BINOC_OPTIC : null, canVault: this.vaultOK !== false, rally: this._rallyBtn(),
       ctxLabel: c && !tooFar(c) ? (c.def.far ? '回り込む' : (OP_NAME[c.def.op] || c.def.op)) : '',
       cmdLabel: '命令', mmZoom: this.mmZoom,
       droneOK: S.pvp && S.m.kind !== 'tdm' && p.team === S.m.att && (S.m.phase === 'prep' ? !!p.staged : S.m.phase === 'action' && p.alive && !p.down) && ((p.dronesLeft ?? 2) > 0 || S.actors.some(d => d.isDrone && d.owner === p.id && d.alive)),

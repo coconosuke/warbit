@@ -10,8 +10,8 @@ export const CLASSES = {
     desc: '分隊を率いる。分隊の1人目だけが選べる。手榴弾と包帯が1つ多い。',
     guns: ['m4a1', 'hk416', 'akm', 'scarh', 'g36c', 'mini14', 'sks'],
     sec: ['m17', 'g19', 'm92'],
-    gear: [['frag', 2], ['smoke', 3], ['bandage', 4]],
-    tools: ['双眼鏡', 'ラリーポイント'],
+    gear: [['frag', 2], ['smoke', 3], ['bandage', 4], ['binoc', 1]],
+    tools: [],
   },
   assault: {
     name: '突撃', en: 'ASSAULT', short: 'ASSAULT', hp: 100,
@@ -50,8 +50,8 @@ export const CLASSES = {
     desc: '狙撃銃と DMR で遠くから。800m より遠いと胴に1発で倒せる。ヘルメットなし（90）。',
     guns: ['at308', 'hk417', 'sks', 'mini14', 'g3'],
     sec: ['deagle', 'm17', 'm1911'],
-    gear: [['frag', 1], ['smoke', 2], ['bandage', 3]],
-    tools: ['双眼鏡'],
+    gear: [['frag', 1], ['smoke', 2], ['bandage', 3], ['binoc', 1]],
+    tools: [],
     noHelmet: true,
   },
 };

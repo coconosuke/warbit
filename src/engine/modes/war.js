@@ -226,15 +226,15 @@ function sqPoints(S, team, sq, pts, why, ev, f) {
   P[key] = (P[key] || 0) + pts;
   ev.push({ e: 'sqp', team, sq, pts, why, f, n: P[key] });
 }
-export function spotEnemy(S, w, a, ev) {
+export function spotEnemy(S, w, a, ev, o = {}) {
   if (!a.alive || a.down || (a.spotT || -1e9) > S.t) return null;
   a.spotT = S.t + Math.round(0.4 / S.dt);
   const e = eyeOf(S, a), cp = Math.cos(a.pitch), fx = Math.sin(a.yaw) * cp, fy = Math.sin(a.pitch), fz = Math.cos(a.yaw) * cp;
-  let best = null, bc = Math.cos(5 * Math.PI / 180);
+  let best = null, bc = Math.cos((o.deg || 5) * Math.PI / 180);
   for (const b of S.actors) {
     if (!b.alive || b.down || b.team === a.team || b.team < 0 || b.team > 1 || b.dummy && false) continue;
     const ty = b.y + (b.st > 1.5 ? 0.3 : b.st > 0.5 ? 0.9 : 1.3), dx = b.x - e[0], dy = ty - e[1], dz = b.z - e[2], d = Math.hypot(dx, dy, dz);
-    if (d > 450 || d < 0.5) continue;
+    if (d > (o.range || 450) || d < 0.5) continue;
     const c = (dx * fx + dy * fy + dz * fz) / d;
     if (c <= bc) continue;
     if (!warLos(w, e[0], e[1], e[2], b.x, ty, b.z) || smokeBetween(S, e[0], e[1], e[2], b.x, ty, b.z) >= 0.6) continue;
@@ -479,6 +479,8 @@ export default {
     const n0 = evs.length;
     for (let i = 0; i < n0; i++) {
       const e = evs[i];
+      // 双眼鏡の印（射撃場でも）
+      if (e.e === 'binocSpot') { const a = S.byId[e.id]; if (a && !m.over) spotEnemy(S, w, a, evs, { range: 800, deg: 2.5 }); continue; }
       if (m.mode === 'range' || m.over) { if (e.e === 'kill' && m.scd) delete m.scd[e.id]; if (e.e !== 'kill') continue; }
       else if (e.e === 'down') { const v = S.byId[e.id]; if (v) creditKill(S, v, S.byId[e.by], e.part, evs); continue; }
       else if (e.e === 'healPts') { award(S, S.byId[e.id], 10, 'heal', evs, { v: e.v }); continue; }

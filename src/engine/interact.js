@@ -825,7 +825,7 @@ function selectGear(S, a, id, ev) {
   if (!g || g.n <= 0) { ev.push({ e: 'deny', id: a.id, why: 'nogear' }); return; }
   // 回復の道具は、体力が満タンで血も止まっているときは使えない（11-13 20:50。道具が変わっても同じ）
   if (G.kind === 'heal') { if (a.act) return; if (!needsHeal(a)) { ev.push({ e: 'deny', id: a.id, why: 'fullhp' }); return; } if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage, kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
-  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy' || G.kind === 'ammo' || G.kind === 'medkit') {
+  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy' || G.kind === 'ammo' || G.kind === 'medkit' || G.kind === 'binoc') {
     // 手に持つ（slot 2）。引き金で投げる・吹きつける・前に置く
     a.ws.gear = id;
     if (a.ws.slot !== 2) switchTo(S, a, 2, ev);
@@ -843,6 +843,8 @@ function gearInHand(S, w, a, dt, ev) {
   const id = ws.gear;
   const g = a.inv.gear.find(x => x.id === id);
   if (!g || g.n <= 0) { switchTo(S, a, ws.prev >= 0 ? ws.prev : 0, ev); ws.st = 'holster'; return; }
+  // 双眼鏡: 押した時に印（大規模戦の印の決まりで、遠く・細く）
+  if (GEAR[id].kind === 'binoc') { const pr = !!inp.fire && !ws.gearTrig; ws.gearTrig = !!inp.fire; if (pr) ev.push({ e: 'binocSpot', id: a.id }); return; }
   // 医療キット: 押している間ずっと
   if (GEAR[id].kind === 'medkit') { ws.gearTrig = !!inp.fire; if (inp.fire) medkitTick(S, a, dt, ev); else ws.healT = 0; return; }
   const press = !!inp.fire && !ws.gearTrig;
