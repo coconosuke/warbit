@@ -53,6 +53,8 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   // 反動の戻り（撃ち続けている間は弱く）
   const W = curW(a), wi = curWeapon(a);
   const since = (S.t - ws.lastShot) * S.dt;
+  // 指で下へ押さえた分（大規模戦の人の操作 inp.rc 度）は反動の分から引く（戻りで二重に下がらない。game.js _look）
+  if (inp.rc > 0 && ws.rp > 0) ws.rp = Math.max(0, ws.rp - Math.min(inp.rc, 30));
   if (W) {
     const ctrl = W.rc.ctrl * (since > 0.12 ? 1 : 0.25);
     const dec = ctrl * dt;

@@ -188,7 +188,13 @@ export function moveActor(S, w, a, inp, dt, ev) {
   else if (a.y - g > 0.04) {
     if (a.airTop == null) a.airTop = a.y;
     a.vy -= 9.8 * dt; a.y += a.vy * dt;
-    if (a.y <= g) { const v = -a.vy, hh = a.airTop - g; a.y = g; a.vy = 0; a.airTop = null; a.air = false; land(S, w, a, hh, v, ev); }
+    if (a.y <= g) {
+      const v = -a.vy, hh = a.airTop - g; a.y = g; a.vy = 0; a.airTop = null; a.air = false;
+      // 跳んだあとの軽い着地（音だけ）
+      if (a.jumped && hh < 1.2 && ev && !S.predict) ev.push({ e: 'fall', id: a.id, v: Math.round(v * 10) / 10, h: 0.4, d: 0, roll: 0, x: a.x, y: a.y, z: a.z, loud: 0.4 });
+      a.jumped = false;
+      land(S, w, a, hh, v, ev);
+    }
   }
   else { a.y = g; a.vy = 0; a.airTop = null; a.air = false; }
   a.ground = a.y - g < 0.05;
@@ -350,6 +356,20 @@ export function tryVault(S, w, a, ev) {
   a.vx = a.vz = 0; a.sprint = false;
   // 窓のガラスを割る（手元の先読みでは割らない。ホストが割って知らせる）
   if (p.gk >= 0 && !S.predict && ev) breakGlass(S, w, { k: p.gk, q: 1, x: p.x1, by: a.id }, ev);
+  return true;
+}
+// 跳ぶ（大規模戦。乗り越えのボタンで、越える物がないとき）: 立っていて足が地面についているときだけ。
+// 上へ 3.6 m/秒（約 0.66m）。頭の上が低いときは低く。宙では向きをほとんど変えられず、照準は広がる（weapon.js の airT）
+export const JUMP_V = 3.6;
+export function tryJump(S, w, a, ev) {
+  if (a.vault || a.air || !a.ground || a.st > 0.5 || a.down || a.dead || !a.alive || a.cuffed || a.comply || a.isDrone || (a.stun || 0) > 0) return false;
+  if ((a.jumpCd || 0) > S.t) return false;
+  const room = ceilAt(w, a.x, a.z, a.y) - (a.y + 1.85);
+  if (room < 0.15) return false;
+  const v = Math.min(JUMP_V, Math.sqrt(2 * 9.8 * Math.max(0.05, room)));
+  a.vy = v; a.y += 0.05; a.air = true; a.ground = false; a.airTop = a.y; a.jumped = true;
+  a.jumpCd = S.t + Math.round(0.35 / S.dt);
+  if (ev) ev.push({ e: 'jump', id: a.id });
   return true;
 }
 function stepVault(S, w, a, dt) {

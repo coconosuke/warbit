@@ -107,7 +107,7 @@ export class HostSession {
     G.input = {
       mx: isNum(i.mx) ? clamp(i.mx, -1, 1) : 0, mz: isNum(i.mz) ? clamp(i.mz, -1, 1) : 0,
       yaw: isNum(i.y) ? i.y : 0, pitch: isNum(i.p) ? clamp(i.p, -1.5, 1.5) : 0,
-      fire: !!i.f, ads: !!i.a, low: !!i.l, stance: [0, 1, 2].includes(i.s) ? i.s : 0, lean: isNum(i.ln) ? clamp(Math.round(i.ln), -1, 1) : 0, sprint: !!i.sp, breath: !!i.br, power: isNum(i.pw) ? clamp(i.pw, 0.1, 1) : 0.75,
+      fire: !!i.f, ads: !!i.a, low: !!i.l, stance: [0, 1, 2].includes(i.s) ? i.s : 0, lean: isNum(i.ln) ? clamp(Math.round(i.ln), -1, 1) : 0, sprint: !!i.sp, breath: !!i.br, rcT: isNum(i.rc) && i.rc >= 0 ? i.rc : null, power: isNum(i.pw) ? clamp(i.pw, 0.1, 1) : 0.75,
       jump: !!i.j, dr: !!i.dr,
     };
     G.inAt = nowMs();
@@ -118,6 +118,8 @@ export class HostSession {
     const G = r && this.guests.get(r.cid);
     if (!G || !G.input || nowMs() - (G.inAt || 0) > 1500) return { mx: 0, mz: 0, yaw: a ? a.yaw : 0, pitch: a ? a.pitch : 0, fire: false, ads: false, low: false, stance: a ? a.stance : 0, lean: 0, act: G && G.acts.length ? G.acts.splice(0) : null };
     const inp = { ...G.input, act: G.acts.length ? G.acts.splice(0) : null };
+    // 反動の押さえ: ゲストは押さえた量の合計（度）を送る。前のステップからの増えた分だけ渡す（同じ入力が何回使われても1回分）
+    if (inp.rcT != null) { if (G.rcT == null || inp.rcT < G.rcT) G.rcT = inp.rcT; inp.rc = clamp(inp.rcT - G.rcT, 0, 30); G.rcT = inp.rcT; }
     return inp;
   }
   // 試合中に通信の切れた人（ホストは試合を止めて待つ）

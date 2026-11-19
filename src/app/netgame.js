@@ -2,7 +2,7 @@
 //  ホスト: エンジンを動かし、ゲストの入力と動作をエンジンへ渡し、写しを配る。ゲストが切れたら止めて待つ。
 //  ゲスト: エンジンは動かさず、ホストの写しを補間して表示する。自分の移動と銃（反動・弾の見た目）だけは手元で先に動かし、ホストの位置へなめらかに寄せる。
 import { packStatic, packSnap, packEvent, NET_EV } from '../net/snap.js';
-import { moveActor, tryVault } from '../engine/move.js';
+import { moveActor, tryVault, tryJump } from '../engine/move.js';
 import { stepWeapon } from '../engine/weapon.js';
 import { doAction } from '../engine/interact.js';
 import { setSalt } from '../engine/rng.js';
@@ -115,11 +115,11 @@ export function netMixin(Match) {
       if (cmd.act) for (const ac of cmd.act) {
         sess.pushAct(ac);
         if (LOCAL_ACTS.has(ac.a)) { try { doAction(S, this.w, me, ac, ev); } catch (e) { /* なし */ } }
-        else if (ac.a === 'vault') { try { tryVault(S, this.w, me); } catch (e) { /* なし */ } } // 乗り越え・飛び降りも手元で先に（ホストと同じ計算）
+        else if (ac.a === 'vault') { try { if (!tryVault(S, this.w, me) && ac.jump && S.war) tryJump(S, this.w, me); } catch (e) { /* なし */ } } // 乗り越え・飛び降りも手元で先に（ホストと同じ計算）
       }
       const dc = this.droneId != null ? this._droneCmd(inp) : null;
       if (dc && this.droneId != null) sess.setInput({ mx: r2(dc.mx), mz: r2(dc.mz), y: r4(dc.yaw), p: r4(dc.pitch), f: dc.fire ? 1 : 0, j: dc.jump ? 1 : 0, s: cmd.stance, dr: 1 });
-      else sess.setInput({ mx: r2(cmd.mx), mz: r2(cmd.mz), y: r4(cmd.yaw), p: r4(cmd.pitch), f: cmd.fire ? 1 : 0, a: cmd.ads ? 1 : 0, s: cmd.stance, ln: cmd.lean, sp: cmd.sprint ? 1 : 0, br: cmd.breath ? 1 : 0, pw: cmd.power });
+      else sess.setInput({ mx: r2(cmd.mx), mz: r2(cmd.mz), y: r4(cmd.yaw), p: r4(cmd.pitch), f: cmd.fire ? 1 : 0, a: cmd.ads ? 1 : 0, s: cmd.stance, ln: cmd.lean, sp: cmd.sprint ? 1 : 0, br: cmd.breath ? 1 : 0, rc: r4(this.rcTot = (this.rcTot || 0) + (cmd.rc > 0 ? cmd.rc : 0)), pw: cmd.power });
       // 描くときの補間用（ステップの前の自分の位置）
       { const P = this._prev || (this._prev = new Map()); let q = P.get(me.id); if (!q) P.set(me.id, q = [0, 0, 0]); q[0] = me.x; q[1] = me.y; q[2] = me.z; }
       if (me.alive && !me.down && !me.cuffed) {

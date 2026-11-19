@@ -8,7 +8,7 @@ export const BTN = {
   reload: { name: 'リロード', ax: 'r', ay: 'b', x: 36, y: 205, s: 50, icon: 'reload' },
   crouch: { name: 'しゃがむ（長押しで伏せ）', ax: 'r', ay: 'b', x: 36, y: 40, s: 50, icon: 'crouch' },
   breath: { name: '息止め（構えている間）', ax: 'r', ay: 'b', x: 240, y: 126, s: 50, icon: 'breath', warOnly: true, adsOnly: true },
-  vault: { name: '乗り越え', ax: 'r', ay: 'b', x: 160, y: 200, s: 48, icon: 'vault' },
+  vault: { name: '乗り越え・跳ぶ', ax: 'r', ay: 'b', x: 160, y: 200, s: 48, icon: 'vault' },
   melee: { name: '近接（銃床で殴る）', ax: 'r', ay: 'b', x: 160, y: 254, s: 44, icon: 'melee' },
   leanL: { name: '左にリーン', ax: 'l', ay: 'b', x: 36, y: 168, s: 48, icon: 'leanL' },
   leanR: { name: '右にリーン', ax: 'l', ay: 'b', x: 210, y: 168, s: 48, icon: 'leanR' },

@@ -3,7 +3,7 @@
 import { compileMap, CS, LH } from './world.js';
 import { rngNew, rnd, setSalt } from './rng.js';
 import { COMPAT } from './data/version.js';
-import { moveActor, separateActors, tryVault } from './move.js';
+import { moveActor, separateActors, tryVault, tryJump } from './move.js';
 import { stepWeapon } from './weapon.js';
 import { stepBullets, hooks, stepMelee } from './combat.js';
 import { makeDoorStates, stepDoors } from './doors.js';
@@ -103,7 +103,8 @@ export function step(G, inputs = {}) {
     else if (a.pid == null && a.act && !a.act.quick && a.act.kind !== 'self' && a.act.k !== 'report') inp = actingInput(a, inp, dt);
     a._inp = inp;
     if (inp.act) for (const ac of inp.act) {
-      if (ac.a === 'vault') tryVault(S, w, a, ev);
+      // 乗り越え（越える物がなければ、大規模戦では跳ぶ。人の操作だけ jump が付く）
+      if (ac.a === 'vault') { if (!tryVault(S, w, a, ev) && ac.jump && S.war) tryJump(S, w, a, ev); }
       else if (mod.act && mod.act(S, w, a, ac, ev)) { /* モードの動作（ドローン・出現地点） */ }
       else doAction(S, w, a, ac, ev);
     }

@@ -138,6 +138,8 @@ export class Match {
     const ws = this.p.ws, A = this._prevAim, kk = 1 - this._alpha;
     let keep = null;
     if (ws && A && kk > 0.001 && !this.done) { keep = [ws.sx, ws.sy, ws.ry, ws.rp]; ws.sx = (ws.sx || 0) + (A[0] - (ws.sx || 0)) * kk; ws.sy = (ws.sy || 0) + (A[1] - (ws.sy || 0)) * kk; ws.ry = (ws.ry || 0) + (A[2] - (ws.ry || 0)) * kk; ws.rp = (ws.rp || 0) + (A[3] - (ws.rp || 0)) * kk; }
+    // まだエンジンに渡していない反動の押さえも、描く向きには先に入れる（指を引いた分がすぐ映るように）
+    if (ws && this.rcComp > 0 && !this.done) { if (!keep) keep = [ws.sx, ws.sy, ws.ry, ws.rp]; ws.rp = Math.max(0, (ws.rp || 0) - this.rcComp); }
     try { this._render(dt, inp); } finally { if (keep) { ws.sx = keep[0]; ws.sy = keep[1]; ws.ry = keep[2]; ws.rp = keep[3]; } }
     this._hud(dt);
     // 終わり
@@ -191,7 +193,14 @@ export class Match {
     // のぞいている（ミラー・オプティワンド）: 見回すのはカメラだけ。体は動かない
     if (p.peek) { const mx = p.peek.max || 1; this.pkYaw = clamp(this.pkYaw - dx * 0.8, -mx, mx); this.pkPitch = clamp(this.pkPitch - dy * 0.8 * (st.invertY ? -1 : 1), -0.55, 0.7); return; }
     this.yaw -= dx;
-    this.pitch = clamp(this.pitch - dy * (st.invertY ? -1 : 1), -1.4, 1.4);
+    let dP = -dy * (st.invertY ? -1 : 1);
+    // 反動の押さえ（大規模戦。BattleBit の 2024 の手直し・research の 19）: 反動で上がっている間に下へ引いた分は、
+    //  まず反動の分から引く（体の向きは下げない）。あとで反動が戻るときに二重に下がらない。エンジンへは cmd.rc（度）で渡す
+    if (this.S.war && dP < 0 && p.ws && p.alive) {
+      const left = (p.ws.rp || 0) - (this.rcComp || 0);
+      if (left > 0) { const c = Math.min(left * DEG, -dP); this.rcComp = (this.rcComp || 0) + c / DEG; dP += c; }
+    }
+    this.pitch = clamp(this.pitch + dP, -1.4, 1.4);
     if (!p.alive || p.down && !this.S.pvp) return;
     // 手元の動作（拘束・作業・拾う・取りつけ）: 視線を手元へ寄せる（指で見回すのは続けられる）
     const x = p.act;
@@ -247,7 +256,8 @@ export class Match {
         case 'reload': if (k === 'down') this.acts.push({ a: 'reload' }); else if (k === 'long' || (k === 'longup' && e.key)) this.acts.push({ a: 'reload', fast: true }); break;
         case 'crouch': if (k === 'down') { this._stWas = this.stance; this.stance = this.stance === 0 ? 1 : this.stance === 1 ? 0 : 1; } else if (k === 'long' && !e.key) this.stance = this._stWas === 2 ? 0 : 2; break;
         case 'prone': if (k === 'down') this.stance = this.stance === 2 ? 0 : 2; break;
-        case 'vault': if (k === 'down') this.acts.push({ a: 'vault' }); break;
+        // 乗り越え・跳ぶ（大規模戦。BattleBit と同じく1つのボタン。越える物がなければ跳ぶ）
+        case 'vault': if (k === 'down') this.acts.push(this.S && this.S.war ? { a: 'vault', jump: 1 } : { a: 'vault' }); break;
         // 息止め（11-19 13:31: 切り替えで）: 押すたびに入る・切れる。構えをやめる・息が切れると切れる（_command）
         case 'breath': if (k === 'down' && (st.breathMode || 'toggle') === 'toggle') { this.breathOn = !this.breathOn; this._brT = this.time; } break;
         case 'leanL': case 'leanR': {
@@ -315,7 +325,9 @@ export class Match {
       // 息止め: ボタン（構えている間だけ出る。切替か長押し）か、構えているときの Shift（押している間。走りにはならない）
       breath: brBtn || (this.adsOn && !!(this.app.input.keys && this.app.input.keys.has('ShiftLeft'))),
       act: this.acts.length ? this.acts.splice(0) : null, power: 0.75,
+      rc: this.rcComp > 0 ? this.rcComp : 0,
     };
+    this.rcComp = 0;
     if (cmd.breath && this.adsOn) cmd.sprint = false;
     if (this.droneId != null) { cmd.mx = 0; cmd.mz = 0; cmd.fire = false; }
     if (this.camView != null) {
@@ -698,6 +710,7 @@ export class Match {
         case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); break;
         case 'exhale': if (e.id === me) au.sfx('exhale', null, { vol: 0.6 }); break;
         case 'inhale': if (e.id === me) au.sfx('inhale', null, { vol: 0.6 }); break;
+        case 'jump': { const a = S.byId[e.id]; if (a) au.sfx('land', a === p ? null : [a.x, a.y + 0.2, a.z], { vol: a === p ? 0.3 : 0.25, rate: 1.5 }); break; }
         // 置いた物（置ける盾・有刺鉄線）
         case 'depset': au.sfx(e.k === 'wire' ? 'impMetal' : 'barricade', [e.x, e.y + 0.3, e.z], { vol: e.id === me ? 0.55 : 0.8, rate: e.k === 'wire' ? 1.4 : 0.8 }); break;
         case 'depbreak': if (e.why !== 'pick') { fx.debris(e.x, e.y, e.z, e.k === 'wire' ? [0.55, 0.56, 0.54] : [0.24, 0.26, 0.25]); au.sfx('impMetal', [e.x, e.y, e.z], { vol: 1, rate: 0.7 }); } else au.sfx('draw', [e.x, e.y, e.z], { vol: 0.5 }); break;

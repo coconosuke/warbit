@@ -469,6 +469,37 @@ try {
       const b4 = await page.evaluate(() => !window.__app.game.p.ws.holding && !window.__app.game.breathOn);
       rec('操作', '息止めは切り替え: 押して離しても止めたまま・もう1回で戻す・構えをやめると切れる', b1 && b2 && b3 && b4, JSON.stringify({ b1, b2, b3, b4 }));
     }
+    // 反動の押さえ（research の 19）: 反動で上がっている間に下へ引いた分は反動から引き、体の向きは下げない。上がっていなければ向きが下がる
+    {
+      const rc = await page.evaluate(() => {
+        const g = window.__app.game, p = g.p, inp = { lookDX: 0, lookDY: 40, mouse: true, fire: false, gyroX: 0, gyroY: 0, hold: new Set() };
+        g.adsOn = false; p.ws.rp = 8; g.rcComp = 0; const p0 = g.pitch;
+        g._look(inp, 0.016);
+        const r1 = { dPitch: +(g.pitch - p0).toFixed(4), comp: +(g.rcComp || 0).toFixed(3) };
+        p.ws.rp = 0; g.rcComp = 0; const p1 = g.pitch;
+        g._look(inp, 0.016);
+        return { ...r1, dPitch2: +(g.pitch - p1).toFixed(4) };
+      });
+      rec('操作', '反動の押さえ: 反動で上がっている間に下へ引いた分は反動から引く（体の向きは下げない）', rc.dPitch === 0 && rc.comp > 0 && rc.dPitch2 < 0, JSON.stringify(rc));
+    }
+    // 跳ぶ（乗り越えのボタン。越える物がない射台の上）
+    {
+      // 射台の机などを越えないよう、越える物のない向きを探す（越えたら向きを変えてやり直す）
+      let y0 = 0, top = 0, y1 = 0, vaulted = 0;
+      for (let k = 0; k < 4; k++) {
+        await page.waitForFunction(() => window.__app.game.p.ground && !window.__app.game.p.vault, null, { timeout: 10000 }).catch(() => {});
+        y0 = await page.evaluate((k) => { const g = window.__app.game; g.yaw += k ? Math.PI / 2 : 0; return g.p.y; }, k);
+        await page.waitForTimeout(300);
+        await tapAt(await btn('vault'), 73 + k);
+        const r = await page.evaluate(async () => { const p = window.__app.game.p; let t = p.y, v = false; for (let i = 0; i < 40; i++) { await new Promise(r => setTimeout(r, 25)); t = Math.max(t, p.y); v = v || !!p.vault; } return { t, v }; });
+        top = r.t;
+        if (r.v) { vaulted++; continue; }
+        await page.waitForFunction(() => window.__app.game.p.ground, null, { timeout: 10000 }).catch(() => {});
+        y1 = await page.evaluate(() => window.__app.game.p.y);
+        break;
+      }
+      rec('操作', '乗り越えのボタン: 越える物がなければ跳ぶ（大規模戦）', top - y0 > 0.3 && Math.abs(y1 - y0) < 0.1, `高さ ${(top - y0).toFixed(2)}m・降りて ${(y1 - y0).toFixed(2)}・越えた ${vaulted}`);
+    }
     await page.evaluate(() => { window.__app.game.adsOn = false; });
     const bar = await page.evaluate(() => (document.querySelector('#hud .hud-obj .wb.rg') || {}).textContent || '');
     rec('射撃場', '人形に当てると、上の帯に部位・ダメージ・距離が出る', !!hit && hit.m > 15 && hit.m < 40 && /m/.test(bar), `${JSON.stringify(hit)}・帯「${bar}」`);
