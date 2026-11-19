@@ -6,8 +6,8 @@
 - 対戦（PvP）: Rainbow Six Siege の決まり。1対1〜4対4、空き枠はボット。チームデスマッチ（復活あり／なし）と爆弾（設置・解除）。
 - 見た目と動き: BattleBit Remastered のようなローポリと実際の体の比率。銃は実銃。
 
-- 遊ぶ: https://coconosuke.github.io/hardentry/
-- 版: v0.1.16
+- 遊ぶ: https://coconosuke.github.io/warbit/
+- 版: v0.1.17
 - 横持ち・ヘッドホン推奨
 
 ## ホーム画面に入れる

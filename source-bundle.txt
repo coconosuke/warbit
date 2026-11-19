@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-13T06:13:01.654Z）
+HARD ENTRY ソース一式（2026-11-19T03:43:10.152Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 121001
+@@@@ FILE DESIGN.md text 123163
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -88,6 +88,9 @@ HARD ENTRY ソース一式（2026-11-13T06:13:01.654Z）
 - 2026-11-13 10:19 リバーベンドを遊んだ感想: 建築物・遮蔽物が少なく、建築物の質が低い。グラフィック・質感・挙動が BattleBit を再現できていない。AI が固まって棒立ちが多く、頭があまり良くない。これから作り込む予定だったか（→ 一部だけ予定にあったと答えた: AI の蘇生・手榴弾・回り込み・建物の中は M3〜M4 の予定。建物の数と質、見た目と挙動の作り込みは段階に入っていなかった。3つとも M3 より先にやる案を出した: ① AI ② マップ ③ 見た目と挙動）。
 - 2026-11-13 11:07 順番は効率で決めてよい。とにかく常に細かな点まで極力 BattleBit そのままで再現する意識で、徹底的にリサーチしながら進める（→ 順番は ① マップ（建物・遮蔽物）② AI ③ 見た目と挙動。research/WARBIT.md の 13）。
 - 2026-11-13 14:35 建物以外の高低差・地形・植生も BattleBit を参考にこだわる。マップは BattleBit そのままでなくても真似するイメージで。グラフィックは質感やポリゴンに加え、明暗・彩度・コントラストも再現。設定の「確認が必要な操作」の項目をなくす。リロードボタンのアイコンは主なスマホFPSと同じ弾丸に円形の矢印。キャラの挙動、銃の反動、サイトやスコープの覗き方・表示・揺れ、リコイル、できる動作（乗り越え・ジャンプ・しゃがみ・匍匐など）の種類と動き方も緻密に再現（→ 設定の項目とリロードのアイコン、地形と植生は 0.1.16 に入れる。15:09 に同じ要望がもう一度届き、順番を ① マップ（0.1.16）② 見た目（明暗・彩度・コントラスト）③ 挙動（反動・サイト・動作）④ AI と伝えた）。
+- 2026-11-13 20:50 息止め（スコープ安定）の仕様を確かめて実装。カメラ操作（エイム）の反応をもっと繊細・緻密・なめらかに（遠くを狙うと微妙にかくつく）。タイトルの下とモードの下の日本語の文はいらない。レティクル（中央の十字）が点滅している。体力が最大でも包帯が使える（回復の道具が変わっても満タンでは使えないように）。
+- 2026-11-19 12:01 続けて。グラフィックをさらに BattleBit に（特に彩度・コントラスト・色味）。植物が BattleBit より明らかにカラフルでパキッとした高彩度なので直す。
+- 2026-11-19 12:28 色味は多少近づいたが、フェード感や白っぽさが出すぎて視認性が微妙。BattleBit に近づけて。
 
 ## 約束（仕様・数値）— 必ず守る。守れなくなったら先に言う
 - 仮に決めて伝えたこと（15:20 送信）: ゲーム名「HARD ENTRY」（仮）。PvP は「SWAT 対 立てこもり犯」の攻守（シージの攻撃／防衛に相当）。掛け声・無線は英語の音声＋日本語字幕。血の表現あり（設定で消せる）。アプリ版のリポジトリはユーザーに作ってもらう（`hardentry`、Settings → Pages で main / root）。
@@ -347,6 +350,7 @@ HARD ENTRY ソース一式（2026-11-13T06:13:01.654Z）
 - 11-13 WAR BIT M2（コンクエストとボット）: 拠点（1人で中立→確保 10 秒・敵の拠点は 20 秒・人数で速く最大4人分・同じ人数で止まる・誰もいないと持ち主の側へゆっくり戻る）、チケット（小 300・中 500・大 800。出撃で1減る。過半数の拠点で相手が 差×0.3/秒 減る。0 で負け）、旗（竿の布が進み具合で上下・持ち主の色・地面の輪）、上の帯（両チームのチケットと拠点、奪い合いは点滅、分隊の目標に印）、世界の上の印（拠点の文字と距離・味方の頭の上の印・分隊は緑）、倒れたら出撃の板（本陣か出撃できる自軍の拠点を選ぶ。7 秒）、勝敗と成績表。ボット（src/war/ai.js・nav.js）: 足りない人数を埋める（小で31体）。8人の分隊ごとに指揮が目標の拠点を割り当て（守る・取りに行く）、2m の格子の A* で外を歩き、拠点の中に散って見張る。見えた敵は反応の遅れのあとで撃つ（遠いほど丁寧・弾の落ちと移動の見越し・交戦距離の外では4割だけ止まって撃つ）。陣営で服の色が違う（味方 オリーブ・相手 砂色）。ボットだけの 16対16・2分: 射撃約5500・命中4.5%・ダウン42・キル26・1ステップ 1.3ms。橋は坂の板にした（西の岸が3m低く、平らな板では上がれなかった）。投げ物: 破片手榴弾（M67。約4秒・5mでほぼ致命・15mまで弱まる・35mまで投げられる）と衝撃手榴弾（当たった瞬間に爆発・8mまで）を足した（11-12 23:08 の「グレネード類も複数種類」の要望。閃光 M84・発煙はもとから。兵科ごとの持ち物は M3）。大規模戦のダウンは 10 秒（起こす仕組みは M3）。遠い銃声は 700m より先は鳴らさず、60m より遠い銃声は 0.25 秒に 10 発まで。
 - 11-13 WAR BIT 0.1.15（メニューとモードの入れ替え）: タイトルを WAR BIT だけに（独自のブロック文字のロゴ・PLAY／SHOOTING RANGE／SETTINGS・右上に名前・背景は射撃場の谷に立つ分隊5人）。PLAY はモードの札（CONQUEST 16・32・64 vs／DOMINATION 16・32 vs／TEAM DEATHMATCH 8・16 vs）と人数のボタンで、押すとすぐ始まる。試合は出撃の画面から（上の帯にマップ・モード・人数・点、地図の上の出撃の場所（本陣・持っている拠点）、左に分隊の欄、下に兵科6つ（分隊長は分隊の1人目だけ）、左下 LOADOUT で主の銃と拳銃、右下 DEPLOY。倒れると1.8秒あとに開き、待ちの秒数が出る。先に押すと時間が来たら出る）。開いている間は 3D を描かない。兵科（src/war/classes.js）: 体力 援護125・偵察90（ヘルメットなし）・ほか100、銃は兵科ごと、投げ物と包帯の数も兵科ごと（衛生の包帯16）。道具（弾薬箱・医療キット・RPG・双眼鏡）は M3 で、画面には「準備中」。ボットも兵科を持つ（分隊の1人目は分隊長・ほかは重みつき）。モード（engine/modes/war.js）: ドミネーション（工場・橋・町の広場の拠点3つ）・TDM（町の中 200m 四方。4人ずつの組で敵の近くへ）。旗と印の色は見る人から見て 味方 青・敵 赤・中立 白。上の帯の拠点は A から順、ドミネーション・TDM は残り時間と目標。上の帯を押すとスコア表（上位10人）。結果は VICTORY／DEFEAT・理由・両チームの表・PLAY AGAIN。一時停止は RESUME／MAP／SETTINGS／QUIT。射撃場（src/war/maps/range.js）: 420×1400m の谷。屋根つきの射台、10・25・50・75・100・150・200・300・400・500・650・800・1000m の人形（敵の服。倒れて3秒で同じ所に起き上がる）と距離の札（世界の上の印。重なる物は出さない）、50m より先の人形の後ろに土の山、横に動きの練習場（家・塔・コンテナ・高さ 1・1.4・2.2m の塀・土のう）。弾と投げ物は減らない。当てると上の帯と出来事に部位・ダメージ・距離。右上の兵科のボタンか一時停止の LOADOUT で出撃の画面へ戻って兵科・銃を変える（倒されたことにはしない）。遠くまで描く（1180m・もやを薄く）。分隊の名前はチーム 0 が A〜H、1 が O〜V（結果の表で見分ける）。HUD の弾は「残り／×予備の弾倉の数」と弾倉ごとの残り（BattleBit も弾倉で見せる。前は対戦と同じ ∞ だった）、射撃モードは AUTO・SEMI・BOLT。エイムアシストは設定の値が大規模戦にも効く（前は対戦の部屋の設定を見ていた）。アイコンを WAR BIT のブロック文字に（tools/mkicon.py）。単体テスト 5 件（war modes）。テスト一式を WAR BIT に合わせた（旧モードのブラウザと自動の試合の項目は外した）。版 0.1.15（互換9のまま）。
 - 11-13 WAR BIT 0.1.16（リバーベンドの作り直し・地形と植生・設定とリロードのアイコン）: 10:19・11:07・14:35 の要望。建物は 23 → 約 350（家・平屋・店・アパート・事務所・倉庫・納屋・小屋・礼拝堂・ガソリンスタンド・掩体壕・見張り塔・壊れた家。src/war/buildings.js）。町は道の格子にそって並べ（大通りは店とアパートをつめて並べる・裏庭の塀と生け垣・車道の車・小屋）、広場（D）は石畳・噴水・屋台・植え込み・土のう、南に礼拝堂。歩道（縁石）。工場はコンクリートの構内・倉庫4・事務所・サイロ・煙突・給水塔・コンテナの囲い・塀と門。丘は塔2・掩体壕2・兵舎・壕と縁の土のう・ヘスコ・対戦車の障害物。農場は納屋・サイロ・給水塔・干し草・柵、果樹園。村は礼拝堂と家・平屋・石垣・生け垣・給水塔、ぶどう畑。十字路はガソリンスタンド・食堂・家。本陣にテント。拠点の間に前哨・農家・壊れた家・掩体・焼けた車・電柱（src/war/props.js）。地形は3段の起伏と端の丘・尾根・段々の石切り場・乾いた小川3本・道の切り通しと盛り土。植生は森（芯が濃い）・茂み（通り抜けられる。約3000）・畑（麦・耕した土・牧草）・木の列・草の株（近くだけ。画質で距離）。岩は低ポリの塊。床の縁が壁の外に帯で見えるのを直した。設定の「確認が必要な操作」を消した（動きは今までの既定のまま）。リロードのアイコンを弾丸と円の矢印に。research/WARBIT.md の 13・14。版 0.1.16（互換9のまま）。
+- 11-19 WAR BIT 0.1.17（息止め・エイムのなめらかさ・色・小さな直し）: 11-13 20:50・11-19 12:01 の要望。息止め（構えている間だけ出るボタン・PC は構えて Shift。揺れが 1 割・息は約 5 秒・切れると息が上がる・照準の下に息の棒・音。research の 16）。タッチの見回しに応答曲線（ゆっくりは細かく・速く振ると速く。設定でオフにできる）と、届いた量を約 20ms に分けて足すなめらかさ。中央の十字の点滅を直す（下り坂や縁石で一瞬だけ宙に浮いた扱いになり、照準が大きく開いていた → 0.42m までの段は足を地面につけたまま・宙は 0.12 秒たってから広げる・開きはなめらかに 1px 単位・構えの出し消しに幅）。包帯などの回復の道具は体力が満タンでは使えない（「体力が満タン」）。タイトル・PLAY の日本語の説明を消し、人数のボタンの下は TICKETS・POINTS・KILLS。色: 草と葉をオリーブへ・仕上げで彩度を抑え、日の当たった緑の色を少し抜く。白っぽく持ち上げる調整ともやの追加は 12:28 の声で取りやめ、コントラストは少し締めた（research の 17）。版 0.1.17（互換9のまま）。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -437,9 +441,9 @@ frame();
 <body><canvas id="c"></canvas><div id="info"></div>
 <script type="module" src="./war.mjs"></script></body></html>
 
-@@@@ FILE dev/war.mjs text 1802
+@@@@ FILE dev/war.mjs text 2056
 // 大規模戦の世界の見た目の確認用（Playwright から window.__war を使う）
-import { Renderer, gfxOf } from '../src/render/renderer.js';
+import { Renderer, gfxOf, WAR_GRADE } from '../src/render/renderer.js';
 import { buildRiverbend } from '../src/war/maps/riverbend.js';
 import { buildKit } from './kitworld.mjs';
 import { buildRange } from '../src/war/maps/range.js';
@@ -461,7 +465,9 @@ function frame(o = {}) {
   if (o.yaw != null) cam.yaw = o.yaw; if (o.pitch != null) cam.pitch = o.pitch;
   if (o.warm) r.warmWar(cam.x, cam.z);
   const t = performance.now();
-  r.render({ cam, lights: [], post: { exposure: r.sky.exposure ?? 1 }, dt: 0.016 });
+  // ゲームと同じ仕上げ（色の調整・彩度・周辺減光）。?raw で調整なし
+  const raw = new URLSearchParams(location.search).has('raw');
+  r.render({ cam, lights: [], post: { exposure: r.sky.exposure ?? 1, vig: 0.32, grade: raw ? null : WAR_GRADE, sat: raw ? 0.97 : 1.08 * WAR_GRADE.sat }, dt: 0.016 });
   const ms = performance.now() - t;
   document.getElementById('info').textContent = `world ${worldMs.toFixed(0)}ms build ${r.buildMs.toFixed(0)}ms draws ${r.stats.draws} tris ${(r.stats.tris / 1000).toFixed(1)}k chunks ${r.stats.chunks} cpu ${ms.toFixed(1)}ms`;
   return { draws: r.stats.draws, tris: r.stats.tris, ms };
@@ -500,7 +506,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 109559
+@@@@ FILE src/app/game.js text 111420
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -524,7 +530,7 @@ import { gunModel } from '../render/guns.js';
 import { roomGraph } from '../engine/ai/nav.js';
 import { LINES } from '../audio/lines.js';
 import { vfovOf } from './settings.js';
-import { gfxOf, WAR_SKY } from '../render/renderer.js';
+import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
 import { CLASSES, CLASS_LIST, classGuns, classSecs } from '../war/classes.js';
@@ -667,7 +673,21 @@ export class Match {
     // 急に遅く・速くならないように、0.12秒かけて寄せる（11-12: エイムがなめらかに動かない）
     this.aaK = this.aaK == null ? want : this.aaK + (want - this.aaK) * (1 - Math.exp(-dt / 0.12));
     const slow = inp.mouse ? 1 : this.aaK;
-    let dx = inp.lookDX * k * slow, dy = inp.lookDY * k * slow * 0.9;
+    let rdx = inp.lookDX, rdy = inp.lookDY;
+    if (!inp.mouse) {
+      // タッチの見回し（11-19 の要望: 遠くを狙うとかくつく）
+      //  1) 応答曲線: 指の速さ（なめらかにした値）で倍率を変える。ゆっくり＝細かく（約0.45倍）、ふつう＝ほぼ等倍、速く振る＝少し速く（1.2倍）
+      //  2) 届いた量を一度にではなく 約20ms かけて足す（指の動きの届く間隔と、こまの間隔がずれても動きが一定になる）
+      const raw = Math.hypot(rdx, rdy), v = raw / Math.max(dt, 1 / 240);
+      this.lkV = this.lkV == null ? v : this.lkV + (v - this.lkV) * (1 - Math.exp(-dt / (v > this.lkV ? 0.05 : 0.09)));
+      const t = Math.max(0, Math.min(1, (this.lkV - 25) / 700)), sm = t * t * (3 - 2 * t);
+      const curve = st.aimCurve === false ? 1 : 0.45 + 0.75 * Math.pow(sm, 0.6);
+      this.lkBX = (this.lkBX || 0) + rdx * curve; this.lkBY = (this.lkBY || 0) + rdy * curve;
+      const f = 1 - Math.exp(-dt / 0.02);
+      rdx = this.lkBX * f; rdy = this.lkBY * f; this.lkBX -= rdx; this.lkBY -= rdy;
+      if (Math.abs(this.lkBX) < 1e-4) this.lkBX = 0; if (Math.abs(this.lkBY) < 1e-4) this.lkBY = 0;
+    }
+    let dx = rdx * k * slow, dy = rdy * k * slow * 0.9;
     // ジャイロ
     const gy = st.gyro || 'off';
     if (gy === 'always' || (gy === 'ads' && ads > 0.5)) { const g = (st.gyroSens || 1) * DEG * (ads > 0.5 ? 0.7 : 1); dx -= inp.gyroX * g * (st.gyroInvX ? -1 : 1); dy -= inp.gyroY * g * (st.gyroInvY ? -1 : 1); }
@@ -794,8 +814,11 @@ export class Match {
       mx: inp.mx, mz: inp.mz, yaw: this.yaw, pitch: this.pitch,
       // ローレディは人の操作からはなくした（0.1.13。撃てなくなるだけで使う理由がない）。AI は今までどおり使う（銃を下げて歩く・投降など）
       fire: inp.fire && !this.app.input.radial, ads: this.adsOn, low: false, stance: this.stance, lean: this.leanSide, sprint: inp.sprint,
+      // 息止め: ボタン（構えている間だけ出る）か、構えているときの Shift（BattleBit と同じ。走りにはならない）
+      breath: inp.hold.has('breath') || (this.adsOn && !!(this.app.input.keys && this.app.input.keys.has('ShiftLeft'))),
       act: this.acts.length ? this.acts.splice(0) : null, power: 0.75,
     };
+    if (cmd.breath && this.adsOn) cmd.sprint = false;
     if (this.droneId != null) { cmd.mx = 0; cmd.mz = 0; cmd.fire = false; }
     if (this.camView != null) {
       const S = this.S;
@@ -1115,7 +1138,7 @@ export class Match {
           if (e.k === 'locked' && e.id !== me && S.byId[e.id] && S.byId[e.id].kind === 'swat') this._say(S.byId[e.id], 'swat_locked');
           break;
         }
-        case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
+        case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', fullhp: '体力が満タン', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
         case 'nade': { if (e.type === 'frag' || e.type === 'impact') break; if (e.type === 'smoke') { for (let i = 0; i < 6; i++) fx.smoke(e.x, e.y + 0.5, e.z, 0.9, [0.62, 0.63, 0.64], 0.6, 3); au.sfx('gasPop', [e.x, e.y, e.z], { rate: 0.8 }); break; } if (e.type === 'cs') { for (let i = 0; i < 8; i++) fx.smoke(e.x, e.y + 0.4, e.z, 1.2, [0.85, 0.85, 0.8], 0.5, 6); au.sfx('gasPop', [e.x, e.y, e.z]); } else { fx.explosion(e.x, e.y, e.z, 3, e.type === 'flash' ? 'flash' : 'stinger'); au.sfx(e.type === 'flash' ? 'flashbang' : 'stinger', [e.x, e.y, e.z]); } const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 10) * 0.6); break; }
         case 'boom': case 'c2': { fx.explosion(e.x, e.y, e.z, Math.min(5, e.r || 3), e.kind || 'c2'); au.sfx('explosion', [e.x, e.y, e.z], { vol: 1.2 }); const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 18)); this._heatUp(0.5 * Math.max(0, 1 - d / 40)); break; }
         case 'flashed': if (e.id === me) { this.flashW = Math.max(this.flashW, Math.min(1, 0.4 + e.k * 1.2)); au.deafen(2 + 4 * e.k); } break;
@@ -1174,6 +1197,9 @@ export class Match {
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'revive': hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
         case 'bandaged': if (e.id === me) au.sfx('bandage', null); break;
+        case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); break;
+        case 'exhale': if (e.id === me) au.sfx('exhale', null, { vol: 0.6 }); break;
+        case 'inhale': if (e.id === me) au.sfx('inhale', null, { vol: 0.6 }); break;
         // 置いた物（置ける盾・有刺鉄線）
         case 'depset': au.sfx(e.k === 'wire' ? 'impMetal' : 'barricade', [e.x, e.y + 0.3, e.z], { vol: e.id === me ? 0.55 : 0.8, rate: e.k === 'wire' ? 1.4 : 0.8 }); break;
         case 'depbreak': if (e.why !== 'pick') { fx.debris(e.x, e.y, e.z, e.k === 'wire' ? [0.55, 0.56, 0.54] : [0.24, 0.26, 0.25]); au.sfx('impMetal', [e.x, e.y, e.z], { vol: 1, rate: 0.7 }); } else au.sfx('draw', [e.x, e.y, e.z], { vol: 0.5 }); break;
@@ -1419,7 +1445,7 @@ export class Match {
     const room = roomOf(this.w, cam.x, cam.y - 1, cam.z);
     r.render({
       cam, doors: S.doors, lights, dt,
-      post: { smoke: smk, exposure: this.exposure * (st.bright || 1) * (S.war ? 1 : 1), nvg: nvg && !p.peek, flash, damage: Math.max(this.dmgK * 0.8, lowHp), supp: Math.max(this.suppK * 0.8, oobK * 0.7), gas, blur: Math.max(this.blurK, gas * 0.5, p.stun > 0 ? 0.4 : 0, flash * 0.6), vig: (p.peek ? 0.15 : (st.vignette === false ? 0.08 : 0.32)) + 0.22 * (this.hpK || 0), sat: (st.sat ?? 1.08) * (S.war ? 0.9 : 1) * (1 - 0.85 * oobK) * (1 - 0.45 * (this.hpK || 0)) * (1 - 0.7 * (this.deathK || 0)), peek: p.peek ? (p.peek.k === 'mirror' ? 2 : 1) : 0 },
+      post: { smoke: smk, exposure: this.exposure * (st.bright || 1) * (S.war ? 1 : 1), nvg: nvg && !p.peek, flash, damage: Math.max(this.dmgK * 0.8, lowHp), supp: Math.max(this.suppK * 0.8, oobK * 0.7), gas, blur: Math.max(this.blurK, gas * 0.5, p.stun > 0 ? 0.4 : 0, flash * 0.6), vig: (p.peek ? 0.15 : (st.vignette === false ? 0.08 : 0.32)) + 0.22 * (this.hpK || 0), grade: S.war ? WAR_GRADE : null, sat: (st.sat ?? 1.08) * (S.war ? WAR_GRADE.sat : 1) * (1 - 0.85 * oobK) * (1 - 0.45 * (this.hpK || 0)) * (1 - 0.7 * (this.deathK || 0)), peek: p.peek ? (p.peek.k === 'mirror' ? 2 : 1) : 0 },
       vm: fp ? { fov: (st.vmFov || 54) * DEG, room } : null, shadows: st.shadows !== 'off' && st.quality !== 'low',
       ambMin: nvg ? 0.02 : 0,
     });
@@ -2462,7 +2488,7 @@ export function netMixin(App) {
   };
 }
 
-@@@@ FILE src/app/netgame.js text 9125
+@@@@ FILE src/app/netgame.js text 9149
 // オンラインの試合の動かし方（Match に混ぜる）。
 //  ホスト: エンジンを動かし、ゲストの入力と動作をエンジンへ渡し、写しを配る。ゲストが切れたら止めて待つ。
 //  ゲスト: エンジンは動かさず、ホストの写しを補間して表示する。自分の移動と銃（反動・弾の見た目）だけは手元で先に動かし、ホストの位置へなめらかに寄せる。
@@ -2584,7 +2610,7 @@ export function netMixin(Match) {
       }
       const dc = this.droneId != null ? this._droneCmd(inp) : null;
       if (dc && this.droneId != null) sess.setInput({ mx: r2(dc.mx), mz: r2(dc.mz), y: r4(dc.yaw), p: r4(dc.pitch), f: dc.fire ? 1 : 0, j: dc.jump ? 1 : 0, s: cmd.stance, dr: 1 });
-      else sess.setInput({ mx: r2(cmd.mx), mz: r2(cmd.mz), y: r4(cmd.yaw), p: r4(cmd.pitch), f: cmd.fire ? 1 : 0, a: cmd.ads ? 1 : 0, s: cmd.stance, ln: cmd.lean, sp: cmd.sprint ? 1 : 0, pw: cmd.power });
+      else sess.setInput({ mx: r2(cmd.mx), mz: r2(cmd.mz), y: r4(cmd.yaw), p: r4(cmd.pitch), f: cmd.fire ? 1 : 0, a: cmd.ads ? 1 : 0, s: cmd.stance, ln: cmd.lean, sp: cmd.sprint ? 1 : 0, br: cmd.breath ? 1 : 0, pw: cmd.power });
       // 描くときの補間用（ステップの前の自分の位置）
       { const P = this._prev || (this._prev = new Map()); let q = P.get(me.id); if (!q) P.set(me.id, q = [0, 0, 0]); q[0] = me.x; q[1] = me.y; q[2] = me.z; }
       if (me.alive && !me.down && !me.cuffed) {
@@ -2662,13 +2688,13 @@ export function importCode(code) {
   } catch (e) { return false; }
 }
 
-@@@@ FILE src/app/scenes.js text 3788
+@@@@ FILE src/app/scenes.js text 3827
 // タイトルとメニューの背景（WAR BIT）: 射撃場の谷の草地に立つ分隊（分隊長・突撃・衛生・援護）を、ゆっくり回るカメラで写す。
 // 世界は射撃場（小さく、すぐ作れる。射撃場を選んだときにもそのまま使う）
 import { createGame, step } from '../engine/engine.js';
 import { ActorView } from '../render/actors.js';
 import { FX } from '../render/fx.js';
-import { gfxOf } from '../render/renderer.js';
+import { gfxOf, WAR_GRADE } from '../render/renderer.js';
 import { heightAt } from '../war/world.js';
 
 const DEG = Math.PI / 180;
@@ -2727,11 +2753,11 @@ export class TitleScene {
     this.fx.update(dt);
     this.fx.lights([], () => []);
     const r = this.app.renderer;
-    r.render({ cam, doors: [], lights: [], dt, post: { exposure: (r.sky ? r.sky.exposure : 1) * (this.app.settings.bright || 1), vig: dim ? 0.62 : 0.38, sat: (this.app.settings.sat ?? 1.08) * 0.9 }, shadows: this.app.settings.quality !== 'low' });
+    r.render({ cam, doors: [], lights: [], dt, post: { exposure: (r.sky ? r.sky.exposure : 1) * (this.app.settings.bright || 1), vig: dim ? 0.62 : 0.38, grade: WAR_GRADE, sat: (this.app.settings.sat ?? 1.08) * WAR_GRADE.sat }, shadows: this.app.settings.quality !== 'low' });
   }
 }
 
-@@@@ FILE src/app/settings.js text 3248
+@@@@ FILE src/app/settings.js text 3264
 // 設定の既定値と保存。sv: 設定の形の版（形を変えたら上げて、古い値を直す）
 import { load, save } from './save.js';
 import { LOADOUTS, PVP_LOADOUTS } from '../engine/data/npc.js';
@@ -2739,7 +2765,7 @@ import { LOADOUTS, PVP_LOADOUTS } from '../engine/data/npc.js';
 export const DEFAULTS = {
   sv: 2,
   // 視点と照準
-  sens: 1.0, sensAds: 0.75, sensScope: 0.45, sensFire: 1.0, invertY: false, fireLook: true,
+  sens: 1.0, sensAds: 0.75, sensScope: 0.45, sensFire: 1.0, aimCurve: true, invertY: false, fireLook: true,
   aimAssist: 'weak', // off | weak | strong（対戦は部屋の設定が優先）
   gyro: 'off', gyroSens: 1.0, gyroInvX: false, gyroInvY: false,
   // 操作
@@ -3200,7 +3226,7 @@ export const SPEAKERS = {
   s0: { who: 'sus' }, s1: { who: 'sus' }, s2: { who: 'sus' }, c0: { who: 'civ' }, c1: { who: 'civ' }, c2: { who: 'civ' }, toc: { who: 'toc' },
 };
 
-@@@@ FILE src/audio/synth.js text 35968
+@@@@ FILE src/audio/synth.js text 36805
 // 効果音を手続きで作る（外部の音素材は使わない）。DOMを使わないので Node でも書き出して検査できる。
 // 銃声は「銃口の爆風（広い帯域の破裂）」「胴の響き（低い山）」「超音速の弾のクラック（小銃）」「機関部の金属音」の重ね合わせ。
 // 残響（屋内・屋外）は再生側（audio.js）で付ける。
@@ -3413,6 +3439,13 @@ function cloth(sr, seed, dur = 0.3, f = 2600) { const r = rng(seed), out = buf(s
 function draw(sr, seed) { const r = rng(seed), out = buf(sr, 0.4); mixInto(out, cloth(sr, seed, 0.25), 0, 0.8); mixInto(out, clack(sr, r, 1900, 0.06, 0.7), S(sr, 0.22), 1); return fadeEdges(normalize(out, 0.5), sr); }
 function cuffs(sr, seed) { const r = rng(seed), out = buf(sr, 0.7); for (let k = 0; k < 14; k++) { const m = S(sr, 0.015); const z = noise(m, r); bp(z, 3000 + k * 60, 4, sr); mulEnv(z, expEnv(m, sr, 0.0002, 0.003)); mixInto(out, z, S(sr, 0.05 + k * 0.035), 0.8); } return fadeEdges(normalize(out, 0.55), sr); }
 function bandage(sr, seed) { const r = rng(seed), out = buf(sr, 0.8); const n = S(sr, 0.6); const z = noise(n, r); bp(z, 2000, 0.8, sr); for (let i = 0; i < n; i++) z[i] *= 0.5 + 0.5 * Math.sin(i / sr * 60 + r()); mulEnv(z, env(n, sr, 0.05, 0.55, 1.2)); mixInto(out, z, 0, 1); return fadeEdges(normalize(out, 0.5), sr); }
+// 息: 吸う（短く上がる）・吐く（長く下がる）・息切れ（あえぐ2回）
+function breathS(sr, seed, kind) {
+  const r = rng(seed), d = kind === 'in' ? 0.42 : kind === 'out' ? 0.75 : 1.3, out = buf(sr, d);
+  const parts = kind === 'gasp' ? [[0, 0.45, 900], [0.6, 0.55, 750]] : [[0, d * 0.95, kind === 'in' ? 1150 : 820]];
+  for (const [t0, dur, f] of parts) { const n = S(sr, dur); const z = noise(n, r); bp(z, f, 0.9, sr); lp(z, 2600, sr); mulEnv(z, kind === 'in' ? env(n, sr, dur * 0.7, dur * 0.3, 1.5) : env(n, sr, dur * 0.12, dur * 0.85, 1.6)); mixInto(out, z, S(sr, t0), 1); }
+  return fadeEdges(normalize(out, kind === 'gasp' ? 0.42 : 0.3), sr);
+}
 function sprayS(sr, seed) { const r = rng(seed), out = buf(sr, 0.7); const n = S(sr, 0.6); const z = noise(n, r); hp(z, 2500, sr); mulEnv(z, env(n, sr, 0.03, 0.55, 1.2)); mixInto(out, z, 0, 1); return fadeEdges(normalize(out, 0.55), sr); }
 function glassBreak(sr, seed) { const r = rng(seed), out = buf(sr, 1.0); mixInto(out, impact(sr, seed, 'glass'), 0, 1); for (let k = 0; k < 30; k++) { const n = S(sr, 0.06); const s = sine(n, sr, 2500 + r() * 6500); mulEnv(s, expEnv(n, sr, 0.0003, 0.012)); mixInto(out, s, S(sr, 0.05 + r() * 0.7), 0.25 * (1 - k / 40)); } return fadeEdges(normalize(out, 0.8), sr); }
 function wallBreak(sr, seed) { const r = rng(seed), out = buf(sr, 0.9); mixInto(out, impact(sr, seed, 'hard'), 0, 1); const n = S(sr, 0.8); const z = noise(n, r); lp(z, 1800, sr); mulEnv(z, env(n, sr, 0.02, 0.75, 2)); mixInto(out, z, S(sr, 0.03), 0.6); mixInto(out, thump(sr, r, 120, 60, 0.2, 0.6), 0, 1); return fadeEdges(normalize(out, 0.85), sr); }
@@ -3471,7 +3504,7 @@ export const SFX = {
   magOut: [(sr, i) => magOut(sr, 800 + i), 2], magIn: [(sr, i) => magIn(sr, 810 + i), 2], pump: [(sr, i) => pump(sr, 820 + i), 1], bolt: [(sr, i) => boltS(sr, 1020 + i), 2], shellIn: [(sr, i) => shellIn(sr, 830 + i), 2], shellStart: [(sr, i) => cloth(sr, 840 + i, 0.2, 2000), 1],
   dry: [(sr, i) => dry(sr, 850 + i), 1], draw: [(sr, i) => draw(sr, 860 + i), 2], fmode: [(sr, i) => dry(sr, 870 + i), 1], click: [(sr, i) => dry(sr, 880 + i), 1],
   cuffs: [(sr, i) => cuffs(sr, 900 + i), 1], cuffsStart: [(sr, i) => cloth(sr, 910 + i, 0.35, 1800), 1], mirror: [(sr, i) => cloth(sr, 920 + i, 0.3, 3200), 1], act: [(sr, i) => cloth(sr, 930 + i, 0.25, 2400), 2],
-  bandage: [(sr, i) => bandage(sr, 940 + i), 1], spray: [(sr, i) => sprayS(sr, 950 + i), 1], nvg: [(sr, i) => nvgWhine(sr, 960 + i), 1], drone: [(sr, i) => droneLoop(sr, 970 + i), 1],
+  bandage: [(sr, i) => bandage(sr, 940 + i), 1], inhale: [(sr, i) => breathS(sr, 1100 + i, 'in'), 2], exhale: [(sr, i) => breathS(sr, 1110 + i, 'out'), 2], gasp: [(sr, i) => breathS(sr, 1120 + i, 'gasp'), 1], spray: [(sr, i) => sprayS(sr, 950 + i), 1], nvg: [(sr, i) => nvgWhine(sr, 960 + i), 1], drone: [(sr, i) => droneLoop(sr, 970 + i), 1],
   ring: [(sr) => ring(sr), 1], radioOn: [(sr, i) => radioClick(sr, 980 + i, true), 2], radioOff: [(sr, i) => radioClick(sr, 990 + i, false), 2],
   beep: [(sr) => beep(sr, 1900, 0.07, 0.45), 1], heart: [(sr, i) => heart(sr, 1010 + i), 1],
   // 画面の音
@@ -6889,7 +6922,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.16';
+export const VERSION = '0.1.17';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -7910,7 +7943,7 @@ export function load(o) {
 }
 export { CS, LH };
 
-@@@@ FILE src/engine/interact.js text 56198
+@@@@ FILE src/engine/interact.js text 56550
 // 調べる・使う: 見ている物（扉・人・落ちている物・爆弾・壁）と、そのときできる操作。時間のかかる動作の進み。
 import { raycast, los, CS, LH, levelOfY, NB, isWallish, C, leafEnd, pushOut, rayBox } from './world.js';
 import { M, MATS } from './data/materials.js';
@@ -8717,12 +8750,14 @@ export function shout(S, a, ev, line) {
   return true;
 }
 
+export function needsHeal(a) { return a.hp < a.maxHp - 0.01 || (a.bleed || 0) > 0 || !!(a.inj && a.inj.arm && a.hp < a.maxHp); }
 function selectGear(S, a, id, ev) {
   const G = GEAR[id];
   if (!G) return;
   const g = a.inv.gear.find(x => x.id === id);
   if (!g || g.n <= 0) { ev.push({ e: 'deny', id: a.id, why: 'nogear' }); return; }
-  if (G.kind === 'heal') { if (a.act) return; if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage, kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
+  // 回復の道具は、体力が満タンで血も止まっているときは使えない（11-13 20:50。道具が変わっても同じ）
+  if (G.kind === 'heal') { if (a.act) return; if (!needsHeal(a)) { ev.push({ e: 'deny', id: a.id, why: 'fullhp' }); return; } if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage, kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
   if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy') {
     // 手に持つ（slot 2）。引き金で投げる・吹きつける・前に置く
     a.ws.gear = id;
@@ -12244,7 +12279,7 @@ export default {
   },
 };
 
-@@@@ FILE src/engine/move.js text 27270
+@@@@ FILE src/engine/move.js text 27633
 // 移動: RoN の速さ（歩き2.4・ゆっくり0.96・しゃがみ1.2）、しゃがみ・伏せ・リーン・乗り越え・飛び降り・落下・階段・PvPのダッシュ
 import { groundAt, standAt, ceilAt, pushOut, raycast, STEP, CS, LH, BH, NB, levelOfY, cellType, C, leafEnd, inMap, isWallish } from './world.js';
 import { hurt, pvpDamage, breakGlass } from './combat.js';
@@ -12430,6 +12465,8 @@ export function moveActor(S, w, a, inp, dt, ev) {
   // 足元（家具の上にも立てる）
   const g = standAt(w, a.x, a.z, a.y);
   if (g < -50) { a.y -= 9.8 * dt; if (a.y < -20) { a.y = 0; } }
+  // 下り坂・縁石・低い段を下りるとき: 足は地面につけたまま（宙に浮いた扱いで照準が広がったり点滅したりしないように。11-13 20:50）
+  else if (a.y - g > 0.04 && a.ground && !a.air && (a.vy || 0) > -0.6 && a.y - g <= 0.42) { a.y = g; a.vy = 0; a.airTop = null; }
   else if (a.y - g > 0.04) {
     if (a.airTop == null) a.airTop = a.y;
     a.vy -= 9.8 * dt; a.y += a.vy * dt;
@@ -12437,6 +12474,7 @@ export function moveActor(S, w, a, inp, dt, ev) {
   }
   else { a.y = g; a.vy = 0; a.airTop = null; a.air = false; }
   a.ground = a.y - g < 0.05;
+  a.airT = a.ground ? 0 : (a.airT || 0) + dt;
   // 歩きの位相と足音
   const dist = Math.hypot(a.x - ox, a.z - oz);
   if (ev && S.deps && S.deps.length) stepWire(S, a, dist, ev);
@@ -13489,7 +13527,7 @@ export function stepStatus(S, w, dt, ev) {
   }
 }
 
-@@@@ FILE src/engine/weapon.js text 17146
+@@@@ FILE src/engine/weapon.js text 18363
 // 銃の動き: 撃つ・弾倉（1本ずつ残弾）・通常/速いリロード・1発ずつ込める・ポンプ・持ち替え・反動（BattleBit式）・散らばり
 import { WEAPONS, AMMO, ATTACH, zoomsOf, swayOf } from './data/weapons.js';
 import { LONG, HAND_LONG } from './data/equipment.js';
@@ -13533,7 +13571,7 @@ export function spreadDeg(S, a, W, wi) {
   if (a.inj.arm) s *= 1.4;
   if (a.flash > 0.2 || (a.gas > 0 && a.armor.head !== 'gasmask')) s *= 1.6;
   if (a.supp > 0) s *= 1 + 0.4 * a.supp;
-  if (!a.ground || a.vault) s += 4;
+  if ((!a.ground && (a.airT || 0) > 0.12) || a.vault) s += 4;
   return s;
 }
 
@@ -13567,12 +13605,32 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   //  ゆっくりした8の字のずれ ＋ 息（約4秒で上下）＋ 手の小さなふるえ。しゃがむと半分、伏せると4分の1、動くと大きい、
   //  腕のけがで大きい、リーンで少し大きい。走ったあとは息が上がって大きく速くなり（数秒で戻る。move.js a.fat）、
   //  止まって構えていると1.5秒で少し落ち着く。時間と体の状態だけで決まる（乱数なし）ので、オンラインのゲストの手元とホストでほぼ同じになる
+  // 息止め（BattleBit の Shift。research/WARBIT.md の 16）: 構えている間、押している間だけ揺れがほとんど止まる（0.25秒で効く）。
+  //  息は約5秒（走った直後は短い）。切れると2.5秒は息が上がって揺れが大きく、その間は止められない。離すと約4秒で戻る
+  {
+    if (ws.br == null) ws.br = 1;
+    const want = !!inp.breath && a.ads > 0.6 && !a.sprint && !a.down;
+    if (ws.gasp > 0) ws.gasp = Math.max(0, ws.gasp - dt);
+    if (want && ws.br > 0 && !(ws.gasp > 0) && (ws.holding || ws.br > 0.2)) {
+      if (!ws.holding) ev.push({ e: 'inhale', id: a.id });
+      ws.holding = true;
+      ws.hold = Math.min(1, (ws.hold || 0) + dt / 0.25);
+      ws.br -= dt / 5 * (1 + 0.8 * (a.fat || 0));
+      if (ws.br <= 0) { ws.br = 0; ws.gasp = 2.5; ws.holding = false; ev.push({ e: 'gasp', id: a.id }); }
+    } else {
+      if (ws.holding) ev.push({ e: 'exhale', id: a.id });
+      ws.holding = false;
+      ws.hold = Math.max(0, (ws.hold || 0) - dt / 0.2);
+      if (!(ws.gasp > 0)) ws.br = Math.min(1, ws.br + dt / 4);
+    }
+  }
   if (W && a.ads > 0.01) {
     const still = (a.spd || 0) < 0.3 && a.ads > 0.95;
     ws.calm = still ? Math.min(1, (ws.calm || 0) + dt / 1.5) : Math.max(0, (ws.calm || 0) - dt * 4);
     const fat = a.fat || 0;
     const A = swayOf(W) * a.ads * a.ads * (a.st > 1.5 ? 0.25 : a.st > 0.5 ? 0.5 : 1) * (1 + Math.min(1.5, (a.spd || 0) / 2.4) * 1.5) * (a.inj && a.inj.arm ? 1.8 : 1)
-      * (Math.abs(a.lean || 0) > 0.3 ? 1.15 : 1) * (1 + 0.4 * fat) * (1 - 0.3 * ws.calm);
+      * (Math.abs(a.lean || 0) > 0.3 ? 1.15 : 1) * (1 + 0.4 * fat) * (1 - 0.3 * ws.calm)
+      * (1 - 0.9 * (ws.hold || 0)) * (1 + 0.9 * Math.min(1, (ws.gasp || 0) / 2.5));
     const t = S.t * S.dt + a.id * 7.3;
     // 息: ふだんは 1.55 rad/秒（約4秒）。走ったあとは大きく、速い息（2.7 rad/秒）が混ざる
     const br = 0.55 * (1 + 1.2 * fat) * Math.sin(t * 1.55) + 0.75 * fat * Math.sin(t * 2.7 + 0.5);
@@ -15297,7 +15355,7 @@ export class Mqtt {
   }
 }
 
-@@@@ FILE src/net/session.js text 18763
+@@@@ FILE src/net/session.js text 18779
 // 通信の取り決め（ロビー・開始・試合中・結果）。通信路（link）とは send/onMsg だけでつながる。
 // ホストが正（ホスト権威）: エンジンはホストだけが動かす。ゲストは入力と動作（番号つき）を送り、ホストの写しを表示する。
 import { VERSION, COMPAT } from '../engine/data/version.js';
@@ -15407,7 +15465,7 @@ export class HostSession {
     G.input = {
       mx: isNum(i.mx) ? clamp(i.mx, -1, 1) : 0, mz: isNum(i.mz) ? clamp(i.mz, -1, 1) : 0,
       yaw: isNum(i.y) ? i.y : 0, pitch: isNum(i.p) ? clamp(i.p, -1.5, 1.5) : 0,
-      fire: !!i.f, ads: !!i.a, low: !!i.l, stance: [0, 1, 2].includes(i.s) ? i.s : 0, lean: isNum(i.ln) ? clamp(Math.round(i.ln), -1, 1) : 0, sprint: !!i.sp, power: isNum(i.pw) ? clamp(i.pw, 0.1, 1) : 0.75,
+      fire: !!i.f, ads: !!i.a, low: !!i.l, stance: [0, 1, 2].includes(i.s) ? i.s : 0, lean: isNum(i.ln) ? clamp(Math.round(i.ln), -1, 1) : 0, sprint: !!i.sp, breath: !!i.br, power: isNum(i.pw) ? clamp(i.pw, 0.1, 1) : 0.75,
       jump: !!i.j, dr: !!i.dr,
     };
     G.inAt = nowMs();
@@ -20367,7 +20425,7 @@ function car(B, G, col, van) {
   }
 }
 
-@@@@ FILE src/render/renderer.js text 41504
+@@@@ FILE src/render/renderer.js text 42205
 // 描画の司令塔: 太陽の影 → 本描画(HDR: 空・世界・扉・人・銃・粒子・ガラス) → 一人称 → 光のにじみ → 仕上げ（トーンマップ・暗視・閃光） → FXAA
 import { createGL, tex2D, fbo, depthTex } from './gl.js';
 import { m4, m4mul, m4persp, m4lookAt, m4invert, frustumPlanes, aabbVisible } from './math.js';
@@ -20381,7 +20439,10 @@ import { CS, LH, CEIL, NB, DSHIELD } from '../engine/world.js';
 import { buildWarFar, buildWarNear, buildWarGrass } from '../war/render.js';
 
 // 大規模戦の空（もやを薄く、遠くまで見える。日は少し低めで影が長い）
-export const WAR_SKY = { sky: [0.54, 0.67, 0.9], ground: [0.3, 0.29, 0.24], sun: [2.75, 2.5, 2.12], sunDir: (() => { const v = [0.5, 0.64, 0.36], l = Math.hypot(...v); return v.map(x => x / l); })(), fog: [0.7, 0.77, 0.86], fogD: 0.0011, amb: 0.03, exposure: 0.8, zenith: [0.23, 0.43, 0.86], horizon: [0.73, 0.8, 0.9], night: 0 };
+export const WAR_SKY = { sky: [0.54, 0.66, 0.88], ground: [0.3, 0.29, 0.24], sun: [2.75, 2.52, 2.15], sunDir: (() => { const v = [0.5, 0.64, 0.36], l = Math.hypot(...v); return v.map(x => x / l); })(), fog: [0.7, 0.77, 0.86], fogD: 0.00105, amb: 0.03, exposure: 0.8, zenith: [0.23, 0.44, 0.86], horizon: [0.73, 0.8, 0.9], night: 0 };
+// 大規模戦の色の調整（11-19。BattleBit の落ち着いた色。research/WARBIT.md の 17）: 彩度を抑え、日の当たった緑と黄の色を少し抜く。
+//  白っぽく持ち上げるのはやめ（12:28: フェード感と白っぽさで見えにくい）、コントラストは少し締めて見やすく
+export const WAR_GRADE = { contrast: 1.05, lift: 0.0, liftCol: [0.6, 0.65, 0.72], hiDesat: 0.2, gain: [1.0, 1.0, 0.98], sat: 0.88 };
 
 // 画質: まとめて選ぶ（低・中・高）か、細かく選ぶ（カスタム）
 export const QUALITY = { low: { name: '低' }, medium: { name: '中' }, high: { name: '高' }, custom: { name: 'カスタム' } };
@@ -21073,6 +21134,7 @@ export class Renderer {
     gl.uniform1f(C.u.uGas, p.gas || 0);
     gl.uniform1f(C.u.uTime2, this.time);
     gl.uniform1f(C.u.uSat, p.sat ?? 1.08);
+    { const g = p.grade; if (C.u.uGrade) { gl.uniform4f(C.u.uGrade, g ? g.contrast : 0, g ? g.lift : 0, g ? g.hiDesat : 0, 0); gl.uniform3fv(C.u.uLift, g ? g.liftCol : [0, 0, 0]); gl.uniform3fv(C.u.uGain, g ? g.gain : [1, 1, 1]); } }
     if (C.u.uPeek) gl.uniform1f(C.u.uPeek, p.peek || 0);
     if (C.u.uSmoke) gl.uniform1f(C.u.uSmoke, p.smoke || 0);
     gl.uniform1f(C.u.uBlur, p.blur || 0);
@@ -21132,7 +21194,7 @@ function wireMesh() {
   return B;
 }
 
-@@@@ FILE src/render/shaders.js text 21933
+@@@@ FILE src/render/shaders.js text 22746
 // シェーダー。照らし方は全部同じ関数（光の格子＋太陽の影＋動く光＋もや）で、壁・人・銃・扉が同じ明るさになる。
 export const MAX_DL = 8;
 
@@ -21461,7 +21523,7 @@ void main(){
 }`;
 export const COMP_FS = `
 uniform sampler2D uSrc; uniform sampler2D uBloom; uniform float uBloomK; uniform float uExposure; uniform float uVig;
-uniform float uNVG; uniform float uFlashW; uniform float uDamage; uniform float uSupp; uniform float uGas; uniform float uTime2; uniform float uSat; uniform float uBlur; uniform vec2 uTexel2; uniform float uPeek; uniform float uSmoke;
+uniform float uNVG; uniform float uFlashW; uniform float uDamage; uniform float uSupp; uniform float uGas; uniform float uTime2; uniform float uSat; uniform vec4 uGrade; uniform vec3 uLift; uniform vec3 uGain; uniform float uBlur; uniform vec2 uTexel2; uniform float uPeek; uniform float uSmoke;
 in vec2 vUV; layout(location=0) out vec4 oCol;
 vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 void main(){
@@ -21492,6 +21554,16 @@ void main(){
   float lum = dot(m, vec3(0.2126, 0.7152, 0.0722));
   m = mix(vec3(lum), m, uSat);
   m = pow(m, vec3(1.0 / 2.2));
+  // 色の調整（大規模戦。BattleBit の落ち着いた色: 彩度を抑え、明るい所の鮮やかさをさらに抜き、コントラストを少しゆるめ、
+  //  暗い所を青灰色に少し持ち上げる（もやのかかった空気）。uGrade = (コントラスト, 持ち上げ, 明るい所の色抜き, -)）
+  if (uGrade.x > 0.0) {
+    float l2 = dot(m, vec3(0.2126, 0.7152, 0.0722));
+    // 明るい所の色抜きは、日の当たった草や葉（緑・黄み）に効かせる。空の青はそのまま
+    m = mix(vec3(l2), m, 1.0 - uGrade.z * smoothstep(0.3, 0.8, l2) * smoothstep(-0.02, 0.05, m.g - m.b));
+    m = (m - 0.46) * uGrade.x + 0.46;
+    m = m * (1.0 - uGrade.y) + uLift * uGrade.y;
+    m *= uGain;
+  }
   m *= 1.0 - uVig * smoothstep(0.15, 0.75, r2);
   if (uPeek > 1.5) {
     // ミラー: 丸い鏡の中だけ見える。縁は金属の輪、外は暗い
@@ -22432,7 +22504,7 @@ export class DeployScreen {
   }
 }
 
-@@@@ FILE src/ui/hud.js text 41115
+@@@@ FILE src/ui/hud.js text 42944
 // HUD（CODモバイル／PUBGモバイル風）: ボタン、ミニマップ、方位、目的、出来事、隊員、体力、弾、字幕、照準、命中、被弾の向き、円形メニュー、HUDの編集
 import { BTN, INFO, ICONS } from './hudlayout.js';
 import { onTap } from './input.js';
@@ -22488,6 +22560,8 @@ export class Hud {
     // 中央の物
     this.cross = el('div', 'hud-cross', '<i class="c"></i><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i>'); r.appendChild(this.cross);
     this.reticle = el('div', 'hud-reticle'); r.appendChild(this.reticle);
+    // 息の残り（息止めの間と、戻るまで。構えているときだけ）
+    this.breathEl = el('div', 'hud-breath', '<i></i>'); r.appendChild(this.breathEl);
     this.hitm = el('div', 'hud-hit'); r.appendChild(this.hitm);
     this.dmg = el('div', 'hud-dmg'); r.appendChild(this.dmg);
     this.prog = el('div', 'hud-prog', '<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg"/></svg><div class="lb"></div>'); r.appendChild(this.prog);
@@ -22549,10 +22623,11 @@ export class Hud {
       if (def.pvp && !this.mode.drone) hide = true;
       if (def.noWar && this.mode.war) hide = true;
       if (def.rangeOnly && !this.mode.range) hide = true;
+      if (def.warOnly && !this.mode.war) hide = true;
       // 設定で消したボタン（左の射撃）: 配置を動かしたことがあっても消す（動かすと設定が効かなくなっていた）
       const offBySetting = def.opt === 'leftFire' && this.S.leftFire === false;
       if (offBySetting) hide = true;
-      if (this.editing) hide = (def.pve && !this.mode.pve) || (def.rangeOnly && !this.mode.range) ? true : false;
+      if (this.editing) hide = (def.pve && !this.mode.pve) || (def.rangeOnly && !this.mode.range) || (def.warOnly && !this.mode.war) ? true : false;
       e.classList.toggle('hidden', hide && !this.editing);
       const [x, y] = this.posOf(def, ov);
       const s = (ov.s || 1) * def.s * k;
@@ -22657,11 +22732,28 @@ export class Hud {
     // 照準
     const ads = p ? p.ads : 0;
     const optic = v.optic;
-    this.cross.classList.toggle('hidden', !p || ads > 0.6 || this.S.crosshair === 'none' || v.hideCross);
-    if (p && ads <= 0.6) {
-      const g = Math.max(3, Math.min(40, (v.spread || 2) * 5));
+    // 照準の十字: 構え始め・やめの途中で出たり消えたりしないよう、消す 0.6・出す 0.45 の幅を持たせる。
+    // 開きはなめらかに追い、1px 単位で変える（小数の位置で線がにじんで点滅して見えないように。11-13 20:50）
+    const hideNow = this.cache.crossHid ? ads > 0.45 : ads > 0.6;
+    this.cache.crossHid = hideNow;
+    this.cross.classList.toggle('hidden', !p || hideNow || this.S.crosshair === 'none' || v.hideCross);
+    if (p && !hideNow) {
+      const gt = Math.max(3, Math.min(40, (v.spread || 2) * 5)), now = performance.now(), dtc = Math.min(0.1, Math.max(0, (now - (this.cache.gapT || now)) / 1000));
+      this.cache.gapT = now;
+      this.cache.gapS = this.cache.gapS == null ? gt : this.cache.gapS + (gt - this.cache.gapS) * (1 - Math.exp(-dtc * 14));
+      const g = Math.round(this.cache.gapS);
       if (this.cache.gap !== g) { this.cache.gap = g; this.cross.style.setProperty('--gap', g + 'px'); }
       this.cross.classList.toggle('dot', this.S.crosshair === 'dot');
+    }
+    // 息止め: ボタンは構えている間だけ出す。息の残りの棒は、止めている間と戻るまで
+    {
+      const ws = p && p.ws, on = !!(p && p.alive && ads > 0.6);
+      const bk = on ? 1 : 0;
+      if (this.btn.breath && this.cache.brOn !== bk && !this.editing) { this.cache.brOn = bk; this.btn.breath.classList.toggle('ads-off', !on); }
+      if (this.btn.breath) this._flag('breath', !!(ws && ws.holding));
+      const br = ws && ws.br != null ? ws.br : 1, show = on && (br < 0.995 || (ws && ws.holding));
+      const key = show ? Math.round(br * 100) + (ws.gasp > 0 ? 'g' : '') : '';
+      if (this.cache.brKey !== key) { this.cache.brKey = key; this.breathEl.classList.toggle('on', show); this.breathEl.classList.toggle('gasp', !!(ws && ws.gasp > 0)); if (show) this.breathEl.firstChild.style.width = (br * 100).toFixed(0) + '%'; }
     }
     const retOn = !!(optic && ads > 0.85 && !optic.scope);
     this.reticle.className = 'hud-reticle' + (retOn ? ' on ' + optic.kind : '');
@@ -23068,7 +23160,7 @@ export function buildPlan(w, def, s = 4) {
   return { levels, s };
 }
 
-@@@@ FILE src/ui/hudlayout.js text 8670
+@@@@ FILE src/ui/hudlayout.js text 9270
 // HUD のボタンの既定の配置（CODモバイル／PUBGモバイルを参考）。基準は 844×390 の横画面。
 // ax: 'l'|'r'|'c'（左右の基準）、ay: 't'|'b'|'c'。x, y は基準からの距離（中心まで）、s は直径、o は濃さ。
 // 設定の hud[id] = { x, y, s, o, hide } で上書きする（HUD の編集）。
@@ -23078,6 +23170,7 @@ export const BTN = {
   ads: { name: '構える（ADS）', ax: 'r', ay: 'b', x: 178, y: 68, s: 58, icon: 'ads' },
   reload: { name: 'リロード', ax: 'r', ay: 'b', x: 36, y: 205, s: 50, icon: 'reload' },
   crouch: { name: 'しゃがむ（長押しで伏せ）', ax: 'r', ay: 'b', x: 36, y: 40, s: 50, icon: 'crouch' },
+  breath: { name: '息止め（構えている間）', ax: 'r', ay: 'b', x: 240, y: 126, s: 50, icon: 'breath', warOnly: true, adsOnly: true },
   vault: { name: '乗り越え', ax: 'r', ay: 'b', x: 160, y: 200, s: 48, icon: 'vault' },
   melee: { name: '近接（銃床で殴る）', ax: 'r', ay: 'b', x: 160, y: 254, s: 44, icon: 'melee' },
   leanL: { name: '左にリーン', ax: 'l', ay: 'b', x: 36, y: 168, s: 48, icon: 'leanL' },
@@ -23120,6 +23213,8 @@ export const ICONS = {
   ads: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 5v4M12 15v4M5 12h4M15 12h4" stroke="currentColor" stroke-width="2"/>',
   // リロード: 弾丸を円の矢印が囲む（主なスマホFPSと同じ形。11-13 14:35）
   reload: '<path d="M19.36 7.75A8.5 8.5 0 1 1 14.2 3.79" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M17.1 4.5L12.7 6.1 14 1z" fill="currentColor"/><path d="M9.7 11C9.7 9.1 10.85 7.55 12 7 13.15 7.55 14.3 9.1 14.3 11zM9.6 11.7h4.8v4.8H9.6zM9.1 16.9h5.8v1.3H9.1z" fill="currentColor"/>',
+  // 息止め: 肺の形
+  breath: '<path d="M12 3v7M12 9c-1.5 1.5-3 2-4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 9c1.5 1.5 3 2 4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9.6 7.6C6.3 7 3.6 11 3.4 16.3c-.1 2.6 1.2 3.9 3.2 3.4 2.6-.6 3.6-2.3 3.6-5.3V8.2zM14.4 7.6c3.3-.6 6 3.4 6.2 8.7.1 2.6-1.2 3.9-3.2 3.4-2.6-.6-3.6-2.3-3.6-5.3V8.2z" fill="currentColor"/>',
   crouch: '<circle cx="13" cy="5" r="2.5" fill="currentColor"/><path d="M12 8l-3 6h6l-2 6M9 14l-3 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
   vault: '<path d="M3 20h18M7 20v-7h10v7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 9c3-6 9-6 13-1l-2-3M18 8l-3 1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   leanL: '<path d="M10 4l-4 4 4 4M6 8h8a5 5 0 0 1 0 10h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -23632,7 +23727,7 @@ export function weaponCard(spec, kind) {
     <p class="desc">${esc(W.desc || '')}</p><p class="note">初速 ${W.vel || '-'} m/s · 重さ ${W.kg || '-'} kg</p>`;
 }
 
-@@@@ FILE src/ui/screens.js text 56858
+@@@@ FILE src/ui/screens.js text 56718
 // 画面: 読み込み・タイトル（WAR BIT）・PLAY（モードと人数）・一時停止・地図（タブレット）・結果・設定。
 // メニューの形と表記は BattleBit に合わせる（英語の大文字に日本語を小さく添える。research/WARBIT.md の 10）。
 // 旧 HARD ENTRY の画面（作戦・対戦・訓練・ロビー・資料室）はメニューから外した（11-13 03:10・03:15 の要望）。中身は後で消す
@@ -23734,14 +23829,14 @@ export class Screens {
   _title() {
     const a = this.app;
     const el = this._mk('title', `
-      <div class="wt-logo">${warLogo()}<p>大人数の撃ち合い · ${sizeLabel(16)} 〜 ${sizeLabel(64)}</p></div>
+      <div class="wt-logo">${warLogo()}</div>
       <div class="wt-me" data-a="me" role="button"><span>${PERSON}</span><b>${esc(a.profile.name)}</b></div>
       <nav class="wt-menu" aria-label="メニュー">
-        <button class="wm main" data-a="play"><b>PLAY</b><span>対戦 · 足りない人数はボット</span></button>
-        <button class="wm" data-a="range"><b>SHOOTING RANGE</b><span>射撃場 · 銃を試す</span></button>
-        <button class="wm" data-a="settings"><b>SETTINGS</b><span>設定</span></button>
+        <button class="wm main" data-a="play"><b>PLAY</b></button>
+        <button class="wm" data-a="range"><b>SHOOTING RANGE</b></button>
+        <button class="wm" data-a="settings"><b>SETTINGS</b></button>
       </nav>
-      <div class="t-foot"><span>ヘッドホン推奨</span><span class="ver">互換${COMPAT} · v${VERSION}</span></div>`);
+      <div class="t-foot"><span class="ver">互換${COMPAT} · v${VERSION}</span></div>`);
     this._acts(el, {
       play: () => this.open('play'),
       range: () => a.startWar({ wmode: 'range' }),
@@ -23757,10 +23852,10 @@ export class Screens {
     const card = (id) => {
       const MD = WAR_MODES[id];
       const sizes = Object.entries(MD.sizes);
-      return `<div class="wp-card"><div class="wp-h"><b>${MD.en}</b><span>${esc(MD.name)}</span></div><p>${esc(MD.desc)}</p>
-        <div class="wp-sizes">${sizes.map(([k, z]) => `<button class="wp-size${last.wmode === id && last.size === k ? ' last' : ''}" data-a="go" data-m="${id}" data-k="${k}"><b>${sizeLabel(z.per)}</b><small>${id === 'conquest' ? `チケット ${z.tickets}` : id === 'tdm' ? `${z.kills} キル` : `${MD.score} 点`}</small></button>`).join('')}</div></div>`;
+      return `<div class="wp-card"><div class="wp-h"><b>${MD.en}</b></div>
+        <div class="wp-sizes">${sizes.map(([k, z]) => `<button class="wp-size${last.wmode === id && last.size === k ? ' last' : ''}" data-a="go" data-m="${id}" data-k="${k}"><b>${sizeLabel(z.per)}</b><small>${id === 'conquest' ? `${z.tickets} TICKETS` : id === 'tdm' ? `${z.kills} KILLS` : `${MD.score} POINTS`}</small></button>`).join('')}</div></div>`;
     };
-    const el = this._mk('play', `<div class="sc-wrap"><header class="sc-head">${BACK}<h2>PLAY</h2><span class="hint">MAP · ${esc(M.en)}（${esc(M.name)}）· 足りない人数はボットが入る</span></header>
+    const el = this._mk('play', `<div class="sc-wrap"><header class="sc-head">${BACK}<h2>PLAY</h2><span class="hint">MAP · ${esc(M.en)}</span></header>
       <div class="wp-modes">${WAR_MODE_LIST.map(card).join('')}</div></div>`, 'dim');
     el.querySelectorAll('[data-a="go"]').forEach(b => onTap(b, () => { a.audio.ui('go'); a.startWar({ wmode: b.dataset.m, size: b.dataset.k }); }));
     this._acts(el, {});
@@ -24162,12 +24257,13 @@ export class Screens {
       row('射撃ボタン（左）', '', 'leftFire'); ch('leftFire', [[true, '表示'], [false, '非表示']]);
       row('射撃ボタンで視点移動', '押したままドラッグ', 'fireLook'); ch('fireLook', [[true, 'オン'], [false, 'オフ']]);
       row('利き手', 'ボタンの左右を反転', 'handed'); ch('handed', [['right', '右'], ['left', '左']]);
-      note('キーボード: WASD 移動／Shift 走る／マウス 視点（画面をクリック）／左クリック 射撃／右クリック ADS／Q・E リーン／C しゃがみ／Z 伏せ／Space 乗り越え／R リロード（長押しで高速）／G 投げ物／1・2 武器／X 射撃モード／T ライト／Y 近接（銃床）／Tab スコア表／M 地図／Esc 一時停止');
+      note('キーボード: WASD 移動／Shift 走る（構えている間は息止め）／マウス 視点（画面をクリック）／左クリック 射撃／右クリック ADS／Q・E リーン／C しゃがみ／Z 伏せ／Space 乗り越え／R リロード（長押しで高速）／G 投げ物／1・2 武器／X 射撃モード／T ライト／Y 近接（銃床）／Tab スコア表／M 地図／Esc 一時停止');
     } else if (tab === 'sens') {
       row('視点', '', 'sens'); sl('sens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ADS', '等倍', 'sensAds'); sl('sensAds', 0.2, 1.5, 0.05, pct);
       row('スコープ', '倍率あり（4倍が基準。倍率に合わせて変わる）', 'sensScope'); sl('sensScope', 0.1, 1.2, 0.05, pct);
       row('射撃中', '射撃ボタンで視点移動', 'sensFire'); sl('sensFire', 0.3, 1.5, 0.05, pct);
+      row('応答曲線', 'ゆっくり動かすと細かく、速く振ると速く', 'aimCurve'); ch('aimCurve', [[true, 'オン'], [false, 'オフ']]);
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);
       row('エイムアシスト', '照準が敵へ少し寄る', 'aimAssist'); ch('aimAssist', [['off', 'オフ'], ['weak', '弱'], ['strong', '標準']]);
       row('ジャイロ', '端末の傾きで照準', 'gyro'); ch('gyro', [['off', 'オフ'], ['ads', 'ADS時'], ['always', '常時']]);
@@ -24356,7 +24452,7 @@ export function sprintZone(dx, dy, spr, armed) {
   return armed ? (dy < -(spr - SPRINT_ZONE.drop) && ang <= SPRINT_ZONE.keep) : (dy < -spr && ang <= SPRINT_ZONE.start);
 }
 
-@@@@ FILE src/ui/style.css text 63900
+@@@@ FILE src/ui/style.css text 64563
 /* HARD ENTRY — 見た目の決まり（色・枠・書体）。雰囲気より読みやすさを優先。自分の側はいつも青、相手は赤 */
 :root {
   --bg: #07090c; --panel: rgba(12, 16, 22, 0.9); --panel2: rgba(22, 28, 36, 0.92); --line: rgba(255, 255, 255, 0.13); --line2: rgba(255, 255, 255, 0.28);
@@ -24499,13 +24595,13 @@ ul, ol { margin: 4px 0; padding-left: 1.3em; line-height: 1.55; }
 .wm:active, .wm.down { transform: translateX(6px); }
 #stage[data-size="s"] .wm { min-height: 40px; } #stage[data-size="s"] .wm.main { min-height: 46px; } #stage[data-size="s"] .wt-menu { bottom: calc(var(--sb) + 24px); gap: 4px; }
 .screen.play .sc-head h2, .screen.result .wr-head h2 { letter-spacing: .14em; }
-.wp-modes { flex: 1; min-height: 0; display: flex; gap: 10px; }
-.wp-card { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px; background: linear-gradient(180deg, rgba(26,31,36,.92), rgba(12,15,18,.94)); border: 1px solid rgba(255,255,255,.13); }
+.wp-modes { flex: 1; min-height: 0; display: flex; gap: 10px; align-items: flex-start; }
+.wp-card { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 14px; background: linear-gradient(180deg, rgba(26,31,36,.92), rgba(12,15,18,.94)); border: 1px solid rgba(255,255,255,.13); }
 .wp-h b { display: block; font: 900 1.3em/1.1 var(--f-head); letter-spacing: .1em; }
 .wp-h span { font: 700 .82em var(--f-body); color: #f2b33d; }
 .wp-card p { flex: 1; margin: 0; font: 500 .82em/1.5 var(--f-body); color: #cfd6dc; min-height: 0; overflow: hidden; }
-.wp-sizes { display: flex; flex-direction: column; gap: 5px; }
-.wp-size { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 42px; padding: 0 12px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18); }
+.wp-sizes { display: flex; flex-direction: column; gap: 6px; }
+.wp-size { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 50px; padding: 0 12px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18); }
 .wp-size b { font: 900 1.05em var(--f-head); letter-spacing: .08em; white-space: nowrap; } .wp-size small { font: 600 max(11px, .78em) var(--f-body); color: #aab4bd; white-space: nowrap; }
 .wp-size.last { border-color: #f2b33d; } .wp-size:active, .wp-size.down { background: #f2b33d; color: #17120a; } .wp-size:active small { color: #3b2c0e; }
 #stage[data-size="s"] .wp-card { padding: 8px; gap: 4px; } #stage[data-size="s"] .wp-card p { font-size: 11px; line-height: 1.4; } #stage[data-size="s"] .wp-size { min-height: 38px; }
@@ -24692,7 +24788,13 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-ammo .cnt span { font-size: 12px; color: #cfd6dc; margin-left: 2px; }
 .hud-ammo .mags { display: flex; gap: 2px; }
 .hud-ammo .mags i { width: 5px; height: 12px; border: 1px solid rgba(255,255,255,.6); border-radius: 1px; background: linear-gradient(0deg, #fff calc(var(--f) * 100%), transparent 0); }
-.hud-cross { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 6px; }
+.hud-breath { position: absolute; left: 50%; top: calc(50% + 64px); width: 84px; height: 4px; margin-left: -42px; border-radius: 2px; background: rgba(0,0,0,.45); box-shadow: 0 0 0 1px rgba(255,255,255,.25); opacity: 0; transition: opacity .25s; pointer-events: none; }
+.hud-breath.on { opacity: 1; }
+.hud-breath i { display: block; height: 100%; width: 100%; border-radius: 2px; background: #dfe8ee; }
+.hud-breath.gasp i { background: #e2574c; }
+.hb.ads-off { visibility: hidden; pointer-events: none; }
+#hud.editing .hb.ads-off { visibility: visible; pointer-events: auto; }
+.hud-cross { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 6px; transform: translateZ(0); will-change: transform; }
 .hud-cross i { position: absolute; background: var(--cross, #fff); box-shadow: 0 0 2px rgba(0,0,0,.9); }
 .hud-cross .c { width: 2px; height: 2px; left: -1px; top: -1px; }
 .hud-cross .t, .hud-cross .b { width: 2px; height: 7px; left: -1px; }
@@ -27224,7 +27326,7 @@ export function stoneWall(ww, x0, z0, x1, z1, o = {}) {
   });
 }
 export function hedge(ww, x0, z0, x1, z1, o = {}) {
-  const h = o.h ?? 1.5, th = o.th ?? 1.0, col = o.col || '#3d5c2b';
+  const h = o.h ?? 1.5, th = o.th ?? 1.0, col = o.col || '#41522f';
   segRun(ww, x0, z0, x1, z1, 8, (ax, a, b, c, d, y, k) => {
     const hh = h * (0.92 + ((k * 3) % 4) * 0.05);
     addBox(ww, ax ? { x0: a, z0: b - th / 2, x1: c, z1: b + th / 2, y0: y - 0.1, y1: y + hh, mat: M.FABRIC, kind: 'hedge', col, layer: 21, bev: 0.18, far: true } : { x0: a - th / 2, z0: b, x1: a + th / 2, z1: d, y0: y - 0.1, y1: y + hh, mat: M.FABRIC, kind: 'hedge', col, layer: 21, bev: 0.18, far: true });
@@ -27342,7 +27444,7 @@ export function stall(ww, cx, cz, rot = 0, o = {}) {
 export function planter(ww, x0, z0, x1, z1, o = {}) {
   const y = o.y ?? Math.min(heightAt(ww, x0, z0), heightAt(ww, x1, z1), heightAt(ww, x0, z1), heightAt(ww, x1, z0)), h = o.h ?? 0.7;
   addBox(ww, { x0, z0, x1, z1, y0: y - 0.15, y1: y + h, mat: M.CONCRETE, kind: 'cover', col: o.col || '#b5b0a5', layer: 1, bev: 0.06, far: true });
-  if (o.bush !== false) addBox(ww, { x0: x0 + 0.25, z0: z0 + 0.25, x1: x1 - 0.25, z1: z1 - 0.25, y0: y + h, y1: y + h + 0.5, mat: M.FABRIC, kind: 'hedge', col: '#4a6b33', layer: 21, bev: 0.15, far: true });
+  if (o.bush !== false) addBox(ww, { x0: x0 + 0.25, z0: z0 + 0.25, x1: x1 - 0.25, z1: z1 - 0.25, y0: y + h, y1: y + h + 0.5, mat: M.FABRIC, kind: 'hedge', col: '#4a5a34', layer: 21, bev: 0.15, far: true });
   else addBox(ww, { x0: x0 + 0.15, z0: z0 + 0.15, x1: x1 - 0.15, z1: z1 - 0.15, y0: y + h, y1: y + h + 0.04, mat: M.EARTH, kind: 'trim', col: '#5a4a36', layer: 9, detail: true, walk: false });
 }
 // 噴水（丸い石の縁・水の面・真ん中の台）。拠点の旗の柱はこの真ん中に立つ
@@ -27371,7 +27473,7 @@ export function tent(ww, cx, cz, rot = 0, o = {}) {
   }
 }
 
-@@@@ FILE src/war/render.js text 35408
+@@@@ FILE src/war/render.js text 35531
 // WAR BIT の世界の形（描く物）。64m の塊ごとに:
 //   遠い形（いつも持つ）: 地形 8m ごと＋すそ（つなぎ目のすき間を隠す）・簡単な木・箱（建物・塀・岩）
 //   近い形（近づいたときだけ作る）: 地形 2m ごと・道の帯（アスファルトと中央線）・細かい木・箱・階段
@@ -27387,15 +27489,16 @@ export const CH = 64;
 
 // 色（独自）
 const C = {
-  lush: hex('#4f6b33'), dry: hex('#6d7041'), dark: hex('#405a2c'), dirt: hex('#6f5c43'), rock: hex('#6e6a63'), mount: hex('#55603f'),
+  // 11-19: BattleBit の落ち着いた色に（草と葉の緑を黄みのオリーブへ寄せ、鮮やかさを抜く）
+  lush: hex('#56653a'), dry: hex('#6f6e47'), dark: hex('#47563a'), dirt: hex('#6c5c45'), rock: hex('#6e6a63'), mount: hex('#5a6145'),
   sand: hex('#8e7d5e'), road: hex('#3f3e3b'), edge: hex('#69645a'), pad: hex('#6f6653'), mud: hex('#5e4f3b'),
-  wheat: hex('#a69a55'), wheat2: hex('#968a49'), plow: hex('#5d4a35'), plow2: hex('#6e5940'), pasture: hex('#476532'), paved: hex('#a39d90'), yard: hex('#8c8a83'),
+  wheat: hex('#a69a55'), wheat2: hex('#968a49'), plow: hex('#5d4a35'), plow2: hex('#6e5940'), pasture: hex('#526238'), paved: hex('#a39d90'), yard: hex('#8c8a83'),
 };
-const BUSH = [hex('#3e5b2b'), hex('#46652f'), hex('#365226'), hex('#4c6a31')];
+const BUSH = [hex('#44532f'), hex('#4b5b33'), hex('#3d4a2b'), hex('#525f36')];
 const WALKC = hex('#a29d91');
 const MATCOL = { [M.BRICK]: '#a77a5e', [M.CONCRETE]: '#a3a39b', [M.DRYWALL]: '#d6d0c2', [M.WOOD]: '#8a6a44', [M.METAL]: '#7d878a', [M.FABRIC]: '#a28f68', [M.EARTH]: '#6f5c43', [M.FENCE]: '#8a9094', [M.CAR]: '#6c7a86' };
 const MATLAYER = { [M.BRICK]: LAYER.brick, [M.CONCRETE]: LAYER.concrete, [M.DRYWALL]: LAYER.plaster, [M.WOOD]: LAYER.wood, [M.METAL]: LAYER.metal, [M.FABRIC]: LAYER.fabric, [M.EARTH]: LAYER.dirt, [M.FENCE]: LAYER.metal, [M.CAR]: LAYER.paint };
-const PINE = [hex('#355f33'), hex('#3c6a37'), hex('#2f5630')], OAK = [hex('#557f36'), hex('#5f8a3b'), hex('#4d7532')], TRUNK = hex('#5a4330');
+const PINE = [hex('#3a5136'), hex('#41583a'), hex('#344a32')], OAK = [hex('#56683a'), hex('#5e7040'), hex('#4f6136')], TRUNK = hex('#58463a');
 const ROADC = hex('#4a4845'), LINEC = hex('#d8d2b8');
 
 const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -27883,7 +27986,7 @@ export function buildWarGrass(ww, k, dens = 1) {
     const y = heightAt(ww, x, z) - 0.04, wheat = gk[q] === 1;
     const H = wheat ? 0.78 + r() * 0.32 : 0.2 + r() * 0.36;
     const base = [col[q * 3], col[q * 3 + 1], col[q * 3 + 2]];
-    const cB = mulc(base, 0.72), cT = wheat ? mixc(base, [0.86, 0.77, 0.45], 0.45) : mixc(mulc(base, 1.3), [0.62, 0.68, 0.32], 0.18 + r() * 0.15);
+    const cB = mulc(base, 0.72), cT = wheat ? mixc(base, [0.8, 0.74, 0.48], 0.4) : mixc(mulc(base, 1.18), [0.56, 0.57, 0.4], 0.12 + r() * 0.12);
     const nb = wheat ? 4 : 3, rot = r() * 6.283;
     for (let b = 0; b < nb; b++) {
       const a = rot + b * (6.283 / nb) + (r() - 0.5) * 0.6, wd = (wheat ? 0.035 : 0.055) + r() * 0.03;
@@ -30871,6 +30974,60 @@ test('vault: ガソリンスタンドの2階の窓を乗り越えて、平らな
   ok(p.z > 31.5 * CS && Math.abs(p.y - 3) < 0.15, `屋根を歩く z=${(p.z / CS).toFixed(1)} y=${p.y.toFixed(2)}`);
 });
 
+@@@@ FILE tests/unit/war_breath.test.mjs text 3171
+import { test, ok, near } from '../lib/t.mjs';
+import { createGame, step } from '../../src/engine/engine.js';
+
+function game(o = {}) { return createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false, ...o }); }
+const inp = (a, o = {}) => ({ [a.id]: Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o) });
+// 構えている間の揺れの大きさ（1.5 秒の間の sx・sy の振れ幅）
+function swayRange(G, a, o, n = 90) {
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (let i = 0; i < n; i++) { step(G, inp(a, o)); const s = a.ws; x0 = Math.min(x0, s.sx); x1 = Math.max(x1, s.sx); y0 = Math.min(y0, s.sy); y1 = Math.max(y1, s.sy); }
+  return Math.hypot(x1 - x0, y1 - y0);
+}
+
+test('息止め: 構えて押すと揺れがほぼ止まり、約5秒で切れて息が上がる（揺れが大きい）・離すと戻る', () => {
+  const G = game(), a = G.S.actors[0];
+  for (let i = 0; i < 60; i++) step(G, inp(a, { ads: true }));
+  const base = swayRange(G, a, { ads: true });
+  const ev = [];
+  for (let i = 0; i < 20; i++) ev.push(...step(G, inp(a, { ads: true, breath: true })));
+  ok(ev.some(e => e.e === 'inhale' && e.id === a.id), '吸う音の合図');
+  const held = swayRange(G, a, { ads: true, breath: true }, 90);
+  ok(held < base * 0.3, `止めている間の揺れ ${held.toFixed(3)} < ふだん ${base.toFixed(3)} の3割`);
+  let gasp = -1;
+  for (let i = 0; i < 60 * 6 && gasp < 0; i++) for (const e of step(G, inp(a, { ads: true, breath: true }))) if (e.e === 'gasp' && e.id === a.id) gasp = i;
+  ok(gasp >= 0, '息が切れる');
+  const total = (20 + 90 + gasp) / 60;
+  ok(total > 4.3 && total < 5.7, `もつ時間 ${total.toFixed(2)} 秒`);
+  ok(a.ws.br === 0 && a.ws.gasp > 2, '息が上がっている');
+  const gs = swayRange(G, a, { ads: true, breath: true }, 90);
+  ok(gs > base * 1.1, `息が上がると揺れが大きい ${gs.toFixed(3)} > ${base.toFixed(3)}`);
+  for (let i = 0; i < 60 * 6; i++) step(G, inp(a, { ads: true }));
+  near(a.ws.br, 1, 1e-6, '離すと戻る');
+});
+
+test('息止め: 構えていないときと走っているときは効かない', () => {
+  const G = game(), a = G.S.actors[0];
+  for (let i = 0; i < 30; i++) step(G, inp(a, { breath: true }));
+  ok(!a.ws.holding && (a.ws.br ?? 1) === 1, '腰だめでは止めない');
+});
+
+test('包帯: 体力が満タンなら使えない（減っていると使える）', () => {
+  const G = game(), a = G.S.actors[0];
+  for (let i = 0; i < 10; i++) step(G, inp(a));
+  const g = a.inv.gear.find(x => x.id === 'bandage'), n0 = g.n;
+  let ev = [];
+  for (let i = 0; i < 5; i++) ev.push(...step(G, inp(a, { act: i === 0 ? [{ a: 'gear', id: 'bandage' }] : null })));
+  ok(ev.some(e => e.e === 'deny' && e.why === 'fullhp'), '満タン: 断られる');
+  ok(g.n === n0 && !a.act, '数は減らず、巻き始めない');
+  a.hp = a.maxHp - 30;
+  ev = [];
+  for (let i = 0; i < 5; i++) ev.push(...step(G, inp(a, { act: i === 0 ? [{ a: 'gear', id: 'bandage' }] : null })));
+  ok(g.n === n0 - 1 && a.act && a.act.k === 'bandage', '減っている: 巻き始める');
+});
+
 @@@@ FILE tests/unit/war_engine.test.mjs text 9052
 import { test, ok, near } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
@@ -32948,7 +33105,7 @@ if (process.argv[1] && process.argv[1].endsWith('sim.mjs')) {
   if (flags.json) fs.writeFileSync(flags.json, JSON.stringify(rows, null, 1));
 }
 
-@@@@ FILE tools/stage_repo.mjs text 2994
+@@@@ FILE tools/stage_repo.mjs text 2991
 // GitHub Pages 用のリポジトリ（main の直下）の中身をそろえる: node tools/stage_repo.mjs <出力先>
 // アプリ版（dist/app）一式（.nojekyll・ソース一式を含む）＋設計メモ＋README。個人情報は入れない。
 import fs from 'node:fs';
@@ -32961,7 +33118,7 @@ for (const f of fs.readdirSync(app)) fs.copyFileSync(path.join(app, f), path.joi
 fs.copyFileSync(path.join(ROOT, 'DESIGN.md'), path.join(out, 'DESIGN.md'));
 const vsrc = fs.readFileSync(path.join(ROOT, 'src/engine/data/version.js'), 'utf8');
 const ver = /export const VERSION = '([^']+)'/.exec(vsrc)[1];
-const url = process.env.PAGES_URL || 'https://coconosuke.github.io/hardentry/';
+const url = process.env.PAGES_URL || 'https://coconosuke.github.io/warbit/';
 fs.writeFileSync(path.join(out, 'README.md'), `# HARD ENTRY（仮）
 
 リアル寄りの戦術FPS。スマホ（iPhone・Android）の横持ちで遊べます。
