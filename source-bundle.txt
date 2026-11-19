@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-19T11:08:17.680Z）
+HARD ENTRY ソース一式（2026-11-19T11:21:36.451Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 130594
+@@@@ FILE DESIGN.md text 131165
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -365,6 +365,7 @@ HARD ENTRY ソース一式（2026-11-19T11:08:17.680Z）
 - 11-19 WAR BIT 0.1.21（跳ぶ・反動の押さえ）: 「挙動」の段階の1つめ。乗り越えのボタン（PC は Space）で、越える物がなければ跳ぶ（BattleBit と同じく1つのボタン）。反動で上がっている間に下へ引いた分は反動から引く（2024 の手直しと同じ。戻りで二重に下がらない）。research の 19。
 - 11-19 WAR BIT 0.1.22（18:16 の直し・スコープの中の像）: 十字の点滅の本当の原因（classList.toggle に undefined が渡ると「切り替え」になり毎こま出たり消えたり）を直した。当たりの印は真ん中を空けた4本の線で色分け（体 白・頭 黄・防具 青・倒した 赤。ダウンさせた時に赤）。向きを変えるとき横へずれた速さはすぐ消す（30 m/秒²）・止まるのも速く。銃の揺れはなめらかな位相で（ステップごとに飛ばない）。投げ物は残りがあれば持ったまま。爆発音は近い音と遠いとどろきを距離で混ぜて約 900m まで（70m より遠いと鳴っていなかった）、音の速さで遅れ、30m まで HRTF。ボットは煙・茂みの向こうを見つけにくい（煙は見えない・茂み2つで見えない）。大規模戦の煙は半径 6.5m・30 秒。ダウン中の GIVE UP（2回押す）とメニューの REDEPLOY。ジャンプのボタンの絵。6倍未満のスコープはレンズの中だけ拡大（銃とスコープの筒が見える）。research の 21。 あわせて 14:03・14:04 の分: 射撃モードを BattleBit の同じ系統の銃に合わせた（M4A1・HK416・Scorpion EVO は単発・3点バースト・フル、HK417 は単発、RPK は単発・フル）。3点バーストは1回引くと3発。倍率の切り替えは射撃モードと別のボタン（倍率を変えられる照準器の時だけ出る。PC は B）。弾の速さを BattleBit の値に（SMG 350〜400・M4A1 700・AUG/G3 900・HK417 1000・AT308 1100 m/秒。弾は重力で落ち、届くまで時間がかかる）。大規模戦ではエイムアシストを使わない（指の動きにそのまま比例）・ゆっくり細かく動かすときほど長め（最大 50ms）にならして1画素ずつの段をなくす。HUD の編集でも大規模戦で使わないボタン（警告・調べる・暗視）は出さない。設定から字幕とエイムアシストの項目を消した（大規模戦で使わない）。とても遅いこまで、短く押したのが長押しにならないように。小さい横画面の一時停止は2列。research の 22。
 - 11-19 WAR BIT 0.1.23（ボットの作り直し・段階④）: 11-13 に下書きしたボットに入れ替えた。分隊は2人組ごとに少し違う道で進み、仲間と 3m より近づかない。撃ち合いでは近くの遮蔽物の後ろへ移り、低い物は立って撃ちしゃがんで隠れ、高い物は横へ身を出して撃つ。撃たれたら遮蔽物へ・隠れている間に弾を込める。見失ったら見張る・手榴弾・組の片方が回り込む。分隊で見つけた敵を分け合う。倒れた仲間を起こす・体力が減ったら包帯。茂み・麦畑の伏せは見つけにくく、煙の向こうは見えない。遠い敵（ちょうどよい距離の2倍より先）には足を止め続けず目標へ進む。点検（中・180秒）: 固まり（3m 以内の味方）1.3→0.4〜0.6 人・撃ち合い中に遮蔽物の後ろ 18→44〜48%・開けた所で棒立ち 42→12〜16%。ボットは投げたあと銃へ戻る（0.1.22 の「持ったまま」は人だけ）。大規模戦の世界で起こす動作が家具の表を見て止まっていたのを直した。あわせて BattleBit 2.0 に合わせ、大規模戦で起こすと包帯を1つ使い体力の半分で起きる（research の 23）。ボットは開けた所で撃たれ近くに遮蔽物がないと、敵との間に発煙弾を投げる。
+- 11-19 WAR BIT 0.1.24（敵に印・狙撃のスコープのきらめき）: 敵に印のボタン（PC は中ボタン）。狙っている向きから 5° 以内・450m 以内の見えている敵に印がつき、分隊に 10 秒見える（頭の上の赤い菱形と距離）。分隊のボットも場所を知る。6倍以上のスコープをのぞいている敵がこちらを向いていると、スコープが光って見える（向きが近いほど強く、遠くても点にならない大きさ。壁の向こうは光らない）。research の 24。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -520,7 +521,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 117078
+@@@@ FILE src/app/game.js text 120517
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -546,6 +547,7 @@ import { LINES } from '../audio/lines.js';
 import { vfovOf } from './settings.js';
 import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
+import { los as warLos } from '../war/world.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
 import { CLASSES, CLASS_LIST, classGuns, classSecs } from '../war/classes.js';
 import { WarFlags, FLAG_COL } from '../render/warflags.js';
@@ -815,6 +817,8 @@ export class Match {
         // 射撃モード（フル・バースト・単発）。倍率は別のボタン（11-19 14:03）
         case 'fmode': if (k === 'down') this.acts.push({ a: 'mode', zoom: false }); break;
         case 'zoom': if (k === 'down') this.acts.push({ a: 'zoom' }); break;
+        // 敵に印をつける（大規模戦。PC は中ボタン）
+        case 'spot': if (k === 'down' && this.S.war && p.alive && !p.down) this.acts.push({ a: 'spot' }); break;
         case 'light': if (k === 'down') this.acts.push({ a: 'light' }); break;
         case 'nvg': if (k === 'down' && p.armor.head === 'nvg') { this.nvgOn = !this.nvgOn; p.nvgOn = this.nvgOn; this.au.sfx('nvg', null, { vol: 0.5 }); } break;
         case 'map': if (k === 'tap' || (k === 'longup' && !e.key)) this.app.openTablet(); break;
@@ -1240,6 +1244,7 @@ export class Match {
         case 'redeploy': if (e.id === me) { this.kiaT = -99; this.dlo = false; this._resetControls(); } break;
         case 'respawn': if (e.id === me) { this.dlo = false; hud.deploy(null); if (S.war) this.r.warmWar(p.x, p.z); this.dead = false; this.spec = null; this.yaw = p.yaw; this.pitch = 0; this._resetControls(); this.av.hidden.add(me); if (e.zone == null) hud.hideBanner(); } break;
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
+        case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
         case 'revive': if (this._downBy) this._downBy.delete(e.id); hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
         case 'bandaged': if (e.id === me) au.sfx('bandage', null); break;
         case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); break;
@@ -1307,6 +1312,34 @@ export class Match {
     this.kiaT = this.time;
     this.hud.showBanner(this.S.war ? `KIA` : this.S.pvp ? (this.S.m.kind === 'tdm' ? 'KIA — 4秒後に復帰' : 'KIA — 観戦中') : 'KIA — 観戦中', 3000, 'bad');
     this.au.deafen(1.5);
+  }
+
+  // スコープのきらめき: 相手の銃の向きとこちらへの向きが近いほど強い（約 25° まで）。壁の向こうは光らない（0.25 秒ごとに見通しを調べる）
+  _glints(dt) {
+    const S = this.S, cam = this.cam, me = this.p;
+    if (!cam) return;
+    this._glT = (this._glT || 0) + dt;
+    const recheck = this._glT > 0.25; if (recheck) this._glT = 0;
+    const vis = this._glVis || (this._glVis = new Map());
+    for (const a of S.actors) {
+      if (a === me || !a.alive || a.down || (a.ads || 0) < 0.6 || a.team === me.team) continue;
+      const wi = curWeapon(a); if (!wi) continue;
+      const o = opticOf(wi); if (!o.scope) continue;
+      const zs = zoomsOf(wi.att); if (Math.max(zoomOf(wi), ...(zs || [0])) < 6) continue; // 倍率を変えられるスコープは、いちばん高い倍率で決める
+      const e = eyeOf(S, a), dx = cam.x - e[0], dy = cam.y - e[1], dz = cam.z - e[2], d = Math.hypot(dx, dy, dz);
+      if (d < 4) continue;
+      const cp = Math.cos(a.pitch), fx = Math.sin(a.yaw) * cp, fy = Math.sin(a.pitch), fz = Math.cos(a.yaw) * cp;
+      const dot = (fx * dx + fy * dy + fz * dz) / d;
+      if (dot < 0.9) { vis.delete(a.id); continue; }
+      if (recheck || !vis.has(a.id)) vis.set(a.id, warLos(this.w, e[0], e[1], e[2], cam.x, cam.y, cam.z));
+      if (!vis.get(a.id)) continue;
+      // 大きさは見かけの角度で決める（遠くても点にならない: 芯 約 0.9°・まわりのにじみ 約 2.4°）。のぞいている倍率の分は小さく見える
+      const k = Math.pow((dot - 0.9) / 0.1, 2), fl = 0.8 + 0.2 * Math.sin(this.time * 9 + a.id), zc = cam.fov ? Math.max(1, (55 * DEG) / cam.fov) : 1;
+      const core = Math.max(0.12, d * 0.016 / Math.sqrt(zc)) * (0.55 + 0.45 * k), halo = core * 2.6;
+      const x = e[0] + fx * 0.25, y = e[1] + fy * 0.25 - 0.02, z = e[2] + fz * 0.25, life = Math.max(0.02, dt * 1.05);
+      this.fx.add({ x, y, z, vx: 0, vy: 0, vz: 0, life, s0: core, s1: core, c: [16 * k * fl, 15 * k * fl, 12 * k * fl, 1], add: true, sh: 0 });
+      this.fx.add({ x, y, z, vx: 0, vy: 0, vz: 0, life, s0: halo, s1: halo, c: [1.6 * k * fl, 1.5 * k * fl, 1.3 * k * fl, 1], add: true, sh: 0 });
+    }
   }
 
   // ステップの前の位置（描くときの補間に使う）
@@ -1467,6 +1500,9 @@ export class Match {
       }
     }
     this.fx.update(dt);
+    // スコープの反射（BattleBit の狙撃のスコープのきらめき）: 6倍以上のスコープをのぞいている相手が、こちらを向いていると光って見える。
+    //  このこまだけの光（進めたあとに足すので、描くときに薄まらない）
+    if (S.war) this._glints(dt);
     this._lasers(fp, cam);
     this._tension(dt);
     // 動く光: 自分と隊員のライト、銃口・爆発
@@ -1786,6 +1822,14 @@ export class Match {
       const q = proj(a.x, a.y + bodyH(a) + 0.45, a.z); if (!q || q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) continue;
       const sq = a.squad === p.squad;
       list.push({ k: sq ? 'squad' : 'ally', x: q[0], y: q[1], col: a.down ? '#ffaa33' : sq ? '#6ee07a' : '#4aa8ff', t: sq ? a.name : '', d });
+    }
+    // 印をつけた敵（分隊の誰かがつけた。10 秒。頭の上の赤い印と距離）
+    for (const q of S.m.spots || []) {
+      if (q.team !== my || q.sq !== p.squad || q.until <= S.t) continue;
+      const a = S.byId[q.id]; if (!a || !a.alive || a.down) continue;
+      const d = Math.hypot(a.x - cam.x, a.z - cam.z);
+      const pr = proj(a.x, a.y + bodyH(a) + 0.55, a.z); if (!pr || pr[0] < -20 || pr[0] > W + 20 || pr[1] < -20 || pr[1] > H + 20) continue;
+      list.push({ k: 'spot', x: pr[0], y: pr[1], col: '#ff3b2f', d });
     }
     this.hud.warMarks(list);
   }
@@ -7006,7 +7050,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.23';
+export const VERSION = '0.1.24';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -12078,7 +12122,7 @@ export function placeActors(S, w, def) {
   for (let i = 0; i < Math.min(2, civ.length); i++) { const [x, z] = civ[(i + S.m.resets) % civ.length]; spawnCivilian(S, w, x, z, 0, i ? 'adult' : 'staff'); }
 }
 
-@@@@ FILE src/engine/modes/war.js text 20081
+@@@@ FILE src/engine/modes/war.js text 22248
 // 大規模戦（WAR BIT）のモード。BattleBit に合わせる（research/WARBIT.md の 1・2・3・7・11）。足りない人数はボット（src/war/ai.js）
 // - CONQUEST: 拠点を奪い合い、相手のチケットを 0 にする。人数で範囲が変わる（16・32・64 対）。チケットは出撃のたびに1減り、
 //   拠点を過半数持つ側が相手を（拠点の差×0.3）/秒 減らす
@@ -12088,7 +12132,9 @@ export function placeActors(S, w, def) {
 // 共通: 拠点は範囲に立つと奪える（味方が多いほど速く 4 人分まで、同数なら止まる。敵の拠点はまず中立に戻す）。
 // 範囲の外に 10 秒いると死ぬ。倒されたら数秒で出撃し直す（人は出撃の画面で兵科と場所を選ぶ）
 import { createActor, makeInventory, makeArmor } from '../actor.js';
-import { killActor } from '../combat.js';
+import { killActor, eyeOf } from '../combat.js';
+import { los as warLos } from '../../war/world.js';
+import { smokeBetween } from '../nades.js';
 import { groundAt, pushOut } from '../world.js';
 import { heightAt } from '../../war/world.js';
 import { warThink, botSpawnPoint, goalOf, SQUAD } from '../../war/ai.js';
@@ -12210,6 +12256,32 @@ function redeploy(S, w, a, at) {
   if (m.mode === 'conquest') m.tickets[a.team] = Math.max(0, m.tickets[a.team] - 1);
 }
 
+// 印: S.m.spots = [{ id, team, sq, by, until }]（10 秒。付け直すと延びる）。分隊のボットも場所を知る（ai の intel）
+export const SPOT_T = 10;
+export function spotEnemy(S, w, a, ev) {
+  if (!a.alive || a.down || (a.spotT || -1e9) > S.t) return null;
+  a.spotT = S.t + Math.round(0.4 / S.dt);
+  const e = eyeOf(S, a), cp = Math.cos(a.pitch), fx = Math.sin(a.yaw) * cp, fy = Math.sin(a.pitch), fz = Math.cos(a.yaw) * cp;
+  let best = null, bc = Math.cos(5 * Math.PI / 180);
+  for (const b of S.actors) {
+    if (!b.alive || b.down || b.team === a.team || b.team < 0 || b.team > 1 || b.dummy && false) continue;
+    const ty = b.y + (b.st > 1.5 ? 0.3 : b.st > 0.5 ? 0.9 : 1.3), dx = b.x - e[0], dy = ty - e[1], dz = b.z - e[2], d = Math.hypot(dx, dy, dz);
+    if (d > 450 || d < 0.5) continue;
+    const c = (dx * fx + dy * fy + dz * fz) / d;
+    if (c <= bc) continue;
+    if (!warLos(w, e[0], e[1], e[2], b.x, ty, b.z) || smokeBetween(S, e[0], e[1], e[2], b.x, ty, b.z) >= 0.6) continue;
+    bc = c; best = b;
+  }
+  if (!best) { if (ev) ev.push({ e: 'spot', id: -1, by: a.id }); return null; }
+  const m = S.m, L = m.spots || (m.spots = []);
+  const old = L.find(q => q.id === best.id && q.team === a.team);
+  const until = S.t + Math.round(SPOT_T / S.dt);
+  if (old) { old.until = until; old.sq = a.squad; old.by = a.id; } else L.push({ id: best.id, team: a.team, sq: a.squad, by: a.id, until });
+  if (m.intel && m.intel[a.team]) m.intel[a.team].set(best.id, { x: best.x, z: best.z, y: best.y, t: S.t, sq: a.squad });
+  if (ev) ev.push({ e: 'spot', id: best.id, by: a.id });
+  return best;
+}
+
 function stepFlags(S, w, dt, ev) {
   const m = S.m;
   const rate = dt / m.capT;
@@ -12320,6 +12392,8 @@ export default {
   // 出撃の画面から（倒れている間）: 兵科・銃を変える、出撃する場所を選ぶ
   act(S, w, a, ac, ev) {
     if (ac.a === 'warClass') { if (!a.alive) setClass(a, ac.cls, ac.gun, ac.sec); return true; }
+    // 敵に印をつける（BattleBit の中ボタン。分隊に見える。11-19・research の 24）: 狙っている向きから 5° 以内・450m 以内・見えている敵のうち一番まっすぐの1人
+    if (ac.a === 'spot') { spotEnemy(S, w, a, ev); return true; }
     if (ac.a === 'warRedeploy') {
       if (!a.alive) return true;
       // 射撃場: その場で出撃の画面へ（倒されたことにはしない）
@@ -12344,6 +12418,7 @@ export default {
   step(S, w, dt, ev) {
     const m = S.m;
     if (m.over) return;
+    if (m.spots && m.spots.length && S.t % 30 === 0) m.spots = m.spots.filter(q => q.until > S.t && S.byId[q.id] && S.byId[q.id].alive && !S.byId[q.id].down);
     stepFlags(S, w, dt, ev);
     // 出撃し直す: ボットは時間が来たら、人は場所を選んでから
     for (let i = m.respawn.length - 1; i >= 0; i--) {
@@ -22794,7 +22869,7 @@ export class DeployScreen {
   }
 }
 
-@@@@ FILE src/ui/hud.js text 45701
+@@@@ FILE src/ui/hud.js text 46223
 // HUD（CODモバイル／PUBGモバイル風）: ボタン、ミニマップ、方位、目的、出来事、隊員、体力、弾、字幕、照準、命中、被弾の向き、円形メニュー、HUDの編集
 import { BTN, INFO, ICONS } from './hudlayout.js';
 import { onTap } from './input.js';
@@ -23281,6 +23356,12 @@ export class Hud {
         const w = c.measureText(m.t).width + 10;
         c.fillStyle = 'rgba(8,12,18,0.62)'; c.fillRect(m.x - w / 2, m.y - 9, w, 18);
         c.fillStyle = '#f2f4f5'; c.fillText(m.t, m.x, m.y + 0.5);
+      } else if (m.k === 'spot') {
+        // 印をつけた敵: 赤い菱形と距離
+        c.globalAlpha = 0.95; const s = 6;
+        c.fillStyle = m.col; c.strokeStyle = 'rgba(0,0,0,0.6)'; c.lineWidth = 1.5;
+        c.beginPath(); c.moveTo(m.x, m.y - s); c.lineTo(m.x + s * 0.8, m.y); c.lineTo(m.x, m.y + s); c.lineTo(m.x - s * 0.8, m.y); c.closePath(); c.fill(); c.stroke();
+        c.font = '700 10px Inter, sans-serif'; c.fillStyle = 'rgba(255,215,210,0.95)'; c.fillText(Math.round(m.d) + 'm', m.x, m.y - s - 7);
       } else {
         // 味方: 頭の上の小さな山形（分隊は緑・ほかは青）。近いほど大きく
         const s = Math.max(3.5, Math.min(7, 7 - (m.d || 0) / 40));
@@ -23478,7 +23559,7 @@ export function buildPlan(w, def, s = 4) {
   return { levels, s };
 }
 
-@@@@ FILE src/ui/hudlayout.js text 10294
+@@@@ FILE src/ui/hudlayout.js text 10640
 // HUD のボタンの既定の配置（CODモバイル／PUBGモバイルを参考）。基準は 844×390 の横画面。
 // ax: 'l'|'r'|'c'（左右の基準）、ay: 't'|'b'|'c'。x, y は基準からの距離（中心まで）、s は直径、o は濃さ。
 // 設定の hud[id] = { x, y, s, o, hide } で上書きする（HUD の編集）。
@@ -23500,6 +23581,7 @@ export const BTN = {
   team: { name: '命令する隊', ax: 'r', ay: 'b', x: 316, y: 160, s: 38, icon: 'team', pve: true },
   gear: { name: '投げ物・装備（長押しで選ぶ）', ax: 'r', ay: 'b', x: 92, y: 236, s: 52, icon: 'gear' },
   fmode: { name: '射撃モード', ax: 'r', ay: 't', x: 214, y: 92, s: 36, icon: 'fmode' },
+  spot: { name: '敵に印（分隊に知らせる）', ax: 'l', ay: 't', x: 170, y: 40, s: 40, icon: 'spot', warOnly: true },
   zoom: { name: 'スコープの倍率', ax: 'r', ay: 't', x: 258, y: 92, s: 36, icon: 'zoom', zoomOnly: true },
   light: { name: 'ライト', ax: 'r', ay: 't', x: 170, y: 92, s: 36, icon: 'light' },
   nvg: { name: '暗視装置', ax: 'r', ay: 't', x: 126, y: 92, s: 36, icon: 'nvg', noWar: true },
@@ -23546,6 +23628,8 @@ export const ICONS = {
   cmd: '<path d="M5 21V3M5 4h12l-3 4 3 4H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   team: '<circle cx="8" cy="9" r="3" fill="currentColor"/><circle cx="16" cy="9" r="3" fill="currentColor"/><path d="M2 20c0-4 3-6 6-6s6 2 6 6M10 20c0-4 3-6 6-6s6 2 6 6" fill="currentColor"/>',
   gear: '<rect x="8" y="7" width="8" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 7V4h4v3M14 4l4-2" fill="none" stroke="currentColor" stroke-width="2"/>',
+  // 敵に印: 目と小さな菱形
+  spot: '<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8.6l3 3.4-3 3.4-3-3.4z" fill="currentColor"/>',
   // 倍率（11-19 14:03）: 虫めがね
   zoom: '<circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M8 10.5h5M10.5 8v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   fmode: '<text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" font-family="sans-serif" font-weight="700">FM</text>',
@@ -23557,7 +23641,7 @@ export const ICONS = {
   wpn: '',
 };
 
-@@@@ FILE src/ui/input.js text 19560
+@@@@ FILE src/ui/input.js text 19660
 // 入力: タッチ（スティック・視点・ボタン、2本指以上の同時操作）、長押し、円形メニュー、ジャイロ、キーボードとマウス
 // タップは pointerup で判定し、続く click は捨てる（iPhoneは2本目の指に click が来ない）
 import { sprintZone } from './stick.js';
@@ -23745,7 +23829,7 @@ export class Input {
     });
     window.addEventListener('blur', () => { this.keys.clear(); this.mouseBtn = { l: false, r: false }; });
     document.addEventListener('mousemove', (e) => { if (!this.enabled || document.pointerLockElement !== this.area) return; this.lookDX += e.movementX; this.lookDY += e.movementY; });
-    a.addEventListener('mousedown', (e) => { if (!this.enabled || !document.pointerLockElement) return; if (e.button === 0) this.mouseBtn.l = true; if (e.button === 2) { this.mouseBtn.r = true; this.edges.push({ b: 'ads', k: 'down', mouse: true }); } });
+    a.addEventListener('mousedown', (e) => { if (!this.enabled || !document.pointerLockElement) return; if (e.button === 0) this.mouseBtn.l = true; if (e.button === 1) { e.preventDefault(); this.edges.push({ b: 'spot', k: 'down', mouse: true }); } if (e.button === 2) { this.mouseBtn.r = true; this.edges.push({ b: 'ads', k: 'down', mouse: true }); } });
     window.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouseBtn.l = false; if (e.button === 2) { this.mouseBtn.r = false; if (this.enabled) this.edges.push({ b: 'ads', k: 'up', mouse: true }); } });
     a.addEventListener('contextmenu', (e) => e.preventDefault());
     a.addEventListener('wheel', (e) => { if (this.enabled && document.pointerLockElement) this.edges.push({ b: e.deltaY > 0 ? 'wpn2' : 'wpn1', k: 'tap', wheel: true }); }, { passive: true });
@@ -29661,7 +29745,7 @@ export async function runTests(filter) {
   return res;
 }
 
-@@@@ FILE tests/run_all.mjs text 72004
+@@@@ FILE tests/run_all.mjs text 73700
 // テスト一式: node tests/run_all.mjs [--quick] [--no-sizes] → test-results/summary.md
 //  1 ビルド  2 単体  3 マップ（WAR BIT: 本陣・拠点・出撃の場所が範囲の中・本陣から拠点まで歩ける）  4 音
 //  5 自動の試合（コンクエスト・ドミネーション・TDM をボットだけで最後まで・同じシードで同じ結果・人数ごとの速さ）
@@ -30184,6 +30268,27 @@ try {
       await page.evaluate(() => { const g = window.__app.game, p = g.p, wi = p.inv.w[p.ws.slot]; wi.att.sight = window.__sg0[0]; wi.zi = window.__sg0[1]; });
       const okP = res.acog.pip && res.acog.lensR > 40 && /pip/.test(res.acog.cls) && res.acog.vm && !res.scope6.pip && /scope6/.test(res.scope6.cls) && !/pip/.test(res.scope6.cls);
       rec('画面', 'スコープ: 4倍はレンズの中だけ拡大（銃が見える）・6倍は画面いっぱい', okP, JSON.stringify(res));
+    }
+    // 敵に印（11-19）: 標的を狙って印のボタン → 分隊に見える印がつく
+    {
+      await page.evaluate(() => { const g = window.__app.game, p = g.p, t = g.S.actors.find(a => a.dummy && a.dummy.d === 50) || g.S.actors.find(a => a.dummy); g.yaw = Math.atan2(t.x - p.x, t.z - p.z); g.pitch = Math.atan2(t.y + 1.2 - (p.y + 1.55), Math.hypot(t.x - p.x, t.z - p.z)); });
+      await page.waitForTimeout(400);
+      await tapAt(await btn('spot'), 74);
+      await page.waitForTimeout(400);
+      const sp = await page.evaluate(() => { const g = window.__app.game; return (g.S.m.spots || []).filter(q => q.until > g.S.t).length; });
+      rec('操作', '敵に印のボタン: 狙っている敵に印がつく（大規模戦）', sp > 0, String(sp));
+    }
+    // 狙撃のスコープのきらめき（11-19）: 6倍以上のスコープをのぞいた敵がこちらを向くと光る
+    {
+      const gl = await page.evaluate(async () => {
+        const g = window.__app.game, p = g.p, t = g.S.actors.find(a => a.dummy && a.dummy.d === 150) || g.S.actors.find(a => a.dummy);
+        const wi = t.inv.w[0], keep0 = [wi.id, wi.att.sight, t.ws.slot]; wi.id = 'at308'; wi.att.sight = 'sniper'; t.ws.slot = 0;
+        let n = 0;
+        for (let i = 0; i < 20; i++) { t.ads = 1; t.yaw = Math.atan2(p.x - t.x, p.z - t.z); t.pitch = 0; await new Promise(r => requestAnimationFrame(r)); if (g.fx.p.some(q => q.add && q.c[0] > 5 && q.s0 > 0.5)) n++; }
+        [wi.id, wi.att.sight, t.ws.slot] = keep0; t.ads = 0;
+        return n;
+      });
+      rec('画面', '狙撃のスコープのきらめき: こちらを向いてのぞいている敵が光る', gl > 0, String(gl));
     }
     await page.evaluate(() => { window.__app.game.adsOn = false; });
     const bar = await page.evaluate(() => (document.querySelector('#hud .hud-obj .wb.rg') || {}).textContent || '');
@@ -32368,7 +32473,7 @@ test('war engine: 破片手榴弾（4秒・5mでほぼ致命・15mまで）と�
   ok(t2 >= 0 && t2 < 60, `当たってすぐ爆発 ${t2}`);
 });
 
-@@@@ FILE tests/unit/war_fixes.test.mjs text 8271
+@@@@ FILE tests/unit/war_fixes.test.mjs text 9832
 // 11-19 18:16 の直し: 煙と茂みでボットが見えない・向きを変えやすい・投げ物は残りがあれば持ったまま・あきらめる/再出撃
 import { test, ok } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
@@ -32500,6 +32605,30 @@ test('起こす（大規模戦）: 包帯を1つ使い、体力の半分で起�
   ok(!mate.down && mate.alive, '起きた');
   ok(mate.hp === Math.round(mate.maxHp * 0.5), `体力の半分 ${mate.hp}/${mate.maxHp}`);
   ok(g.n === n0 - 1, `包帯を1つ使う ${n0}→${g.n}`);
+});
+
+test('敵に印（spot）: 狙っている向きの見えている敵に印がつき、分隊のボットにも場所が伝わる。向きが外れていると付かない', async () => {
+  const { SPOT_T } = await import('../../src/engine/modes/war.js');
+  const G = game({ bots: true, per: 2 }), S = G.S, me = S.actors[0];
+  const foe = S.actors.find(b => b.team !== me.team && b.ai);
+  for (const b of S.actors) if (b !== me && b !== foe) { b.alive = false; b.dead = true; }
+  foe.ai = null;
+  const cx = 790, cz = 705;
+  put(G, me, cx, cz - 40); put(G, foe, cx, cz + 20);
+  for (let i = 0; i < 10; i++) step(G, inp(me, { yaw: 0 }));
+  put(G, foe, cx, cz + 20);
+  // 外れた向き
+  // 動作は向きが変わる前に行われるので、先に向きを変えておく
+  step(G, inp(me, { yaw: 0.6, pitch: 0 }));
+  let ev = step(G, inp(me, { yaw: 0.6, pitch: 0, act: [{ a: 'spot' }] }));
+  ok(ev.some(e => e.e === 'spot' && e.id === -1), '外れると付かない');
+  for (let i = 0; i < 40; i++) step(G, inp(me, { yaw: 0 }));
+  const e0 = me.y + 1.5, yaw = Math.atan2(foe.x - me.x, foe.z - me.z), pitch = Math.atan2(foe.y + 1.3 - e0, Math.hypot(foe.x - me.x, foe.z - me.z));
+  for (let i = 0; i < 3; i++) step(G, inp(me, { yaw, pitch }));
+  ev = step(G, inp(me, { yaw, pitch, act: [{ a: 'spot' }] }));
+  ok(ev.some(e => e.e === 'spot' && e.id === foe.id), '狙った敵に印');
+  const sp = (S.m.spots || []).find(q => q.id === foe.id);
+  ok(sp && sp.team === me.team && Math.abs((sp.until - S.t) * S.dt - SPOT_T) < 0.1, `印は ${SPOT_T} 秒`);
 });
 
 @@@@ FILE tests/unit/war_jump.test.mjs text 3643
