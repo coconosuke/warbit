@@ -5,12 +5,14 @@
 import { magCap } from './actor.js';
 
 export const AMMOBOX = { big: 244, small: 90, r: 2.0, every: 0.8, life: 240, pts: 10 };
+// 救急（包帯）と投げ物も補給する（BattleBit の重い弾薬箱: 救急 100・投げ物 50。1つ 25 で数える。小さい箱は弾だけ）。4 秒に1つ
+export const AIDBOX = { aid: 100, thr: 50, cost: 25, every: 4 };
 
 export function placeAmmo(S, a, id, ev) {
   const big = id === 'ammobig';
   const L = S.ammo || (S.ammo = []);
   const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
-  const b = { id: (S.ammoN = (S.ammoN || 0) + 1), team: a.team, big, left: big ? AMMOBOX.big : AMMOBOX.small, x: a.x + fx * 0.75, y: a.y, z: a.z + fz * 0.75, yaw: a.yaw, t: S.t, by: a.id };
+  const b = { id: (S.ammoN = (S.ammoN || 0) + 1), team: a.team, big, aid: big ? AIDBOX.aid : 0, thr: big ? AIDBOX.thr : 0, left: big ? AMMOBOX.big : AMMOBOX.small, x: a.x + fx * 0.75, y: a.y, z: a.z + fz * 0.75, yaw: a.yaw, t: S.t, by: a.id };
   L.push(b);
   if (ev) ev.push({ e: 'ammoBox', k: 'place', id: b.id, by: a.id, team: a.team, x: b.x, y: b.y, z: b.z, big });
   return b;
@@ -37,6 +39,14 @@ export function stepAmmo(S, ev, award) {
       if (Math.abs(a.y - b.y) > 1.6 || Math.hypot(a.x - b.x, a.z - b.z) > AMMOBOX.r) continue;
       const due = a._ammoT == null || S.t - a._ammoT >= every;
       if (!due) continue;
+      // 救急と投げ物（大きい箱）: 4 秒に1つ。出撃した時の数まで
+      if ((b.aid > 0 || b.thr > 0) && (a._aidT == null || S.t - a._aidT >= Math.round(AIDBOX.every / S.dt))) {
+        const gs = (a.inv && a.inv.gear) || [];
+        const ban = gs.find(g => g.id === 'bandage' && g.n < (g.n0 || 0));
+        const thr = gs.find(g => (g.id === 'frag' || g.id === 'impact' || g.id === 'smoke') && g.n < (g.n0 || 0));
+        if (ban && b.aid >= AIDBOX.cost) { ban.n++; b.aid -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'bandage' }); }
+        else if (thr && b.thr >= AIDBOX.cost) { thr.n++; b.thr -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: thr.id }); }
+      }
       // 主の銃から、満タンなら拳銃
       const w = a.inv && a.inv.w || [];
       let n = giveMag(w[0], b.left);

@@ -61,3 +61,15 @@ test('ボットの援護: 近くの仲間の人の予備が2本以下だと弾�
   for (let i = 0; i < 200 && !placed; i++) { b.x = me.x + 3; b.z = me.z; b.y = me.y; b.ai.tgt = null; step(G, {}); placed = (S.ammo || []).some(x => x.by === b.id); }
   ok(placed, '置いた');
 });
+
+test('大きい弾薬箱は包帯と投げ物も補給する（出撃した時の数まで・4 秒に1つ）', () => {
+  const G = game(), S = G.S, me = S.actors[0];
+  for (let i = 0; i < 60 && me.ws.st !== 'ready'; i++) step(G, { [me.id]: idle(me) });
+  const ban = me.inv.gear.find(g => g.id === 'bandage'), fr = me.inv.gear.find(g => g.id === 'frag');
+  ok(ban && ban.n0 > 0, '出撃した時の数を覚えている');
+  ban.n = 0; if (fr) fr.n = 0;
+  S.ammo = [{ id: 1, team: me.team, big: true, aid: 100, thr: 50, left: 244, x: me.x + 1, y: me.y, z: me.z, yaw: 0, t: S.t, by: me.id }];
+  for (let i = 0; i < Math.round(9 / S.dt); i++) step(G, { [me.id]: idle(me) });
+  ok(ban.n >= 2, '包帯 ' + ban.n);
+  ok(ban.n <= ban.n0, '出撃した時の数まで');
+});

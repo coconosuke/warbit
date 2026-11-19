@@ -35,7 +35,7 @@ export function makeInventory(lo) {
     always: { cuffs: 99, chem: 8 },
   };
   // 大規模戦の兵科は数を兵科で決める（衛生の包帯 16 など）。ほかは道具ごとの上限まで
-  for (const [id, n] of (lo.gear || [])) if (GEAR[id] && n > 0) inv.gear.push({ id, n: lo.war ? n : Math.min(n, GEAR[id].max) });
+  for (const [id, n] of (lo.gear || [])) if (GEAR[id] && n > 0) { const k = lo.war ? n : Math.min(n, GEAR[id].max); inv.gear.push({ id, n: k, n0: k }); }
   if (inv.long === 'm320') inv.m320 = { ...LONG.m320.rounds, sel: 'flash' };
   return inv;
 }
