@@ -46,6 +46,7 @@ export function wallX(B, x0, x1, z, y0, y1, ops = [], o = {}) {
   if (o.out) for (const p of ops) {
     const a = x0 + p.at - p.w / 2, b = x0 + p.at + p.w / 2, zf = o.out < 0 ? z : z + T, d = o.out;
     trim(B, (u0, u1, v0, v1, w0, w1) => box(B, u0, v0, Math.min(zf + d * w0, zf + d * w1), u1, v1, Math.max(zf + d * w0, zf + d * w1), { kind: 'trim', detail: true, walk: false, col: B.trimCol, mat: B.mat }), a, b, y0, p);
+    frameDeco(B, (u, v, w) => { const [wx, wz] = xf(B, u, w === 'mid' ? z + T / 2 : zf + d * w); return [wx, B.y + v, wz]; }, nrm(B, 0, d), nrm(B, 1, 0), a, b, y0, p);
   }
 }
 export function wallZ(B, z0, z1, x, y0, y1, ops = [], o = {}) {
@@ -53,6 +54,28 @@ export function wallZ(B, z0, z1, x, y0, y1, ops = [], o = {}) {
   if (o.out) for (const p of ops) {
     const a = z0 + p.at - p.w / 2, b = z0 + p.at + p.w / 2, xf0 = o.out < 0 ? x : x + T, d = o.out;
     trim(B, (u0, u1, v0, v1, w0, w1) => box(B, Math.min(xf0 + d * w0, xf0 + d * w1), v0, u0, Math.max(xf0 + d * w0, xf0 + d * w1), v1, u1, { kind: 'trim', detail: true, walk: false, col: B.trimCol, mat: B.mat }), a, b, y0, p);
+    frameDeco(B, (u, v, w) => { const [wx, wz] = xf(B, w === 'mid' ? x + T / 2 : xf0 + d * w, u); return [wx, B.y + v, wz]; }, nrm(B, d, 0), nrm(B, 0, 1), a, b, y0, p);
+  }
+}
+// 窓と扉の枠の縦の帯（外の面の少し前）と、窓の十字の桟（壁の厚みの真ん中）。描くだけ（当たりなし・近くだけ）。
+// P(線にそった位置, 高さ, 面からの出 か 'mid') → 世界の点
+function frameDeco(B, P, n, nu, a, b, y0, p) {
+  const c = B.trimCol, lay = 1, ya = y0 + p.y0, yb = y0 + p.y1, w = 0.09, o = 0.03;
+  const strip = (u0, u1, v0, v1, ww) => addDeco(B.ww, { pts: [P(u0, v0, ww), P(u1, v0, ww), P(u1, v1, ww), P(u0, v1, ww)], n, col: c, layer: lay, far: false, bld: B.id });
+  strip(a - w, a, ya - (p.y0 > 0.05 ? 0.08 : 0), yb + 0.02, o);
+  strip(b, b + w, ya - (p.y0 > 0.05 ? 0.08 : 0), yb + 0.02, o);
+  if (p.y0 <= 0.05 && p.w <= 1.3) {
+    // 扉: 内へ開いた扉の板（片側の柱から壁に直角。描くだけ）と取っ手
+    const dc = B.doorCol || (B.doorCol = ['#6e553a', '#5b4a3a', '#7d6a55', '#4c5a63', '#8a3f30', '#d9d6cf'][(B.id * 7) % 6]);
+    const w0 = -(T + 0.03), w1 = -(T + 1.08);
+    addDeco(B.ww, { pts: [P(a + 0.03, ya + 0.01, w0), P(a + 0.03, ya + 0.01, w1), P(a + 0.03, yb - 0.04, w1), P(a + 0.03, yb - 0.04, w0)], n: nu, col: dc, layer: 11, far: false, bld: B.id });
+    addDeco(B.ww, { pts: [P(a + 0.02, ya + 0.95, w1 + 0.12), P(a + 0.02, ya + 0.95, w1 + 0.04), P(a + 0.02, ya + 1.05, w1 + 0.04), P(a + 0.02, ya + 1.05, w1 + 0.12)], n: nu, col: '#c8c2b0', layer: 10, far: false, bld: B.id });
+  }
+  if (p.y0 > 0.05) {
+    // 窓: 縦の桟（幅 1.6m 以上は2本）と横の桟
+    const nv = p.w >= 1.6 ? 2 : 1;
+    for (let k = 1; k <= nv; k++) { const m = a + (b - a) * k / (nv + 1); strip(m - 0.035, m + 0.035, ya, yb, 'mid'); }
+    const hm = ya + (yb - ya) * 0.58; strip(a, b, hm - 0.035, hm + 0.035, 'mid');
   }
 }
 // 枠: put(線にそった始め・終わり, 下・上, 壁の面からの出の始め・終わり)
@@ -97,13 +120,25 @@ function plinth(B, h = 0.32) {
   box(B, -e, 0, B.bd, B.bw + e, h, B.bd + e, c());
   box(B, -e, 0, 0, 0, h, B.bd, c());
   box(B, B.bw, 0, 0, B.bw + e, h, B.bd, c());
+  // 外の設備（近くだけ）: 横の壁の奥に室外機、反対の横に電気のメーター箱
+  // 置き方の乱数（マップの並び）を変えないよう、建物の番号から作る別の乱数を使う
+  let sd = (B.id * 2654435761) >>> 0; const r = () => { sd = (sd + 0x6D2B79F5) >>> 0; let t = sd; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const D = { kind: 'trim', detail: true, walk: false, mat: M.METAL, layer: 10 };
+  if (B.bd >= 6 && r() < 0.6) { const z0 = B.bd - 1.6; box(B, -0.62, 0.05, z0, -0.02, 0.75, z0 + 0.85, { ...D, col: '#c9cac6' }); box(B, -0.64, 0.12, z0 + 0.1, -0.62, 0.68, z0 + 0.75, { ...D, col: '#5a5d60' }); }
+  if (B.bd >= 6 && r() < 0.5) { const z0 = B.bd * 0.35; box(B, B.bw + 0.02, 1.2, z0, B.bw + 0.2, 1.75, z0 + 0.4, { ...D, col: '#8a8d8f' }); box(B, B.bw + 0.04, 0.1, z0 + 0.17, B.bw + 0.1, 1.2, z0 + 0.23, { ...D, col: '#55585b' }); }
 }
 // 切妻の屋根: 下の高さ y・棟までの高さ rh・軒の出 ov。棟は ridge: 'x'（x にそう＝坂は手前と奥へ）か 'z'
 // 坂の板2枚（上に乗れる）＋三角の壁（描くだけ）＋三角の当たり（隠れた段の箱）。o.x0..x1・z0..z1 で建物の一部だけにかけられる
 function gable(B, y, rh, ov = 0.45, ridge = 'x', o = {}) {
   const gx0 = o.x0 ?? 0, gx1 = o.x1 ?? B.bw, gz0 = o.z0 ?? 0, gz1 = o.z1 ?? B.bd, th = 0.22, col = o.col || B.roofCol, wcol = o.wallCol || B.col, layer = 22;
+  const D = { kind: 'trim', detail: true, walk: false, mat: M.METAL, layer: 10 }, gut = '#6d6f70', rc = '#4b4440';
   if (ridge === 'x') {
-    const m = (gz0 + gz1) / 2, hd = (gz1 - gz0) / 2;
+    const m = (gz0 + gz1) / 2, hd = (gz1 - gz0) / 2, ye = y - ov * rh / hd;
+    // 雨どい（軒の下）・棟の笠・角の縦どい（近くだけ）
+    box(B, gx0 - ov, ye - 0.16, gz0 - ov - 0.1, gx1 + ov, ye - 0.04, gz0 - ov + 0.02, { ...D, col: gut });
+    box(B, gx0 - ov, ye - 0.16, gz1 + ov - 0.02, gx1 + ov, ye - 0.04, gz1 + ov + 0.1, { ...D, col: gut });
+    box(B, gx0 - ov, y + rh - 0.04, m - 0.16, gx1 + ov, y + rh + 0.1, m + 0.16, { ...D, col: rc, mat: M.WOOD, layer: 22 });
+    if (!o.noPipes) for (const [px, pz] of [[gx0 + 0.12, gz0 - ov - 0.04], [gx1 - 0.12, gz1 + ov + 0.04]]) box(B, px - 0.05, 0.05, pz - 0.05, px + 0.05, ye - 0.1, pz + 0.05, { ...D, col: gut });
     ramp(B, gx0 - ov, gz0 - ov, gx1 + ov, m, y - ov * rh / hd, y + rh, 's', { smooth: true, th, kind: 'roof', col, layer, mat: M.WOOD });
     ramp(B, gx0 - ov, m, gx1 + ov, gz1 + ov, y - ov * rh / hd, y + rh, 'n', { smooth: true, th, kind: 'roof', col, layer, mat: M.WOOD });
     for (const [lx, nx] of [[gx0, -1], [gx1, 1]]) {
@@ -112,7 +147,11 @@ function gable(B, y, rh, ov = 0.45, ridge = 'x', o = {}) {
       for (let k = 0; k < 3; k++) { const t = (k + 0.5) / 3, a = gz0 + t * hd, b = gz1 - t * hd; box(B, lx === gx0 ? gx0 : gx1 - T, y + rh * k / 3, a, lx === gx0 ? gx0 + T : gx1, y + rh * (k + 1) / 3, b, { hide: true, kind: 'wall', mat: B.mat }); }
     }
   } else {
-    const m = (gx0 + gx1) / 2, hw = (gx1 - gx0) / 2;
+    const m = (gx0 + gx1) / 2, hw = (gx1 - gx0) / 2, ye = y - ov * rh / hw;
+    box(B, gx0 - ov - 0.1, ye - 0.16, gz0 - ov, gx0 - ov + 0.02, ye - 0.04, gz1 + ov, { ...D, col: gut });
+    box(B, gx1 + ov - 0.02, ye - 0.16, gz0 - ov, gx1 + ov + 0.1, ye - 0.04, gz1 + ov, { ...D, col: gut });
+    box(B, m - 0.16, y + rh - 0.04, gz0 - ov, m + 0.16, y + rh + 0.1, gz1 + ov, { ...D, col: rc, mat: M.WOOD, layer: 22 });
+    if (!o.noPipes) for (const [px, pz] of [[gx0 - ov - 0.04, gz0 + 0.12], [gx1 + ov + 0.04, gz1 - 0.12]]) box(B, px - 0.05, 0.05, pz - 0.05, px + 0.05, ye - 0.1, pz + 0.05, { ...D, col: gut });
     ramp(B, gx0 - ov, gz0 - ov, m, gz1 + ov, y - ov * rh / hw, y + rh, 'e', { smooth: true, th, kind: 'roof', col, layer, mat: M.WOOD });
     ramp(B, m, gz0 - ov, gx1 + ov, gz1 + ov, y - ov * rh / hw, y + rh, 'w', { smooth: true, th, kind: 'roof', col, layer, mat: M.WOOD });
     for (const [lz, nz] of [[gz0, -1], [gz1, 1]]) {

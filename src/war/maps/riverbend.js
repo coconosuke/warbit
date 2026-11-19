@@ -7,9 +7,9 @@
 // 置き方: まず建物（下の地面をならす。まわりはなだらかに）、次に小物（2m の升目で重ならないように。道・川・拠点の真ん中を避ける）、最後に木と岩
 import { makeWarWorld, finishWorld, heightAt, addCyl, addBox, addRamp, addBush } from '../world.js';
 import { house, bungalow, apartment, shop, office, warehouse, barn, shed, tower, bunker, ruin, gasStation, chapel, wallRun, sandbags, container } from '../buildings.js';
-import { car, pickup, truck, wreck, barrels, basin, busStop, crates, dumpster, foxhole, hay, hesco, jerseyRun, lamp, logs, pallets, planter, pole, rubble, silo, stall, stoneWall, tankTrap, tent, waterTower, boardFence, hedge, railFence, vineRow } from '../props.js';
+import { car, pickup, truck, wreck, barrels, basin, busStop, crates, dumpster, foxhole, hay, hesco, jerseyRun, lamp, logs, pallets, planter, pole, rubble, silo, stall, stoneWall, tankTrap, tent, waterTower, boardFence, hedge, railFence, vineRow, wires, hydrant, mailbox, sign, bench, bin } from '../props.js';
 // 小物の一覧（名前で呼ぶ所があるので、まとめた物も持つ）
-const P = { car, pickup, truck, wreck, barrels, basin, busStop, crates, dumpster, foxhole, hay, hesco, jerseyRun, lamp, logs, pallets, planter, pole, rubble, silo, stall, stoneWall, tankTrap, tent, waterTower, boardFence, hedge, railFence, vineRow };
+const P = { car, pickup, truck, wreck, barrels, basin, busStop, crates, dumpster, foxhole, hay, hesco, jerseyRun, lamp, logs, pallets, planter, pole, rubble, silo, stall, stoneWall, tankTrap, tent, waterTower, boardFence, hedge, railFence, vineRow, wires, hydrant, mailbox, sign, bench, bin };
 import { fbm, mulberry } from '../noise.js';
 import { M } from '../../engine/data/materials.js';
 
@@ -198,6 +198,8 @@ export function buildRiverbend(seed = 7) {
   }
   ww.creekDist = creekDist;
   const rnd = mulberry(seed);
+  // 飾り（郵便受け・ごみ入れ・標識）の乱数は別にする（並びを決める乱数を変えない）
+  const rdec = mulberry(seed * 31 + 991);
   const gy = (x, z) => heightAt(ww, x, z);
   const pick = (L) => L[Math.floor(rnd() * L.length) % L.length];
   const FL = Object.values(FLAGS), HQS = Object.values(AREAS).flatMap(s => s.hq);
@@ -339,12 +341,14 @@ export function buildRiverbend(seed = 7) {
         const xs = openLow ? x1 + wide : x0 - wide;
         fenceRun(fence, xs, Math.min(zf, zb), xs, Math.max(zf, zb), fo);
         if (rnd() < 0.62) carAt(openLow ? x0 - 3.3 : x1 + 3.3, side > 0 ? z0 + 2.9 : z1 - 2.9, side > 0 ? 3 : 1, rnd() < 0.75 ? 'car' : 'pickup');
+        { const mx = openLow ? x0 - 1.0 : x1 + 1.0, mz = side > 0 ? z0 - 2.4 : z1 + 2.4; if (rdec() < 0.8 && spot(mx - 0.3, mz - 0.3, mx + 0.3, mz + 0.3)) P.mailbox(ww, mx, mz, 1, { rnd: rdec }); }
       } else {
         const xb = side > 0 ? x1 + back : x0 - back, xf = side > 0 ? x1 : x0;
         fenceRun(fence, xb, z0 - wide, xb, z1 + wide, fo);
         const zs = openLow ? z1 + wide : z0 - wide;
         fenceRun(fence, Math.min(xf, xb), zs, Math.max(xf, xb), zs, fo);
         if (rnd() < 0.62) carAt(side > 0 ? x0 + 2.9 : x1 - 2.9, openLow ? z0 - 3.3 : z1 + 3.3, side > 0 ? 2 : 0, rnd() < 0.75 ? 'car' : 'pickup');
+        { const mx = side > 0 ? x0 - 2.4 : x1 + 2.4, mz = openLow ? z0 - 1.0 : z1 + 1.0; if (rdec() < 0.8 && spot(mx - 0.3, mz - 0.3, mx + 0.3, mz + 0.3)) P.mailbox(ww, mx, mz, 0, { rnd: rdec }); }
       }
     });
   };
@@ -513,11 +517,31 @@ export function buildRiverbend(seed = 7) {
       if (spot(x - 1.2, z - 0.9, x + 1.2, z + 0.9)) P.dumpster(ww, x, z, rnd() < 0.5 ? 0 : 2, { rnd });
     }
     if (spot(812, 703.6, 818, 707.2, { onRoad: true, inFlag: true })) P.busStop(ww, 815, 705.6, 0);
+    // 消火栓（歩道の上、55m ごとに左右交互）・交差点の止まれの標識・ごみ入れ
+    for (const ri of [0, 7, 8, 9, 10, 11]) {
+      const r = ROADS[ri];
+      for (let k = 0; k + 1 < r.length; k++) {
+        const [ax, az] = r[k], [bx, bz] = r[k + 1], L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
+        for (let t = 20, n = 0; t < L - 10; t += 55, n++) {
+          const sd = n % 2 ? 1 : -1, x = ax + ux * t - uz * 5.7 * sd, z = az + uz * t + ux * 5.7 * sd;
+          if (x < 700 || x > 905 || z < 600 || z > 850) continue;
+          if (spot(x - 0.3, z - 0.3, x + 0.3, z + 0.3, { onRoad: true })) P.hydrant(ww, x, z);
+          const bx2 = x + ux * 6, bz2 = z + uz * 6;
+          if (rdec() < 0.5 && spot(bx2 - 0.3, bz2 - 0.3, bx2 + 0.3, bz2 + 0.3, { onRoad: true })) P.bin(ww, bx2, bz2);
+        }
+      }
+    }
+    for (const x of [748, 790, 840]) for (const z of [652, 700, 772]) {
+      if (x === 790 && z === 772 && false) continue;
+      for (const [sx, sz] of [[-1, -1], [1, 1]]) { const px = x + sx * 5.6, pz = z + sz * 5.6; if (rdec() < 0.7 && spot(px - 0.2, pz - 0.2, px + 0.2, pz + 0.2, { onRoad: true, inFlag: true })) P.sign(ww, px, pz, sx > 0 ? 1 : 0, 'stop'); }
+    }
   }
   // ---- 広場（D）: 噴水（旗の柱はこの真ん中）・屋台・植え込み・土のう・低い壁・車
   {
     const fx = FLAGS.D.x, fz = FLAGS.D.z;
     P.basin(ww, fx, fz, 3.4);
+    for (const [x, z, r] of [[806, 722, 0], [824, 750, 2], [801, 745, 1], [829, 721, 3], [815, 727, 0], [815, 745, 2]]) if (spot(x - 1.0, z - 1.0, x + 1.0, z + 1.0, { inFlag: true })) P.bench(ww, x, z, r);
+    for (const [x, z] of [[809, 722], [821, 750]]) if (spot(x - 0.3, z - 0.3, x + 0.3, z + 0.3, { inFlag: true })) P.bin(ww, x, z);
     for (const [x, z, r] of [[802, 713, 2], [808, 713, 2], [824, 713, 2], [830, 713, 2], [800, 752, 1], [830, 744, 3]]) if (spot(x - 1.7, z - 1.7, x + 1.7, z + 1.7, { inFlag: true })) P.stall(ww, x, z, r, { rnd });
     for (const [x0, z0, x1, z1] of [[796, 722, 800, 723.4], [830, 726, 834, 727.4], [796, 760, 800, 761.4], [812, 752, 818, 753.4], [812, 718, 818, 719.4]]) if (spot(x0, z0, x1, z1, { inFlag: true })) { P.planter(ww, x0, z0, x1, z1); }
     for (const [x0, z0, x1, z1] of [[805, 744, 811, 744], [819, 728, 825, 728], [804, 730, 804, 735], [826, 738, 826, 743]]) if (spot(Math.min(x0, x1) - 0.4, Math.min(z0, z1) - 0.4, Math.max(x0, x1) + 0.4, Math.max(z0, z1) + 0.4, { inFlag: true })) sandbags(ww, x0, z0, x1, z1, gy((x0 + x1) / 2, (z0 + z1) / 2) - 0.05);
@@ -651,7 +675,8 @@ export function buildRiverbend(seed = 7) {
         else if (t < 0.75) { if (spot(px - 1.8, pz - 1.8, px + 1.8, pz + 1.8, { onRoad: true })) P.rubble(ww, px, pz, 6, { rnd }); }
         else if (!onRoad) { if (spot(px - 2, pz - 2, px + 2, pz + 2)) P.crates(ww, px - 0.5, pz - 0.5, 2 + Math.floor(rnd() * 3), { rnd }); }
       }
-      if (ri === 0 || ri === 3) for (let s = 10; s < L; s += 46) { const x = ax + ux * s - uz * 7.6, z = az + uz * s + ux * 7.6; if (!(x > 700 && x < 905 && z > 600 && z < 850) && spot(x - 0.4, z - 0.4, x + 0.4, z + 0.4)) P.pole(ww, x, z); }
+      // 電柱（大通りと南北の道）と電線: 腕木は道に直角。となりの電柱までが 60m 以内なら電線を張る
+      if (ri === 0 || ri === 3 || ri === 5 || ri === 6) { let prev = null; for (let s = 10; s < L; s += 46) { const x = ax + ux * s - uz * 7.6, z = az + uz * s + ux * 7.6; if (!(x > 700 && x < 905 && z > 600 && z < 850) && spot(x - 0.4, z - 0.4, x + 0.4, z + 0.4)) { const pts = P.pole(ww, x, z, { dir: Math.abs(ux) > Math.abs(uz) ? 'x' : 'z' }); if (prev && Math.hypot(prev.x - x, prev.z - z) < 60) P.wires(ww, prev.pts, pts); prev = { x, z, pts }; } else prev = null; } }
     }
   }
   // ---- 畑（research/WARBIT.md の 14）: 町・工場・村・十字路・石切り場・丘・森・川・本陣・拠点を避けた所を、少しずらした格子で区切る。

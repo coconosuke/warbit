@@ -36,6 +36,7 @@ export function addBox(ww, b) {
   if (b.hide) box.hide = true;
   if (b.far) box.far = true;
   if (b.cols) box.cols = b.cols;
+  if (b.shape) box.shape = b.shape;
   ww.boxes.push(box);
   return box;
 }

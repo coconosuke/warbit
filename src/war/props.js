@@ -19,45 +19,77 @@ function part(ww, cx, cz, rot, y, lx0, ly0, lz0, lx1, ly1, lz1, o) {
 }
 const glassCols = (body) => [GLASS, GLASS, body, body, GLASS, GLASS];
 function wheels(ww, cx, cz, rot, y, xs, wz, r = 0.33) {
-  for (const lx of xs) for (const s of [-1, 1]) part(ww, cx, cz, rot, y, lx - r, 0, s * wz - 0.13, lx + r, r * 2, s * wz + 0.13, { kind: 'car', mat: M.CAR, col: TIRE, layer: 20, detail: true, walk: false, bev: 0.08 });
+  // 丸い車輪（描くときは横向きの円筒。当たりは箱）
+  const shape = (rot & 1) ? 'wheelX' : 'wheelZ';
+  for (const lx of xs) for (const s of [-1, 1]) part(ww, cx, cz, rot, y, lx - r, 0, s * wz - 0.12, lx + r, r * 2, s * wz + 0.12, { kind: 'car', mat: M.CAR, col: TIRE, layer: 20, detail: true, walk: false, shape });
+}
+// 車の細部（近くだけ・当たりなし同然の薄い物）: 前後のバンパー・前の灯り・後ろの赤い灯り・横の鏡・ナンバー・下の暗い帯
+function carDetail(ww, cx, cz, rot, y, o) {
+  const { L, W, yb, yl, mx } = o, D = { kind: 'car', mat: M.CAR, layer: 20, detail: true, walk: false };
+  for (const s of [-1, 1]) part(ww, cx, cz, rot, y, s > 0 ? L - 0.03 : -L - 0.1, yb, -W + 0.04, s > 0 ? L + 0.1 : -L + 0.03, yb + 0.24, W - 0.04, { ...D, col: '#2b2d30', bev: 0.04 });
+  for (const sz of [-1, 1]) {
+    part(ww, cx, cz, rot, y, L - 0.02, yl, sz * (W - 0.34) - 0.18, L + 0.035, yl + 0.13, sz * (W - 0.34) + 0.18, { ...D, col: '#e9e4cf' });
+    part(ww, cx, cz, rot, y, -L - 0.035, yl, sz * (W - 0.3) - 0.16, -L + 0.02, yl + 0.12, sz * (W - 0.3) + 0.16, { ...D, col: '#9c2228' });
+    if (mx != null) part(ww, cx, cz, rot, y, mx - 0.08, o.ym, sz * (W + 0.02) - (sz > 0 ? 0 : 0.14), mx + 0.08, o.ym + 0.13, sz * (W + 0.02) + (sz > 0 ? 0.14 : 0), { ...D, col: o.col });
+  }
+  part(ww, cx, cz, rot, y, L + 0.08, yb + 0.05, -0.24, L + 0.11, yb + 0.17, 0.24, { ...D, col: '#d9d8d0' });
+  part(ww, cx, cz, rot, y, -L - 0.11, yb + 0.05, -0.24, -L - 0.08, yb + 0.17, 0.24, { ...D, col: '#d9d8d0' });
 }
 
-// 乗用車（4.4×1.8m）
+// 乗用車（4.4×1.8m。+x が前）: 下の車体・ボンネットとトランク・ガラスの客室（前後の窓は斜めに見えるよう段をつける）・屋根・車輪
 export function car(ww, cx, cz, rot = 0, o = {}) {
   const r = o.rnd || Math.random, col = o.col || pick(CARCOL, r), y = o.y ?? ground(ww, cx, cz, 2.2, 1.0);
-  part(ww, cx, cz, rot, y, -2.2, 0.32, -0.9, 2.2, 0.95, 0.9, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.12, far: true });
-  part(ww, cx, cz, rot, y, -1.15, 0.95, -0.82, 0.95, 1.43, 0.82, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.14, far: true, cols: glassCols(col) });
-  for (const s of [-1, 1]) part(ww, cx, cz, rot, y, s > 0 ? 2.18 : -2.3, 0.36, -0.86, s > 0 ? 2.3 : -2.18, 0.6, 0.86, { kind: 'car', mat: M.CAR, col: '#33363a', layer: 20, detail: true, walk: false });
-  wheels(ww, cx, cz, rot, y, [-1.35, 1.35], 0.8);
+  part(ww, cx, cz, rot, y, -2.2, 0.3, -0.9, 2.2, 0.82, 0.9, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.14, far: true });
+  part(ww, cx, cz, rot, y, 0.95, 0.82, -0.84, 2.1, 0.9, 0.84, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.05, detail: true, walk: false });
+  part(ww, cx, cz, rot, y, -2.1, 0.82, -0.84, -1.35, 0.93, 0.84, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.05, detail: true, walk: false });
+  part(ww, cx, cz, rot, y, -1.1, 0.82, -0.82, 0.9, 1.4, 0.82, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.12, far: true, cols: glassCols(col) });
+  part(ww, cx, cz, rot, y, 0.9, 0.86, -0.78, 1.15, 1.2, 0.78, { kind: 'car', mat: M.CAR, col: GLASS, layer: 20, bev: 0.06, detail: true, walk: false });
+  part(ww, cx, cz, rot, y, -1.32, 0.86, -0.78, -1.1, 1.24, 0.78, { kind: 'car', mat: M.CAR, col: GLASS, layer: 20, bev: 0.06, detail: true, walk: false });
+  part(ww, cx, cz, rot, y, -0.95, 1.4, -0.74, 0.72, 1.46, 0.74, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.04, detail: true, walk: false });
+  carDetail(ww, cx, cz, rot, y, { L: 2.2, W: 0.9, yb: 0.3, yl: 0.6, mx: 0.8, ym: 0.9, col });
+  wheels(ww, cx, cz, rot, y, [-1.35, 1.35], 0.78);
 }
-// 小型トラック（5.2×1.9m。荷台つき）
+// 小型トラック（5.2×1.9m。荷台つき。+x が前）
 export function pickup(ww, cx, cz, rot = 0, o = {}) {
   const r = o.rnd || Math.random, col = o.col || pick(CARCOL, r), y = o.y ?? ground(ww, cx, cz, 2.6, 1.0);
-  part(ww, cx, cz, rot, y, -2.6, 0.4, -0.95, 2.6, 1.05, 0.95, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.1, far: true });
-  part(ww, cx, cz, rot, y, 0.2, 1.05, -0.88, 1.9, 1.62, 0.88, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.12, far: true, cols: glassCols(col) });
-  // 荷台の縁
+  part(ww, cx, cz, rot, y, -2.6, 0.42, -0.95, 2.6, 1.05, 0.95, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.1, far: true });
+  part(ww, cx, cz, rot, y, 0.2, 1.05, -0.88, 1.9, 1.65, 0.88, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.12, far: true, cols: glassCols(col) });
+  part(ww, cx, cz, rot, y, 1.9, 1.08, -0.82, 2.08, 1.42, 0.82, { kind: 'car', mat: M.CAR, col: GLASS, layer: 20, bev: 0.05, detail: true, walk: false });
+  part(ww, cx, cz, rot, y, 2.0, 1.05, -0.88, 2.55, 1.12, 0.88, { kind: 'car', mat: M.CAR, col, layer: 19, bev: 0.04, detail: true, walk: false });
+  // 荷台の縁と床
   part(ww, cx, cz, rot, y, -2.6, 1.05, -0.95, 0.1, 1.45, -0.85, { kind: 'car', mat: M.CAR, col, layer: 19, walk: false, detail: true });
   part(ww, cx, cz, rot, y, -2.6, 1.05, 0.85, 0.1, 1.45, 0.95, { kind: 'car', mat: M.CAR, col, layer: 19, walk: false, detail: true });
   part(ww, cx, cz, rot, y, -2.6, 1.05, -0.85, -2.5, 1.45, 0.85, { kind: 'car', mat: M.CAR, col, layer: 19, walk: false, detail: true });
-  wheels(ww, cx, cz, rot, y, [-1.6, 1.6], 0.86, 0.37);
+  part(ww, cx, cz, rot, y, -2.5, 1.05, -0.85, 0.1, 1.09, 0.85, { kind: 'car', mat: M.CAR, col: '#3a3b3d', layer: 10, walk: false, detail: true });
+  carDetail(ww, cx, cz, rot, y, { L: 2.6, W: 0.95, yb: 0.36, yl: 0.78, mx: 1.75, ym: 1.15, col });
+  wheels(ww, cx, cz, rot, y, [-1.6, 1.6], 0.84, 0.38);
 }
-// 大型トラック（9×2.5m。運転台と荷箱）
+// 大型トラック（9×2.5m。運転台と荷箱。+x が前）
 export function truck(ww, cx, cz, rot = 0, o = {}) {
   const r = o.rnd || Math.random, col = o.col || pick(['#c9c6bd', '#7f8a86', '#a33a2c', '#3d5c7a', '#6b6f45'], r), y = o.y ?? ground(ww, cx, cz, 4.5, 1.3);
   const cab = o.cab || pick(['#d9d6cf', '#2a5d9a', '#b8322a', '#3a3d40'], r);
   part(ww, cx, cz, rot, y, -4.5, 0.5, -1.15, 4.5, 1.05, 1.15, { kind: 'car', mat: M.METAL, col: '#3b3d40', layer: 10, far: true });
   part(ww, cx, cz, rot, y, 2.4, 1.05, -1.2, 4.5, 2.4, 1.2, { kind: 'car', mat: M.CAR, col: cab, layer: 19, bev: 0.12, far: true });
   part(ww, cx, cz, rot, y, 2.6, 2.4, -1.15, 4.4, 3.1, 1.15, { kind: 'car', mat: M.CAR, col: cab, layer: 19, bev: 0.12, far: true, cols: glassCols(cab) });
+  part(ww, cx, cz, rot, y, 4.4, 2.45, -1.05, 4.47, 3.0, 1.05, { kind: 'car', mat: M.CAR, col: GLASS, layer: 20, detail: true, walk: false });
+  // 前の格子と燃料タンク・荷箱の縁
+  part(ww, cx, cz, rot, y, 4.47, 1.3, -0.7, 4.54, 2.0, 0.7, { kind: 'car', mat: M.METAL, col: '#5a5d61', layer: 10, detail: true, walk: false });
+  for (const sz of [-1, 1]) part(ww, cx, cz, rot, y, 1.0, 0.65, sz * 1.15 - 0.3, 2.2, 1.15, sz * 1.15 + 0.3, { kind: 'car', mat: M.METAL, col: '#8d9195', layer: 10, bev: 0.12, detail: true, walk: false });
   part(ww, cx, cz, rot, y, -4.5, 1.05, -1.25, 2.3, 3.6, 1.25, { kind: 'car', mat: M.METAL, col, layer: 10, bev: 0.06, far: true });
-  wheels(ww, cx, cz, rot, y, [-3.2, -2.0, 3.3], 1.05, 0.48);
+  part(ww, cx, cz, rot, y, -4.55, 3.5, -1.3, 2.35, 3.62, 1.3, { kind: 'car', mat: M.METAL, col: '#5a5d61', layer: 10, detail: true, walk: false });
+  carDetail(ww, cx, cz, rot, y, { L: 4.5, W: 1.15, yb: 0.5, yl: 1.15, mx: 4.2, ym: 2.5, col: '#2b2d30' });
+  wheels(ww, cx, cz, rot, y, [-3.2, -2.0, 3.3], 1.02, 0.48);
 }
-// 焼けた車（車輪なし・煤けた色）
+// 焼けた車（車輪のない鉄の輪・煤けた色・割れたガラスの穴）
 export function wreck(ww, cx, cz, rot = 0, o = {}) {
   const r = o.rnd || Math.random, y = o.y ?? ground(ww, cx, cz, 2.2, 1.0);
   const col = pick(['#3b3632', '#4a4038', '#55473c', '#3a3a38'], r);
   part(ww, cx, cz, rot, y, -2.2, 0.08, -0.9, 2.2, 0.8, 0.9, { kind: 'car', mat: M.CAR, col, layer: 9, bev: 0.12, far: true });
-  part(ww, cx, cz, rot, y, -1.0, 0.8, -0.8, 0.9, 1.2, 0.8, { kind: 'car', mat: M.CAR, col: '#2a2826', layer: 9, bev: 0.12, far: true });
+  part(ww, cx, cz, rot, y, -1.0, 0.8, -0.8, 0.9, 1.2, 0.8, { kind: 'car', mat: M.CAR, col: '#2a2826', layer: 9, bev: 0.12, far: true, cols: ['#141312', '#141312', '#2a2826', '#2a2826', '#141312', '#141312'] });
+  part(ww, cx, cz, rot, y, 1.0, 0.8, -0.8, 2.05, 0.92, 0.8, { kind: 'car', mat: M.CAR, col: mixHex(col, '#6b3a22'), layer: 9, bev: 0.04, detail: true, walk: false });
+  for (const lx of [-1.35, 1.35]) for (const s of [-1, 1]) part(ww, cx, cz, rot, y, lx - 0.27, 0, s * 0.8 - 0.08, lx + 0.27, 0.54, s * 0.8 + 0.08, { kind: 'car', mat: M.CAR, col: '#4a3a30', layer: 10, detail: true, walk: false, shape: (rot & 1) ? 'wheelX' : 'wheelZ' });
 }
+function mixHex(a, b) { const p = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const A = p(a), Bv = p(b); return '#' + A.map((v, i) => Math.round((v + Bv[i]) / 2).toString(16).padStart(2, '0')).join(''); }
 // コンクリートの防護柵（長さ len・高さ 0.82。下が広い）
 export function jersey(ww, cx, cz, rot = 0, len = 3, o = {}) {
   const y = o.y ?? ground(ww, cx, cz, len / 2, 0.3), col = o.col || '#b9b6ad', h = len / 2;
@@ -179,10 +211,25 @@ export function logs(ww, cx, cz, rot = 0, o = {}) {
   part(ww, cx, cz, rot, y, -1.8, 1.0, -0.4, 1.8, 1.45, 0.4, c);
 }
 // 電柱（木。上に腕木）
+// 電柱: 腕木は電線（o.dir: 'x' | 'z' の向き）に直角。碍子3つ。返り値は電線をつなぐ点（左・真ん中・右）
 export function pole(ww, cx, cz, o = {}) {
-  const y = heightAt(ww, cx, cz), h = o.h ?? 9;
+  const y = heightAt(ww, cx, cz), h = o.h ?? 9, ax = o.dir === 'z';
   addCyl(ww, { x: cx, z: cz, r: 0.15, r1: 0.11, y0: y - 0.3, y1: y + h, mat: M.WOOD, kind: 'pole', col: '#5f4b34', seg: 6, layer: 11, far: true });
-  addBox(ww, { x0: cx - 1.0, z0: cz - 0.06, x1: cx + 1.0, z1: cz + 0.06, y0: y + h - 0.7, y1: y + h - 0.55, mat: M.WOOD, kind: 'pole', col: '#5f4b34', layer: 11, walk: false, detail: true });
+  const ya = y + h - 0.7;
+  const arm = { y0: ya, y1: ya + 0.15, mat: M.WOOD, kind: 'pole', col: '#5f4b34', layer: 11, walk: false, detail: true };
+  addBox(ww, ax ? { x0: cx - 1.0, z0: cz - 0.06, x1: cx + 1.0, z1: cz + 0.06, ...arm } : { x0: cx - 0.06, z0: cz - 1.0, x1: cx + 0.06, z1: cz + 1.0, ...arm });
+  const pts = [];
+  for (const d of [-0.85, 0, 0.85]) {
+    const px = ax ? cx + d : cx, pz = ax ? cz : cz + d, py = d === 0 ? y + h + 0.05 : ya + 0.15;
+    addBox(ww, { x0: px - 0.04, z0: pz - 0.04, x1: px + 0.04, z1: pz + 0.04, y0: py, y1: py + 0.16, mat: M.CERAMIC, kind: 'pole', col: '#c9cfc9', layer: 1, walk: false, detail: true });
+    pts.push([px, py + 0.14, pz]);
+  }
+  return pts;
+}
+// 電線（描くだけ）: 2つの電柱のつなぎ点の間をたるませて張る
+export function wires(ww, A, Bp) {
+  if (!A || !Bp) return;
+  (ww.wires || (ww.wires = [])).push(...A.map((a, i) => ({ a, b: Bp[i], sag: 0.012 * Math.hypot(Bp[i][0] - a[0], Bp[i][2] - a[2]) })));
 }
 // 街灯（細い柱・腕・灯り）
 export function lamp(ww, cx, cz, rot = 0, o = {}) {
@@ -291,4 +338,39 @@ export function tent(ww, cx, cz, rot = 0, o = {}) {
     addDeco(ww, { pts: [[cx + L, y, cz - W], [cx + L, y, cz + W], [cx + L, y + H, cz]], n: [1, 0, 0], col: dark, layer: 18 });
     addDeco(ww, { pts: [[cx - L, y, cz - W], [cx - L, y, cz - 0.5], [cx - L, y + H, cz]], n: [-1, 0, 0], col: dark, layer: 18 });
   }
+}
+// ---- 通りの小物（近くだけ。11-19: 町の作り込み）
+// 消火栓（赤い低い柱と横の口）
+export function hydrant(ww, x, z, o = {}) {
+  const y = heightAt(ww, x, z), col = o.col || '#a8322c';
+  addCyl(ww, { x, z, r: 0.14, r1: 0.12, y0: y - 0.05, y1: y + 0.62, mat: M.METAL, kind: 'cover', col, seg: 8, layer: 19 });
+  addCyl(ww, { x, z, r: 0.16, r1: 0.06, y0: y + 0.62, y1: y + 0.78, mat: M.METAL, kind: 'cover', col, seg: 8, layer: 19 });
+  addBox(ww, { x0: x - 0.24, z0: z - 0.05, x1: x + 0.24, z1: z + 0.05, y0: y + 0.38, y1: y + 0.48, mat: M.METAL, kind: 'pole', col: '#c9c4b0', layer: 10, walk: false, detail: true });
+}
+// 郵便受け（柱の上の箱。rot は口の向き）
+export function mailbox(ww, x, z, rot = 0, o = {}) {
+  const y = heightAt(ww, x, z), r = o.rnd || Math.random;
+  addBox(ww, { x0: x - 0.05, z0: z - 0.05, x1: x + 0.05, z1: z + 0.05, y0: y, y1: y + 1.0, mat: M.WOOD, kind: 'pole', col: '#5f4b34', layer: 11, walk: false, detail: true });
+  part(ww, x, z, rot, y, -0.24, 1.0, -0.12, 0.24, 1.25, 0.12, { kind: 'pole', mat: M.METAL, col: pick(['#3a3d40', '#2a4a6a', '#6a2a2a', '#c9c6bd'], r), layer: 10, walk: false, detail: true, bev: 0.04 });
+}
+// 標識（細い柱と板。kind: 'stop' 八角の赤・'warn' 黄・'info' 青）
+export function sign(ww, x, z, rot = 0, kind = 'stop') {
+  const y = heightAt(ww, x, z);
+  addBox(ww, { x0: x - 0.03, z0: z - 0.03, x1: x + 0.03, z1: z + 0.03, y0: y, y1: y + 2.4, mat: M.METAL, kind: 'pole', col: '#8a8f93', layer: 10, walk: false, detail: true });
+  const col = { stop: '#b02a26', warn: '#d0a23a', info: '#2a5d9a' }[kind] || '#b02a26', R = 0.36, n = kind === 'stop' ? 8 : 4;
+  const [ux, uz] = rot % 2 ? [0, 1] : [1, 0], pts = [];
+  for (let k = 0; k < n; k++) { const a = (k + (kind === 'stop' ? 0.5 : 0)) / n * Math.PI * 2; pts.push([x + ux * Math.cos(a) * R, y + 2.05 + Math.sin(a) * R, z + uz * Math.cos(a) * R]); }
+  addDeco(ww, { pts, n: rot % 2 ? [1, 0, 0] : [0, 0, 1], col, layer: 19, far: false });
+}
+// ベンチ（座面と背もたれ・脚。rot 0 で背は +z）
+export function bench(ww, x, z, rot = 0) {
+  const y = heightAt(ww, x, z), W = { kind: 'cover', mat: M.WOOD, col: '#7a5e3e', layer: 11, detail: true }, F = { kind: 'pole', mat: M.METAL, col: '#3a3d40', layer: 10, walk: false, detail: true };
+  part(ww, x, z, rot, y, -0.9, 0.42, -0.22, 0.9, 0.48, 0.2, W);
+  part(ww, x, z, rot, y, -0.9, 0.55, 0.2, 0.9, 0.9, 0.25, { ...W, walk: false });
+  for (const lx of [-0.75, 0.75]) part(ww, x, z, rot, y, lx - 0.04, 0, -0.2, lx + 0.04, 0.9, 0.25, F);
+}
+// ごみ入れ（細い円筒）
+export function bin(ww, x, z, o = {}) {
+  const y = heightAt(ww, x, z);
+  addCyl(ww, { x, z, r: 0.26, r1: 0.24, y0: y - 0.02, y1: y + 0.9, mat: M.METAL, kind: 'cover', col: o.col || '#3d5c48', seg: 8, layer: 10 });
 }

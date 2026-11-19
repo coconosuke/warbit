@@ -297,7 +297,7 @@ export class Renderer {
     this.nearDist = o.nearDist || 170;
     this.shR = o.shadowR || 44;
     // 草を描く距離（0 で描かない）と濃さ
-    this.grassD = o.grassDist ?? 0; this.grassDens = o.grassDens ?? 1;
+    this.grassD = o.grassDist ?? 0; this.grassDens = o.grassDens ?? 1; this.warLite = !!o.lite;
     // 使わない光の格子などは 1 画素の物を置く（シェーダーの決まりのため）
     const t3 = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_3D, t3);
@@ -327,7 +327,7 @@ export class Renderer {
     }
     want.sort((a, b) => a.d - b.d);
     const nb = budget < 0 ? want.length : Math.min(want.length, budget);
-    for (let k = 0; k < nb; k++) { const ch = want[k]; ch.near = makeWorldMesh(gl, buildWarNear(this.war, ch.k)); ch.nearTris = ch.near ? ch.near.n / 3 : 0; }
+    for (let k = 0; k < nb; k++) { const ch = want[k]; ch.near = makeWorldMesh(gl, buildWarNear(this.war, ch.k, { lite: this.warLite })); ch.nearTris = ch.near ? ch.near.n / 3 : 0; }
     // 草（近い塊だけ。塊の中心から grassD＋45m 以内）
     const G = this.grassD;
     if (G > 0) {

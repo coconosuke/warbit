@@ -167,7 +167,8 @@ void main(){
   if (uWar > 0.5 && abs(vLayer - 8.0) < 0.5) alb *= 0.72 + 0.4 * texture(uTex, vec3(vUV * 0.11 + 0.37, 9.0)).r;
   float yl = vPos.y - floor((vPos.y + 0.05) / uMapD.w) * uMapD.w;
   // 巾木（塗装の内壁の足元）と回り縁（天井ぎわの細い帯）
-  if (abs(vLayer - 3.0) < 0.5 && abs(n.y) < 0.5) {
+  // （大規模戦の建物では描かない: 高さが世界の 3m ごとに固定で、外の壁に白い帯が出ていた）
+  if (uWar < 0.5 && abs(vLayer - 3.0) < 0.5 && abs(n.y) < 0.5) {
     if (yl < 0.1 && yl > -0.01) alb = vec3(0.8, 0.78, 0.74) * (0.86 + 0.14 * smoothstep(0.085, 0.1, yl));
     else if (yl > 2.745 && yl < 2.81) alb = mix(alb, vec3(0.86, 0.85, 0.82), 0.85) * (0.92 + 0.08 * smoothstep(2.745, 2.76, yl));
   }

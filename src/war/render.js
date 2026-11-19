@@ -276,44 +276,95 @@ function facetCyl(B, x, z, y0, y1, r0, r1, seg, layer, col, o = {}) {
   if (o.capB && r0 > 0) { const pts = []; for (let k = seg - 1; k >= 0; k--) { const a = rot + (k / seg) * Math.PI * 2; pts.push([x + Math.cos(a) * r0, y0, z + Math.sin(a) * r0]); } B.poly(pts, [0, -1, 0], layer, mulc(col, 0.7)); }
   if (o.capT && r1 > 0) { const pts = []; for (let k = 0; k < seg; k++) { const a = rot + (k / seg) * Math.PI * 2; pts.push([x + Math.cos(a) * r1, y1, z + Math.sin(a) * r1]); } B.poly(pts, [0, 1, 0], layer, mulc(col, 1.08)); }
 }
+// ---- 植物の部品（11-19: BattleBit の木と茂みに寄せて作り込む。research/WARBIT.md の 18）
+// 正二十面体を少しゆがめた葉のかたまり（面ごとに平らな光。下の面ほど暗い＝葉の陰）。rx・ry・rz は半径
+const ICO_V = (() => { const t = (1 + Math.sqrt(5)) / 2, v = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]]; return v.map(p => { const l = Math.hypot(...p); return p.map(q => q / l); }); })();
+const ICO_F = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+function triN(a, b, c) { const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]; const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; const l = Math.hypot(...n) || 1; return [n[0] / l, n[1] / l, n[2] / l]; }
+function lump(B, x, y, z, rx, ry, rz, col, r, o = {}) {
+  const j = o.jit ?? 0.18, flat = o.flat ?? 0.55, rot = r() * 6.28, cs = Math.cos(rot), sn = Math.sin(rot);
+  const P = ICO_V.map(v => { const f = 1 + (r() * 2 - 1) * j; let px = v[0] * rx * f, py = v[1] * ry * f, pz = v[2] * rz * f; if (py < 0) py *= flat; return [x + px * cs - pz * sn, y + py, z + px * sn + pz * cs]; });
+  for (const [a, b, c] of ICO_F) {
+    const A = P[a], Bv = P[b], C = P[c], n = triN(A, Bv, C);
+    const k = 0.74 + 0.3 * Math.max(0, n[1]) - 0.1 * Math.max(0, -n[1]) + (r() - 0.5) * 0.08;
+    B.poly([A, Bv, C], n, o.layer ?? LAYER.leaves, mulc(col, k));
+  }
+}
+// 2点を結ぶ先細りの筒（幹と枝。面ごとに平らな光）
+function tube(B, a, b, r0, r1, seg, layer, col, r) {
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L = Math.hypot(...d) || 1, w = d.map(q => q / L);
+  const up = Math.abs(w[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  let u = [w[1] * up[2] - w[2] * up[1], w[2] * up[0] - w[0] * up[2], w[0] * up[1] - w[1] * up[0]]; const ul = Math.hypot(...u); u = u.map(q => q / ul);
+  const v = [w[1] * u[2] - w[2] * u[1], w[2] * u[0] - w[0] * u[2], w[0] * u[1] - w[1] * u[0]], rot = r ? r() * 6.28 : 0;
+  const ring = (c, rr, k) => { const t = rot + k / seg * Math.PI * 2, ct = Math.cos(t), st = Math.sin(t); return [c[0] + (u[0] * ct + v[0] * st) * rr, c[1] + (u[1] * ct + v[1] * st) * rr, c[2] + (u[2] * ct + v[2] * st) * rr]; };
+  for (let k = 0; k < seg; k++) {
+    const p0 = ring(a, r0, k), p1 = ring(a, r0, k + 1), q1 = ring(b, r1, k + 1), q0 = ring(b, r1, k), tm = rot + (k + 0.5) / seg * Math.PI * 2;
+    const n = [u[0] * Math.cos(tm) + v[0] * Math.sin(tm), u[1] * Math.cos(tm) + v[1] * Math.sin(tm), u[2] * Math.cos(tm) + v[2] * Math.sin(tm)];
+    B.poly([p0, p1, q1, q0], n, layer, mulc(col, 0.9 + 0.18 * ((k * 5) % seg) / seg));
+  }
+}
+// 針葉樹の段（星形の縁が少し垂れたかさ。下にふた）
+function pineTier(B, x, z, y0, y1, R, pts, col, r, rot, under = true) {
+  const ring = [];
+  for (let k = 0; k < pts * 2; k++) { const a = rot + k / (pts * 2) * Math.PI * 2, rr = R * (k % 2 ? 0.66 + r() * 0.08 : 0.94 + r() * 0.12); ring.push([x + Math.cos(a) * rr, y0 - (k % 2 ? 0 : R * 0.16), z + Math.sin(a) * rr]); }
+  const apex = [x + (r() - 0.5) * R * 0.08, y1, z + (r() - 0.5) * R * 0.08];
+  for (let k = 0; k < ring.length; k++) { const A = ring[k], Bv = ring[(k + 1) % ring.length], n = triN(A, Bv, apex); const nn = n[1] < 0 ? n.map(q => -q) : n; B.poly([A, Bv, apex], nn, LAYER.leaves, mulc(col, 0.8 + 0.28 * Math.max(0, nn[1]) + (r() - 0.5) * 0.06)); }
+  if (under) { const c = [x, y0 + R * 0.06, z]; for (let k = 0; k < ring.length; k++) B.poly([ring[(k + 1) % ring.length], ring[k], c], [0, -1, 0], LAYER.leaves, mulc(col, 0.5)); }
+}
+const BIRCH = hex('#d9d6cc'), BIRCH_MARK = hex('#3a3632');
 function treeMesh(B, t, far) {
-  // 色と向きは木ごとに決まる（近い形と遠い形で同じ）
+  // 色と形は木ごとに決まる（近い形と遠い形で同じ）
   const r = mulberry(5000 + (t.cyl ?? Math.round(t.x * 31 + t.z * 17)) * 7);
   const s = t.s, x = t.x, z = t.z, y = t.y, rot = r() * 6.28;
   B.room = 1;
   if (t.kind === 'pine') {
-    const c = jitter(PINE[Math.floor(r() * PINE.length)], r, 0.06);
-    if (far) { facetCyl(B, x, z, y + 0.9 * s, y + 6.6 * s, 1.75 * s, 0, 5, LAYER.leaves, c, { rot }); return; }
-    facetCyl(B, x, z, y - 0.3, y + 1.9 * s, 0.2 * s, 0.13 * s, 5, LAYER.wood, TRUNK, { rot });
-    facetCyl(B, x, z, y + 1.2 * s, y + 3.7 * s, 1.85 * s, 0.35 * s, 7, LAYER.leaves, mulc(c, 0.92), { rot, capB: true, shade: true });
-    facetCyl(B, x, z, y + 2.8 * s, y + 5.1 * s, 1.45 * s, 0.25 * s, 7, LAYER.leaves, c, { rot: rot + 0.4, capB: true, shade: true });
-    facetCyl(B, x, z, y + 4.2 * s, y + 6.8 * s, 1.0 * s, 0, 6, LAYER.leaves, mulc(c, 1.08), { rot: rot + 0.9, capB: true, shade: true });
+    // 針葉樹: 細い幹に、星形の段を5つ（上ほど小さい）。段は少しずつ回して重ねる
+    const c = jitter(PINE[Math.floor(r() * PINE.length)], r, 0.06), H = 7.2 * s;
+    if (far) { pineTier(B, x, z, y + 1.4 * s, y + 4.8 * s, 2.0 * s, 4, c, r, rot, false); pineTier(B, x, z, y + 3.6 * s, y + H, 1.35 * s, 4, mulc(c, 1.05), r, rot + 0.5, false); return; }
+    tube(B, [x, y - 0.3, z], [x, y + H * 0.82, z], 0.21 * s, 0.07 * s, 6, LAYER.wood, TRUNK, r);
+    const tiers = 5;
+    for (let k = 0; k < tiers; k++) {
+      const f = k / (tiers - 1), y0 = y + (1.05 + f * 4.0) * s, R = (2.15 - f * 1.45) * s * (0.92 + r() * 0.16);
+      pineTier(B, x, z, y0, y0 + (1.9 - f * 0.35) * s + (k === tiers - 1 ? 0.8 * s : 0), R, 6, mulc(c, 0.9 + f * 0.16), r, rot + k * 0.7);
+    }
+  } else if (((t.cyl ?? 0) * 7919) % 100 < 22) {
+    // 白樺（広葉樹の2割ほど）: 白い幹に黒い節、小さい葉のかたまり
+    const c = jitter(hex('#6d7a45'), r, 0.08), H = 6.4 * s, lean = [(r() - 0.5) * 0.5 * s, (r() - 0.5) * 0.5 * s];
+    if (far) { lump(B, x + lean[0], y + 4.6 * s, z + lean[1], 1.5 * s, 1.9 * s, 1.5 * s, c, r, { jit: 0.12 }); return; }
+    const top = [x + lean[0], y + H, z + lean[1]];
+    for (let k = 0; k < 4; k++) { const a = k / 4, b = (k + 1) / 4; tube(B, [x + lean[0] * a, y - 0.3 + (H + 0.3) * a, z + lean[1] * a], [x + lean[0] * b, y - 0.3 + (H + 0.3) * b, z + lean[1] * b], 0.17 * s * (1 - a * 0.5), 0.17 * s * (1 - b * 0.5), 5, LAYER.wood, k % 2 ? BIRCH : mixc(BIRCH, BIRCH_MARK, 0.18), r); }
+    for (let k = 0; k < 5; k++) { const a = rot + k * 1.3, h = (3.4 + k * 0.6) * s, d = (0.5 + r() * 0.6) * s; lump(B, x + lean[0] * h / H + Math.cos(a) * d, y + h, z + lean[1] * h / H + Math.sin(a) * d, (0.85 + r() * 0.3) * s, (0.8 + r() * 0.25) * s, (0.85 + r() * 0.3) * s, mulc(c, 0.92 + r() * 0.16), r); }
+    lump(B, top[0], top[1] - 0.2 * s, top[2], 0.7 * s, 0.75 * s, 0.7 * s, mulc(c, 1.06), r);
   } else {
-    const c = jitter(OAK[Math.floor(r() * OAK.length)], r, 0.06);
-    if (far) { facetCyl(B, x, z, y + 2.0 * s, y + 5.6 * s, 2.1 * s, 1.0 * s, 5, LAYER.leaves, c, { rot, capT: true }); return; }
-    facetCyl(B, x, z, y - 0.3, y + 2.7 * s, 0.27 * s, 0.19 * s, 6, LAYER.wood, TRUNK, { rot });
-    facetCyl(B, x, z, y + 2.1 * s, y + 3.7 * s, 1.1 * s, 2.3 * s, 7, LAYER.leaves, mulc(c, 0.9), { rot, capB: true, shade: true });
-    facetCyl(B, x, z, y + 3.7 * s, y + 5.5 * s, 2.3 * s, 0.9 * s, 7, LAYER.leaves, c, { rot, capT: true, shade: true });
-    const ox = Math.cos(rot) * 1.2 * s, oz = Math.sin(rot) * 1.2 * s;
-    facetCyl(B, x + ox, z + oz, y + 4.6 * s, y + 6.1 * s, 1.3 * s, 0.5 * s, 6, LAYER.leaves, mulc(c, 1.06), { rot: rot + 0.5, capT: true, shade: true });
+    // 広葉樹: 少し傾いた幹から枝を3〜4本、枝の先と真ん中に葉のかたまり
+    const c = jitter(OAK[Math.floor(r() * OAK.length)], r, 0.06), H = 3.0 * s, lx = (r() - 0.5) * 0.5 * s, lz = (r() - 0.5) * 0.5 * s;
+    if (far) { lump(B, x + lx, y + 4.3 * s, z + lz, 2.5 * s, 1.9 * s, 2.5 * s, c, r, { jit: 0.14 }); return; }
+    const top = [x + lx, y + H, z + lz];
+    tube(B, [x, y - 0.3, z], top, 0.3 * s, 0.2 * s, 6, LAYER.wood, TRUNK, r);
+    tube(B, top, [x + lx * 1.4, y + H + 1.3 * s, z + lz * 1.4], 0.2 * s, 0.12 * s, 5, LAYER.wood, TRUNK, r);
+    const nb = 3 + (r() < 0.5 ? 1 : 0);
+    lump(B, x + lx * 1.4, y + H + 2.1 * s, z + lz * 1.4, 1.75 * s, 1.35 * s, 1.75 * s, mulc(c, 1.05), r);
+    for (let k = 0; k < nb; k++) {
+      const a = rot + k / nb * Math.PI * 2 + (r() - 0.5) * 0.6, d = (1.35 + r() * 0.5) * s, h = H - 0.4 * s + r() * 0.8 * s;
+      const e = [top[0] + Math.cos(a) * d, y + h + 0.9 * s, top[2] + Math.sin(a) * d];
+      tube(B, [top[0], y + h - 0.5 * s, top[2]], e, 0.12 * s, 0.05 * s, 4, LAYER.wood, TRUNK, r);
+      lump(B, e[0], e[1] + 0.35 * s, e[2], (1.15 + r() * 0.35) * s, (0.95 + r() * 0.3) * s, (1.15 + r() * 0.35) * s, mulc(c, 0.9 + r() * 0.16), r);
+    }
   }
 }
 
-// 茂み: 葉のかたまり（下がすぼまり上が丸い、面ごとに平らな光）を2〜3つ重ねる。遠くは1つ
-function blob(B, x, y, z, r, h, seg, col, rot) {
-  facetCyl(B, x, z, y, y + h * 0.42, r * 0.6, r, seg, LAYER.leaves, mulc(col, 0.86), { rot, shade: true });
-  facetCyl(B, x, z, y + h * 0.42, y + h, r, r * 0.36, seg, LAYER.leaves, col, { rot, capT: true, shade: true });
-}
+// 茂み: ゆがめた葉のかたまりを3〜5つ寄せる（低く横に広い）。遠くは1つ
+function blob(B, x, y, z, r0, h, seg, col, rot, rr) { lump(B, x, y + h * 0.45, z, r0, h * 0.55, r0, col, rr || mulberry(Math.round(x * 13 + z * 7 + h * 100))); }
 function bushMesh(B, b, far) {
   const r = mulberry(7000 + Math.round(b.x * 13 + b.z * 7));
   const c0 = b.col ? hex(b.col) : jitter(BUSH[Math.floor(r() * BUSH.length)], r, 0.07);
   B.room = 1;
-  if (far) { blob(B, b.x, b.y - 0.1, b.z, b.r * 0.95, b.h, 5, c0, r() * 6.28); return; }
-  const n = b.n || 2 + Math.floor(r() * 2);
+  if (far) { lump(B, b.x, b.y + b.h * 0.42, b.z, b.r * 0.95, b.h * 0.55, b.r * 0.95, c0, r, { jit: 0.12 }); return; }
+  const n = b.n || 3 + Math.floor(r() * 3);
   for (let k = 0; k < n; k++) {
-    const a = r() * 6.28, d = k ? b.r * (0.3 + r() * 0.3) : 0;
-    const rr = b.r * (k ? 0.55 + r() * 0.25 : 0.85), hh = b.h * (k ? 0.62 + r() * 0.3 : 1);
-    blob(B, b.x + Math.cos(a) * d, b.y - 0.12, b.z + Math.sin(a) * d, rr, hh, 7, mulc(c0, 0.92 + r() * 0.16), r() * 6.28);
+    const a = r() * 6.28, d = k ? b.r * (0.35 + r() * 0.35) : 0;
+    const rr = b.r * (k ? 0.5 + r() * 0.25 : 0.78), hh = b.h * (k ? 0.55 + r() * 0.35 : 1);
+    lump(B, b.x + Math.cos(a) * d, b.y - 0.08 + hh * 0.42, b.z + Math.sin(a) * d, rr, hh * 0.55, rr * (0.85 + r() * 0.3), mulc(c0, 0.9 + r() * 0.18), r);
   }
 }
 // 岩: 箱の中に収まる低ポリの塊（下・中・上の輪を少しずつずらし、面ごとに平らな光）
@@ -347,6 +398,10 @@ function boxMesh(B, ww, b, tops, near) {
   const gy = heightAt(ww, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
   const onGround = b.y0 <= gy + 0.05;
   B.room = 1;
+  // 車輪: 横向きの円筒（タイヤ＋ホイールの円盤）。軸は b.shape = 'wheelX' | 'wheelZ'
+  if (b.shape === 'wheelX' || b.shape === 'wheelZ') { wheelMesh(B, b, col, near); return; }
+  // コンテナ（近く）: 側面の波板の筋・扉の縦の棒・上下の枠
+  if (b.kind === 'container' && near) { containerMesh(B, b, col, r, onGround); return; }
   if (b.bev && b.bld < 0) {
     // 小物（車・防護柵・木箱など）: 角を落とした箱。面ごとの色（cols）も使える
     const cols = b.cols ? b.cols.map(c => c && jitter(hex(c), r, 0.03)) : null;
@@ -376,6 +431,44 @@ function boxMesh(B, ww, b, tops, near) {
     B.box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, layer, col, { faces: bit, uv: 0.5, aoTop: ao, aoBottom: inside ? ao * 0.8 : (onGround && f !== 2 ? 0.85 : 1) });
   }
   B.room = 1;
+}
+// 車輪（横向きの円筒。近くは12角でホイールの円盤とハブ、遠くは8角）
+function wheelMesh(B, b, col, near) {
+  const ax = b.shape === 'wheelX', cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, cz = (b.z0 + b.z1) / 2;
+  const half = ax ? (b.x1 - b.x0) / 2 : (b.z1 - b.z0) / 2, R = (b.y1 - b.y0) / 2, seg = near ? 12 : 8;
+  const P = (t, a, rr) => ax ? [cx + t, cy + Math.sin(a) * rr, cz + Math.cos(a) * rr] : [cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, cz + t];
+  const tire = mulc(col, 1), rim = [0.6, 0.62, 0.64], hub = [0.42, 0.43, 0.45];
+  B.room = 1;
+  for (let k = 0; k < seg; k++) {
+    const a0 = k / seg * Math.PI * 2, a1 = (k + 1) / seg * Math.PI * 2, am = (a0 + a1) / 2;
+    const n = ax ? [0, Math.sin(am), Math.cos(am)] : [Math.cos(am), Math.sin(am), 0];
+    B.poly([P(-half, a0, R), P(-half, a1, R), P(half, a1, R), P(half, a0, R)], n, LAYER.rubber, mulc(tire, 0.9 + 0.12 * Math.max(0, n[1])));
+  }
+  for (const sd of [-1, 1]) {
+    const n = ax ? [sd, 0, 0] : [0, 0, sd], ring = [], inner = [];
+    for (let k = 0; k < seg; k++) { const a = k / seg * Math.PI * 2; ring.push(P(sd * half, a, R)); inner.push(P(sd * (half + 0.005), a, R * 0.62)); }
+    B.poly(ring, n, LAYER.rubber, mulc(tire, 0.8));
+    if (near) { B.poly(inner, n, LAYER.metal, rim); const hc = []; for (let k = 0; k < 6; k++) hc.push(P(sd * (half + 0.012), k / 6 * Math.PI * 2, R * 0.2)); B.poly(hc, n, LAYER.metal, hub); }
+  }
+}
+// コンテナ（近い形）: 本体の箱＋長い側面の縦の筋（波板）＋扉側の縦の棒2本＋上の縁
+function containerMesh(B, b, col, r, onGround) {
+  const L = LAYER.metal, dx = b.x1 - b.x0, dz = b.z1 - b.z0, alongX = dx >= dz;
+  B.room = 1;
+  B.box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, L, col, { faces: onGround ? 63 & ~8 : 63, uv: 0.5 });
+  const dark = mulc(col, 0.82), lite = mulc(col, 1.06), len = alongX ? dx : dz, n = Math.floor((len - 0.3) / 0.28);
+  for (let k = 0; k < n; k++) {
+    const t = 0.15 + (k + 0.5) * (len - 0.3) / n;
+    if (k % 2) continue;
+    if (alongX) { const x = b.x0 + t; B.box(x - 0.06, b.y0 + 0.12, b.z0 - 0.035, x + 0.06, b.y1 - 0.1, b.z0, L, dark, { faces: 63 & ~8 & ~16 }); B.box(x - 0.06, b.y0 + 0.12, b.z1, x + 0.06, b.y1 - 0.1, b.z1 + 0.035, L, dark, { faces: 63 & ~8 & ~32 }); }
+    else { const z = b.z0 + t; B.box(b.x0 - 0.035, b.y0 + 0.12, z - 0.06, b.x0, b.y1 - 0.1, z + 0.06, L, dark, { faces: 63 & ~8 & ~1 }); B.box(b.x1, b.y0 + 0.12, z - 0.06, b.x1 + 0.035, b.y1 - 0.1, z + 0.06, L, dark, { faces: 63 & ~8 & ~2 }); }
+  }
+  // 扉の端（長い向きの片側）: 縦の締め棒と取っ手
+  for (const f of [0.3, 0.42, 0.58, 0.7]) {
+    if (alongX) { const z = b.z0 + dz * f; B.box(b.x1, b.y0 + 0.15, z - 0.025, b.x1 + 0.05, b.y1 - 0.12, z + 0.025, L, lite, {}); }
+    else { const x = b.x0 + dx * f; B.box(x - 0.025, b.y0 + 0.15, b.z1, x + 0.025, b.y1 - 0.12, b.z1 + 0.05, L, lite, {}); }
+  }
+  B.box(b.x0 - 0.02, b.y1 - 0.1, b.z0 - 0.02, b.x1 + 0.02, b.y1, b.z1 + 0.02, L, mulc(col, 0.9), { faces: 63 & ~8 });
 }
 // 土のう: 袋を互い違いに積む（近い形だけ。遠くは1つの箱）
 function sandbagMesh(B, b, r, col) {
@@ -443,7 +536,7 @@ function decoMesh(B, d, tops) {
 function sortIn(ww) {
   if (ww._chunkItems) return ww._chunkItems;
   const NX = Math.ceil(ww.sx / CH), NZ = Math.ceil(ww.sz / CH);
-  const it = Array.from({ length: NX * NZ }, () => ({ boxes: [], ramps: [], trees: [], cyls: [], decos: [], bushes: [] }));
+  const it = Array.from({ length: NX * NZ }, () => ({ boxes: [], ramps: [], trees: [], cyls: [], decos: [], bushes: [], wires: [] }));
   const ck = (x, z) => Math.min(NZ - 1, Math.max(0, Math.floor(z / CH))) * NX + Math.min(NX - 1, Math.max(0, Math.floor(x / CH)));
   for (const b of ww.boxes) if (b.alive) it[ck((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2)].boxes.push(b);
   for (const rp of ww.ramps) it[ck((rp.x0 + rp.x1) / 2, (rp.z0 + rp.z1) / 2)].ramps.push(rp);
@@ -451,6 +544,7 @@ function sortIn(ww) {
   for (const c of ww.cyls) if (c.col && c.alive) it[ck(c.x, c.z)].cyls.push(c);
   for (const d of ww.decos || []) { let x = 0, z = 0; for (const p of d.pts) { x += p[0]; z += p[2]; } it[ck(x / d.pts.length, z / d.pts.length)].decos.push(d); }
   for (const b of ww.bushes || []) it[ck(b.x, b.z)].bushes.push(b);
+  for (const wi of ww.wires || []) it[ck((wi.a[0] + wi.b[0]) / 2, (wi.a[2] + wi.b[2]) / 2)].wires.push(wi);
   ww._chunkItems = { NX, NZ, it };
   return ww._chunkItems;
 }
@@ -477,7 +571,8 @@ export function buildWarFar(ww) {
   return out;
 }
 // 近い形（1つの塊）
-export function buildWarNear(ww, k) {
+// o.lite: 画質「低」。窓の桟・扉の板などの描くだけの細かい面と電線は省く
+export function buildWarNear(ww, k, o = {}) {
   prepGround(ww);
   const tops = bldTops(ww), { NX, it } = sortIn(ww);
   const cx = k % NX, cz = Math.floor(k / NX), x0 = cx * CH, z0 = cz * CH, x1 = Math.min(ww.sx, x0 + CH), z1 = Math.min(ww.sz, z0 + CH);
@@ -490,9 +585,14 @@ export function buildWarNear(ww, k) {
   const rr = mulberry(8000 + k);
   for (const rp of it[k].ramps) rampMesh(B, rp, rr, tops);
   for (const c of it[k].cyls) cylMesh(B, c);
-  for (const d of it[k].decos) decoMesh(B, d, tops);
+  for (const d of it[k].decos) if (d.far || !o.lite) decoMesh(B, d, tops);
   for (const t of it[k].trees) treeMesh(B, t, false);
   for (const b of it[k].bushes) bushMesh(B, b, false);
+  // 電線: たるんだ線（8つに分けた細い三角の筒）
+  if (!o.lite) for (const wi of it[k].wires) {
+    const N = 8, P = (t) => [wi.a[0] + (wi.b[0] - wi.a[0]) * t, wi.a[1] + (wi.b[1] - wi.a[1]) * t - 4 * wi.sag * t * (1 - t), wi.a[2] + (wi.b[2] - wi.a[2]) * t];
+    for (let q = 0; q < N; q++) tube(B, P(q / N), P((q + 1) / N), 0.018, 0.018, 3, LAYER.rubber, [0.09, 0.09, 0.1], null);
+  }
   return B;
 }
 // 草（見る位置のまわりの塊だけ）: 地面の草の生え方（gw）に合わせて、細い葉3〜4枚の株を散らす。麦畑は高い金色の株。

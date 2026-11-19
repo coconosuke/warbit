@@ -439,16 +439,18 @@ try {
 
   // ---- 射撃場だけの物: 当てると部位・ダメージ・距離が出る・倒した人形は起き上がる・距離の札・兵科を変える
   try {
-    const t100 = await page.evaluate(() => { const g = window.__app.game, p = g.p, t = g.S.actors.find(a => a.dummy && a.dummy.d === 25); g.yaw = Math.atan2(t.x - p.x, t.z - p.z); g.pitch = Math.atan2(t.y + 1.2 - (p.y + 1.55), Math.hypot(t.x - p.x, t.z - p.z)); return t.id; });
-    await page.waitForTimeout(400);
+    // 構えてから撃つ（腰だめは 30m 先でばらつき、外れることがある）
+    const t100 = await page.evaluate(() => { const g = window.__app.game, p = g.p, t = g.S.actors.find(a => a.dummy && a.dummy.d === 25); g.yaw = Math.atan2(t.x - p.x, t.z - p.z); g.pitch = Math.atan2(t.y + 1.2 - (p.y + 1.55), Math.hypot(t.x - p.x, t.z - p.z)); g.adsOn = true; return t.id; });
+    await page.waitForFunction(() => window.__app.game.p.ads > 0.95, null, { timeout: 10000 }).catch(() => {});
     const F = await btn('fire');
     let hit = null;
     for (let k = 0; k < 6 && !hit; k++) {
       await page.evaluate((id) => { const g = window.__app.game, p = g.p, t = g.S.byId[id]; g.yaw = Math.atan2(t.x - p.x, t.z - p.z); g.pitch = Math.atan2(t.y + 1.2 - (p.y + 1.55), Math.hypot(t.x - p.x, t.z - p.z)); }, t100);
-      await holdAt(F, 250, 60 + k);
+      await holdAt(F, 700, 60 + k);
       await page.waitForTimeout(400);
       hit = await page.evaluate(() => window.__app.game.rangeHit || null);
     }
+    await page.evaluate(() => { window.__app.game.adsOn = false; });
     const bar = await page.evaluate(() => (document.querySelector('#hud .hud-obj .wb.rg') || {}).textContent || '');
     rec('射撃場', '人形に当てると、上の帯に部位・ダメージ・距離が出る', !!hit && hit.m > 15 && hit.m < 40 && /m/.test(bar), `${JSON.stringify(hit)}・帯「${bar}」`);
     const signs = await page.evaluate(() => { const g = window.__app.game; g.yaw = 0; g.pitch = 0; return g.w.signs.length; });
