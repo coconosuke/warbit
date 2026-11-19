@@ -134,10 +134,10 @@ export function canSpawnAt(S, f, team) { return S.m.mode === 'conquest' && f.own
 export function canPick(a, cls) { return !!CLASSES[cls] && (cls !== 'leader' || a.sqIdx === 0); }
 
 // 兵科と銃を決める（次の出撃から）
-function setClass(a, cls, gun, sec) {
+function setClass(a, cls, gun, sec, att) {
   if (!canPick(a, cls)) cls = 'assault';
   a.warCls = cls;
-  a.warLo = classLoadout(cls, gun, sec);
+  a.warLo = classLoadout(cls, gun, sec, att);
 }
 
 // 出撃し直す（at: 'hq' か拠点の id。ドミネーション・TDM は出撃の場所から）
@@ -372,7 +372,7 @@ export default {
   think(S, w, dt, ev) { return S.m.mode === 'range' ? {} : warThink(S, w, dt, ev); },
   // 出撃の画面から（倒れている間）: 兵科・銃を変える、出撃する場所を選ぶ
   act(S, w, a, ac, ev) {
-    if (ac.a === 'warClass') { if (!a.alive) setClass(a, ac.cls, ac.gun, ac.sec); return true; }
+    if (ac.a === 'warClass') { if (!a.alive) setClass(a, ac.cls, ac.gun, ac.sec, ac.att); return true; }
     // 敵に印をつける（BattleBit の中ボタン。分隊に見える。11-19・research の 24）: 狙っている向きから 5° 以内・450m 以内・見えている敵のうち一番まっすぐの1人
     if (ac.a === 'spot') { spotEnemy(S, w, a, ev); return true; }
     if (ac.a === 'rally') { placeRally(S, w, a, ev); return true; }
@@ -393,7 +393,7 @@ export default {
     }
     if (ac.a !== 'warDeploy') return false;
     if (a.alive) return true;
-    if (ac.cls) setClass(a, ac.cls, ac.gun, ac.sec);
+    if (ac.cls) setClass(a, ac.cls, ac.gun, ac.sec, ac.att);
     a.deployAt = ac.at || 'hq';
     return true;
   },

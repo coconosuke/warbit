@@ -63,7 +63,7 @@ const SIGHT = { at308: null, hk417: 'acog', sks: 'acog', mini14: 'acog', g3: 'ac
 export const classGuns = (cls) => (CLASSES[cls] || CLASSES.assault).guns.filter(id => WEAPONS[id]);
 export const classSecs = (cls) => (CLASSES[cls] || CLASSES.assault).sec.filter(id => WEAPONS[id]);
 // 兵科と銃から装備を作る（engine の makeInventory に渡す形）
-export function classLoadout(cls, gun, sec) {
+export function classLoadout(cls, gun, sec, att) {
   const C = CLASSES[cls] || CLASSES.assault;
   const G = classGuns(cls), Ss = classSecs(cls);
   const g = gun && G.includes(gun) ? gun : G[0];
@@ -71,5 +71,8 @@ export function classLoadout(cls, gun, sec) {
   const prim = { id: g, ammo: 'ap' };
   const sight = g in SIGHT ? SIGHT[g] : 'holo';
   if (sight) prim.sight = sight;
+  // 付属品（出撃の画面の LOADOUT で選ぶ。付けられない物は makeWeapon が外す）
+  const A = att && att[g];
+  if (A) for (const k of ['sight', 'muzzle', 'grip', 'side']) if (A[k]) prim[k] = A[k];
   return { war: true, primary: prim, secondary: { id: s, ammo: 'ap' }, long: 'none', gear: C.gear.map(x => x.slice()), vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
 }

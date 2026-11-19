@@ -1,7 +1,7 @@
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
-import { curWeapon, curW, ammoCount } from '../engine/actor.js';
+import { curWeapon, curW, ammoCount, makeWeapon } from '../engine/actor.js';
 import { contextOf, OP_NAME, doorOps, personOps } from '../engine/interact.js';
 import { spreadDeg } from '../engine/weapon.js';
 import { vaultPlan } from '../engine/move.js';
@@ -16,7 +16,7 @@ const BINOC_OPTIC = { kind: 'binoc', scope: true, zoom: 6 };
 function binocZoom(p) { const ws = p && p.ws; return ws && ws.slot === 2 && ws.gear === 'binoc' && GEAR.binoc ? (p.ads > 0.5 ? GEAR.binoc.zoom : 1) : 0; }
 const AA_WAR = { off: [1], weak: [0.85], mid: [0.75], strong: [0.65], max: [0.55] };
 import { sideOf, isOpen } from '../engine/doors.js';
-import { WEAPONS, zoomOf, opticOf, zoomsOf, swayCamK, scopePip } from '../engine/data/weapons.js';
+import { WEAPONS, ATTACH, attachOptions, zoomOf, opticOf, zoomsOf, swayCamK, scopePip } from '../engine/data/weapons.js';
 import { GEAR, LONG } from '../engine/data/equipment.js';
 import { MAPS } from '../engine/maps/index.js';
 import { MISSIONS } from '../engine/data/missions.js';
@@ -32,7 +32,7 @@ import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
 import { los as warLos } from '../war/world.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
-import { CLASSES, CLASS_LIST, classGuns, classSecs } from '../war/classes.js';
+import { CLASSES, CLASS_LIST, classGuns, classSecs, classLoadout } from '../war/classes.js';
 import { WarFlags, FLAG_COL } from '../render/warflags.js';
 import { RALLY, rallyOf } from '../engine/rally.js';
 import { WAR_MAPS } from '../war/maps/index.js';
@@ -376,6 +376,9 @@ export class Match {
         case 'dlo': if (k === 'down' && this.S.war) this.dlo = !this.dlo; break;
         case 'loadout': if (k === 'down' && this.S.war && this.S.m.mode === 'range' && p.alive) { this.acts.push({ a: 'warRedeploy' }); this.au.ui('tap'); } break;
         case 'dgun': case 'dsec': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(); (b === 'dgun' ? W.guns : W.secs)[this.dcls] = e.sub; this._warPickSave(); } break;
+        // 付属品（LOADOUT）: sub = 種類:物（例 grip:vert）。今の主の銃に付ける
+        case 'dlotab': if (k === 'down' && this.S.war && !p.alive) { this.dloTab = e.sub; this.au.ui('tap'); } break;
+        case 'datt': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(), d = this._warDeployData(), [kk, v] = String(e.sub).split(':'); const A = W.att[d.gun] || (W.att[d.gun] = {}); A[kk] = v; this._warPickSave(); this.au.ui('tap'); } break;
         case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
         case 'pause': if (k === 'tap' || (k === 'down' && e.key)) this.app.pauseGame(); break;
         case 'drone': if (k === 'down') this._droneToggle(); break;
@@ -1424,10 +1427,10 @@ export class Match {
   _warPrefs() {
     const P = this.app.profile;
     if (!P.war || typeof P.war !== 'object') P.war = {};
-    const W = P.war; if (!W.guns) W.guns = {}; if (!W.secs) W.secs = {};
+    const W = P.war; if (!W.guns) W.guns = {}; if (!W.secs) W.secs = {}; if (!W.att) W.att = {};
     return W;
   }
-  _warPick() { const W = this._warPrefs(), c = this.dcls || 'assault'; return { cls: c, gun: W.guns[c], sec: W.secs[c] }; }
+  _warPick() { const W = this._warPrefs(), c = this.dcls || 'assault'; return { cls: c, gun: W.guns[c], sec: W.secs[c], att: W.att }; }
   _warPickSave() {
     const W = this._warPrefs(); W.cls = this.dcls;
     this.app.saveProfile();
@@ -1453,6 +1456,19 @@ export class Match {
     if (!S.war || !m || m.mode === 'range' || m.mode === 'tdm' || p.sqIdx !== 0 || !p.alive || p.down) return null;
     const key = p.team + ':' + p.squad, pts = (m.sqp || {})[key] || 0, cd = m.rallyCd && m.rallyCd[key] > S.t ? Math.ceil((m.rallyCd[key] - S.t) * S.dt) : 0;
     return { ok: pts >= RALLY.cost && !cd, lb: cd ? cd + 's' : rallyOf(S, p.team, p.squad) ? '置き直す' : '集合' };
+  }
+  // LOADOUT の付属品の行: 照準器・銃口・下・横。付けられる物だけ（attachOptions）。選んでいなければ makeWeapon の既定
+  _attRows(gun, A) {
+    const ao = attachOptions(gun), lo = classLoadout(this.dcls || 'assault', gun, null, { [gun]: A }), w = makeWeapon(lo.primary) || { att: {} };
+    const L = [['sight', '照準器'], ['muzzle', '銃口'], ['grip', 'グリップ'], ['side', 'ライト類']];
+    // 効き目の短い説明（縦・横の反動、初弾、構えの時間、音、腰だめ、倍率）
+    const fx = (x) => { if (!x) return ''; const o = [], pc = (v) => (v < 1 ? '-' : '+') + Math.round(Math.abs(1 - v) * 100) + '%';
+      if (x.zoom && x.zoom > 1.2) o.push(x.zooms ? x.zooms.join('/') + '倍' : x.zoom + '倍');
+      if (x.rcv && x.rcv !== 1) o.push('縦の反動 ' + pc(x.rcv)); if (x.rch && x.rch !== 1) o.push('横の反動 ' + pc(x.rch)); if (x.rcfirst && x.rcfirst !== 1) o.push('初弾 ' + pc(x.rcfirst));
+      if (x.ads) o.push('構え ' + (x.ads > 0 ? '+' : '-') + Math.round(Math.abs(x.ads) * 1000) + 'ms'); if (x.noise && x.noise !== 1) o.push('音 ' + pc(x.noise)); if (x.hip && x.hip !== 1) o.push('腰だめ ' + pc(x.hip)); if (x.light) o.push('ライト');
+      return o.join('・'); };
+    const short = (nm) => String(nm).replace(/（.*?）/g, '');
+    return L.filter(([k]) => ao[k] && ao[k].length > 1).map(([k, lb]) => ({ k, lb, sel: w.att[k], list: ao[k].map(v => ({ v, name: short((ATTACH[k][v] || {}).name || v), fx: fx(ATTACH[k][v]) })) }));
   }
   _warDeployData() {
     const S = this.S, p = this.p, m = S.m, MD = WAR_MODES[m.mode] || WAR_MODES.conquest;
@@ -1487,7 +1503,7 @@ export class Match {
       img: this.hud.plan && this.hud.plan.img, rect: m.rect, m, myTeam: p.team, mapKey: tick + '|' + m.flags.map(f => f.owner).join(','),
       opts, sel: this.dsel, dots, squad: { name: squadEn(p.squad, p.team), list: squad },
       cls, classes: CLASS_LIST.map(id => ({ id, en: CLASSES[id].en, short: CLASSES[id].short, name: CLASSES[id].name, hp: CLASSES[id].hp, desc: CLASSES[id].desc, tools: CLASSES[id].tools.join('・'), ok: canPick(p, id) })),
-      lo: !!this.dlo, guns, secs, gun, sec, gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
+      lo: !!this.dlo, loTab: this.dloTab || 'gun', guns, secs, gun, sec, att: this._attRows(gun, W.att[gun] || {}), gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
       left, queued: !!p.deployAt, canGo: !(m.mode === 'conquest' && m.tickets[p.team] <= 0),
       msg: m.mode === 'range' ? '射台から' : m.mode === 'conquest' ? (m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
     };

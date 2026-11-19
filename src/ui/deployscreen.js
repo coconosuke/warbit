@@ -44,15 +44,23 @@ export class DeployScreen {
       this.sq.innerHTML = `<div class="dps-h"><span>SQUAD</span><b>${esc(d.squad.name)}</b><em>${d.squad.list.filter(m => m.st !== 'dead').length}/${d.squad.list.length}</em></div>` +
         d.squad.list.map(m => `<div class="dps-m ${m.st}${m.me ? ' me' : ''}"><i>${clsIcon(m.cls)}</i><span>${esc(m.name)}</span><small>${m.st === 'dead' ? 'KIA' : m.st === 'down' ? 'DOWN' : m.st === 'wait' ? 'READY' : ''}</small></div>`).join('');
     }
-    const k3 = d.cls + '|' + d.lo + '|' + d.gun + '|' + d.sec + '|' + d.classes.map(c => c.ok ? 1 : 0).join('');
+    const k3 = d.cls + '|' + d.lo + '|' + d.gun + '|' + d.sec + '|' + d.classes.map(c => c.ok ? 1 : 0).join('') + '|' + (d.att || []).map(r => r.sel).join(',') + '|' + d.loTab;
     if (C.card !== k3) {
       C.card = k3;
       const c = d.classes.find(q => q.id === d.cls) || d.classes[0];
       if (d.lo) {
         this.card.className = 'dps-card dps-lop';
-        this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(c.en)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>
+        const tabs = `<div class="dps-tabs"><div class="dps-tab${d.loTab !== 'att' ? ' on' : ''}" data-btn="dlotab" data-sub="gun" role="button">銃</div><div class="dps-tab${d.loTab === 'att' ? ' on' : ''}" data-btn="dlotab" data-sub="att" role="button">付属品</div></div>`;
+        if (d.loTab === 'att') {
+          this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(d.gunName)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}` +
+            // 1行ずつ「◀ 名前 ▶」で切り替える（小さい画面でも全部の枠が見える）。下に効き目
+            (d.att || []).map(r => { const i = Math.max(0, r.list.findIndex(o => o.v === r.sel)), n = r.list.length, cur = r.list[i], pv = r.list[(i + n - 1) % n].v, nx = r.list[(i + 1) % n].v;
+              return `<div class="dps-ar"><span>${esc(r.lb)}</span><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${pv}" role="button" aria-label="前">◀</div><div class="dps-an"><b>${esc(cur.name)}</b><small>${esc(cur.fx || '')}</small></div><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${nx}" role="button" aria-label="次">▶</div></div>`; }).join('');
+        } else {
+        this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(c.en)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}
           <div class="dps-sub">PRIMARY　主の銃</div><div class="dps-g">${d.guns.map(g => `<div class="dps-o${g.id === d.gun ? ' on' : ''}" data-btn="dgun" data-sub="${g.id}" role="button"><b>${esc(g.name)}</b><small>${esc(g.info)}</small></div>`).join('')}</div>
           <div class="dps-sub">SECONDARY　拳銃</div><div class="dps-g">${d.secs.map(g => `<div class="dps-o${g.id === d.sec ? ' on' : ''}" data-btn="dsec" data-sub="${g.id}" role="button"><b>${esc(g.name)}</b><small>${esc(g.info)}</small></div>`).join('')}</div>`;
+        }
       } else {
         this.card.className = 'dps-card';
         this.card.innerHTML = `<div class="dps-h"><span>CLASS</span><b>${esc(c.en)}</b><em>${esc(c.name)} · HP ${c.hp}</em></div>

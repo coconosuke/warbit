@@ -555,6 +555,16 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .dps-kv b { font-weight: 700; font-family: var(--f-body); } .dps-kv.soon b { color: #7f8a94; font-weight: 500; }
 .dps-card.dps-lop { width: min(540px, 62%); }
 .dps-lop .dps-g { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* LOADOUT の 銃／付属品 の切り替え（11-20） */
+.dps-tabs { display: flex; gap: 4px; margin: 4px 0 2px; }
+.dps-tab { flex: 1 1 0; text-align: center; padding: 5px 0; font-size: 12px; font-weight: 800; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
+.dps-tab.on { background: var(--accent); color: #111; }
+.dps-ar { display: grid; grid-template-columns: 7.5em 34px 1fr 34px; align-items: center; gap: 4px; margin-top: 5px; }
+.dps-ar > span { font-size: 11px; color: var(--sub); }
+.dps-ab { height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); font-size: 12px; }
+.dps-an { min-width: 0; text-align: center; }
+.dps-an b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dps-an small { display: block; font-size: 11px; color: #9be37a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dps-x { margin-left: auto; width: 30px; height: 26px; display: flex; align-items: center; justify-content: center; font: 700 18px/1 var(--f-head); background: rgba(255,255,255,.06); }
 .dps-sub { font: 800 11px var(--f-head); letter-spacing: .1em; color: #8d99a4; margin: 6px 0 4px; }
 .dps-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
