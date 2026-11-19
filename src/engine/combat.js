@@ -558,7 +558,7 @@ export function pvpDamage(S, a, d, shooter, part, dx, dz, ev, kind) {
   if (canDown) {
     a.hp = 0; a.down = true; a.dbno = 20; a.dbnoCount++; a.downT = 0; a.stateT = 0; a.ads = 0; a.adsOn = false; a.sprint = false;
     a.bleedOut = 0;
-    ev.push({ e: 'down', id: a.id, by: shooter ? shooter.id : -1, dbno: 1 });
+    ev.push({ e: 'down', id: a.id, by: shooter ? shooter.id : -1, dbno: 1, part });
     return;
   }
   killActor(S, a, shooter, ev, kind, part);

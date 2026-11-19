@@ -721,6 +721,7 @@ export class Match {
         case 'respawn': if (e.id === me) { this.dlo = false; hud.deploy(null); if (S.war) this.r.warmWar(p.x, p.z); this.dead = false; this.spec = null; this.yaw = p.yaw; this.pitch = 0; this._resetControls(); this.av.hidden.add(me); if (e.zone == null) hud.hideBanner(); } break;
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
+        case 'score': if (e.id === me && S.war) this._score(e); break;
         case 'revive': if (this._downBy) this._downBy.delete(e.id); hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
         case 'bandaged': if (e.id === me) au.sfx('bandage', null); break;
         case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); break;
@@ -1375,19 +1376,32 @@ export class Match {
     return v;
   }
   // スコア表の中身: 自分のチームが先。キル×2＋アシストの順。爆弾・殲滅戦は倒れている人を薄く
+  // 点の表示（照準の下）。倒した時は頭への上乗せを別の行に分ける
+  _score(e) {
+    const S = this.S, hud = this.hud, v = S.byId[e.v];
+    const LB = { assist: '倒すのを支援', revive: '仲間を起こした', cap: '拠点を奪った', neut: '拠点を中立に戻した' };
+    if (e.why === 'kill') {
+      const W = WEAPONS[e.w];
+      const line = `${v ? (v.name || '敵') : '敵'} を倒した${W ? '　' + W.name : ''}${e.d ? '　' + e.d + 'm' : ''}`;
+      hud.points({ pts: e.pts - (e.hs || 0), label: '敵を倒した', line });
+      if (e.hs) hud.points({ pts: e.hs, label: 'ヘッドショット' });
+      return;
+    }
+    hud.points({ pts: e.pts, label: LB[e.why] || '点', line: e.why === 'cap' || e.why === 'neut' ? `拠点 ${e.f}` : '' });
+  }
   _boardData() {
     const S = this.S, m = S.m || {}, p = this.p;
     const MODE = { tdm: 'チームデスマッチ', elim: '殲滅戦', bomb: '爆弾', war: S.war ? (WAR_MODES[m.mode] || WAR_MODES.conquest).en : '大規模戦' };
     const sideName = (t) => { const a = S.actors.find(x => x.team === t && !x.isDrone); return a && a.pvpSide === 'swat' ? 'SWAT' : a && a.pvpSide === 'sus' ? '立てこもり犯' : 'チーム' + (t + 1); };
     const score = (t) => m.kind === 'war' ? S.actors.filter(a => a.team === t).reduce((s, a) => s + a.stats.k, 0) : m.kind === 'tdm' ? (m.score || [0, 0])[t] : (m.wins || [0, 0])[t];
-    const rows = (t) => S.actors.filter(a => !a.isDrone && a.team === t).map(a => ({ name: a.name || '?', k: a.stats.k, d: a.stats.d, a: a.stats.a, me: a === p, bot: a.pid == null, out: m.kind !== 'tdm' && !a.staged && (!a.alive || a.down) })).sort((x, y) => (y.k * 2 + y.a) - (x.k * 2 + x.a) || x.d - y.d);
+    const rows = (t) => S.actors.filter(a => !a.isDrone && a.team === t).map(a => ({ name: a.name || '?', k: a.stats.k, d: a.stats.d, a: a.stats.a, sc: a.stats.sc || 0, me: a === p, bot: a.pid == null, out: m.kind !== 'tdm' && !a.staged && (!a.alive || a.down) })).sort(m.kind === 'war' ? ((x, y) => y.sc - x.sc || y.k - x.k || x.d - y.d) : ((x, y) => (y.k * 2 + y.a) - (x.k * 2 + x.a) || x.d - y.d));
     const mine = p.team, foe = 1 - p.team;
     const sub = m.kind === 'war' ? sizeLabel(m.per) : m.kind === 'tdm' ? `目標 ${m.limit} キル` : `ラウンド ${m.round || 1}・先に ${m.winsNeeded} 勝`;
     if (m.kind === 'war') {
       // 大規模戦: 上位 10 人（自分が入っていなければ足す）。数字はチケット・点・キル
       const top = (t) => { const r = rows(t), k = r.slice(0, 10); const me = r.find(x => x.me); if (me && !k.includes(me)) k.push(me); return k; };
       const sc = (t) => Math.ceil((m.mode === 'conquest' ? m.tickets : m.score)[t]);
-      return { title: `${MODE.war}　${sub}`, teams: [{ name: 'ALLY', score: sc(mine), cls: 'mine', rows: top(mine) }, { name: 'ENEMY', score: sc(foe), cls: 'foe', rows: top(foe) }] };
+      return { sc: true, title: `${MODE.war}　${sub}`, teams: [{ name: 'ALLY', score: sc(mine), cls: 'mine', rows: top(mine) }, { name: 'ENEMY', score: sc(foe), cls: 'foe', rows: top(foe) }] };
     }
     return { title: `${MODE[m.kind] || '対戦'}　${sub}`, teams: [{ name: sideName(mine) + '（味方）', score: score(mine), cls: 'mine', rows: rows(mine) }, { name: sideName(foe), score: score(foe), cls: 'foe', rows: rows(foe) }] };
   }

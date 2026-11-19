@@ -405,6 +405,17 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-prog .lb { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); font-size: 11px; font-family: var(--f-body); font-weight: 700; white-space: nowrap; text-shadow: 0 1px 2px #000; }
 .hud-giveup { position: absolute; left: 50%; bottom: calc(var(--sb) + 132px); transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 2px; padding: 8px 20px; min-width: 150px; background: rgba(8,12,18,.72); border: 1px solid rgba(255,255,255,.28); border-radius: 6px; font-family: var(--f-body); pointer-events: auto; z-index: 3; }
 .hud-giveup.on { display: flex; }
+/* 点: 照準の少し下。合計を大きく、内訳を小さく。3 秒ほどで消える */
+.hud-pts { position: absolute; left: 50%; top: calc(50% + 46px); transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 1px; pointer-events: none; font-family: var(--f-body); text-shadow: 0 1px 2px rgba(0,0,0,.95), 0 0 6px rgba(0,0,0,.6); z-index: 2; }
+.hud-pts.on { display: flex; animation: ptsIn .16s ease-out; }
+.hud-pts.fade { opacity: 0; transition: opacity .45s ease-in; }
+.hud-pts .kl { font-size: 12px; color: #e8ecf2; white-space: nowrap; }
+.hud-pts .kl:empty { display: none; }
+.hud-pts .tot { font-family: var(--f-head); font-weight: 900; font-size: 22px; line-height: 1.05; color: #ffd84a; letter-spacing: .02em; }
+.hud-pts .rs { display: flex; flex-direction: column; align-items: stretch; min-width: 150px; }
+.hud-pts .rs div { display: flex; justify-content: space-between; gap: 14px; font-size: 11px; color: #cfd6df; }
+.hud-pts .rs b { font-weight: 700; color: #fff; }
+@keyframes ptsIn { from { transform: translateX(-50%) scale(1.18); } to { transform: translateX(-50%) scale(1); } }
 .hud-giveup b { font-size: 15px; letter-spacing: .08em; }
 .hud-giveup span { font-size: 11px; opacity: .8; }
 .hud-giveup.arm { border-color: #ff5a4a; background: rgba(90,16,12,.78); }
@@ -440,7 +451,8 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-board .tm.mine .tn { background: rgba(70,140,255,.28); } .hud-board .tm.foe .tn { background: rgba(255,80,70,.26); }
 .hud-board .tn em { font-style: normal; font-weight: 900; font-size: 16px; font-family: var(--f-head); }
 .hud-board table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.hud-board th { font-size: 11px; color: var(--sub); font-weight: 600; padding: 3px 4px; text-align: right; }
+.hud-board td.sc { color: #ffd84a; font-weight: 700; }
+.hud-board th { white-space: nowrap; font-size: 11px; color: var(--sub); font-weight: 600; padding: 3px 4px; text-align: right; }
 .hud-board td { padding: 4px; text-align: right; border-top: 1px solid rgba(255,255,255,.08); font-variant-numeric: tabular-nums; }
 .hud-board .nm { text-align: left; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-board td.nm i { font-style: normal; font-size: 11px; color: var(--sub); margin-left: 5px; }

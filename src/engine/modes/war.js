@@ -18,6 +18,32 @@ import { hrand } from '../rng.js';
 import { WEAPONS } from '../data/weapons.js';
 
 export const OUT_LIMIT = 10;
+// 点（自分の点。BattleBit に合わせる: 敵を倒すと 200。頭への一発は上乗せ（長距離の狙撃で 400 の例。距離で増える形は推測）。
+// 支援・起こす・拠点は BattleBit の数字が見つからないので仮。research/WARBIT.md §25）
+export const PTS = { kill: 200, assist: 100, revive: 100, cap: 200, neut: 100 };
+export function hsBonus(d) { return Math.max(100, Math.min(500, Math.round(d / 10) * 10)); }
+function award(S, a, pts, why, ev, extra) {
+  if (!a || !a.stats || pts <= 0) return;
+  a.stats.sc = (a.stats.sc || 0) + pts;
+  if (a.pid != null) ev.push({ e: 'score', id: a.id, pts, why, ...(extra || {}) });
+}
+// 倒した点: ダウンさせた時に入る（起こされても取り消さない）。ダウンを経ずに死んだ時は死んだ時に入る
+function creditKill(S, v, k, part, ev) {
+  const m = S.m, cr = m.scd || (m.scd = {});
+  if (cr[v.id]) return;
+  cr[v.id] = 1;
+  if (k && k.team !== v.team) {
+    const d = Math.round(Math.hypot(k.x - v.x, (k.y || 0) - (v.y || 0), k.z - v.z));
+    const wi = k.ws && k.ws.slot >= 0 && k.inv && k.inv.w ? k.inv.w[k.ws.slot] : null;
+    const hs = part === 'head' ? hsBonus(d) : 0;
+    award(S, k, PTS.kill + hs, 'kill', ev, { v: v.id, d, hs, w: wi ? wi.id : '' });
+  }
+  for (const [id, dmg] of Object.entries(v.dmgBy || {})) {
+    const x = S.byId[id];
+    if (!x || x === k || x.team === v.team || dmg < 30) continue;
+    award(S, x, PTS.assist, 'assist', ev, { v: v.id });
+  }
+}
 export const TICKETS = { small: 300, medium: 500, large: 800 };
 export const CAP_T = 10;        // 1人で中立→自軍（敵の拠点はこれを2回）。ドミネーションは半分
 export const BLEED = 0.3;       // 拠点の差1つあたり、毎秒
@@ -178,7 +204,13 @@ function stepFlags(S, w, dt, ev) {
     // 持ち主: 端まで行けばその側、0 を越えたら中立
     if (f.prog >= 1) f.owner = 0; else if (f.prog <= -1) f.owner = 1;
     else if ((f.owner === 0 && f.prog <= 0) || (f.owner === 1 && f.prog >= 0)) f.owner = -1;
-    if (f.owner !== before) ev.push({ e: 'flag', id: f.id, owner: f.owner, prev: before });
+    if (f.owner !== before) {
+      ev.push({ e: 'flag', id: f.id, owner: f.owner, prev: before });
+      // 拠点の点: 奪った（自軍になった）・中立に戻した 時に、範囲にいた側の全員へ
+      const t = f.owner >= 0 ? f.owner : (before === 0 ? 1 : 0);
+      const pts = f.owner >= 0 ? PTS.cap : PTS.neut, why = f.owner >= 0 ? 'cap' : 'neut';
+      if (m.mode !== 'range') for (const a of S.actors) { if (a.team !== t || !a.alive || a.down || a.isDrone) continue; if (Math.hypot(a.x - f.x, a.z - f.z) > f.r || Math.abs(a.y - f.y) > 12) continue; award(S, a, pts, why, ev, { f: f.id }); }
+    }
   }
   const c = [0, 0]; for (const f of m.flags) if (f.owner >= 0) c[f.owner]++;
   if (m.mode === 'conquest') {
@@ -328,9 +360,17 @@ export default {
   },
   onEvents(S, w, evs) {
     const m = S.m;
-    for (const e of evs) if (e.e === 'kill') {
+    const n0 = evs.length;
+    for (let i = 0; i < n0; i++) {
+      const e = evs[i];
+      if (m.mode === 'range' || m.over) { if (e.e === 'kill' && m.scd) delete m.scd[e.id]; if (e.e !== 'kill') continue; }
+      else if (e.e === 'down') { const v = S.byId[e.id]; if (v) creditKill(S, v, S.byId[e.by], e.part, evs); continue; }
+      else if (e.e === 'revive') { const v = S.byId[e.id], b = S.byId[e.by]; if (m.scd) delete m.scd[e.id]; if (b && v && b !== v) award(S, b, PTS.revive, 'revive', evs, { v: v.id }); continue; }
+      if (e.e !== 'kill') continue;
       const v = S.byId[e.id], k = S.byId[e.by];
       if (!v) continue;
+      if (m.mode !== 'range' && !m.over) creditKill(S, v, k, e.part, evs);
+      if (m.scd) delete m.scd[v.id];
       v.stats.d++;
       if (k && k.team !== v.team) { k.stats.k++; if (m.mode === 'tdm' && !m.over) m.score[k.team]++; }
       for (const as of e.as || []) { const x = S.byId[as]; if (x && x.team !== v.team) x.stats.a++; }

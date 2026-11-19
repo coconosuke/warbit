@@ -56,6 +56,8 @@ export class Hud {
     // 息の残り（息止めの間と、戻るまで。構えているときだけ）
     this.breathEl = el('div', 'hud-breath', '<i></i>'); r.appendChild(this.breathEl);
     this.hitm = el('div', 'hud-hit', '<i></i><i></i><i></i><i></i>'); r.appendChild(this.hitm);
+    // 点（大規模戦）: 照準の下に合計と内訳。続けて入ると足していく
+    this.ptsEl = el('div', 'hud-pts', '<div class="kl"></div><div class="tot"></div><div class="rs"></div>'); r.appendChild(this.ptsEl);
     // ダウン中にあきらめて出撃の画面へ（大規模戦。指だと2回押す。11-19 18:16）
     this.giveup = el('div', 'hud-giveup', '<b>GIVE UP</b><span>出撃の画面へ</span>'); this.giveup.dataset.btn = 'giveup'; this.giveup.setAttribute('role', 'button'); r.appendChild(this.giveup);
     this.dmg = el('div', 'hud-dmg'); r.appendChild(this.dmg);
@@ -190,8 +192,8 @@ export class Hud {
     const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     let h = `<div class="bd"><div class="bh">${esc(d.title)}<small>タップで閉じる</small></div><div class="bt">`;
     for (const t of d.teams) {
-      h += `<div class="tm ${t.cls}"><div class="tn"><b>${esc(t.name)}</b><em>${t.score}</em></div><table><tr><th class="nm">名前</th><th>キル</th><th>デス</th><th>アシスト</th><th>K/D</th></tr>`;
-      for (const r of t.rows) h += `<tr class="${r.me ? 'me' : ''}${r.out ? ' out' : ''}"><td class="nm">${esc(r.name)}${r.bot ? '<i>BOT</i>' : ''}</td><td>${r.k}</td><td>${r.d}</td><td>${r.a}</td><td>${r.d ? (r.k / r.d).toFixed(2) : r.k.toFixed(2)}</td></tr>`;
+      h += `<div class="tm ${t.cls}"><div class="tn"><b>${esc(t.name)}</b><em>${t.score}</em></div><table><tr><th class="nm">名前</th>${d.sc ? '<th>スコア</th>' : ''}<th>キル</th><th>デス</th><th>アシスト</th><th>K/D</th></tr>`;
+      for (const r of t.rows) h += `<tr class="${r.me ? 'me' : ''}${r.out ? ' out' : ''}"><td class="nm">${esc(r.name)}${r.bot ? '<i>BOT</i>' : ''}</td>${d.sc ? `<td class="sc">${r.sc || 0}</td>` : ''}<td>${r.k}</td><td>${r.d}</td><td>${r.a}</td><td>${r.d ? (r.k / r.d).toFixed(2) : r.k.toFixed(2)}</td></tr>`;
       h += '</table></div>';
     }
     h += '</div></div>';
@@ -454,6 +456,21 @@ export class Hud {
     this._hitKind = kind || '';
     this.hitm.className = 'hud-hit ' + (kind || ''); void this.hitm.offsetWidth; this.hitm.className = 'hud-hit on ' + (kind || '');
     clearTimeout(this._hitT); this._hitT = setTimeout(() => { this.hitm.className = 'hud-hit fade ' + (kind || ''); this._hitKind = ''; }, kind === 'kill' ? 420 : 150);
+  }
+  // 点: o = { pts, label, line }。3 秒の間に続けて入ると合計を足し、同じ内訳はまとめる
+  points(o) {
+    const e = this.ptsEl, now = performance.now();
+    const P = this._pts && now - this._pts.t < 3000 ? this._pts : (this._pts = { tot: 0, rows: [], line: '' });
+    P.t = now; P.tot += o.pts;
+    if (o.line) P.line = o.line;
+    const r = P.rows.find(x => x[0] === o.label);
+    if (r) { r[1] += o.pts; r[2]++; } else { P.rows.push([o.label, o.pts, 1]); if (P.rows.length > 4) P.rows.shift(); }
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    e.children[0].innerHTML = P.line ? esc(P.line) : '';
+    e.children[1].textContent = '+' + P.tot;
+    e.children[2].innerHTML = P.rows.map(x => `<div><span>${esc(x[0])}${x[2] > 1 ? ' ×' + x[2] : ''}</span><b>${x[1]}</b></div>`).join('');
+    e.className = 'hud-pts'; void e.offsetWidth; e.className = 'hud-pts on';
+    clearTimeout(this._ptsT); this._ptsT = setTimeout(() => { e.className = 'hud-pts on fade'; }, 2600);
   }
   damageFrom(ang) { this.dmgArcs.push({ ang, t: performance.now() }); }
   showBanner(html, ms = 2600, cls = '') { this.banner.innerHTML = html; this.banner.className = 'hud-banner on ' + cls; clearTimeout(this._banT); if (ms > 0) this._banT = setTimeout(() => { this.banner.className = 'hud-banner'; }, ms); }

@@ -601,6 +601,19 @@ try {
     const bar = await page.evaluate(() => ({ fl: [...document.querySelectorAll('#hud .hud-obj .wb .fl')].map(e => e.textContent).join(''), tk: document.querySelectorAll('#hud .hud-obj .wb .tk').length, hidden: ['use', 'shout', 'cmd', 'team', 'nvg', 'loadout'].filter(b => { const e = document.querySelector('#hud .hb[data-btn="' + b + '"]'); return !e || e.classList.contains('hidden'); }).length }));
     rec('WAR BIT', '上の帯に拠点（A から順）と両チームのチケット・旧モードのボタン（調べる・警告・命令・暗視）と射撃場のボタンは出さない', bar.fl === 'BCDE' && bar.tk === 2 && bar.hidden === 6, JSON.stringify(bar));
     await shot('WAR-HUD');
+    // 点（11-19）: 倒した点が照準の下に出る（合計と内訳。続けて入ると足す）。スコア表に点の列
+    {
+      const pt = await page.evaluate(async () => {
+        const g = window.__app.game, p = g.p, foe = g.S.actors.find(a => a.team !== p.team);
+        g._score({ e: 'score', id: p.id, pts: 600, why: 'kill', v: foe.id, d: 380, hs: 400, w: 'm4a1' });
+        g._score({ e: 'score', id: p.id, pts: 100, why: 'assist', v: foe.id });
+        await new Promise(r => setTimeout(r, 200));
+        const e = document.querySelector('#hud .hud-pts.on');
+        return { on: !!e, tot: e ? e.querySelector('.tot').textContent : '', rows: e ? e.querySelectorAll('.rs div').length : 0, line: e ? e.querySelector('.kl').textContent : '' };
+      });
+      await shot('WAR-点');
+      rec('WAR BIT', '点: 倒すと照準の下に合計と内訳（頭の上乗せ・支援を足していく）', pt.on && pt.tot === '+700' && pt.rows === 3 && /M4A1/.test(pt.line) && /380m/.test(pt.line), JSON.stringify(pt));
+    }
     // 範囲の外で倒れる → KIA → 出撃の画面（数秒待つ）→ 本陣 → 出撃し直す（チケットが減る）
     const tk0 = await page.evaluate(() => window.__app.game.S.m.tickets[window.__app.game.p.team]);
     await page.evaluate(() => { const g = window.__app.game, p = g.p, r = g.S.m.rect; p.x = r[0] - 25; p.oob = 9.95; });
@@ -614,10 +627,10 @@ try {
     // スコア表（上の帯を押す）
     await tapAt(await center('#hud .hud-obj'), 78);
     await page.waitForFunction(() => document.querySelector('#hud .hud-board.on'), null, { timeout: 15000 }).catch(() => {});
-    const bd = await page.evaluate(() => ({ on: !!document.querySelector('#hud .hud-board.on'), rows: document.querySelectorAll('#hud .hud-board tr').length }));
+    const bd = await page.evaluate(() => ({ on: !!document.querySelector('#hud .hud-board.on'), rows: document.querySelectorAll('#hud .hud-board tr').length, sc: [...document.querySelectorAll('#hud .hud-board th')].some(e => e.textContent === 'スコア') }));
     await shot('WAR-スコア表');
     await tapAt(await center('#hud .hud-board'), 79);
-    rec('WAR BIT', '上の帯を押すとスコア表（両チームの上位）', bd.on && bd.rows >= 12, JSON.stringify(bd));
+    rec('WAR BIT', '上の帯を押すとスコア表（両チームの上位・点の列）', bd.on && bd.rows >= 12 && bd.sc, JSON.stringify(bd));
     // 決着 → 結果 → もう一度
     await page.evaluate(() => { window.__app.game.S.m.tickets[1] = 0; });
     await page.waitForFunction(() => window.__app.screens.cur === 'result', null, { timeout: 90000 }).catch(() => {});
