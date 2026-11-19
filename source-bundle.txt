@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-19T16:18:34.084Z）
+HARD ENTRY ソース一式（2026-11-19T16:29:56.165Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 136695
+@@@@ FILE DESIGN.md text 136969
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -375,6 +375,7 @@ HARD ENTRY ソース一式（2026-11-19T16:18:34.084Z）
 - 11-20 WAR BIT 0.1.31（弾薬箱ほか）: 弾薬箱（援護は大きい ×2・突撃は小さい ×1。手に持って引き金で足もとの前へ置く。近く 2m に立った味方に 0.8 秒ごとに弾倉を1本。大きい 244 発・小さい 90 発分。尽きるか 4 分で消える。置いた人に 1本 10 点）。弾倉をまとめている間も走らない。拠点の印の大きさ・印の大きさ（設定）。投げ物の持ち方（胸の高さで体の右前、左手はピンの輪へ）。使っていない「ボイス」の音量を外し、HUD の配置の説明から字幕を外した。
 - 11-20 WAR BIT 0.1.32（医療キット）: 衛生は医療キットを持つ（なくならない）。手に持って引き金を押している間、前 2.5m・左右 35° の傷ついた仲間（いなければ自分）を 1 秒に 20 戻し、血を止める。仲間を 10 戻すごとに 10 点。弾薬箱・医療キットを手に持った形（この作品の形）。分隊の欄（設定で出す。兵科・名前・体力・ダウン／出撃待ち／距離。BattleBit の Show Squad List）。長押しの長さ 420 → 360ms。research の 33。
 - 11-20 WAR BIT 0.1.33（ボットの衛生・援護）: ボットの衛生は近く（2.5m）の傷ついた人（体力 85% 未満）を治し、ボットの援護・突撃は近く（8m）の人の予備の弾倉が2本以下だと弾薬箱を置く（近くに味方の箱がなければ）。ジャイロもタッチと同じく、時刻で直線に求めて取り出す。突撃は構える・リロードが 0.85 倍の時間（BattleBit の 2024 の手直しで速くなった。倍率は推測）。設定にコントラスト（BattleBit の Contrast Intensity）。
+- 11-20 WAR BIT 0.1.34（弾薬箱で包帯・投げ物も）: 大きい弾薬箱は包帯と投げ物（破片・衝撃・発煙）も補給する（4 秒に1つ・出撃した時の数まで。中身は救急 100・投げ物 50 で1つ 25）。小さい箱は弾だけ。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -530,7 +531,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 133378
+@@@@ FILE src/app/game.js text 133462
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -1326,7 +1327,7 @@ export class Match {
         case 'score': if (e.id === me && S.war) this._score(e); break;
         case 'ammoBox': if (e.k === 'place') { au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.6, rate: 1.3 }); if (e.by === me) hud.feed(`${e.big ? '大きい' : '小さい'}弾薬箱を置いた（近くに立つと弾倉を補給）`, 'ok'); } break;
         case 'medkit': if (e.id === me) { au.sfx('bandage', null, { vol: 0.35, rate: 1.2 }); const t = S.byId[e.tgt]; hud.feed(t === p ? `自分を手当て（体力 ${e.hp}）` : `${t ? t.name : '仲間'} を手当て（体力 ${e.hp}）`, 'ok'); } else if (e.tgt === me) hud.feed(`${S.byId[e.id] ? S.byId[e.id].name : '衛生'} が手当てしている（体力 ${e.hp}）`, 'ok'); break;
-        case 'resupply': if (e.id === me) { au.ui('pickup'); hud.feed(`弾倉を補給した（+${e.n}発）`, 'ok'); } break;
+        case 'resupply': if (e.id === me) { au.ui('pickup'); hud.feed(e.g ? `${GEAR[e.g] ? GEAR[e.g].name.replace(/（.*）/, '') : ''}を補給した` : `弾倉を補給した（+${e.n}発）`, 'ok'); } break;
         case 'magDrop': au.sfx('magOut', [e.x, e.y + 0.1, e.z], { vol: 0.5, rate: 0.8 }); break;
         case 'magPick': if (e.id === me) { au.ui('pickup'); hud.feed(`弾倉を拾った（${e.n}発）`, 'ok'); } break;
         case 'consol': if (e.id === me) { au.sfx('magOut', null, { vol: 0.5 }); hud.feed('弾倉をまとめている…', 'ok'); } break;
@@ -3816,7 +3817,7 @@ export function gunKeys(snd) {
 }
 export { GUNS };
 
-@@@@ FILE src/engine/actor.js text 5948
+@@@@ FILE src/engine/actor.js text 5972
 // 人（隊員・容疑者・市民・ボット・プレイヤー）。状態は関数を含まないデータだけ。
 import { WEAPONS, attachOptions, capOf, ATTACH } from './data/weapons.js';
 import { PLATE, HELMET, GEAR, LONG } from './data/equipment.js';
@@ -3854,7 +3855,7 @@ export function makeInventory(lo) {
     always: { cuffs: 99, chem: 8 },
   };
   // 大規模戦の兵科は数を兵科で決める（衛生の包帯 16 など）。ほかは道具ごとの上限まで
-  for (const [id, n] of (lo.gear || [])) if (GEAR[id] && n > 0) inv.gear.push({ id, n: lo.war ? n : Math.min(n, GEAR[id].max) });
+  for (const [id, n] of (lo.gear || [])) if (GEAR[id] && n > 0) { const k = lo.war ? n : Math.min(n, GEAR[id].max); inv.gear.push({ id, n: k, n0: k }); }
   if (inv.long === 'm320') inv.m320 = { ...LONG.m320.rounds, sel: 'flash' };
   return inv;
 }
@@ -6175,7 +6176,7 @@ function search(S, w, a, inp, dt, o, people) {
   return true;
 }
 
-@@@@ FILE src/engine/ammobox.js text 3042
+@@@@ FILE src/engine/ammobox.js text 4109
 // 弾薬箱（大規模戦）: 援護は大きい弾薬箱 ×2、突撃は小さい弾薬箱 ×1。手に持って引き金で足もとの前へ置く（拾えない）。
 // 味方（人）が近く（2m）に立っていると、0.8 秒ごとに弾倉を1本ずつ補給する（スマホ向けに、見て押すのではなく近くにいれば補給）。
 // 箱の中身は弾の数で数える: 大きい 244・小さい 90（大きいのは BattleBit の Heavy Ammo Kit の「弾 244」。小さいのは推測）。
@@ -6183,12 +6184,14 @@ function search(S, w, a, inp, dt, o, people) {
 import { magCap } from './actor.js';
 
 export const AMMOBOX = { big: 244, small: 90, r: 2.0, every: 0.8, life: 240, pts: 10 };
+// 救急（包帯）と投げ物も補給する（BattleBit の重い弾薬箱: 救急 100・投げ物 50。1つ 25 で数える。小さい箱は弾だけ）。4 秒に1つ
+export const AIDBOX = { aid: 100, thr: 50, cost: 25, every: 4 };
 
 export function placeAmmo(S, a, id, ev) {
   const big = id === 'ammobig';
   const L = S.ammo || (S.ammo = []);
   const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
-  const b = { id: (S.ammoN = (S.ammoN || 0) + 1), team: a.team, big, left: big ? AMMOBOX.big : AMMOBOX.small, x: a.x + fx * 0.75, y: a.y, z: a.z + fz * 0.75, yaw: a.yaw, t: S.t, by: a.id };
+  const b = { id: (S.ammoN = (S.ammoN || 0) + 1), team: a.team, big, aid: big ? AIDBOX.aid : 0, thr: big ? AIDBOX.thr : 0, left: big ? AMMOBOX.big : AMMOBOX.small, x: a.x + fx * 0.75, y: a.y, z: a.z + fz * 0.75, yaw: a.yaw, t: S.t, by: a.id };
   L.push(b);
   if (ev) ev.push({ e: 'ammoBox', k: 'place', id: b.id, by: a.id, team: a.team, x: b.x, y: b.y, z: b.z, big });
   return b;
@@ -6215,6 +6218,14 @@ export function stepAmmo(S, ev, award) {
       if (Math.abs(a.y - b.y) > 1.6 || Math.hypot(a.x - b.x, a.z - b.z) > AMMOBOX.r) continue;
       const due = a._ammoT == null || S.t - a._ammoT >= every;
       if (!due) continue;
+      // 救急と投げ物（大きい箱）: 4 秒に1つ。出撃した時の数まで
+      if ((b.aid > 0 || b.thr > 0) && (a._aidT == null || S.t - a._aidT >= Math.round(AIDBOX.every / S.dt))) {
+        const gs = (a.inv && a.inv.gear) || [];
+        const ban = gs.find(g => g.id === 'bandage' && g.n < (g.n0 || 0));
+        const thr = gs.find(g => (g.id === 'frag' || g.id === 'impact' || g.id === 'smoke') && g.n < (g.n0 || 0));
+        if (ban && b.aid >= AIDBOX.cost) { ban.n++; b.aid -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'bandage' }); }
+        else if (thr && b.thr >= AIDBOX.cost) { thr.n++; b.thr -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: thr.id }); }
+      }
       // 主の銃から、満タンなら拳銃
       const w = a.inv && a.inv.w || [];
       let n = giveMag(w[0], b.left);
@@ -7276,7 +7287,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.33';
+export const VERSION = '0.1.34';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -33257,7 +33268,7 @@ test('vault: ガソリンスタンドの2階の窓を乗り越えて、平らな
   ok(p.z > 31.5 * CS && Math.abs(p.y - 3) < 0.15, `屋根を歩く z=${(p.z / CS).toFixed(1)} y=${p.y.toFixed(2)}`);
 });
 
-@@@@ FILE tests/unit/war_ammo.test.mjs text 3624
+@@@@ FILE tests/unit/war_ammo.test.mjs text 4393
 // 弾薬箱: 援護は大きい ×2・突撃は小さい ×1。置くと、近くに立った味方（人）に弾倉を補給。中身が尽きると消える。置いた人に点
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
@@ -33320,6 +33331,18 @@ test('ボットの援護: 近くの仲間の人の予備が2本以下だと弾�
   let placed = false;
   for (let i = 0; i < 200 && !placed; i++) { b.x = me.x + 3; b.z = me.z; b.y = me.y; b.ai.tgt = null; step(G, {}); placed = (S.ammo || []).some(x => x.by === b.id); }
   ok(placed, '置いた');
+});
+
+test('大きい弾薬箱は包帯と投げ物も補給する（出撃した時の数まで・4 秒に1つ）', () => {
+  const G = game(), S = G.S, me = S.actors[0];
+  for (let i = 0; i < 60 && me.ws.st !== 'ready'; i++) step(G, { [me.id]: idle(me) });
+  const ban = me.inv.gear.find(g => g.id === 'bandage'), fr = me.inv.gear.find(g => g.id === 'frag');
+  ok(ban && ban.n0 > 0, '出撃した時の数を覚えている');
+  ban.n = 0; if (fr) fr.n = 0;
+  S.ammo = [{ id: 1, team: me.team, big: true, aid: 100, thr: 50, left: 244, x: me.x + 1, y: me.y, z: me.z, yaw: 0, t: S.t, by: me.id }];
+  for (let i = 0; i < Math.round(9 / S.dt); i++) step(G, { [me.id]: idle(me) });
+  ok(ban.n >= 2, '包帯 ' + ban.n);
+  ok(ban.n <= ban.n0, '出撃した時の数まで');
 });
 
 @@@@ FILE tests/unit/war_breath.test.mjs text 3171
