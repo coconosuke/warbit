@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-19T20:34:30.685Z）
+HARD ENTRY ソース一式（2026-11-19T20:47:43.519Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 140489
+@@@@ FILE DESIGN.md text 141834
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -381,6 +381,7 @@ HARD ENTRY ソース一式（2026-11-19T20:34:30.685Z）
 - 11-20 WAR BIT 0.1.37（手に持つ物の持ち方）: 投げ物・弾薬箱・医療キット・双眼鏡の持ち方を物ごとに分けた（前は全部、投げ物と同じ右手の上に載せていた）。弾薬箱は両手の手のひらを上へ向けて底の左右を持つ（大きく 0.8・小さく 0.62 倍の形に）。医療キットは左右から手のひらで挟み、前の札が見える。使っている間は仲間へは前へ差し出して小さく押し、自分へは胸へ引き寄せる（engine の ws.healSelf）。双眼鏡は両手で2本の筒を外から持ち、構えると目の前へ上げ、その間は手を下の外へ逃がす（手が画面をふさがない）。投げ物は右手を投げ物の右から回して握る（前は手のひらが下を向いて隠れていた）。持つ物の向きは銃の向き（走ると 55° 横を向く）を使わず、カメラの向きに揺れだけ足す。
 - 11-20 WAR BIT 0.1.38（設定の続き）: 味方の名前の大きさ（9〜16px。既定 11。印の大きさで縮めない）、敵の印の表示（表示／非表示）、画面の揺れを強さ 0〜100% に（前の「標準／弱」はどこでも使っておらず効いていなかった。弱を選んでいた人は 50%）、リロードの2回押しとみなす間（0.25〜0.6 秒。既定 0.4）。BattleBit の Friendly Name Tag Size・Show Pings・Screen Shake に合わせた。research の 31。
 - 11-20 WAR BIT 0.1.39（工兵の RPG-7）: 工兵が RPG-7（HEAT）を 6 発持つ（込めた1発と予備5）。装備のボタンを長押しして「RPG-7」を選ぶと構え、その後は装備のボタンを押すだけで構える／銃に戻す。撃つとロケットが煙の尾を引いて飛び、人か物に当たると爆発（半径 7m・3m まで倒れる）。出てすぐ 120m/s、0.4 秒で 190m/s。重力 0.45 倍（200m で約 2.5m 下がる）。腰だめ 1.2°・構えると 0.3° ばらつく。込めるのに 4.2 秒（左手でポーチから弾頭を出して前から差し込む）。撃つと後ろへ煙。大きい弾薬箱で予備が戻る。弾の欄は「込めた/予備」。ボットの工兵は、物陰（しゃがむ・伏せる・身を出す）や 2 人以上固まった敵（15〜150m）、ときどきほかの敵にも撃ち、味方が敵のそばにいれば撃たない。撃ったら銃に戻す。キルの欄は「RPG-7」。建物を壊す仕組みはまだない。research の 37。
+- 11-20 WAR BIT 0.1.40（RPG で壁と床に穴）: RPG の爆発（壁の面まで 1.3m）で、薄い壁（厚み 0.5m まで）に幅 1.5m・高さ 1.6m の穴、上の階の床に 1.4m 四方の穴が開く（war/destruct.js。箱を最大4つに分けて穴を作り、元の箱は壊れた印）。穴の下に細い帯しか残らなければ床まで抜いて通れる。レンガ・石膏・木は 1 発、コンクリートは 2 発目から。いちばん下の床・鉄・岩・土のうは壊れない。穴の中の窓枠も消える。描く側はその 64m の塊の遠い形と、近い形のうち建物の部分だけを作り直す（近い形を「地形・木」と「建物の箱」の2つに分けた。時間のほとんどは地形と木で、箱は数 ms。renderer.rebuildWarChunks）。マップの形は試合をまたいで使い回すので、試合を作る時に元に戻す（restoreWorld）。ボットの見通しも穴を通る。建物ごと崩れる仕組みはまだない。research の 38。BattleBit の Wiki（Gadgets）に合わせて、RPG を 6 発 → 3 発（込めた1発と予備2）、小さい弾薬箱を 弾 90 → 150 と救急 40（包帯を補給）、重い弾薬箱の RPG の補給を「重い道具 100 から 1 発 40」（前は投げ物の枠から 25）に。research の 39。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -536,7 +537,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 139109
+@@@@ FILE src/app/game.js text 139813
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -569,6 +570,7 @@ import { LINES } from '../audio/lines.js';
 import { vfovOf } from './settings.js';
 import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
+import { carve } from '../war/destruct.js';
 import { los as warLos } from '../war/world.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
 import { CLASSES, CLASS_LIST, classGuns, classSecs, classLoadout } from '../war/classes.js';
@@ -1281,6 +1283,11 @@ export class Match {
         }
         case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', fullhp: '体力が満タン', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
         case 'nade': { if (e.type === 'frag' || e.type === 'impact') break; if (e.type === 'smoke') { for (let i = 0; i < 6; i++) fx.smoke(e.x, e.y + 0.5, e.z, 0.9, [0.62, 0.63, 0.64], 0.6, 3); au.sfx('gasPop', [e.x, e.y, e.z], { rate: 0.8 }); break; } if (e.type === 'cs') { for (let i = 0; i < 8; i++) fx.smoke(e.x, e.y + 0.4, e.z, 1.2, [0.85, 0.85, 0.8], 0.5, 6); au.sfx('gasPop', [e.x, e.y, e.z]); } else { fx.explosion(e.x, e.y, e.z, 3, e.type === 'flash' ? 'flash' : 'stinger'); au.sfx(e.type === 'flash' ? 'flashbang' : 'stinger', [e.x, e.y, e.z]); } const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 10) * 0.6); break; }
+        case 'carve': {
+          // オンラインの参加側（エンジンを回していない）: 自分の世界にも同じ穴を開ける
+          let ks = e.ks || [];
+          if (this.w && this.w.war && (this.w._carveN || 0) < (e.cn || 0)) { ks = carve(this.w, e.x, e.y, e.z, e.r || 1.3); this.w._carveN = e.cn; }
+          this.r.rebuildWarChunks && this.r.rebuildWarChunks(ks); const mat = [0.62, 0.52, 0.42]; if (fx.debris) for (let i = 0; i < 3; i++) fx.debris(e.x + (Math.random() - 0.5) * 1.2, e.y + (Math.random() - 0.5) * 1.0, e.z + (Math.random() - 0.5) * 1.2, mat); au.sfx('barricade', [e.x, e.y, e.z], { vol: 1, rate: 0.7 }); break; }
         case 'boom': case 'c2': { fx.explosion(e.x, e.y, e.z, Math.min(5, e.r || 3), e.kind || 'c2'); au.boom([e.x, e.y, e.z], { size: e.kind === 'frag' ? 1 : e.kind === 'rpg' ? 1.2 : 1.1 }); const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 18)); this._heatUp(0.5 * Math.max(0, 1 - d / 40)); break; }
         case 'flashed': if (e.id === me) { this.flashW = Math.max(this.flashW, Math.min(1, 0.4 + e.k * 1.2)); au.deafen(2 + 4 * e.k); } break;
         case 'stung': if (e.id === me) { this.shake = 1; this.blurK = Math.max(this.blurK, 0.8); } break;
@@ -6235,22 +6242,23 @@ function search(S, w, a, inp, dt, o, people) {
   return true;
 }
 
-@@@@ FILE src/engine/ammobox.js text 4532
+@@@@ FILE src/engine/ammobox.js text 4724
 // 弾薬箱（大規模戦）: 援護は大きい弾薬箱 ×2、突撃は小さい弾薬箱 ×1。手に持って引き金で足もとの前へ置く（拾えない）。
 // 味方（人）が近く（2m）に立っていると、0.8 秒ごとに弾倉を1本ずつ補給する（スマホ向けに、見て押すのではなく近くにいれば補給）。
-// 箱の中身は弾の数で数える: 大きい 244・小さい 90（大きいのは BattleBit の Heavy Ammo Kit の「弾 244」。小さいのは推測）。
+// 箱の中身は弾の数で数える: 大きい 244・小さい 150（BattleBit の Wiki の Heavy Ammo Kit「弾 244」・Small Ammo Kit「弾 150」。research の 39）。
 // 中身がなくなるか、4 分で消える。置いた人以外に補給すると、置いた人に点（1本 10。推測）。research/WARBIT.md §32
 import { magCap } from './actor.js';
 
-export const AMMOBOX = { big: 244, small: 90, r: 2.0, every: 0.8, life: 240, pts: 10 };
-// 救急（包帯）と投げ物・RPG の弾も補給する（BattleBit の重い弾薬箱: 救急 100・投げ物 50。1つ 25 で数える。小さい箱は弾だけ）。4 秒に1つ
-export const AIDBOX = { aid: 100, thr: 50, cost: 25, every: 4 };
+export const AMMOBOX = { big: 244, small: 150, r: 2.0, every: 0.8, life: 240, pts: 10 };
+// 救急（包帯）と投げ物・RPG の弾も補給する（BattleBit の重い弾薬箱: 救急 100・投げ物 50・重い道具 100。小さい箱は救急 40 だけ）。
+//  包帯・投げ物は 1つ 25、RPG は 1 発 40（Wiki の補給の重さ）。4 秒に1つ
+export const AIDBOX = { aid: 100, thr: 50, gad: 100, aidSmall: 40, cost: 25, rpg: 40, every: 4 };
 
 export function placeAmmo(S, a, id, ev) {
   const big = id === 'ammobig';
   const L = S.ammo || (S.ammo = []);
   const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
-  const b = { id: (S.ammoN = (S.ammoN || 0) + 1), team: a.team, big, aid: big ? AIDBOX.aid : 0, thr: big ? AIDBOX.thr : 0, left: big ? AMMOBOX.big : AMMOBOX.small, x: a.x + fx * 0.75, y: a.y, z: a.z + fz * 0.75, yaw: a.yaw, t: S.t, by: a.id };
+  const b = { id: (S.ammoN = (S.ammoN || 0) + 1), team: a.team, big, aid: big ? AIDBOX.aid : AIDBOX.aidSmall, thr: big ? AIDBOX.thr : 0, gad: big ? AIDBOX.gad : 0, left: big ? AMMOBOX.big : AMMOBOX.small, x: a.x + fx * 0.75, y: a.y, z: a.z + fz * 0.75, yaw: a.yaw, t: S.t, by: a.id };
   L.push(b);
   if (ev) ev.push({ e: 'ammoBox', k: 'place', id: b.id, by: a.id, team: a.team, x: b.x, y: b.y, z: b.z, big });
   return b;
@@ -6278,15 +6286,15 @@ export function stepAmmo(S, ev, award) {
       const due = a._ammoT == null || S.t - a._ammoT >= every;
       if (!due) continue;
       // 救急と投げ物（大きい箱）: 4 秒に1つ。出撃した時の数まで
-      if ((b.aid > 0 || b.thr > 0) && (a._aidT == null || S.t - a._aidT >= Math.round(AIDBOX.every / S.dt))) {
+      if ((b.aid > 0 || b.thr > 0 || b.gad > 0) && (a._aidT == null || S.t - a._aidT >= Math.round(AIDBOX.every / S.dt))) {
         const gs = (a.inv && a.inv.gear) || [];
         const ban = gs.find(g => g.id === 'bandage' && g.n < (g.n0 || 0));
         const thr = gs.find(g => (g.id === 'frag' || g.id === 'impact' || g.id === 'smoke') && g.n < (g.n0 || 0));
-        // 工兵の RPG の予備も（BattleBit の重い弾薬箱は道具も補充する。投げ物と同じ枠から 1 発 25）
+        // 工兵の RPG の予備も（BattleBit の重い弾薬箱は道具も補充する。重い道具の枠から 1 発 40）
         const rp = a.inv && a.inv.rpg && a.inv.rpg.n + a.inv.rpg.in < (a.inv.rpg.n0 || 0) + 1 ? a.inv.rpg : null;
         if (ban && b.aid >= AIDBOX.cost) { ban.n++; b.aid -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'bandage' }); }
         else if (thr && b.thr >= AIDBOX.cost) { thr.n++; b.thr -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: thr.id }); }
-        else if (rp && b.thr >= AIDBOX.cost) { rp.n++; b.thr -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'rpg' }); }
+        else if (rp && (b.gad || 0) >= AIDBOX.rpg) { rp.n++; b.gad -= AIDBOX.rpg; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'rpg' }); }
       }
       // 主の銃から、満タンなら拳銃
       const w = a.inv && a.inv.w || [];
@@ -7074,7 +7082,7 @@ export const ALIGN_T = { restrain: 0.45, def: 0.3 };
 // 拘束の段取り（動作の進み 0..1）: 寄る・ひざをつく → 相手の手を取る → 背中へ回す → 結束バンドを締める → 離す
 export const CUFF_PH = { grab: 0.2, back: 0.5, tie: 0.62, pull: 0.82, rel: 0.9 };
 
-@@@@ FILE src/engine/data/equipment.js text 8864
+@@@@ FILE src/engine/data/equipment.js text 8940
 // 装備: 防具・ヘルメット・頭の装備・投げ物・戦術装備（RoN のwikiの値を基準）
 export const VEST = {
   none: { name: 'なし', cover: [] },
@@ -7134,9 +7142,9 @@ export const LONG = {
   breacher: { name: 'ブリーチングショットガン', desc: '扉の錠を撃って開ける。離れて使えば扉の罠も無効にできる。', how: '装備の切り替えで構え、扉を見て射撃', move: 0.97, draw: 0.6 },
   wand: { name: 'オプティワンド', desc: '曲がるカメラ。扉の下や角の先をのぞいて、人と罠を見つける。', how: '装備の切り替えで構え、射撃でのぞく（扉を見ていれば扉の下から）', move: 1.0, draw: 0.45 },
   m320: { name: 'M320 グレネードランチャー', desc: '閃光弾・スティンガー弾・CSガス弾を遠くへ撃ち込む。当たった所で作動する。', how: '装備の切り替えで構え、射撃で撃つ。射撃モードで弾を替える', move: 0.96, draw: 0.7, reload: 2.6, rounds: { flash: 3, stinger: 3, cs: 2 } },
-  // 大規模戦の工兵の RPG-7（HEAT。BattleBit の工兵の道具。research/WARBIT.md の 37）: 込めた1発と予備5発の 6 発。
+  // 大規模戦の工兵の RPG-7（HEAT。BattleBit の工兵の道具。research/WARBIT.md の 37）: 込めた1発と予備2発の 3 発（Wiki の Gadgets。research の 39）。
   //  肩から撃ち、人か物に当たった所で爆発する。込めるのに 4.2 秒（推測）
-  rpg: { name: 'RPG-7', desc: 'HEAT 弾頭のロケットを肩から撃つ。当たった所で爆発し、まわりの人を倒す。遠いほど落ちる。', how: '装備のボタンで構え、射撃で撃つ', move: 0.93, draw: 0.9, reload: 4.2, rockets: 6, war: true },
+  rpg: { name: 'RPG-7', desc: 'HEAT 弾頭のロケットを肩から撃つ。当たった所で爆発し、まわりの人を倒し、薄い壁や床に穴を開ける。遠いほど落ちる。', how: '装備のボタンで構え、射撃で撃つ', move: 0.93, draw: 0.9, reload: 4.2, rockets: 3, war: true },
 };
 // 手に持って使う特殊装備（4番目の持ち物）。盾は副武器と一緒に構える
 export const HAND_LONG = { m320: 1, wand: 1, ram: 1, breacher: 1, rpg: 1 };
@@ -7354,7 +7362,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.39';
+export const VERSION = '0.1.40';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -8203,7 +8211,7 @@ export function detonateC2(S, w, did, ev) {
   return true;
 }
 
-@@@@ FILE src/engine/engine.js text 8854
+@@@@ FILE src/engine/engine.js text 9051
 // エンジン: 状態（関数を含まないデータ）と1ステップの進め方。命令（入力）→ 出来事（イベント）。
 // 固定ステップ 1/60 秒（シミュレーションでは 1/30 も可）。乱数はシード付き。dump/load で丸ごと保存・復元。
 import { compileMap, CS, LH } from './world.js';
@@ -8223,6 +8231,7 @@ import { buildNav } from './ai/nav.js';
 import { bakeLight, HS } from './light.js';
 import { initBars, barGlass, linkBars } from './barricade.js';
 import { WAR_MAPS, warWorld } from '../war/maps/index.js';
+import { restoreWorld } from '../war/destruct.js';
 
 const worldCache = new Map();
 // マップの組み立ては重いので1回だけ。試合ごとに壊れる物（ブロック）だけ写す
@@ -8270,6 +8279,8 @@ export function instWorld(mapId) {
 // 試合を作る。o: { map, mode, mission, rules, seed, roster: [{pid?, name, team, kind, lo, bot?}] }
 export function createGame(o) {
   const w = WAR_MAPS[o.map] ? warWorld(o.map) : instWorld(o.map);
+  // 大規模戦のマップの形は試合をまたいで使い回す: 前の試合で壊れた壁・床を戻す
+  if (w.war) restoreWorld(w);
   const S = {
     v: COMPAT, t: 0, dt: o.dt || 1 / 60, seed: o.seed ?? 1, rng: rngNew(o.seed ?? 1), map: o.map, mode: o.mode, mission: o.mission || null,
     rules: Object.assign({ cap: 44, diff: 'normal', ff: true, dbno: false, recoil: 1 }, o.rules || {}),
@@ -13458,7 +13469,7 @@ function pushLeaves(S, w, a, vx, vz, dt) {
   }
 }
 
-@@@@ FILE src/engine/nades.js text 15714
+@@@@ FILE src/engine/nades.js text 16184
 // 投げ物と爆発: 閃光・スティンガー・CSガス・罠（破片）・C2・壁用の爆破薬。ガスの雲。
 import { raycast, los, CS, LH, levelOfY, NB } from './world.js';
 import { hrand } from './rng.js';
@@ -13469,6 +13480,7 @@ import { blastBars } from './barricade.js';
 import { blastDeps } from './deploy.js';
 import { blastRallies } from './rally.js';
 import { GEAR } from './data/equipment.js';
+import { carve } from '../war/destruct.js';
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
 
@@ -13701,6 +13713,11 @@ export function stepBlasts(S, w, dt, ev) {
     blastDeps(S, w, b.x, b.y, b.z, b.kind === 'c2' ? 2.4 : b.kind === 'frame' ? 2.0 : 1.7, ev, b.by ?? -1);
     // 集合地点（大規模戦）
     blastRallies(S, b.x, b.y, b.z, (b.r || 4) * 0.6, b.by ?? -1, ev);
+    // 大規模戦: RPG（HEAT）は壁と床に穴を開ける（war/destruct.js）。描く側は 'carve' の出来事で塊を作り直す
+    if (w.war && b.kind === 'rpg') {
+      const ks = carve(w, b.x, b.y, b.z, 1.3);
+      if (ks.length) { (S.carves || (S.carves = [])).push([b.x, b.y, b.z, 1.3]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: b.x, y: b.y, z: b.z, r: 1.3, ks, cn: w._carveN }); }
+    }
     // 壁（石膏・木）を壊す
     if (!w.war && (b.kind === 'c2' || b.kind === 'frame' || b.kind === 'frag')) {
       const R = b.kind === 'frame' ? 1.4 : b.kind === 'c2' ? 0.9 : 0.6;
@@ -21365,7 +21382,7 @@ function car(B, G, col, van) {
   }
 }
 
-@@@@ FILE src/render/renderer.js text 45872
+@@@@ FILE src/render/renderer.js text 46350
 // 描画の司令塔: 太陽の影 → 本描画(HDR: 空・世界・扉・人・銃・粒子・ガラス) → 一人称 → 光のにじみ → 仕上げ（トーンマップ・暗視・閃光） → FXAA
 import { createGL, tex2D, fbo, depthTex } from './gl.js';
 import { m4, m4mul, m4persp, m4lookAt, m4invert, frustumPlanes, aabbVisible } from './math.js';
@@ -21376,7 +21393,7 @@ import { prepareLevel, buildChunk, doorLeafMesh, barPanelMesh, CHUNK } from './l
 import { WV, MeshBuilder, hex } from './build.js';
 import { bakeLight } from '../engine/light.js';
 import { CS, LH, CEIL, NB, DSHIELD } from '../engine/world.js';
-import { buildWarFar, buildWarFarChunk, buildWarNear, buildWarGrass } from '../war/render.js';
+import { buildWarFar, buildWarFarChunk, buildWarNear, buildWarNearBoxes, buildWarGrass } from '../war/render.js';
 
 // 大規模戦の空（もやを薄く、遠くまで見える。日は少し低めで影が長い）
 export const WAR_SKY = { sky: [0.54, 0.66, 0.88], ground: [0.3, 0.29, 0.24], sun: [2.75, 2.52, 2.15], sunDir: (() => { const v = [0.5, 0.64, 0.36], l = Math.hypot(...v); return v.map(x => x / l); })(), fog: [0.64, 0.74, 0.87], fogD: 0.00072, amb: 0.03, exposure: 0.8, zenith: [0.17, 0.39, 0.84], horizon: [0.58, 0.71, 0.9], night: 0 };
@@ -21646,7 +21663,7 @@ export class Renderer {
   }
   clearMap() {
     const gl = this.gl;
-    for (const ch of this.chunks || []) { if ('far' in ch) { delMesh(gl, ch.far); delMesh(gl, ch.near); delMesh(gl, ch.grass); } else { delMesh(gl, ch.mesh); delMesh(gl, ch.glass); } }
+    for (const ch of this.chunks || []) { if ('far' in ch) { delMesh(gl, ch.far); delMesh(gl, ch.near); delMesh(gl, ch.nearBox); delMesh(gl, ch.grass); } else { delMesh(gl, ch.mesh); delMesh(gl, ch.glass); } }
     this.war = null;
     for (const d of this.doorMeshes || []) { for (const m of d.leaves) delMesh(gl, m); }
     for (const b of this.barMeshes || []) if (b) delMesh(gl, b.mesh);
@@ -21695,7 +21712,8 @@ export class Renderer {
       const fb = buildWarFarChunk(this.war, k), m = makeWorldMesh(gl, fb.B);
       if (ch.mesh === ch.far) ch.mesh = m;
       delMesh(gl, ch.far); ch.far = m; ch.farTris = m ? m.n / 3 : 0;
-      if (ch.near) { const was = ch.mesh === ch.near; delMesh(gl, ch.near); ch.near = makeWorldMesh(gl, buildWarNear(this.war, k, { lite: this.warLite })); ch.nearTris = ch.near ? ch.near.n / 3 : 0; if (was) ch.mesh = ch.near; }
+      // 近い形は建物の箱の部分だけ（地形と木はそのまま。数 ms）
+      if (ch.near) { const was = ch.mesh2 === ch.nearBox; delMesh(gl, ch.nearBox); ch.nearBox = makeWorldMesh(gl, buildWarNearBoxes(this.war, k, { lite: this.warLite })); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); if (was) ch.mesh2 = ch.nearBox; }
     }
   }
   // 近い形を作る・捨てる。budget: 1こまで作る数（-1 で全部）
@@ -21705,11 +21723,11 @@ export class Renderer {
     for (const ch of this.chunks) {
       ch.d = Math.hypot((ch.x0 + ch.x1) / 2 - c.x, (ch.z0 + ch.z1) / 2 - c.z);
       if (ch.d < N && !ch.near) want.push(ch);
-      else if (ch.near && ch.d > N + 110) { delMesh(gl, ch.near); ch.near = null; ch.nearTris = 0; }
+      else if (ch.near && ch.d > N + 110) { delMesh(gl, ch.near); delMesh(gl, ch.nearBox); ch.near = null; ch.nearBox = null; ch.nearTris = 0; }
     }
     want.sort((a, b) => a.d - b.d);
     const nb = budget < 0 ? want.length : Math.min(want.length, budget);
-    for (let k = 0; k < nb; k++) { const ch = want[k]; ch.near = makeWorldMesh(gl, buildWarNear(this.war, ch.k, { lite: this.warLite })); ch.nearTris = ch.near ? ch.near.n / 3 : 0; }
+    for (let k = 0; k < nb; k++) { const ch = want[k], r = buildWarNear(this.war, ch.k, { lite: this.warLite, split: true }); ch.near = makeWorldMesh(gl, r.B); ch.nearBox = makeWorldMesh(gl, r.BX); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); }
     // 草（近い塊だけ。塊の中心から grassD＋45m 以内）
     const G = this.grassD;
     if (G > 0) {
@@ -21724,7 +21742,7 @@ export class Renderer {
     }
     for (const ch of this.chunks) {
       const useNear = ch.near && ch.d < N + 40;
-      ch.mesh = useNear ? ch.near : ch.far; ch.tris = useNear ? ch.nearTris : ch.farTris;
+      ch.mesh = useNear ? ch.near : ch.far; ch.mesh2 = useNear ? ch.nearBox : null; ch.tris = useNear ? ch.nearTris : ch.farTris;
     }
   }
   // 見る位置のまわりの近い形を先に全部作る（出撃のとき）
@@ -21869,7 +21887,7 @@ export class Renderer {
       vis.push([d, ch]);
     }
     vis.sort((a, b) => a[0] - b[0]);
-    for (const [, ch] of vis) { drawMesh(gl, ch.mesh); this.stats.draws++; this.stats.tris += ch.tris; this.stats.chunks++; }
+    for (const [, ch] of vis) { drawMesh(gl, ch.mesh); if (ch.mesh2) { drawMesh(gl, ch.mesh2); this.stats.draws++; } this.stats.draws++; this.stats.tris += ch.tris; this.stats.chunks++; }
     // 草（裏も描く）
     if (this.grassD > 0) {
       gl.disable(gl.CULL_FACE);
@@ -22063,7 +22081,7 @@ export class Renderer {
     const pl = frustumPlanes(this.shVP, new Float32Array(24));
     for (const ch of this.chunks) {
       if (!ch.mesh || !aabbVisible(pl, ch.x0, ch.y0, ch.z0, ch.x1, ch.y1, ch.z1)) continue;
-      drawMesh(gl, ch.mesh);
+      drawMesh(gl, ch.mesh); if (ch.mesh2) drawMesh(gl, ch.mesh2);
     }
     if (this.war) { const S = this.P.shadow; gl.useProgram(S.p); gl.uniformMatrix4fv(S.u.uVP, false, this.shVP); gl.uniformMatrix4fv(S.u.uModel, false, this.ident); }
     for (const h of this.hooks.shadow) h(this, pl);
@@ -28073,7 +28091,7 @@ export function classLoadout(cls, gun, sec, att) {
   return { war: true, primary: prim, secondary: { id: s, ammo: 'ap' }, long: C.long || 'none', gear: C.gear.map(x => x.slice()), vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
 }
 
-@@@@ FILE src/war/destruct.js text 7435
+@@@@ FILE src/war/destruct.js text 7461
 // 大規模戦の壁と床を壊す（BattleBit の破壊: HEAT のロケットは壁と床に穴を開ける。research/WARBIT.md の 37・38）。
 // 爆発の点のまわり（R）にある薄い壁（kind 'wall'・厚み 0.5m まで）と床（kind 'floor'）に、四角い穴を開ける。
 //   壁: 幅 1.5m・高さ 1.6m（爆発の高さが中心）。床: 1.4m 四方。穴は箱を最大4つに分けて作る（元の箱は alive=false で残す）。
@@ -28132,6 +28150,7 @@ function cut(ww, b, hx0, hy0, hz0, hx1, hy1, hz1, ax) {
 // 試合で変えた物の記録（マップの形は試合をまたいで使い回すので、次の試合の前に戻す）
 function mods(ww) { return ww._mods || (ww._mods = { base: ww.boxes.length, dead: [], dmg: [], decos: [] }); }
 export function restoreWorld(ww) {
+  if (ww) ww._carveN = 0;
   const m = ww && ww._mods; if (!m) return false;
   for (const b of m.dead) b.alive = true;
   for (const b of m.dmg) { b.dmg = 0; b.chip = false; }
@@ -29744,7 +29763,7 @@ export function bin(ww, x, z, o = {}) {
   addCyl(ww, { x, z, r: 0.26, r1: 0.24, y0: y - 0.02, y1: y + 0.9, mat: M.METAL, kind: 'cover', col: o.col || '#3d5c48', seg: 8, layer: 10 });
 }
 
-@@@@ FILE src/war/render.js text 53971
+@@@@ FILE src/war/render.js text 54561
 // WAR BIT の世界の形（描く物）。64m の塊ごとに:
 //   遠い形（いつも持つ）: 地形 8m ごと＋すそ（つなぎ目のすき間を隠す）・簡単な木・箱（建物・塀・岩）
 //   近い形（近づいたときだけ作る）: 地形 2m ごと・道の帯（アスファルトと中央線）・細かい木・箱・階段
@@ -30430,9 +30449,11 @@ export function buildWarFarChunk(ww, k) {
 }
 // 近い形（1つの塊）
 // o.lite: 画質「低」。窓の桟・扉の板などの描くだけの細かい面と電線は省く
+// o.split: 地形・木など（B）と、建物の箱・坂・柱・描くだけの面（BX）を分けて返す { B, BX }。壁が壊れた時は BX だけ作り直す
+//  （塊の時間のほとんどは地形と木。箱は数 ms）
 export function buildWarNear(ww, k, o = {}) {
   prepGround(ww);
-  const tops = bldTops(ww), { NX, it } = sortIn(ww);
+  const { NX } = sortIn(ww);
   const cx = k % NX, cz = Math.floor(k / NX), x0 = cx * CH, z0 = cz * CH, x1 = Math.min(ww.sx, x0 + CH), z1 = Math.min(ww.sz, z0 + CH);
   const B = new MeshBuilder();
   terrainMesh(B, ww, x0, z0, x1, z1, ww.hs, 1.5);
@@ -30440,11 +30461,9 @@ export function buildWarNear(ww, k, o = {}) {
   xwalkMesh(B, ww, ww._xwalkPieces ? ww._xwalkPieces[k] || [] : []);
   walkMesh(B, ww, ww._walkPieces ? ww._walkPieces[k] || [] : []);
   for (const pr of ww.paved || []) pavedMesh(B, ww, pr, x0, z0, x1, z1);
-  for (const b of it[k].boxes) boxMesh(B, ww, b, tops, true);
-  const rr = mulberry(8000 + k);
-  for (const rp of it[k].ramps) rampMesh(B, rp, rr, tops);
-  for (const c of it[k].cyls) cylMesh(B, c);
-  for (const d of it[k].decos) if (d.far || !o.lite) decoMesh(B, d, tops);
+  const BX = o.split ? new MeshBuilder() : B;
+  buildWarNearBoxes(ww, k, o, BX);
+  const { it } = sortIn(ww);
   for (const t of it[k].trees) treeMesh(B, t, false);
   for (const b of it[k].bushes) bushMesh(B, b, false);
   // 電線: たるんだ線（8つに分けた細い三角の筒）
@@ -30452,7 +30471,17 @@ export function buildWarNear(ww, k, o = {}) {
     const N = 8, P = (t) => [wi.a[0] + (wi.b[0] - wi.a[0]) * t, wi.a[1] + (wi.b[1] - wi.a[1]) * t - 4 * wi.sag * t * (1 - t), wi.a[2] + (wi.b[2] - wi.a[2]) * t];
     for (let q = 0; q < N; q++) tube(B, P(q / N), P((q + 1) / N), 0.018, 0.018, 3, LAYER.rubber, [0.09, 0.09, 0.1], null);
   }
-  return B;
+  return o.split ? { B, BX } : B;
+}
+// 近い形のうち、建物の箱・坂・柱・描くだけの面（壊れると作り直す）
+export function buildWarNearBoxes(ww, k, o = {}, BX = new MeshBuilder()) {
+  const tops = bldTops(ww), { it } = sortIn(ww);
+  for (const b of it[k].boxes) boxMesh(BX, ww, b, tops, true);
+  const rr = mulberry(8000 + k);
+  for (const rp of it[k].ramps) rampMesh(BX, rp, rr, tops);
+  for (const c of it[k].cyls) cylMesh(BX, c);
+  for (const d of it[k].decos) if (d.far || !o.lite) decoMesh(BX, d, tops);
+  return BX;
 }
 // 草（見る位置のまわりの塊だけ）: 地面の草の生え方（gw）に合わせて、細い葉3〜4枚の株を散らす。麦畑は高い金色の株。
 // 頂点の emit = -1 が草のしるし（シェーダーで遠い所から少しずつ消す・裏も同じ明るさ）
@@ -33953,7 +33982,7 @@ test('包帯: 体力が満タンなら使えない（減っていると使える
   ok(g.n === n0 - 1 && a.act && a.act.k === 'bandage', '減っている: 巻き始める');
 });
 
-@@@@ FILE tests/unit/war_destruct.test.mjs text 2529
+@@@@ FILE tests/unit/war_destruct.test.mjs text 5111
 // 壁と床を壊す（RPG の HEAT）: 薄い壁に四角い穴、床に穴。コンクリートは 2 回目から。試合をまたいで元に戻す
 import { test, ok, eq } from '../lib/t.mjs';
 import { warWorld } from '../../src/war/maps/index.js';
@@ -34006,6 +34035,44 @@ test('遠い爆発（壁から 2m）は穴を開けない', () => {
   const cx = (b.x0 + b.x1) / 2, cy = b.y0 + 1.3, cz = (b.z0 + b.z1) / 2;
   eq(carve(ww, cx, cy, b.z0 - 2, 1.2).length, 0, '変わらない');
   ok(b.alive, '残る');
+});
+
+test('RPG を壁に撃つと穴が開き、試合を作り直すと元に戻る', async () => {
+  const { createGame, step } = await import('../../src/engine/engine.js');
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: true, per: 2 }); step(G, {});
+  const S = G.S, ww = G.w, me = S.actors[0];
+  for (const b of S.actors) if (b !== me) { b.alive = false; b.dead = true; }
+  // 外から 12m 手前に開けた所があるレンガの壁
+  let pick = null;
+  for (const b of ww.boxes) {
+    if (!b.alive || b.kind !== 'wall' || b.mat !== M.BRICK || b.z1 - b.z0 > 0.4 || b.x1 - b.x0 < 3 || b.y1 - b.y0 < 2.4) continue;
+    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, gy = heightAt(ww, cx, cz);
+    if (b.y0 > gy + 0.3 || b.y0 < gy - 0.6) continue;
+    for (const s of [-1, 1]) {
+      const sz = cz + s * 12, sy = heightAt(ww, cx, sz) + 1.5;
+      if (Math.abs(sy - (b.y0 + 1.5)) > 1) continue;
+      if (los(ww, cx, sy, sz, cx, b.y0 + 1.3, cz + s * 0.4)) { pick = { b, cx, cz, sz, s }; break; }
+    }
+    if (pick) break;
+  }
+  ok(pick, '壁が見つかった');
+  const { b, cx, cz, sz, s } = pick;
+  me.x = cx; me.z = sz; me.y = heightAt(ww, cx, sz); me.vx = me.vz = 0;
+  me.inv.long = 'rpg'; me.inv.rpg = { in: 1, n: 5, n0: 5 };
+  const idle = (o = {}) => Object.assign({ mx: 0, mz: 0, yaw: me.yaw, pitch: me.pitch || 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o);
+  for (let i = 0; i < 60 && me.ws.st !== 'ready'; i++) step(G, { [me.id]: idle() });
+  step(G, { [me.id]: idle({ act: [{ a: 'long' }] }) });
+  for (let i = 0; i < 200 && !(me.ws.slot === 3 && me.ws.st === 'long'); i++) step(G, { [me.id]: idle() });
+  me.yaw = Math.atan2(0, cz - sz); me.pitch = Math.atan2(b.y0 + 1.3 - (me.y + 1.55), 12);
+  for (let i = 0; i < 90 && me.ads < 0.95; i++) step(G, { [me.id]: idle({ yaw: me.yaw, pitch: me.pitch, ads: true }) });
+  const evs = [];
+  const o1 = step(G, { [me.id]: idle({ yaw: me.yaw, pitch: me.pitch, ads: true, fire: true }) }); if (Array.isArray(o1)) evs.push(...o1);
+  for (let i = 0; i < 30; i++) { const o = step(G, { [me.id]: idle({ yaw: me.yaw, pitch: me.pitch, ads: true }) }); if (Array.isArray(o)) evs.push(...o); }
+  ok(evs.some(e => e.e === 'carve'), '壁が壊れた出来事');
+  ok(!b.alive, '壁の箱が壊れた');
+  ok((S.carves || []).length === 1, '記録');
+  const G2 = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false });
+  ok(b.alive && G2.w === ww, '次の試合では元どおり（同じマップの形を使い回す）');
 });
 
 @@@@ FILE tests/unit/war_engine.test.mjs text 9052
@@ -34712,8 +34779,8 @@ test('突撃はリロードが速い（0.85 倍）', () => {
   ok(Math.abs(t2 / t1 - 0.85) < 0.03, (t2 / t1).toFixed(3));
 });
 
-@@@@ FILE tests/unit/war_rpg.test.mjs text 7553
-// RPG-7（大規模戦の工兵）: 込めた1発と予備5発。肩から撃ち、当たった所で爆発。撃つと 4.2 秒で込め直す。遠いほど落ちる
+@@@@ FILE tests/unit/war_rpg.test.mjs text 7639
+// RPG-7（大規模戦の工兵）: 込めた1発と予備2発（BattleBit の Wiki の 3 発）。肩から撃ち、当たった所で爆発。撃つと 4.2 秒で込め直す。遠いほど落ちる
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
 import { classLoadout } from '../../src/war/classes.js';
@@ -34733,11 +34800,11 @@ function arm(G, me) {
   step(G, { [me.id]: idle(me) });
 }
 
-test('工兵は RPG-7 を持つ（込めた1発と予備5発）。ほかの兵科は持たない', () => {
+test('工兵は RPG-7 を持つ（込めた1発と予備2発）。ほかの兵科は持たない', () => {
   eq(classLoadout('engineer').long, 'rpg', '工兵');
   eq(classLoadout('assault').long, 'none', '突撃');
   const inv = makeInventory(classLoadout('engineer'));
-  eq(inv.rpg.in, 1, '込めてある'); eq(inv.rpg.n, LONG.rpg.rockets - 1, '予備 5');
+  eq(inv.rpg.in, 1, '込めてある'); eq(inv.rpg.n, 2, '予備 2'); eq(LONG.rpg.rockets, 3, '3 発');
 });
 
 test('撃つ: ロケットが飛び、30m 先の敵に当たると爆発して倒す（撃った人は無事）', () => {
@@ -34760,7 +34827,7 @@ test('撃つ: ロケットが飛び、30m 先の敵に当たると爆発して�
   ok(!S.nades.some(n => n.type === 'rpg'), 'ロケットはなくなった');
 });
 
-test('込め直し: 撃つと 4.2 秒で次の1発（その間は撃てない）。6 発で尽きる', () => {
+test('込め直し: 撃つと 4.2 秒で次の1発（その間は撃てない）。持っている分（ここでは 6 発）で尽きる', () => {
   const G = createGame({ map: 'range', mode: 'war', wmode: 'range', seed: 3, bots: false }); step(G, {});
   const S = G.S, me = S.actors[0];
   arm(G, me);
