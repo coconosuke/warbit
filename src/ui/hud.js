@@ -384,9 +384,10 @@ export class Hud {
       this.btn.light.classList.toggle('dis', !(wi && wi.att && (wi.att.light || wi.att.laser)));
       const m320 = p.ws.slot === 3 && p.inv.long === 'm320';
       // 射撃モードのボタン: 射撃モードだけ（フル・バースト・単発）。倍率は別のボタン（倍率を切り替えられる照準器の時だけ出す。11-19 14:03）
-      const zs = !m320 && W && wi ? zoomsOf(wi.att) : null;
+      const bino = p.ws.slot === 2 && p.ws.gear === 'binoc' && GEAR.binoc;
+      const zs = bino ? GEAR.binoc.zooms : !m320 && W && wi ? zoomsOf(wi.att) : null;
       const fm = m320 ? '弾種' : W ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') : '';
-      const zl = zs ? (zoomOf(wi) <= 1 ? '×1' : `×${zoomOf(wi)}`) : '';
+      const zl = bino ? `×${GEAR.binoc.zooms[p.ws.bz ?? GEAR.binoc.zi]}` : zs ? (zoomOf(wi) <= 1 ? '×1' : `×${zoomOf(wi)}`) : '';
       const fk = fm + '|' + zl + '|' + (zs ? 1 : 0) + (m320 || (W && W.modes.length > 1) ? 1 : 0);
       if (this.cache.fmk !== fk) {
         this.cache.fmk = fk;

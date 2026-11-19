@@ -1,6 +1,6 @@
 // 銃の動き: 撃つ・弾倉（1本ずつ残弾）・通常/速いリロード・1発ずつ込める・ポンプ・持ち替え・反動（BattleBit式）・散らばり
-import { WEAPONS, AMMO, ATTACH, zoomsOf, swayOf } from './data/weapons.js';
-import { LONG, HAND_LONG } from './data/equipment.js';
+import { WEAPONS, AMMO, ATTACH, zoomsOf, zoomOf, swayOf } from './data/weapons.js';
+import { LONG, HAND_LONG, GEAR } from './data/equipment.js';
 import { curWeapon, curW, magCap } from './actor.js';
 import { spawnBullet } from './combat.js';
 import { hrand } from './rng.js';
@@ -70,8 +70,8 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   const busy = ws.st === 'draw' || ws.st === 'holster' || a.sprint || a.vault || (a.act && a.act.noAds);
   a.adsOn = !!inp.ads && !busy && canAim(a);
   a.lowOn = !!inp.low && !a.adsOn;
-  // 突撃は構えるのが速い（BattleBit の 2024 の手直し。どれだけ速いかは書いていないので 0.85 倍は推測。research §30）
-  const adsT = (W ? W.ads + attMods(wi).ads : 0.25) * (S.war && a.warCls === 'assault' ? CLS_FAST : 1);
+  // 突撃は近い照準器（2 倍まで）で構えるのが 20% 速い（BattleBit の Wiki の Classes。research の 41）
+  const adsT = (W ? W.ads + attMods(wi).ads : 0.25) * (S.war && a.warCls === 'assault' && zoomOf(wi) <= 2 ? CLS.adsK : 1);
   a.ads = Math.max(0, Math.min(1, a.ads + (a.adsOn ? dt / adsT : -dt / (adsT * 0.8))));
   a.low = Math.max(0, Math.min(1, a.low + (a.lowOn ? dt * 5 : -dt * 6)));
   // 構えたときの照準の揺れ（度。弾も揺れた向きへ飛ぶ。11-12 22:05: どの銃も。実際に沿って、強さは程よく）
@@ -123,6 +123,8 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
     else if (ac.a === 'consol') startConsol(S, a, ev);
     else if (ac.a === 'switch') switchTo(S, a, ac.slot, ev);
     else if (ac.a === 'mode' && ws.slot === 3) m320Next(a, ev);
+    // 双眼鏡の倍率（BattleBit の双眼鏡は 4〜8 倍を変えられる。research の 39）: 倍率のボタンで 4 → 6 → 8
+    else if (ac.a === 'zoom' && ws.slot === 2 && ws.gear === 'binoc') { const Z = GEAR.binoc.zooms; ws.bz = ((ws.bz ?? GEAR.binoc.zi) + 1) % Z.length; ev.push({ e: 'zoom', id: a.id, z: Z[ws.bz], binoc: true }); }
     // 倍率を切り替えられる照準器: 倍率のボタン（'zoom'。11-19 14:03 から射撃モードと別。BattleBit も別のキー）。
     //  古い手元（'mode' に zoom: true）も受ける
     else if ((ac.a === 'zoom' || (ac.a === 'mode' && ac.zoom === true)) && W && wi && zoomsOf(wi.att)) { const zs = zoomsOf(wi.att); wi.zi = ((wi.zi || 0) + 1) % zs.length; ev.push({ e: 'zoom', id: a.id, z: zs[wi.zi], sight: wi.att.sight }); }
@@ -159,15 +161,17 @@ export function cancelReload(a, ev) {
   return true;
 }
 
-// 突撃の速さ（構える・リロード）
-export const CLS_FAST = 0.85;
+// 突撃の速さ（BattleBit の Wiki の Classes: リロード 25%・近い照準器の ADS 20%・持ち替え 25% 速い。research の 41）
+//  速さ 1.25 倍 → 時間 0.8 倍、1.2 倍 → 0.833 倍
+export const CLS = { reloadK: 0.8, adsK: 1 / 1.2, swapK: 0.8 };
+export const CLS_FAST = CLS.reloadK;
 // 予備の弾が減らない: 対戦（作り直す前のモード）・射撃場・大規模戦のボット
 function infAmmo(S, a) { return !!S.pvp && (!S.war || (S.m && S.m.mode === 'range') || a.pid == null); }
 function finishState(S, a, ev) {
   const ws = a.ws, wi = curWeapon(a), W = curW(a);
   const st = ws.st;
   if (st === 'draw') { ws.st = 'ready'; ws.t = 0; }
-  else if (st === 'holster') { ws.slot = ws.next; ws.next = -1; ws.st = 'draw'; const W2 = curW(a); ws.t = W2 ? W2.draw : ws.slot === 3 ? (LONG[a.inv.long] && LONG[a.inv.long].draw) || 0.6 : 0.3; if (ev) ev.push({ e: 'draw', id: a.id, slot: ws.slot }); }
+  else if (st === 'holster') { ws.slot = ws.next; ws.next = -1; ws.st = 'draw'; const W2 = curW(a); ws.t = (W2 ? W2.draw : ws.slot === 3 ? (LONG[a.inv.long] && LONG[a.inv.long].draw) || 0.6 : 0.3) * (S.war && a.warCls === 'assault' ? CLS.swapK : 1); if (ev) ev.push({ e: 'draw', id: a.id, slot: ws.slot }); }
   else if (st === 'reload' && wi && W) {
     // 弾倉を替える
     if (ws.rk === 'rev') { const need = magCap(wi) - wi.mag; const take = Math.min(need, wi.res); wi.mag += take; wi.res -= take; }

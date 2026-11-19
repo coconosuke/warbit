@@ -6,6 +6,9 @@ import { GEAR, LONG, HAND_LONG } from './data/equipment.js';
 import { doorOp, sideOf, isClosed, detonateC2, triggerTrap } from './doors.js';
 import { eyeOf, dropWeapon, capsOf, wristsOf, startMelee } from './combat.js';
 import { throwNade, launchNade, launchRocket } from './nades.js';
+import { pvpDamage, hurt } from './combat.js';
+import { rayCapsule } from './pose.js';
+import { carve } from '../war/destruct.js';
 import { placeBar, clearBar, bashBar } from './barricade.js';
 import { curW } from './actor.js';
 import { startReload, switchTo, m320Next, cancelReload } from './weapon.js';
@@ -824,8 +827,8 @@ function selectGear(S, a, id, ev) {
   const g = a.inv.gear.find(x => x.id === id);
   if (!g || g.n <= 0) { ev.push({ e: 'deny', id: a.id, why: 'nogear' }); return; }
   // 回復の道具は、体力が満タンで血も止まっているときは使えない（11-13 20:50。道具が変わっても同じ）
-  if (G.kind === 'heal') { if (a.act) return; if (!needsHeal(a)) { ev.push({ e: 'deny', id: a.id, why: 'fullhp' }); return; } if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage, kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
-  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy' || G.kind === 'ammo' || G.kind === 'medkit' || G.kind === 'binoc') {
+  if (G.kind === 'heal') { if (a.act) return; if (!needsHeal(a)) { ev.push({ e: 'deny', id: a.id, why: 'fullhp' }); return; } if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage * (S.war && a.warCls === 'medic' ? 0.5 : 1), kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
+  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy' || G.kind === 'ammo' || G.kind === 'medkit' || G.kind === 'binoc' || G.kind === 'hammer') {
     // 手に持つ（slot 2）。引き金で投げる・吹きつける・前に置く
     a.ws.gear = id;
     if (a.ws.slot !== 2) switchTo(S, a, 2, ev);
@@ -845,6 +848,8 @@ function gearInHand(S, w, a, dt, ev) {
   if (!g || g.n <= 0) { switchTo(S, a, ws.prev >= 0 ? ws.prev : 0, ev); ws.st = 'holster'; return; }
   // 双眼鏡: 押した時に印（大規模戦の印の決まりで、遠く・細く）
   if (GEAR[id].kind === 'binoc') { const pr = !!inp.fire && !ws.gearTrig; ws.gearTrig = !!inp.fire; if (pr) ev.push({ e: 'binocSpot', id: a.id }); return; }
+  // 大ハンマー: 押すと振る（振っている間は次を押せない）
+  if (GEAR[id].kind === 'hammer') { const pr = !!inp.fire && !ws.gearTrig; ws.gearTrig = !!inp.fire; hammerTick(S, w, a, dt, pr, ev); return; }
   // 医療キット: 押している間ずっと
   if (GEAR[id].kind === 'medkit') { ws.gearTrig = !!inp.fire; if (inp.fire) medkitTick(S, a, dt, ev); else ws.healT = 0; return; }
   const press = !!inp.fire && !ws.gearTrig;
@@ -872,6 +877,51 @@ function gearInHand(S, w, a, dt, ev) {
     if (ws.sprays >= (GEAR.spray.uses || 6)) { g.n = 0; ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.3; }
   }
 }
+
+// 大ハンマーを振る: ws.swing = 振り始めてからの時間（なければ振っていない）。hitAt で当たりを見る
+function hammerTick(S, w, a, dt, press, ev) {
+  const ws = a.ws, H = GEAR.hammer;
+  if (ws.swing == null) { if (!press || a.sprint || a.vault) return; ws.swing = 0; ws.swHit = false; ev.push({ e: 'swing', id: a.id }); return; }
+  ws.swing += dt;
+  if (!ws.swHit && ws.swing >= H.hitAt) { ws.swHit = true; hammerHit(S, w, a, ev); }
+  if (ws.swing >= H.swing) ws.swing = null;
+}
+function hammerHit(S, w, a, ev) {
+  const H = GEAR.hammer, eye = eyeOf(S, a);
+  const cp = Math.cos(a.pitch), dx = Math.sin(a.yaw) * cp, dy = Math.sin(a.pitch), dz = Math.cos(a.yaw) * cp;
+  // 人（敵だけ）
+  let best = -1, who = null, part = 'chest';
+  for (const b of S.actors) {
+    if (b === a || !b.alive || b.isDrone || b.team === a.team) continue;
+    if (Math.hypot(b.x - a.x, b.z - a.z) > H.reach + 1) continue;
+    for (const c of capsOf(S, b)) { const t = rayCapsule(eye[0], eye[1], eye[2], dx, dy, dz, H.reach, c.a, c.b, c.r + 0.06); if (t >= 0 && (best < 0 || t < best)) { best = t; who = b; part = c.part; } }
+  }
+  // 物
+  let hw = null;
+  for (const h of raycast(w, eye[0], eye[1], eye[2], dx, dy, dz, H.reach, S.doors, _rcH)) { if (h.mat === M.GLASSBROKEN) continue; hw = h; break; }
+  if (who && (!hw || best <= hw.t0)) {
+    const hx = eye[0] + dx * best, hy = eye[1] + dy * best, hz = eye[2] + dz * best;
+    if (S.pvp) pvpDamage(S, who, H.dmg, a, part === 'head' ? 'head' : 'chest', who.x - a.x, who.z - a.z, ev, 'melee');
+    else hurt(S, w, who, H.dmg, part, a, null, who.x - a.x, who.z - a.z, ev, 'melee');
+    ev.push({ e: 'hammer', id: a.id, k: 'body', x: hx, y: hy, z: hz });
+    return;
+  }
+  if (!hw) { ev.push({ e: 'hammer', id: a.id, k: 'air' }); return; }
+  const hx = eye[0] + dx * hw.t0, hy = eye[1] + dy * hw.t0, hz = eye[2] + dz * hw.t0;
+  ev.push({ e: 'hammer', id: a.id, k: 'wall', x: hx, y: hy, z: hz, m: hw.mat, nx: hw.nx, ny: hw.ny, nz: hw.nz });
+  // 大規模戦の壁・床: 同じ箱を決まった回数叩くと穴
+  if (w.war && hw.kind === 'box') {
+    const b = w.boxes[hw.id];
+    if (b && b.alive && (b.kind === 'wall' || b.kind === 'floor')) {
+      b.ham = (b.ham || 0) + 1;
+      if (b.ham >= (b.mat === M.CONCRETE ? H.hard : H.soft)) {
+        const ks = carve(w, hx + dx * 0.05, hy, hz + dz * 0.05, 0.35, { force: true, w: 1.1, h: 1.3, floor: 1.1, only: b.id });
+        if (ks.length) { (S.carves || (S.carves = [])).push([hx, hy, hz, 0.35, 1]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: hx, y: hy, z: hz, r: 0.35, ks, cn: w._carveN, ham: 1 }); }
+      }
+    }
+  }
+}
+const _rcH = { out: [], seenProp: new Set(), seenDoor: new Set() };
 
 // 医療キット（大規模戦の衛生）: 前 2.5m・左右 35° の、傷ついた・血の出ている味方を、いなければ自分を、1 秒に 20 戻す（量は推測）。
 //  血は止まる。ダウンしている人には使えない（起こすのは包帯）。ほかの人を治すと、10 戻すごとに 10 点（推測）

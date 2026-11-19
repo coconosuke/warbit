@@ -38,9 +38,12 @@ export const GEAR = {
   chem: { name: 'ケミライト', kind: 'chem', max: 8, desc: '光る棒。確認した部屋に置いて印にする。' },
   // 大規模戦の弾薬箱（援護・突撃。research/WARBIT.md の 32）
   // 双眼鏡（偵察・分隊長。BattleBit: 偵察は双眼鏡、分隊長は SOFLAM。research §35）: 構えると 6 倍。引き金で遠く（800m）の敵に印
-  binoc: { name: '双眼鏡', kind: 'binoc', max: 1, zoom: 6, desc: '手に持って構えると 6 倍で見える。引き金を押すと、狙っている向きの敵に印をつける（800m まで）。' },
+  binoc: { name: '双眼鏡', kind: 'binoc', max: 1, zoom: 6, zooms: [4, 6, 8], zi: 1, desc: '手に持って構えると 6 倍で見える。引き金を押すと、狙っている向きの敵に印をつける（800m まで）。' },
   // 医療キット（衛生だけ。BattleBit 2.0: 仲間の体力を戻せるのは衛生の医療キットだけ。research §33）
   medkit: { name: '医療キット', kind: 'medkit', max: 1, desc: '手に持って引き金を押している間、前 2.5m の傷ついた仲間（いなければ自分）の体力を戻し、血を止める。なくならない。' },
+  // 大ハンマー（大規模戦の分隊長・突撃・偵察。BattleBit の Sledge Hammer「建物を壊す」。research の 39・40）: 手に持って引き金で振る（0.9 秒）。
+  //  1.9m 先の人は 1 回で倒れる。薄い壁・床はレンガ・石膏・木が 2 回、コンクリートが 4 回で穴（幅 1.1m・高さ 1.3m）。回数と穴は推測
+  hammer: { name: '大ハンマー', kind: 'hammer', max: 1, war: true, swing: 0.9, hitAt: 0.42, reach: 1.9, dmg: 150, soft: 2, hard: 4, desc: '手に持って引き金で振る。薄い壁や床を叩いて穴を開ける（レンガ・木は 2 回、コンクリートは 4 回）。近くの人は 1 回で倒れる。' },
   ammobig: { name: '大きい弾薬箱', kind: 'ammo', max: 2, desc: '足もとの前に置く。近くに立った味方に弾倉を補給する（弾 244 発分）。置いたら拾えない。' },
   ammosmall: { name: '小さい弾薬箱', kind: 'ammo', max: 1, desc: '足もとの前に置く。近くに立った味方に弾倉を補給する（弾 90 発分）。' },
   bandage: { name: '包帯', kind: 'heal', max: 3, use: 3.5, desc: '止血して体力を40回復する（対戦）。作戦では止血のみ（50%まで回復）。' },

@@ -64,6 +64,14 @@ export class ViewModel {
       B.box(-0.012, -0.01, -0.03, 0.012, 0.012, 0.03, LAYER.metal, hex('#3a3c34'));
       const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
     }
+    if (id === 'hammer') {
+      // 大ハンマー（この作品の形）: 木の柄（下が原点の近く、上へ +Y）と、上の鉄の頭（横に長い）。柄の下にゴムの握り
+      B.tube([0, -0.36, 0], [0, 0.36, 0], 0.016, 0.017, 8, LAYER.wood, hex('#7a5a36'), { caps: true });
+      B.tube([0, -0.4, 0], [0, -0.22, 0], 0.019, 0.019, 8, LAYER.rubber, hex('#1d1e1c'), { caps: true });
+      B.box(-0.1, 0.34, -0.042, 0.1, 0.43, 0.042, LAYER.metal, hex('#3c3f42'));
+      B.box(-0.112, 0.35, -0.034, -0.1, 0.42, 0.034, LAYER.metal, hex('#5a5e62')); B.box(0.1, 0.35, -0.034, 0.112, 0.42, 0.034, LAYER.metal, hex('#5a5e62'));
+      const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
+    }
     if (id === 'medkit') {
       // 医療キット（この作品の形: 暗い色の布の袋に、白い札と赤い十字）
       B.box(-0.05, -0.032, -0.03, 0.05, 0.032, 0.03, LAYER.cloth, hex('#3a3d2e'));
@@ -236,7 +244,7 @@ export class ViewModel {
       } else pumpOff = -(P.pumpZ || 0.08) * bell(pr);
     }
     // 投げ物を持っている
-    const nade = ws.slot === 2 && ws.gear && GEAR[ws.gear] && (GEAR[ws.gear].kind === 'nade' || GEAR[ws.gear].kind === 'ammo' || GEAR[ws.gear].kind === 'medkit' || GEAR[ws.gear].kind === 'binoc');
+    const nade = ws.slot === 2 && ws.gear && GEAR[ws.gear] && (GEAR[ws.gear].kind === 'nade' || GEAR[ws.gear].kind === 'ammo' || GEAR[ws.gear].kind === 'medkit' || GEAR[ws.gear].kind === 'binoc' || GEAR[ws.gear].kind === 'hammer');
     // 双眼鏡をのぞききったら、手と双眼鏡は描かない（のぞき窓の絵だけ）
     if (ws.slot === 2 && ws.gear === 'binoc' && a.ads > 0.9) this.scoped = true;
     this.nade = nade ? ws.gear : null;
@@ -325,6 +333,22 @@ export class ViewModel {
         //  上げる途中は手を下の外へ逃がす（目の前で手が画面をふさがないように）
         hR = side(mAt, 1, 0.06 + 0.04 * k, 0.055 + 0.11 * k, 0.04); hL = side(mAt, -1, 0.06 + 0.04 * k, 0.055 + 0.11 * k, 0.04);
         handUp = [qR, [-qR[0], -qR[1], -qR[2]]];
+      } else if (kind === 'hammer') {
+        // 大ハンマー: 両手で柄の下を持ち、頭は右の上・少し前（斜めに構える）。振る（ws.swing 0〜0.9 秒）:
+        //  右の肩の上へ振りかぶる（〜0.25）→ 前の下へ振り下ろす（〜0.42 で当たる）→ 戻す
+        const sw = ws.swing != null ? ws.swing : -1;
+        const KF = [[0, [0.12, -0.15, 0.45], [0.55, 0.55, 0.35]], [0.25, [0.3, -0.1, 0.15], [0.4, 0.7, -0.55]], [0.42, [0.03, -0.2, 0.5], [-0.05, -0.35, 1.0]], [0.9, [0.12, -0.15, 0.45], [0.55, 0.55, 0.35]]];
+        let pos = KF[0][1], dir = KF[0][2];
+        if (sw >= 0) for (let i = 0; i < KF.length - 1; i++) { const [t0, p0, d0] = KF[i], [t1, p1, d1] = KF[i + 1]; if (sw >= t0 && sw <= t1) { const u = sm((sw - t0) / (t1 - t0)); pos = lerpV(p0, p1, u); dir = lerpV(d0, d1, u); break; } }
+        const hu = norm3([qR[0] * dir[0] + qU[0] * dir[1] + qF[0] * dir[2], qR[1] * dir[0] + qU[1] * dir[1] + qF[1] * dir[2], qR[2] * dir[0] + qU[2] * dir[1] + qF[2] * dir[2]]);
+        let hx = norm3([hu[1] * qF[2] - hu[2] * qF[1], hu[2] * qF[0] - hu[0] * qF[2], hu[0] * qF[1] - hu[1] * qF[0]]);
+        if (!isFinite(hx[0])) hx = qR;
+        const hz = [hx[1] * hu[2] - hx[2] * hu[1], hx[2] * hu[0] - hx[0] * hu[2], hx[0] * hu[1] - hx[1] * hu[0]];
+        mAt = camP(pos[0] + bx, pos[1] + by, pos[2]);
+        const along = (d) => [mAt[0] + hu[0] * d, mAt[1] + hu[1] * d, mAt[2] + hu[2] * d];
+        hR = along(-0.26); hL = along(-0.02);
+        this.nadeM = this.Mm;
+        this.Mm.set([hx[0], hx[1], hx[2], 0, hu[0], hu[1], hu[2], 0, hz[0], hz[1], hz[2], 0, mAt[0], mAt[1], mAt[2], 1]);
       } else {
         // 投げ物（11-20）: 右手で胸の高さ・体の右前に持ち、左手はピンの輪へ指を掛ける位置（前は顔の近くで大きく見えすぎた）
         //  右手は投げ物の右から指を回して握る（手のひらを内へ。前は手のひらが下を向いて投げ物の下に隠れていた）
@@ -332,8 +356,7 @@ export class ViewModel {
         hR = side(mAt, 1, 0.045, 0.024, 0.006); hL = camP(0.03 + bx * 0.8, -0.197 + by * 0.9, 0.335);
         handUp = [qR, null];
       }
-      this.nadeM = this.Mm;
-      const n = this.Mm; n.set([-qR[0], -qR[1], -qR[2], 0, qU[0], qU[1], qU[2], 0, qF[0], qF[1], qF[2], 0, mAt[0], mAt[1], mAt[2], 1]);
+      if (kind !== 'hammer') { this.nadeM = this.Mm; this.Mm.set([-qR[0], -qR[1], -qR[2], 0, qU[0], qU[1], qU[2], 0, qF[0], qF[1], qF[2], 0, mAt[0], mAt[1], mAt[2], 1]); }
     } else {
       hR = toW(P.gripR);
       hL = toW(P.gripL);

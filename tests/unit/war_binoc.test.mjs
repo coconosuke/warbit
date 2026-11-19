@@ -24,3 +24,18 @@ test('双眼鏡: 引き金で 600m 先の敵に印（印のボタンの 450m よ
   step(G, { [me.id]: idle(me, { yaw: me.yaw, pitch: me.pitch }) });
   ok((S.m.spots || []).some(s => s.id === foe.id), '印 ' + JSON.stringify((S.m.spots || []).map(s => s.id)) + ' d=' + Math.round(Math.hypot(foe.x - me.x, foe.z - me.z)));
 });
+
+test('双眼鏡の倍率: 倍率のボタンで 6 → 8 → 4 → 6（BattleBit は 4〜8 倍）', async () => {
+  const { GEAR } = await import('../../src/engine/data/equipment.js');
+  const G = createGame({ map: 'range', mode: 'war', wmode: 'range', seed: 3, bots: false }); step(G, {});
+  const S = G.S, me = S.actors[0];
+  for (let i = 0; i < 60 && me.ws.st !== 'ready'; i++) step(G, { [me.id]: idle(me) });
+  me.inv.gear.push({ id: 'binoc', n: 1 });
+  step(G, { [me.id]: idle(me, { act: [{ a: 'gear', id: 'binoc' }] }) });
+  for (let i = 0; i < 120 && me.ws.st !== 'gear'; i++) step(G, { [me.id]: idle(me) });
+  const z = () => GEAR.binoc.zooms[me.ws.bz ?? GEAR.binoc.zi];
+  ok(z() === 6, '既定 6');
+  const seq = [];
+  for (let k = 0; k < 3; k++) { step(G, { [me.id]: idle(me, { act: [{ a: 'zoom' }] }) }); seq.push(z()); }
+  ok(seq.join(',') === '8,4,6', seq.join(','));
+});

@@ -61,10 +61,20 @@ test('弾倉をまとめる: 1回で、いちばん多い途中の弾倉を、�
   eq(me.ws.st, 'ready', '1本ではできない');
 });
 
-test('突撃はリロードが速い（0.85 倍）', () => {
+test('突撃はリロードが 25% 速い（時間 0.8 倍）・持ち替えも 0.8 倍', () => {
   const G = game(), S = G.S, me = S.actors[0]; ready(G, me);
   const wi = curWeapon(me); wi.mag = 5;
   me.warCls = 'medic'; run(G, me, 1, { act: [{ a: 'reload' }] }); const t1 = me.ws.t; ready(G, me);
   wi.mag = 5; me.warCls = 'assault'; run(G, me, 1, { act: [{ a: 'reload' }] }); const t2 = me.ws.t;
-  ok(Math.abs(t2 / t1 - 0.85) < 0.03, (t2 / t1).toFixed(3));
+  ok(Math.abs(t2 / t1 - 0.8) < 0.03, (t2 / t1).toFixed(3));
+  // 持ち替え（拳銃へ。取り出す時間を比べる）
+  const drawT = (cls) => {
+    ready(G, me); me.warCls = cls; run(G, me, 1, { act: [{ a: 'switch', slot: 1 }] });
+    for (let i = 0; i < 200 && me.ws.st !== 'draw'; i++) run(G, me, 1);
+    const t = me.ws.t; for (let i = 0; i < 400 && me.ws.st !== 'ready'; i++) run(G, me, 1);
+    run(G, me, 1, { act: [{ a: 'switch', slot: 0 }] }); for (let i = 0; i < 400 && !(me.ws.slot === 0 && me.ws.st === 'ready'); i++) run(G, me, 1);
+    return t;
+  };
+  const d1 = drawT('medic'), d2 = drawT('assault');
+  ok(Math.abs(d2 / d1 - 0.8) < 0.06, '持ち替え ' + (d2 / d1).toFixed(3));
 });

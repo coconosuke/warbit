@@ -66,13 +66,15 @@ export function restoreWorld(ww) {
   return true;
 }
 
-// 爆発（x,y,z）で壁と床に穴を開ける。R: 届く距離（壁の面まで）。o.force: コンクリートも 1 回で
+// 爆発（x,y,z）で壁と床に穴を開ける。R: 届く距離（壁の面まで）。o.force: コンクリートも 1 回で。
+// o.w・o.h・o.floor: 穴の大きさ（既定は HOLE）。o.only: その箱だけ（大ハンマー）
 export function carve(ww, x, y, z, R = 1.2, o = {}) {
   if (!ww || !ww.war || !ww.cellBox) return [];
-  const changed = new Set(), hw = HOLE.w / 2, hh = HOLE.h / 2, hf = HOLE.floor / 2;
+  const changed = new Set(), hw = (o.w || HOLE.w) / 2, hh = (o.h || HOLE.h) / 2, hf = (o.floor || HOLE.floor) / 2;
   const holes = [];
   for (const b of nearBoxes(ww, x, z, R + 2)) {
     if (!b.alive || b.hide || (b.kind !== 'wall' && b.kind !== 'floor') || !SOFT.has(b.mat)) continue;
+    if (o.only != null && b.id !== o.only) continue;
     if (boxDist(b, x, y, z) > R) continue;
     const sx = b.x1 - b.x0, sy = b.y1 - b.y0, sz = b.z1 - b.z0;
     let ax;

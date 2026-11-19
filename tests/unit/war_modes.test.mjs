@@ -16,7 +16,7 @@ test('war modes: 兵科の装備（体力・ヘルメット・包帯・銃は兵
     ok((L.helmet === 'none') === !!C.noHelmet, `${id}: ヘルメット`);
   }
   ok(CLASSES.support.hp === 125 && CLASSES.recon.hp === 90 && CLASSES.assault.hp === 100, '体力 援護125・偵察90・ほか100');
-  ok(classLoadout('medic').gear.find(g => g[0] === 'bandage')[1] === 16, '衛生の包帯16');
+  ok(classLoadout('medic').gear.find(g => g[0] === 'bandage')[1] === 20, '衛生の包帯20（BattleBit の Wiki）');
   ok(classLoadout('assault', 'akm').primary.id === 'akm' && classLoadout('assault', 'at308').primary.id !== 'at308', '兵科にない銃は選べない');
 });
 
