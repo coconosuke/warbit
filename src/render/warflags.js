@@ -35,6 +35,17 @@ export class WarFlags {
       R.quad([Math.cos(a0) * r0, 0, Math.sin(a0) * r0], [Math.cos(a0) * r1, 0, Math.sin(a0) * r1], [Math.cos(a1) * r1, 0, Math.sin(a1) * r1], [Math.cos(a1) * r0, 0, Math.sin(a1) * r0], [0, 1, 0], [0, 0, 1, 0, 1, 1, 0, 1], LAYER.plain, [1, 1, 1]);
     }
     this.ring = makeWorldMesh(this.gl, R);
+    // 集合地点の形（この作品の物: 低い箱・取っ手・短いアンテナ・上に小さな灯り）
+    const Q = new MeshBuilder();
+    Q.box(-0.3, 0, -0.2, 0.3, 0.42, 0.2, LAYER.metal, hex('#4a5236'));
+    Q.box(-0.32, 0.42, -0.22, 0.32, 0.47, 0.22, LAYER.metal, hex('#3b4229'));
+    Q.box(-0.12, 0.47, -0.03, 0.12, 0.52, 0.03, LAYER.rubber, hex('#1f2219'));
+    Q.box(0.2, 0.1, -0.205, 0.27, 0.32, -0.2, LAYER.metal, hex('#2a2e22'));
+    Q.cyl(0.22, 0.12, 0.47, 1.15, 0.012, 0.008, 6, LAYER.metal, hex('#1c1d1a'), { capT: true });
+    this.rallyBody = makeWorldMesh(this.gl, Q);
+    const Lm = new MeshBuilder();
+    Lm.box(-0.05, 0.47, 0.06, 0.05, 0.55, 0.14, LAYER.metal, hex('#ffffff'));
+    this.rallyLamp = makeWorldMesh(this.gl, Lm);
     this.M = new Float32Array(16);
     this.flags = [];
     this.wind = 0;
@@ -43,6 +54,7 @@ export class WarFlags {
   dispose() { for (const f of this._off) f(); this._off = []; }
   set(flags, ww, myTeam = 0) { this.flags = flags; this.ww = ww; this.my = myTeam; }
   draw(f) {
+    this._drawRallies(f);
     if (!this.flags.length) return;
     const r = this.r, gl = this.gl, P = r.P.world, M = this.M;
     r._bindLight(P, f);
@@ -83,4 +95,29 @@ export class WarFlags {
     if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, -1);
   }
 }
+// 集合地点: 味方の物は緑の灯り（点滅）、敵の物は赤
+WarFlags.prototype._drawRallies = function (f) {
+  const L = this.S && this.S.rallies;
+  if (!L || !L.length) return;
+  const r = this.r, gl = this.gl, P = r.P.world, M = this.M;
+  r._bindLight(P, f);
+  gl.uniformMatrix4fv(P.u.uVP, false, r.vp);
+  if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, 1);
+  const blink = (performance.now() % 1200) < 600;
+  for (const q of L) {
+    if (q.hp <= 0 || Math.hypot(q.x - r.camPos[0], q.z - r.camPos[2]) > 250) continue;
+    const c = Math.cos(q.yaw), s = Math.sin(q.yaw);
+    M.fill(0); M[0] = c; M[2] = -s; M[5] = 1; M[8] = s; M[10] = c; M[15] = 1; M[12] = q.x; M[13] = q.y; M[14] = q.z;
+    gl.uniformMatrix4fv(P.u.uModel, false, M);
+    gl.uniform3f(P.u.uTint, 1, 1, 1);
+    drawMesh(gl, this.rallyBody);
+    const mine = q.team === this.my, k = blink ? 1.6 : 0.5;
+    gl.uniform3f(P.u.uTint, mine ? 0.35 * k : 1.0 * k, mine ? 1.0 * k : 0.25 * k, mine ? 0.4 * k : 0.2 * k);
+    drawMesh(gl, this.rallyLamp);
+  }
+  M.fill(0); M[0] = M[5] = M[10] = M[15] = 1;
+  gl.uniformMatrix4fv(P.u.uModel, false, M);
+  gl.uniform3f(P.u.uTint, 1, 1, 1);
+  if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, -1);
+};
 function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }

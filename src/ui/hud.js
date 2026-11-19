@@ -46,7 +46,7 @@ export class Hud {
     this.info.obj = el('div', 'hud-obj');
     this.info.feed = el('div', 'hud-feed');
     this.info.squad = el('div', 'hud-squad');
-    this.info.vitals = el('div', 'hud-vitals', '<div class="hp"><i></i><b></b></div><div class="plates"></div><div class="st"></div>');
+    this.info.vitals = el('div', 'hud-vitals', '<div class="sqp"><span>分隊ポイント</span><b>0</b><em></em></div><div class="hp"><i></i><b></b></div><div class="plates"></div><div class="st"></div>');
     this.info.ammo = el('div', 'hud-ammo', '<div class="mode"></div><div class="cnt"><b>0</b><span>/0</span></div><div class="mags"></div>');
     this.info.subs = el('div', 'hud-subs'); this.subs = this.info.subs;
     for (const [id, e] of Object.entries(this.info)) { e.dataset.info = id; r.appendChild(e); }
@@ -380,6 +380,7 @@ export class Hud {
       const gn = v.gearSel ? (p.inv.gear.find(x => x.id === v.gearSel) || { n: 0 }).n : 0;
       const gk = gtxt + gn;
       if (this.cache.gear !== gk) { this.cache.gear = gk; this.btn.gear.querySelector('.lb').textContent = gtxt; this.btn.gear.querySelector('.ct').textContent = v.gearSel ? gn : ''; }
+      if (this.btn.rally) { const rk = (v.rally ? 1 : 0) + '|' + (v.rally && v.rally.ok ? 1 : 0) + '|' + (v.rally ? v.rally.lb : ''); if (this.cache.rally !== rk) { this.cache.rally = rk; this.btn.rally.classList.toggle('na', !v.rally); this.btn.rally.classList.toggle('dis', !!v.rally && !v.rally.ok); this.btn.rally.querySelector('.lb').textContent = v.rally ? v.rally.lb : ''; } }
       this.btn.vault.classList.toggle('dis', !v.canVault && !this.mode.war); // 乗り越えのボタンは文字を出さない（11-12 の要望）。大規模戦は越える物がなくても跳ぶ
       this.btn.reload.classList.toggle('dis', false);
       // 調べる: その時できること
@@ -472,6 +473,13 @@ export class Hud {
     e.className = 'hud-pts'; void e.offsetWidth; e.className = 'hud-pts on';
     clearTimeout(this._ptsT); this._ptsT = setTimeout(() => { e.className = 'hud-pts on fade'; }, 2600);
   }
+  // 分隊ポイント（大規模戦）: 体力の上に数と、増えた分を少しの間
+  sqPoints(n, add) {
+    const e = this.info.vitals.querySelector('.sqp'); if (!e) return;
+    if (n == null) { e.classList.remove('on'); return; }
+    e.classList.add('on'); e.children[1].textContent = n;
+    if (add) { const x = e.children[2]; x.textContent = '+' + add; x.className = ''; void x.offsetWidth; x.className = 'on'; clearTimeout(this._sqpT); this._sqpT = setTimeout(() => { x.className = ''; }, 2400); }
+  }
   damageFrom(ang) { this.dmgArcs.push({ ang, t: performance.now() }); }
   showBanner(html, ms = 2600, cls = '') { this.banner.innerHTML = html; this.banner.className = 'hud-banner on ' + cls; clearTimeout(this._banT); if (ms > 0) this._banT = setTimeout(() => { this.banner.className = 'hud-banner'; }, ms); }
   hideBanner() { this.banner.className = 'hud-banner'; }
@@ -494,6 +502,14 @@ export class Hud {
         c.lineWidth = 2.5; c.strokeStyle = m.col; c.stroke();
         if (m.prog != null) { c.beginPath(); c.arc(m.x, m.y, 11, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.abs(m.prog)); c.strokeStyle = m.pcol || m.col; c.lineWidth = 3.5; c.stroke(); }
         c.fillStyle = m.col; c.font = '900 12px Inter, sans-serif'; c.fillText(m.t, m.x, m.y + 0.5);
+        if (m.goal) {
+          // 分隊の目標: 輪の外に黄色の角と、上に「攻撃」「防衛」
+          c.strokeStyle = '#ffd84a'; c.lineWidth = 2;
+          for (let i = 0; i < 4; i++) { const a0 = i * Math.PI / 2 + Math.PI / 4; c.beginPath(); c.arc(m.x, m.y, 15, a0 - 0.32, a0 + 0.32); c.stroke(); }
+          c.font = '800 10px "Noto Sans JP", sans-serif'; const tw = c.measureText(m.goal).width + 8;
+          c.fillStyle = 'rgba(8,12,18,0.7)'; c.fillRect(m.x - tw / 2, m.y - 33, tw, 14);
+          c.fillStyle = '#ffd84a'; c.fillText(m.goal, m.x, m.y - 25.5);
+        }
         if (m.d != null) { c.font = '700 10px Inter, sans-serif'; c.fillStyle = 'rgba(235,240,245,0.9)'; c.fillText(Math.round(m.d) + 'm', m.x, m.y + 20); }
       } else if (m.k === 'sign') {
         // 射撃場の距離の札

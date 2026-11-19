@@ -74,3 +74,50 @@ test('拠点: 奪った時に範囲にいた側の全員へ 200（範囲の外�
   eq(mine[0].stats.sc, PTS.cap, '範囲の中'); eq(mine[1].stats.sc, PTS.cap, '範囲の中');
   ok(!mine[2].stats.sc, '範囲の外はなし');
 });
+
+test('分隊長の目標: 敵のいない向きで印 → 狙っている拠点が分隊の目標（ボットの指揮より優先）。分隊長でないと決められない', async () => {
+  const { goalOf } = await import('../../src/war/ai.js');
+  const G = game({ bots: true, per: 4 }), S = G.S, me = S.actors[0];
+  ok(me.sqIdx === 0, '自分は分隊長');
+  for (const b of S.actors) if (b.team === 1) { b.alive = false; b.dead = true; }
+  const key = me.team + ':' + me.squad;
+  const want = S.m.flags.find(f => f.id !== S.m.sqGoal[key]) || S.m.flags[0];
+  me.yaw = Math.atan2(want.x - me.x, want.z - me.z); me.pitch = 0;
+  const ev = []; me.spotT = -1e9;
+  const { spotEnemy } = await import('../../src/engine/modes/war.js');
+  spotEnemy(S, G.w, me, ev);
+  const o = ev.find(e => e.e === 'order');
+  ok(o && o.f === want.id, '目標の出来事 ' + JSON.stringify(ev));
+  eq(S.m.sqGoal[key], want.id, '分隊の目標');
+  for (let i = 0; i < 200; i++) step(G, {});
+  eq(S.m.sqGoal[key], want.id, '指揮（2秒ごと）でも変わらない');
+  const mate = S.actors.find(b => b.team === me.team && b.squad === me.squad && b !== me && b.ai);
+  ok(!mate || goalOf(S, mate) === want, '分隊のボットもそこへ');
+  // 分隊長でない人
+  const m2 = S.actors.find(b => b.team === me.team && b.sqIdx === 1);
+  const ev2 = []; m2.alive = true; m2.down = false; m2.spotT = -1e9; m2.yaw = me.yaw;
+  spotEnemy(S, G.w, m2, ev2);
+  ok(!ev2.some(e => e.e === 'order'), '分隊長でないと決められない');
+});
+
+test('分隊ポイント: 目標の範囲で倒すと 50、目標を奪うと 1000（目標でない拠点は 0）', () => {
+  const G = game({ bots: true, per: 3 }), S = G.S, me = S.actors[0];
+  const key = me.team + ':' + me.squad;
+  const f = S.m.flags[0], g = S.m.flags[1];
+  S.m.sqOrder = { [key]: { f: f.id, by: me.id, own: false } }; S.m.sqGoal[key] = f.id;
+  const foe = S.actors.find(b => b.team === 1);
+  put(G, me, f.x, f.z); put(G, foe, f.x + 5, f.z);
+  const ev = hit(G, foe, 500, me);
+  const sp = ev.find(e => e.e === 'sqp');
+  ok(sp && sp.pts === 50 && sp.n === 50, '目標で倒すと 50 ' + JSON.stringify(sp));
+  // 目標でない拠点を奪う: 分隊ポイントは入らない（個人の点は入る）
+  for (const b of S.actors) if (b.team === 1) { b.alive = false; b.dead = true; }
+  for (const b of S.actors) if (b.team === 0 && b !== me) { b.alive = false; b.dead = true; }
+  const run = (fl) => { fl.owner = -1; fl.prog = 0.98; for (let i = 0; i < 60 && fl.owner !== 0; i++) { put(G, me, fl.x, fl.z); step(G, { [me.id]: { mx: 0, mz: 0, yaw: me.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null } }); } return fl.owner === 0; };
+  ok(run(g), '目標でない拠点を奪った');
+  eq(S.m.sqp[key], 50, '目標でない拠点は 0');
+  S.m.sqOrder[key] = { f: f.id, by: me.id, own: false }; S.m.sqGoal[key] = f.id;
+  ok(run(f), '目標を奪った');
+  eq(S.m.sqp[key], 1050, '目標を奪うと 1000');
+  ok(!S.m.sqOrder[key], '奪い終えると分隊長の目標は解ける');
+});

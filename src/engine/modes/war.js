@@ -16,6 +16,7 @@ import { warThink, botSpawnPoint, goalOf, SQUAD } from '../../war/ai.js';
 import { CLASSES, classLoadout, classGuns } from '../../war/classes.js';
 import { hrand } from '../rng.js';
 import { WEAPONS } from '../data/weapons.js';
+import { RALLY, rallyOf, rallyKey } from '../rally.js';
 
 export const OUT_LIMIT = 10;
 // 点（自分の点。BattleBit に合わせる: 敵を倒すと 200。頭への一発は上乗せ（長距離の狙撃で 400 の例。距離で増える形は推測）。
@@ -37,6 +38,8 @@ function creditKill(S, v, k, part, ev) {
     const wi = k.ws && k.ws.slot >= 0 && k.inv && k.inv.w ? k.inv.w[k.ws.slot] : null;
     const hs = part === 'head' ? hsBonus(d) : 0;
     award(S, k, PTS.kill + hs, 'kill', ev, { v: v.id, d, hs, w: wi ? wi.id : '' });
+    const gid = m.sqGoal && k.squad != null && m.sqGoal[k.team + ':' + k.squad], gf = gid && m.flags.find(f => f.id === gid);
+    if (gf && (Math.hypot(v.x - gf.x, v.z - gf.z) <= gf.r || Math.hypot(k.x - gf.x, k.z - gf.z) <= gf.r)) sqPoints(S, k.team, k.squad, SQP.objKill, 'objKill', ev, gf.id);
   }
   for (const [id, dmg] of Object.entries(v.dmgBy || {})) {
     const x = S.byId[id];
@@ -140,6 +143,7 @@ function redeploy(S, w, a, at) {
   const m = S.m, k = (m.spawnN = (m.spawnN || 0) + 1);
   let p;
   if (a.dummy) p = { x: a.dummy.x, z: a.dummy.z, y: groundAt(w, a.dummy.x, a.dummy.z, heightAt(w, a.dummy.x, a.dummy.z) + 0.3), yaw: a.dummy.yaw };
+  else if (at === 'rally' && rallyOf(S, a.team, a.squad)) p = rallySpot(S, w, rallyOf(S, a.team, a.squad), k);
   else if (m.mode === 'conquest') {
     const f = at && at !== 'hq' ? m.flags.find(q => q.id === at) : null;
     p = f && canSpawnAt(S, f, a.team) ? flagSpot(S, w, f, k) : hqSpot(S, w, a.team, k);
@@ -159,6 +163,67 @@ function redeploy(S, w, a, at) {
 
 // 印: S.m.spots = [{ id, team, sq, by, until }]（10 秒。付け直すと延びる）。分隊のボットも場所を知る（ai の intel）
 export const SPOT_T = 10;
+// 分隊長の目標（BattleBit: 分隊長が拠点に印をつけると分隊の目標。research §26）
+// 印の向きに敵がいなければ、狙っている向きの拠点（左右 6° か、拠点の範囲が見える角度の内）を分隊の目標にする。分隊長（分隊の1人目）だけ
+// 分隊ポイント: 目標を中立に戻す・奪うと 1000、目標の範囲で敵を倒すと 50（分隊みんなで1つ）
+export const SQP = { obj: 1000, objKill: 50 };
+export function orderFlag(S, a, ev) {
+  const m = S.m;
+  if (a.sqIdx !== 0 || !m.flags || !m.flags.length || m.mode === 'range' || m.mode === 'tdm') return null;
+  let best = null, bk = 1;
+  for (const f of m.flags) {
+    const dx = f.x - a.x, dz = f.z - a.z, d = Math.hypot(dx, dz);
+    let da = Math.atan2(dx, dz) - a.yaw; da = Math.abs(Math.atan2(Math.sin(da), Math.cos(da)));
+    const tol = Math.max(6 * Math.PI / 180, Math.atan2(f.r, Math.max(1, d)));
+    if (da / tol < bk) { bk = da / tol; best = f; }
+  }
+  if (!best) return null;
+  const key = a.team + ':' + a.squad;
+  (m.sqOrder || (m.sqOrder = {}))[key] = { f: best.id, by: a.id, own: best.owner === a.team };
+  (m.sqGoal || (m.sqGoal = {}))[key] = best.id;
+  if (ev) ev.push({ e: 'order', team: a.team, sq: a.squad, f: best.id, by: a.id, k: best.owner === a.team ? 'def' : 'atk' });
+  return best;
+}
+// 集合地点を置く（分隊長。分隊ポイント 200。立って地面の上。置き直すと前の物は消える）。置けない時は理由の出来事
+export function placeRally(S, w, a, ev) {
+  const m = S.m, key = rallyKey(a.team, a.squad), P = m.sqp || (m.sqp = {});
+  const no = (why) => { if (ev) ev.push({ e: 'rally', k: 'no', why, by: a.id, team: a.team, sq: a.squad }); return null; };
+  if (!a.alive || a.down || a.sqIdx !== 0 || m.mode === 'range' || m.mode === 'tdm') return no('who');
+  if ((P[key] || 0) < RALLY.cost) return no('pts');
+  if (m.rallyCd && (m.rallyCd[key] || 0) > S.t) return no('cool');
+  if (a.air || Math.abs(a.vy || 0) > 0.5 || a.climb) return no('ground');
+  const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
+  let x = a.x + fx * 0.7, z = a.z + fz * 0.7;
+  if (!warLos(w, a.x, a.y + 0.5, a.z, x, a.y + 0.5, z)) { x = a.x; z = a.z; }
+  const y = groundAt(w, x, z, a.y + 0.6);
+  if (!isFinite(y) || Math.abs(y - a.y) > 0.8) return no('ground');
+  const L = S.rallies || (S.rallies = []);
+  const old = L.findIndex(r => r.team === a.team && r.sq === a.squad);
+  if (old >= 0) L.splice(old, 1);
+  const r = { id: (m.rallyN = (m.rallyN || 0) + 1), team: a.team, sq: a.squad, x, y, z, yaw: a.yaw, hp: RALLY.hp, t: S.t, by: a.id };
+  L.push(r);
+  P[key] -= RALLY.cost;
+  if (ev) { ev.push({ e: 'rally', k: 'place', id: r.id, team: a.team, sq: a.squad, by: a.id, x, y, z }); ev.push({ e: 'sqp', team: a.team, sq: a.squad, pts: -RALLY.cost, why: 'rally', n: P[key] }); }
+  return r;
+}
+// 集合地点の近くの空いた所（集合地点のまわり 1.5〜3m）
+function rallySpot(S, w, r, k) {
+  for (let i = 0; i < 10; i++) {
+    const an = hrand(r.id, k, 81 + i) * Math.PI * 2, d = 1.5 + hrand(r.id, k, 91 + i) * 1.5;
+    const x = r.x + Math.sin(an) * d, z = r.z + Math.cos(an) * d, y = groundAt(w, x, z, r.y + 0.6);
+    if (!isFinite(y) || Math.abs(y - r.y) > 1.2) continue;
+    pushOut(w, x, z, y + 0.4, y + 1.8, 0.3, null, -1, _po);
+    if (_po[2]) continue;
+    if (!warLos(w, r.x, r.y + 0.6, r.z, x, y + 0.6, z)) continue;
+    return { x, z, y, yaw: r.yaw };
+  }
+  return { x: r.x, z: r.z, y: r.y, yaw: r.yaw };
+}
+function sqPoints(S, team, sq, pts, why, ev, f) {
+  const m = S.m, key = team + ':' + sq, P = m.sqp || (m.sqp = {});
+  P[key] = (P[key] || 0) + pts;
+  ev.push({ e: 'sqp', team, sq, pts, why, f, n: P[key] });
+}
 export function spotEnemy(S, w, a, ev) {
   if (!a.alive || a.down || (a.spotT || -1e9) > S.t) return null;
   a.spotT = S.t + Math.round(0.4 / S.dt);
@@ -173,7 +238,7 @@ export function spotEnemy(S, w, a, ev) {
     if (!warLos(w, e[0], e[1], e[2], b.x, ty, b.z) || smokeBetween(S, e[0], e[1], e[2], b.x, ty, b.z) >= 0.6) continue;
     bc = c; best = b;
   }
-  if (!best) { if (ev) ev.push({ e: 'spot', id: -1, by: a.id }); return null; }
+  if (!best) { const f = orderFlag(S, a, ev); if (!f && ev) ev.push({ e: 'spot', id: -1, by: a.id }); return null; }
   const m = S.m, L = m.spots || (m.spots = []);
   const old = L.find(q => q.id === best.id && q.team === a.team);
   const until = S.t + Math.round(SPOT_T / S.dt);
@@ -209,7 +274,14 @@ function stepFlags(S, w, dt, ev) {
       // 拠点の点: 奪った（自軍になった）・中立に戻した 時に、範囲にいた側の全員へ
       const t = f.owner >= 0 ? f.owner : (before === 0 ? 1 : 0);
       const pts = f.owner >= 0 ? PTS.cap : PTS.neut, why = f.owner >= 0 ? 'cap' : 'neut';
-      if (m.mode !== 'range') for (const a of S.actors) { if (a.team !== t || !a.alive || a.down || a.isDrone) continue; if (Math.hypot(a.x - f.x, a.z - f.z) > f.r || Math.abs(a.y - f.y) > 12) continue; award(S, a, pts, why, ev, { f: f.id }); }
+      const sqs = new Set();
+      if (m.mode !== 'range') for (const a of S.actors) { if (a.team !== t || !a.alive || a.down || a.isDrone) continue; if (Math.hypot(a.x - f.x, a.z - f.z) > f.r || Math.abs(a.y - f.y) > 12) continue; award(S, a, pts, why, ev, { f: f.id }); if (a.squad != null) sqs.add(a.squad); }
+      for (const sq of sqs) {
+        const key = t + ':' + sq;
+        if (m.sqGoal && m.sqGoal[key] === f.id) sqPoints(S, t, sq, SQP.obj, why, ev, f.id);
+        // 攻める目標を奪い終えたら、分隊長の目標は解く（次の目標は分隊長が決める。ボットの分隊は自動）
+        if (f.owner === t && m.sqOrder && m.sqOrder[key] && m.sqOrder[key].f === f.id && !m.sqOrder[key].own) delete m.sqOrder[key];
+      }
     }
   }
   const c = [0, 0]; for (const f of m.flags) if (f.owner >= 0) c[f.owner]++;
@@ -301,6 +373,7 @@ export default {
     if (ac.a === 'warClass') { if (!a.alive) setClass(a, ac.cls, ac.gun, ac.sec); return true; }
     // 敵に印をつける（BattleBit の中ボタン。分隊に見える。11-19・research の 24）: 狙っている向きから 5° 以内・450m 以内・見えている敵のうち一番まっすぐの1人
     if (ac.a === 'spot') { spotEnemy(S, w, a, ev); return true; }
+    if (ac.a === 'rally') { placeRally(S, w, a, ev); return true; }
     if (ac.a === 'warRedeploy') {
       if (!a.alive) return true;
       // 射撃場: その場で出撃の画面へ（倒されたことにはしない）
@@ -327,6 +400,19 @@ export default {
     if (m.over) return;
     if (m.spots && m.spots.length && S.t % 30 === 0) m.spots = m.spots.filter(q => q.until > S.t && S.byId[q.id] && S.byId[q.id].alive && !S.byId[q.id].down);
     stepFlags(S, w, dt, ev);
+    // ボットの分隊長: 分隊ポイントがたまり、目標の手前（35〜110m）で敵を追っていない時に集合地点を置く（2 秒ごとに調べる）
+    if (m.mode !== 'range' && m.mode !== 'tdm' && S.t % Math.max(1, Math.round(2 / S.dt)) === 0) {
+      for (const a of S.actors) {
+        if (!a.ai || a.sqIdx !== 0 || !a.alive || a.down || a.ai.tgt != null) continue;
+        const key = rallyKey(a.team, a.squad);
+        if (((m.sqp || {})[key] || 0) < RALLY.cost || (m.rallyCd && (m.rallyCd[key] || 0) > S.t)) continue;
+        const g = goalOf(S, a); if (!g) continue;
+        const d = Math.hypot(a.x - g.x, a.z - g.z); if (d < 35 || d > 110) continue;
+        const cur = rallyOf(S, a.team, a.squad);
+        if (cur && Math.hypot(cur.x - g.x, cur.z - g.z) < 150) continue;
+        placeRally(S, w, a, ev);
+      }
+    }
     // 出撃し直す: ボットは時間が来たら、人は場所を選んでから
     for (let i = m.respawn.length - 1; i >= 0; i--) {
       const r = m.respawn[i]; if (S.t < r.at) continue;
@@ -334,7 +420,15 @@ export default {
       if (m.mode === 'conquest' && m.tickets[a.team] <= 0) continue;
       if (a.pid != null && !a.deployAt) continue;
       m.respawn.splice(i, 1);
-      const at = a.pid != null ? a.deployAt : (botSpawnPoint(S, a) || {}).flag || 'hq';
+      let at = a.pid != null ? a.deployAt : (botSpawnPoint(S, a) || {}).flag || 'hq';
+      if (a.pid == null) {
+        const rl = rallyOf(S, a.team, a.squad), g = rl && goalOf(S, a);
+        if (rl && g) {
+          const f0 = at !== 'hq' && m.flags.find(q => q.id === at), hq = m.hq[a.team];
+          const d0 = f0 ? Math.hypot(f0.x - g.x, f0.z - g.z) : Math.hypot(hq[0] - g.x, hq[1] - g.z);
+          if (Math.hypot(rl.x - g.x, rl.z - g.z) < d0 - 20) at = 'rally';
+        }
+      }
       redeploy(S, w, a, at);
       ev.push({ e: 'respawn', id: a.id, at });
     }

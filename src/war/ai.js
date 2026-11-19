@@ -50,6 +50,9 @@ export function command(S, w) {
     m.sqGoal = m.sqGoal || {};
     for (const sq of ids) {
       const key = t + ':' + sq, cur = m.sqGoal[key];
+      // 分隊長（人）が決めた目標はそのまま（攻める目標は奪い終えると解ける）
+      const od = m.sqOrder && m.sqOrder[key];
+      if (od && flagById(S, od.f)) { m.sqGoal[key] = od.f; continue; }
       const curF = cur && flagById(S, cur);
       // 今の目標がまだ要る（取れていない・守る必要がある）なら続ける
       if (curF && want.includes(curF) && !(curF.owner === t && !defend.includes(curF))) continue;

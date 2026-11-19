@@ -11,6 +11,7 @@ import { hrand } from './rng.js';
 import { hitBar, bashBar } from './barricade.js';
 import { meleeDeps } from './deploy.js';
 import { warGun, warFall } from '../war/guns.js';
+import { RALLY, hitRally } from './rally.js';
 
 const G = 9.81;
 // モードのきまり（engine が入れる）: canDown(S, a)
@@ -142,10 +143,17 @@ function stepBullet(S, w, b, dt, ev) {
     const t = raySphere(b.x, b.y, b.z, dx, dy, dz, segL, K.x, K.y, K.z, 0.11);
     if (t >= 0) hits.push({ t0: t, t1: t + 0.05, kind: 'cam', i });
   }
+  // 集合地点（大規模戦）: 敵の弾だけ当たる
+  if (S.rallies && S.rallies.length) for (const r of S.rallies) {
+    if (r.hp <= 0 || r.team === b.team) continue;
+    const t = raySphere(b.x, b.y, b.z, dx, dy, dz, segL, r.x, r.y + RALLY.cy, r.z, RALLY.r);
+    if (t >= 0) hits.push({ t0: t, t1: t + 0.05, kind: 'rally', r });
+  }
   hits.sort((p, q) => p.t0 - q.t0);
   for (const h of hits) {
     if (h.t0 > segL) break;
     const hx = b.x + dx * h.t0, hy = b.y + dy * h.t0, hz = b.z + dz * h.t0;
+    if (h.kind === 'rally') { ev.push({ e: 'imp', x: hx, y: hy, z: hz, nx: -dx, ny: -dy, nz: -dz, m: M.METAL, k: 'rally', pen: false, o: b.owner, w: b.wid }); hitRally(S, h.r, RALLY.bullet, b.owner, ev, hx, hy, hz); return false; }
     if (h.kind === 'cam') { breakCamAt(S, h.i, b.owner, ev, hx, hy, hz); b.pen -= 40; b.k = Math.max(0.05, b.pen / b.pen0); if (b.pen <= 0) return false; continue; }
     if (h.kind === 'shield') {
       const a = h.a, sf = a._shieldF;

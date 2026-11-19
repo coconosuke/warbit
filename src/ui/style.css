@@ -324,6 +324,11 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .sq b { font-weight: 700; } .sq em { height: 3px; background: var(--ok); border-radius: 2px; } .sq small { color: #cfd6dc; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sq.dn { opacity: .5; } .sq.dn em { background: var(--bad); }
 .hud-vitals { position: absolute; width: 150px; display: flex; flex-direction: column; gap: 2px; }
+.hud-vitals .sqp { position: absolute; left: 0; bottom: 100%; margin-bottom: 3px; white-space: nowrap; display: none; align-items: baseline; gap: 6px; font-family: var(--f-body); font-size: 11px; color: var(--sub); text-shadow: 0 1px 2px rgba(0,0,0,.9); }
+.hud-vitals .sqp.on { display: flex; }
+.hud-vitals .sqp b { font-size: 12px; color: #e8ecf2; font-weight: 800; }
+.hud-vitals .sqp em { font-style: normal; font-weight: 800; color: #9be37a; opacity: 0; transition: opacity .4s; }
+.hud-vitals .sqp em.on { opacity: 1; transition: none; }
 .hud-vitals .hp { position: relative; height: 16px; background: rgba(8,12,18,.6); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,255,255,.18); }
 .hud-vitals .hp i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #e8edf2, #ffffff); opacity: .85; }
 .hud-vitals.low .hp i { background: var(--bad); }

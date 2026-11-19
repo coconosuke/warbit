@@ -614,11 +614,36 @@ try {
       await shot('WAR-点');
       rec('WAR BIT', '点: 倒すと照準の下に合計と内訳（頭の上乗せ・支援を足していく）', pt.on && pt.tot === '+700' && pt.rows === 3 && /M4A1/.test(pt.line) && /380m/.test(pt.line), JSON.stringify(pt));
     }
+    // 分隊長の目標（11-19）: 敵のいない向きで印のボタン → 狙っている拠点が分隊の目標（上に「攻撃」）
+    {
+      const f = await page.evaluate(() => { const g = window.__app.game, p = g.p, S = g.S, key = p.team + ':' + p.squad; const f = S.m.flags.filter(x => x.id !== S.m.sqGoal[key]).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0]; g.yaw = Math.atan2(f.x - p.x, f.z - p.z); g.pitch = 0.6; return f.id; });
+      await page.waitForTimeout(300);
+      await tapAt(await btn('spot'), 75);
+      await page.waitForTimeout(500);
+      const od = await page.evaluate(() => { const g = window.__app.game, p = g.p, S = g.S, key = p.team + ':' + p.squad; return { goal: S.m.sqGoal[key], order: !!(S.m.sqOrder && S.m.sqOrder[key]), sqp: !!document.querySelector('#hud .hud-vitals .sqp.on') }; });
+      await page.evaluate(() => { window.__app.game.pitch = 0; });
+      await page.waitForTimeout(300);
+      await shot('WAR-分隊の目標');
+      rec('操作', '分隊長の目標: 敵のいない向きで印のボタン → 狙っている拠点が分隊の目標・分隊ポイントの数が出る', od.goal === f && od.order && od.sqp, JSON.stringify({ f, ...od }));
+    }
+    // 集合地点（11-19）: 分隊ポイント 200 で、集合のボタン → 目の前に置かれる（出撃の画面に「集合」）
+    {
+      await page.evaluate(() => { const g = window.__app.game, p = g.p, S = g.S; (S.m.sqp = S.m.sqp || {})[p.team + ':' + p.squad] = 200; });
+      await page.waitForTimeout(400);
+      const vis = await page.evaluate(() => { const e = document.querySelector('#hud [data-btn="rally"]'); return !!e && !e.classList.contains('na') && !e.classList.contains('dis') && getComputedStyle(e).display !== 'none'; });
+      await tapAt(await btn('rally'), 76);
+      await page.waitForTimeout(500);
+      const rl = await page.evaluate(() => { const g = window.__app.game, p = g.p, S = g.S, r = (S.rallies || []).find(q => q.team === p.team && q.sq === p.squad); return r ? { d: +Math.hypot(r.x - p.x, r.z - p.z).toFixed(2), pts: S.m.sqp[p.team + ':' + p.squad] } : null; });
+      await shot('WAR-集合地点');
+      rec('操作', '集合地点: 分隊長は分隊ポイント 200 で、集合のボタンを押すと目の前に置かれる', vis && !!rl && rl.d < 1.5 && rl.pts === 0, JSON.stringify({ vis, rl }));
+    }
     // 範囲の外で倒れる → KIA → 出撃の画面（数秒待つ）→ 本陣 → 出撃し直す（チケットが減る）
     const tk0 = await page.evaluate(() => window.__app.game.S.m.tickets[window.__app.game.p.team]);
     await page.evaluate(() => { const g = window.__app.game, p = g.p, r = g.S.m.rect; p.x = r[0] - 25; p.oob = 9.95; });
     await page.waitForFunction(() => document.querySelector('#hud .hud-deploy.on .dps-go'), null, { timeout: 90000 }).catch(() => {});
     const wait = await page.evaluate(() => (document.querySelector('#hud .dps-go b') || {}).textContent || '');
+    const rallyOpt = await page.evaluate(() => [...document.querySelectorAll('#hud .dps-p b')].some(e => e.textContent === '集合'));
+    rec('WAR BIT', '集合地点があると出撃の画面に「集合」が出る', rallyOpt, String(rallyOpt));
     await shot('WAR-倒れた後の出撃の画面');
     await tapAt(await center('#hud .dps-go'), 77);
     await page.waitForFunction(() => window.__app.game.p.alive, null, { timeout: 90000 }).catch(() => {});
@@ -681,7 +706,11 @@ try {
   // ダウン中にあきらめる（11-19 18:16）: GIVE UP を2回押すとすぐ出撃の画面へ
   {
     // 流れ弾や手榴弾で途中で倒れきらないよう、ダウンの残りを大きくしておく（テストの間だけ）
-    await page.evaluate(() => { const p = window.__app.game.p; p.down = true; p.dbno = 9999; p.hp = 0; });
+    // 敵に止めを刺されないよう、自陣の本陣（敵は入れない）にいる味方の横へ移してからダウンさせる
+    await page.evaluate(() => { const g = window.__app.game, p = g.p, S = g.S, hq = S.m.hq && S.m.hq[p.team];
+      const mate = hq && S.actors.filter(a => a !== p && a.team === p.team && a.alive && !a.down).sort((a, b) => Math.hypot(a.x - hq[0], a.z - hq[1]) - Math.hypot(b.x - hq[0], b.z - hq[1]))[0];
+      if (mate && Math.hypot(mate.x - hq[0], mate.z - hq[1]) < 60) { p.x = mate.x + 0.8; p.y = mate.y; p.z = mate.z; p.vx = p.vy = p.vz = 0; }
+      p.down = true; p.dbno = 9999; p.hp = 0; });
     await page.waitForFunction(() => document.querySelector('#hud .hud-giveup.on'), null, { timeout: 10000 }).catch(() => {});
     const on = await page.evaluate(() => !!document.querySelector('#hud .hud-giveup.on'));
     const c = await center('#hud .hud-giveup');

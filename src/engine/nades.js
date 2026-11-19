@@ -5,6 +5,7 @@ import { eyeOf, hurt, killActor, pvpDamage, damageBlock, breakGlass, downActor, 
 import { M, MATS } from './data/materials.js';
 import { blastBars } from './barricade.js';
 import { blastDeps } from './deploy.js';
+import { blastRallies } from './rally.js';
 import { GEAR } from './data/equipment.js';
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
@@ -190,6 +191,8 @@ export function stepBlasts(S, w, dt, ev) {
     blastBars(S, w, b.x, b.y, b.z, b.kind === 'c2' ? 2.4 : b.kind === 'frame' ? 2.0 : 1.7, ev, b.by ?? -1);
     // 置ける盾・有刺鉄線も吹き飛ぶ
     blastDeps(S, w, b.x, b.y, b.z, b.kind === 'c2' ? 2.4 : b.kind === 'frame' ? 2.0 : 1.7, ev, b.by ?? -1);
+    // 集合地点（大規模戦）
+    blastRallies(S, b.x, b.y, b.z, (b.r || 4) * 0.6, b.by ?? -1, ev);
     // 壁（石膏・木）を壊す
     if (!w.war && (b.kind === 'c2' || b.kind === 'frame' || b.kind === 'frag')) {
       const R = b.kind === 'frame' ? 1.4 : b.kind === 'c2' ? 0.9 : 0.6;
