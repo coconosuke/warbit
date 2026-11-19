@@ -2,6 +2,7 @@
 // メニューの形と表記は BattleBit に合わせる（英語の大文字に日本語を小さく添える。research/WARBIT.md の 10）。
 // 旧 HARD ENTRY の画面（作戦・対戦・訓練・ロビー・資料室）はメニューから外した（11-13 03:10・03:15 の要望）。中身は後で消す
 import { onTap } from './input.js';
+import { TC } from './teamcol.js';
 import { Scroller, slider, chips, confirmTap, textModal, copyText, esc } from './widgets.js';
 import { MAPS, MAP_LIST, PVE_MAPS, PVP_MAPS } from '../engine/maps/index.js';
 import { MISSIONS, MISSION_LIST, DIFFS } from '../engine/data/missions.js';
@@ -405,7 +406,7 @@ export class Screens {
       const L = Math.max(0, Math.floor((b.y + 0.4) / 3));
       if (b === p) { marks.push({ x: b.x, z: b.z, L, col: '#ffd34a', r: 6, me: true }); continue; }
       const mate = S.pvp ? b.team === p.team : b.kind === 'swat';
-      if (mate) marks.push({ x: b.x, z: b.z, L, col: b.alive ? '#4aa8ff' : '#666', r: 5 });
+      if (mate) marks.push({ x: b.x, z: b.z, L, col: b.alive ? TC.ally : '#666', r: 5 });
       else if (b.spot > 0 || g._visCache(b)) marks.push({ x: b.x, z: b.z, L, col: b.kind === 'civ' ? '#7be07b' : b.cuffed || b.comply ? '#d8b44a' : '#ff4a3a', r: 5 });
     }
     if (S.m && S.m.bombs) for (const b of S.m.bombs) if (b.found && !b.done) marks.push({ x: b.x, z: b.z, L: b.L || 0, col: '#ff9a20', sq: true });
@@ -436,7 +437,7 @@ export class Screens {
       for (const b of S.actors) {
         if (!b.alive) continue;
         const [x, y] = toXY(b.x, b.z);
-        ctx.fillStyle = b === p ? '#ffd34a' : b.team === p.team ? '#4aa8ff' : '#ff4a3a';
+        ctx.fillStyle = b === p ? '#ffd34a' : b.team === p.team ? TC.ally : TC.enemy;
         if (b !== p && b.team !== p.team && !(b.spot > 0 || g._visCache(b))) continue;
         ctx.beginPath(); ctx.arc(x, y, (b === p ? 5 : 3.5) * dpr, 0, Math.PI * 2); ctx.fill();
         if (b === p) { ctx.strokeStyle = '#ffd34a'; ctx.lineWidth = 2 * dpr; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(b.yaw) * 14 * dpr, y + Math.cos(b.yaw) * 14 * dpr); ctx.stroke(); }
@@ -535,10 +536,12 @@ export class Screens {
     } else if (tab === 'sens') {
       row('視点', '', 'sens'); sl('sens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ADS', '等倍', 'sensAds'); sl('sensAds', 0.2, 1.5, 0.05, pct);
-      row('スコープ', '倍率あり（4倍が基準。倍率に合わせて変わる）', 'sensScope'); sl('sensScope', 0.1, 1.2, 0.05, pct);
+      // 倍率ごと（BattleBit のように倍率ごとに選べる。間の倍率は下の倍率の値を倍率で割る）
+      for (const [z, lb] of [[2, '2倍'], [3, '3倍'], [4, '4倍'], [6, '6倍'], [8, '8倍以上']]) { row('スコープ ' + lb, z === 2 ? '構えている時（倍率ごと）' : '', 'sz' + z); sl('sz' + z, 0.05, 1.5, 0.01, pct, 'sensZ.' + z); }
       row('射撃中', '射撃ボタンで視点移動', 'sensFire'); sl('sensFire', 0.3, 1.5, 0.05, pct);
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);
       row('エイムアシスト', '照準が敵の体の近くでゆっくりに・敵の動きに少しついていく（タッチだけ。引き寄せはしない）', 'aimAssist'); ch('aimAssist', [['off', 'オフ'], ['weak', '弱'], ['mid', '中'], ['strong', '強'], ['max', '最大']]);
+      row('リロード（1回押し）', '2回押すと、いつも弾倉を落として速くリロード。落とした弾倉は上を歩くと拾える', 'reloadDrop'); ch('reloadDrop', [[false, '弾倉を残す'], [true, '弾倉を落とす（速い）']]);
       row('ジャイロ', '端末の傾きで照準', 'gyro'); ch('gyro', [['off', 'オフ'], ['ads', 'ADS時'], ['always', '常時']]);
       row('ジャイロ感度', '', 'gyroSens'); sl('gyroSens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ジャイロ 左右', '', 'gyroInvX'); ch('gyroInvX', [[false, '標準'], [true, '反転']]);
@@ -557,7 +560,14 @@ export class Screens {
       row('照準', '腰だめ', 'crosshair'); ch('crosshair', [['cross', '十字'], ['dot', '点'], ['none', 'なし']]);
       row('照準の色', '', 'crossColor'); binds.push(() => chips(body.querySelector('[data-k="crossColor"]'), [['#ffffff', '白'], ['#7dff7a', '緑'], ['#ffe14a', '黄'], ['#4ae8ff', '水色'], ['#ff5ad2', '桃']], S.crossColor, (v) => { S.crossColor = v; save(); }, { swatch: true }));
       row('ミニマップ', 'タップで地図', 'minimap'); ch('minimap', [[true, '表示'], [false, '非表示']]);
+      row('照準の大きさ', '', 'crossSize'); sl('crossSize', 0.6, 2, 0.05, pct);
+      row('照準の濃さ', '', 'crossOpacity'); sl('crossOpacity', 0.2, 1, 0.05, pct);
       row('ヒットマーカー', '', 'hitMarker'); ch('hitMarker', [[true, '表示'], [false, '非表示']]);
+      const HC = [['#ffffff', '白'], ['#ffe600', '黄'], ['#3d7dff', '青'], ['#ff2a1f', '赤'], ['#7dff7a', '緑'], ['#ff5ad2', '桃'], ['#4ae8ff', '水色']];
+      for (const [k, lb] of [['body', '体'], ['head', '頭'], ['armor', '防具'], ['kill', '倒した']]) { row('ヒットマーカーの色（' + lb + '）', '', 'hc_' + k); binds.push(() => chips(body.querySelector(`[data-k="hc_${k}"]`), HC, (S.hitCol || {})[k], (v) => { S.hitCol = { ...(S.hitCol || {}), [k]: v }; save(); })); }
+      row('味方の色', '地図・印・拠点', 'allyCol'); ch('allyCol', [['#4aa8ff', '青'], ['#4ae8ff', '水色'], ['#6ee07a', '緑'], ['#ffffff', '白']]);
+      row('敵の色', '地図・印・拠点', 'enemyCol'); ch('enemyCol', [['#ff4b3e', '赤'], ['#ff8a1e', '橙'], ['#ff5ad2', '桃'], ['#ffe14a', '黄']]);
+      row('倒れたら自動で出撃', '出撃の画面で待たずに、時間が来たら前に選んだ場所から出る（場所と兵科は変えられる）', 'autoDeploy'); ch('autoDeploy', [[false, 'オフ'], [true, 'オン']]);
     } else if (tab === 'gfx') {
       // まとめて選ぶ（低・中・高）と、細かい設定（変えるとカスタム）
       const G = gfxOf(S);
@@ -574,6 +584,7 @@ export class Screens {
       gc('lights', '動く光の数', 'ライト・銃口の炎・爆発の光', [[2, '2'], [4, '4'], [6, '6'], [8, '8']]);
       gc('fx', 'エフェクトの量', '粉じん・火花・煙', [['low', '少なめ'], ['normal', '標準'], ['high', '多め']]);
       gc('shells', '薬莢', '飛び出す薬莢', [[true, '表示'], [false, '非表示']]);
+      row('描画距離', '大規模戦。遠いほど重い（自動は描画の細かさで決める）', 'viewDistSel'); ch('viewDistSel', [['auto', '自動'], ['near', '近い'], ['mid', '標準'], ['far', '遠い'], ['max', '最大']]);
       row('視野角', '横の角度（16:9の画面で）。横長の画面ではもっと広く見える', 'hfov'); sl('hfov', 70, 110, 1, (v) => v + '°');
       row('武器の視野角', '手と銃の見え方。小さいほど大きく見える', 'vmFov'); sl('vmFov', 45, 70, 1, (v) => v + '°');
       row('明るさ', '', 'bright'); sl('bright', 0.6, 1.6, 0.05, pct);

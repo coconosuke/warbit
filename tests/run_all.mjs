@@ -303,6 +303,19 @@ try {
     const rl = await page.evaluate(() => window.__app.game.p.ws.st);
     rec('操作', 'リロードのボタンで弾倉を替え始める', rl === 'reload' || rl === 'shell', `状態 ${rl}`);
     await page.waitForFunction(() => window.__app.game.p.ws.st === 'ready', null, { timeout: 90000 }).catch(() => {});
+    // リロードの2回押し（11-20。BattleBit に合わせる）: すばやく2回押すと、弾倉を落とす速いリロードに
+    {
+      await holdAt(await btn('fire'), 400, 121);
+      await page.waitForFunction(() => window.__app.game.p.ws.st === 'ready', null, { timeout: 15000 }).catch(() => {});
+      const R = await btn('reload');
+      await touch('touchStart', [{ x: R.x, y: R.y, id: 122 }]); await page.waitForTimeout(50); await touch('touchEnd', []);
+      await page.waitForFunction(() => window.__app.game.p.ws.st === 'reload', null, { timeout: 5000 }).catch(() => {});
+      await touch('touchStart', [{ x: R.x, y: R.y, id: 123 }]); await page.waitForTimeout(50); await touch('touchEnd', []);
+      await page.waitForTimeout(300);
+      const rk = await page.evaluate(() => window.__app.game.p.ws.rk);
+      rec('操作', 'リロードをすばやく2回押すと、弾倉を落とす速いリロードになる', rk === 'fast', String(rk));
+      await page.waitForFunction(() => window.__app.game.p.ws.st === 'ready', null, { timeout: 90000 }).catch(() => {});
+    }
     await tapAt(await btn('ads'), 23);
     await page.waitForFunction(() => !!window.__app.game.adsOn, null, { timeout: 10000 }).catch(() => {});
     const on1 = await page.evaluate(() => !!window.__app.game.adsOn);

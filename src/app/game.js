@@ -8,6 +8,8 @@ import { vaultPlan } from '../engine/move.js';
 import { depSpot, DEP_WHY } from '../engine/deploy.js';
 import { raycast, CS, LH, levelOfY, los } from '../engine/world.js';
 import { smokeBetween } from '../engine/nades.js';
+import { sensForZoom } from './settings.js';
+import { TC } from '../ui/teamcol.js';
 // 大規模戦のエイムアシストの強さ: [体の上での見回しの速さ]（敵の見かけの動きには 1 - これ だけついていく）
 const AA_WAR = { off: [1], weak: [0.85], mid: [0.75], strong: [0.65], max: [0.55] };
 import { sideOf, isOpen } from '../engine/doors.js';
@@ -33,7 +35,7 @@ import { RALLY, rallyOf } from '../engine/rally.js';
 import { WAR_MAPS } from '../war/maps/index.js';
 
 // 大規模戦の描く距離（画質ごと）: 低 550m・中 800m・高 1050m（遠くはもやに溶かす）
-function warView(st) { const g = gfxOf(st); return { viewDist: { low: 550, medium: 800, high: 1050, max: 1200 }[g.detail] || 800, nearDist: g.detail === 'low' ? 120 : g.detail === 'medium' ? 150 : 180, shadowR: g.shadow === 'high' ? 48 : 40, grassDist: { low: 0, medium: 55, high: 80, max: 100 }[g.detail] ?? 55, grassDens: g.detail === 'low' ? 0.6 : 1, lite: g.detail === 'low' }; }
+function warView(st) { const g = gfxOf(st); return { viewDist: { near: 550, mid: 800, far: 1050, max: 1200 }[st.viewDistSel] || { low: 550, medium: 800, high: 1050, max: 1200 }[g.detail] || 800, nearDist: g.detail === 'low' ? 120 : g.detail === 'medium' ? 150 : 180, shadowR: g.shadow === 'high' ? 48 : 40, grassDist: { low: 0, medium: 55, high: 80, max: 100 }[g.detail] ?? 55, grassDens: g.detail === 'low' ? 0.6 : 1, lite: g.detail === 'low' }; }
 
 const DEG = Math.PI / 180;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -161,7 +163,7 @@ export class Match {
     const zoom = zoomOf(wi);
     let k = (inp.mouse ? 0.0022 : 0.0052) * (st.sens || 1);
     // 倍率の照準器は「スコープ」の感度（4倍が基準）を倍率に合わせて変える（画面の上で同じ速さ。2倍は0.72・8倍は0.23）
-    if (ads > 0.5) k *= zoom >= 1.5 ? (st.sensScope || 0.45) * Math.min(1.6, 4 / zoom) : (st.sensAds || 0.75);
+    if (ads > 0.5) k *= zoom >= 1.5 ? sensForZoom(st, zoom) : (st.sensAds || 0.75);
     if (inp.fire && !inp.mouse) k *= st.sensFire || 1;
     // エイムアシスト（タッチ）。対戦は部屋の設定（0なし・1弱い・2ふつう）
     let want = 1, track = null;
@@ -302,7 +304,23 @@ export class Match {
           break;
         }
         // 押した瞬間に反応する（長押しの動作はそのあとで上書き）
-        case 'reload': if (k === 'down') this.acts.push({ a: 'reload' }); else if (k === 'long' || (k === 'longup' && e.key)) this.acts.push({ a: 'reload', fast: true }); break;
+        // リロード（BattleBit に合わせる）: 1回押すと弾倉を残す（ポーチへ）、すばやく2回押すと弾倉を落として速く。長押しも速い。
+        //  設定で「1回押しで落とす」にもできる
+        case 'reload': {
+          if (k === 'down') {
+            const dbl = this.time - (this._rlT ?? -9) < 0.4 && p.ws.st === 'reload' && p.ws.rk === 'tac';
+            this.acts.push({ a: 'reload', fast: dbl || (this.S.war && st.reloadDrop === true) }); this._rlT = dbl ? -9 : this.time;
+          } else if (k === 'long' || (k === 'longup' && e.key)) this.acts.push({ a: 'reload', fast: true });
+          break;
+        }
+        // 弾の欄（大規模戦）: 押すと弾倉の残りを知らせる、長押しで弾倉をまとめる（BattleBit の H・P）
+        case 'ammo': {
+          if (!this.S.war || !p.alive || p.down) break;
+          const wi = curWeapon(p);
+          if (k === 'long') this.acts.push({ a: 'consol' });
+          else if (k === 'tap' && wi && wi.mags) { this.hud.feed(`弾倉: ${[wi.mag + (wi.ch ? '+1' : '')].concat(wi.mags.slice().sort((a, b) => b - a).map(String)).join(' / ')}`, 'ok'); this.au.ui('tap'); }
+          break;
+        }
         case 'crouch': if (k === 'down') { this._stWas = this.stance; this.stance = this.stance === 0 ? 1 : this.stance === 1 ? 0 : 1; } else if (k === 'long' && !e.key) this.stance = this._stWas === 2 ? 0 : 2; break;
         case 'prone': if (k === 'down') this.stance = this.stance === 2 ? 0 : 2; break;
         // 乗り越え・跳ぶ（大規模戦。BattleBit と同じく1つのボタン。越える物がなければ跳ぶ）
@@ -349,7 +367,7 @@ export class Match {
         case 'dlo': if (k === 'down' && this.S.war) this.dlo = !this.dlo; break;
         case 'loadout': if (k === 'down' && this.S.war && this.S.m.mode === 'range' && p.alive) { this.acts.push({ a: 'warRedeploy' }); this.au.ui('tap'); } break;
         case 'dgun': case 'dsec': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(); (b === 'dgun' ? W.guns : W.secs)[this.dcls] = e.sub; this._warPickSave(); } break;
-        case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
+        case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
         case 'pause': if (k === 'tap' || (k === 'down' && e.key)) this.app.pauseGame(); break;
         case 'drone': if (k === 'down') this._droneToggle(); break;
         case 'zone': if (k === 'down') this._zoneNext(); break;
@@ -767,6 +785,10 @@ export class Match {
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
         case 'score': if (e.id === me && S.war) this._score(e); break;
+        case 'magDrop': au.sfx('magOut', [e.x, e.y + 0.1, e.z], { vol: 0.5, rate: 0.8 }); break;
+        case 'magPick': if (e.id === me) { au.ui('pickup'); hud.feed(`弾倉を拾った（${e.n}発）`, 'ok'); } break;
+        case 'consol': if (e.id === me) { au.sfx('magOut', null, { vol: 0.5 }); hud.feed('弾倉をまとめている…', 'ok'); } break;
+        case 'consoled': if (e.id === me) { if (e.none) { au.ui('back'); hud.feed('まとめる弾倉がない（満タンでない弾倉が2本いる）', 'warn'); } else { au.ui('ok'); hud.feed('弾倉をまとめた', 'ok'); } } break;
         case 'order': if (S.war && e.team === p.team && e.sq === p.squad) { au.ui('spot'); hud.feed(`分隊の目標: 拠点 ${e.f} を${e.k === 'def' ? '守る' : '攻める'}`, 'ok'); } break;
         case 'sqp': if (S.war && e.team === p.team && e.sq === p.squad) hud.sqPoints(e.n, e.pts > 0 ? e.pts : 0); break;
         case 'rally': {
@@ -1295,7 +1317,7 @@ export class Match {
     for (const a of S.actors) {
       if (a === p || a.isDrone || (!a.alive && !a.dead)) continue;
       const mate = S.pvp ? a.team === p.team : a.kind === 'swat';
-      if (mate) { marks.push({ x: a.x, z: a.z, col: a.alive ? (a.down ? '#ffaa33' : '#4aa8ff') : '#666' }); continue; }
+      if (mate) { marks.push({ x: a.x, z: a.z, col: a.alive ? (a.down ? '#ffaa33' : TC.ally) : '#666' }); continue; }
       // 見えている・印のついた相手
       const seenRecently = a.spot > 0 && (!S.pvp || a.spotTeam === p.team);
       const vis = this._visCache(a);
@@ -1337,12 +1359,12 @@ export class Match {
     const vp = r.vp, W = this.hud.stage.w, H = this.hud.stage.h, list = [];
     const proj = (x, y, z) => { const cx = vp[0] * x + vp[4] * y + vp[8] * z + vp[12], cy = vp[1] * x + vp[5] * y + vp[9] * z + vp[13], cw = vp[3] * x + vp[7] * y + vp[11] * z + vp[15]; if (cw < 0.1) return null; return [(cx / cw * 0.5 + 0.5) * W, (1 - (cy / cw * 0.5 + 0.5)) * H]; };
     const my = p.team, goal = S.m.sqGoal && S.m.sqGoal[my + ':' + p.squad];
-    const colOf = (o) => o < 0 ? 'rgba(235,235,230,0.95)' : o === my ? '#4aa8ff' : '#ff4b3e';
+    const colOf = (o) => o < 0 ? 'rgba(235,235,230,0.95)' : o === my ? TC.ally : TC.enemy;
     for (const f of S.m.flags) {
       const q = proj(f.x, f.y + 11, f.z); if (!q) continue;
       const d = Math.hypot(f.x - cam.x, f.z - cam.z);
       const capping = Math.abs(f.prog) < 0.999 && (f.n[0] || f.n[1]);
-      list.push({ k: 'flag', x: q[0], y: Math.max(14, Math.min(H - 14, q[1])), t: f.id, col: colOf(f.owner), d, prog: capping ? f.prog : null, pcol: f.prog > 0 ? (my === 0 ? '#4aa8ff' : '#ff4b3e') : (my === 1 ? '#4aa8ff' : '#ff4b3e'), goal: f.id === goal ? (f.owner === my ? '防衛' : '攻撃') : '' });
+      list.push({ k: 'flag', x: q[0], y: Math.max(14, Math.min(H - 14, q[1])), t: f.id, col: colOf(f.owner), d, prog: capping ? f.prog : null, pcol: f.prog > 0 ? (my === 0 ? TC.ally : TC.enemy) : (my === 1 ? TC.ally : TC.enemy), goal: f.id === goal ? (f.owner === my ? '防衛' : '攻撃') : '' });
     }
     if (S.rallies) for (const rl of S.rallies) {
       if (rl.team !== my || rl.sq !== p.squad) continue;
@@ -1366,7 +1388,7 @@ export class Match {
       const d = Math.hypot(a.x - cam.x, a.z - cam.z); if (d > 140) continue;
       const q = proj(a.x, a.y + bodyH(a) + 0.45, a.z); if (!q || q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) continue;
       const sq = a.squad === p.squad;
-      list.push({ k: sq ? 'squad' : 'ally', x: q[0], y: q[1], col: a.down ? '#ffaa33' : sq ? '#6ee07a' : '#4aa8ff', t: sq ? a.name : '', d });
+      list.push({ k: sq ? 'squad' : 'ally', x: q[0], y: q[1], col: a.down ? '#ffaa33' : sq ? '#6ee07a' : TC.ally, t: sq ? a.name : '', d });
     }
     // 印をつけた敵（分隊の誰かがつけた。10 秒。頭の上の赤い印と距離）
     for (const q of S.m.spots || []) {
@@ -1398,6 +1420,11 @@ export class Match {
     const show = !p.alive && !m.over && (!p.deployed || this.time - (this.kiaT ?? -99) > 1.8);
     if (!show) { this.hud.deploy(null); return; }
     if (!this.dcls) { const W = this._warPrefs(); this.dcls = canPick(p, W.cls) ? W.cls : 'assault'; this.acts.push({ a: 'warClass', ...this._warPick() }); }
+    // 倒れたら自動で出撃（設定。BattleBit の Auto Ready When Dead）: 時間が来たら前に選んだ場所から出る（場所・兵科は変えられる）
+    if (this.app.settings.autoDeploy && !p.deployAt && !m.over && m.mode !== 'range' && !(m.mode === 'conquest' && m.tickets[p.team] <= 0) && this._adT !== this.kiaT) {
+      this._adT = this.kiaT;
+      this.acts.push({ a: 'warDeploy', at: m.mode === 'conquest' || this.dsel === 'rally' ? (this.dsel || 'hq') : 'auto', ...this._warPick() });
+    }
     this.hud.deploy(this._warDeployData());
   }
   // 集合地点のボタン: 分隊長（コンクエスト・ドミネーション）だけ。ポイントが足りない・待ち の間は薄く

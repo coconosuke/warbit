@@ -350,7 +350,7 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-breath.gasp i { background: #e2574c; }
 .hb.ads-off { visibility: hidden; pointer-events: none; }
 #hud.editing .hb.ads-off { visibility: visible; pointer-events: auto; }
-.hud-cross { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 6px; transform: translateZ(0); will-change: transform; }
+.hud-cross { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 6px; transform: translateZ(0) scale(var(--cs, 1)); opacity: var(--co, 1); will-change: transform; }
 .hud-cross i { position: absolute; background: var(--cross, #fff); box-shadow: 0 0 2px rgba(0,0,0,.9); }
 .hud-cross .c { width: 2px; height: 2px; left: -1px; top: -1px; }
 .hud-cross .t, .hud-cross .b { width: 2px; height: 7px; left: -1px; }
@@ -390,7 +390,7 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-scope.sniper .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23000' stroke-opacity='.92'><path d='M0 100H200M100 0V200' stroke-width='.5'/><path d='M0 100H62M138 100H200M100 0V62M100 138V200' stroke-width='3.2'/></g><g fill='%23000' fill-opacity='.92'><circle cx='108' cy='100' r='1'/><circle cx='92' cy='100' r='1'/><circle cx='100' cy='108' r='1'/><circle cx='100' cy='92' r='1'/><circle cx='116' cy='100' r='1'/><circle cx='84' cy='100' r='1'/><circle cx='100' cy='116' r='1'/><circle cx='100' cy='84' r='1'/><circle cx='124' cy='100' r='1'/><circle cx='76' cy='100' r='1'/><circle cx='100' cy='124' r='1'/><circle cx='100' cy='76' r='1'/><circle cx='132' cy='100' r='1'/><circle cx='68' cy='100' r='1'/><circle cx='100' cy='132' r='1'/><circle cx='100' cy='68' r='1'/></g><circle cx='100' cy='100' r='.9' fill='%23ff3a2a'/></svg>"); }
 .hud-scope.mag3 .ret, .hud-scope.acog2 .ret, .hud-scope.acog .ret, .hud-scope.scope6 .ret, .hud-scope.lpvo .ret, .hud-scope.lpvo8 .ret { filter: drop-shadow(0 0 1.5px rgba(255,60,40,.55)); }
 .hud-scope.wide { background: radial-gradient(circle at calc(50% + var(--scx)) calc(50% + var(--scy)), transparent 0, transparent calc(var(--sr) * 1.86), rgba(0,0,0,.9) calc(var(--sr) * 2.09 + var(--se))); }
-.hud-hit { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; --hc: #fff; --hg: 5px; --hl: 8px; pointer-events: none; }
+.hud-hit { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; --hc: var(--hit-body, #fff); --hg: 5px; --hl: 8px; pointer-events: none; }
 .hud-hit i { position: absolute; left: 0; top: -1px; width: var(--hl); height: 2px; background: var(--hc); box-shadow: 0 0 2px rgba(0,0,0,.9); transform-origin: 0 50%; }
 .hud-hit i:nth-child(1) { transform: rotate(45deg) translateX(var(--hg)); }
 .hud-hit i:nth-child(2) { transform: rotate(135deg) translateX(var(--hg)); }
@@ -398,9 +398,9 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-hit i:nth-child(4) { transform: rotate(315deg) translateX(var(--hg)); }
 .hud-hit.on { opacity: 1; }
 .hud-hit.fade { opacity: 0; transition: opacity .12s linear; }
-.hud-hit.head { --hc: #ffe600; }
-.hud-hit.armor { --hc: #3d7dff; }
-.hud-hit.kill { --hc: #ff2a1f; --hg: 7px; --hl: 11px; }
+.hud-hit.head { --hc: var(--hit-head, #ffe600); }
+.hud-hit.armor { --hc: var(--hit-armor, #3d7dff); }
+.hud-hit.kill { --hc: var(--hit-kill, #ff2a1f); --hg: 7px; --hl: 11px; }
 .hud-hit.kill i { height: 3px; top: -1.5px; }
 .hud-dmg { position: absolute; left: 50%; top: 50%; }
 .hud-dmg i { position: absolute; left: 0; top: 0; width: 60px; height: 14px; border-radius: 50% 50% 0 0; border-top: 4px solid rgba(255,40,30,.85); }

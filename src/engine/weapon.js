@@ -119,6 +119,7 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   // 操作
   for (const ac of (inp.act || [])) {
     if (ac.a === 'reload') startReload(S, a, !!ac.fast, ev);
+    else if (ac.a === 'consol') startConsol(S, a, ev);
     else if (ac.a === 'switch') switchTo(S, a, ac.slot, ev);
     else if (ac.a === 'mode' && ws.slot === 3) m320Next(a, ev);
     // 倍率を切り替えられる照準器: 倍率のボタン（'zoom'。11-19 14:03 から射撃モードと別。BattleBit も別のキー）。
@@ -149,7 +150,7 @@ export function sprintOutT(W) { return W ? Math.min(0.25, 0.08 + 0.025 * (W.kg |
 // 1発ずつ込める銃は込めた分が残る。薬室が空で弾があれば、送り込んでから（ポンプ）
 export function cancelReload(a, ev) {
   const ws = a.ws, W = curW(a), wi = curWeapon(a);
-  if (!ws || (ws.st !== 'reload' && ws.st !== 'shell')) return false;
+  if (!ws || (ws.st !== 'reload' && ws.st !== 'shell' && ws.st !== 'consol')) return false;
   if (ws.st === 'shell' && W && wi && W.chamber && !wi.ch && wi.mag > 0) { ws.st = 'pump'; ws.t = W.pump || 0.35; }
   else { ws.st = 'ready'; ws.t = 0; }
   ws.rk = null; ws.stopShell = false;
@@ -157,6 +158,8 @@ export function cancelReload(a, ev) {
   return true;
 }
 
+// 予備の弾が減らない: 対戦（作り直す前のモード）・射撃場・大規模戦のボット
+function infAmmo(S, a) { return !!S.pvp && (!S.war || (S.m && S.m.mode === 'range') || a.pid == null); }
 function finishState(S, a, ev) {
   const ws = a.ws, wi = curWeapon(a), W = curW(a);
   const st = ws.st;
@@ -172,17 +175,21 @@ function finishState(S, a, ev) {
       if (bi >= 0) {
         const nm = wi.mags[bi]; wi.mags.splice(bi, 1);
         if (ws.rk === 'tac' && wi.mag > 0) wi.mags.push(wi.mag);
+        // 速いリロード（大規模戦）: 抜いた弾倉は足もとに落ちる。弾が残っていれば、上を歩くと拾える（BattleBit。research §30）
+        else if (ws.rk === 'fast' && wi.mag > 0 && S.war) dropMag(S, a, wi, wi.mag, ev);
         wi.mag = nm;
         if (!wi.ch && W.chamber) { if (wi.mag > 0) { wi.mag--; wi.ch = 1; } }
       }
     }
     // 対戦: 予備の弾倉は減らない（TDM で弾が尽きると死ぬしかなくなるため。作戦は RoN のとおり減る）
-    if (S.pvp) { if (wi.mags) wi.mags = new Array(Math.max(1, wi.spare0 || W.spare || 1)).fill(magCap(wi)); else wi.res = Math.max(wi.res, wi.spare0 || W.spare || 0); }
+    // 大規模戦（11-19 23:27）: 人の弾は減る（BattleBit のとおり。抜いた弾倉は残り、まとめられる。補給は出撃し直すと満タン・弾薬箱は次に作る）。
+    //  射撃場と、ボット（弾が尽きた時の動きがまだない）は減らない
+    if (infAmmo(S, a)) { if (wi.mags) wi.mags = new Array(Math.max(1, wi.spare0 || W.spare || 1)).fill(magCap(wi)); else wi.res = Math.max(wi.res, wi.spare0 || W.spare || 0); }
     ws.st = 'ready'; ws.t = 0; ws.rk = null;
     if (ev) ev.push({ e: 'reloaded', id: a.id });
   } else if (st === 'shell' && wi && W) {
     // 1発込めた
-    if (wi.res > 0 && wi.mag < magCap(wi)) { wi.mag++; wi.res--; if (S.pvp) wi.res = Math.max(wi.res, wi.spare0 || W.spare || 0); if (ev) ev.push({ e: 'shell', id: a.id }); }
+    if (wi.res > 0 && wi.mag < magCap(wi)) { wi.mag++; wi.res--; if (infAmmo(S, a)) wi.res = Math.max(wi.res, wi.spare0 || W.spare || 0); if (ev) ev.push({ e: 'shell', id: a.id }); }
     if (!wi.ch && wi.mag > 0 && W.chamber) { wi.mag--; wi.ch = 1; ws.st = 'pump'; ws.t = (W.pump || 0.35); return; }
     if (wi.mag < magCap(wi) && wi.res > 0 && !ws.stopShell) { ws.t = W.rl.shell; }
     else { ws.st = 'ready'; ws.t = 0; ws.stopShell = false; }
@@ -190,9 +197,60 @@ function finishState(S, a, ev) {
     if (!wi.ch && wi.mag > 0) { wi.mag--; wi.ch = 1; }
     ws.st = 'ready'; ws.t = 0;
     if (ev) ev.push({ e: 'pumped', id: a.id });
+  } else if (st === 'consol' && wi && W && wi.mags) {
+    // 弾倉をまとめた（BattleBit の 2024 の手直し: 1回で、いちばん多い途中の弾倉を、いちばん少ない弾倉から順に満タンにする）
+    const cap = magCap(wi);
+    const part = wi.mags.map((n, i) => [n, i]).filter(q => q[0] > 0 && q[0] < cap).sort((a, b) => b[0] - a[0]);
+    if (part.length >= 2) {
+      const tgt = part[0];
+      for (let k = part.length - 1; k >= 1 && tgt[0] < cap; k--) { const take = Math.min(cap - tgt[0], part[k][0]); tgt[0] += take; part[k][0] -= take; }
+      for (const q of part) wi.mags[q[1]] = q[0];
+      wi.mags = wi.mags.filter(n => n > 0);
+    }
+    ws.st = 'ready'; ws.t = 0;
+    if (ev) ev.push({ e: 'consoled', id: a.id, n: wi.mags.length });
   } else if (st === 'gear') { /* 投げ物を持っている */ }
 }
 
+// 弾倉をまとめる（BattleBit の P 長押し）: 満タンでない弾倉が2本以上ある時。1回で1本を満タンに（足りなければできるだけ）。0.6秒 + 使う弾倉1本 0.35秒（時間は推測）。撃てない。ダッシュを入れ直すとやめる
+export const CONSOL = { base: 0.6, per: 0.35 };
+export function startConsol(S, a, ev) {
+  const ws = a.ws, wi = curWeapon(a), W = curW(a);
+  if (!wi || !W || !wi.mags || ws.st !== 'ready' || a.vault) return false;
+  const cap = magCap(wi), P = wi.mags.filter(n => n > 0 && n < cap).sort((x, y) => y - x);
+  if (P.length < 2) { if (ev) ev.push({ e: 'consoled', id: a.id, none: true }); return false; }
+  // 使う弾倉の数（少ない方から、いちばん多い弾倉が満タンになるまで）
+  let need = cap - P[0], used = 0; for (let k = P.length - 1; k >= 1 && need > 0; k--) { need -= P[k]; used++; }
+  ws.st = 'consol'; ws.t = CONSOL.base + CONSOL.per * used; ws.rd = ws.t; if (a.sprint) a.sprint = false;
+  if (ev) ev.push({ e: 'consol', id: a.id, dur: ws.t, n: used });
+  return true;
+}
+// 落ちた弾倉（大規模戦）: S.mdrops。60 秒で消える。同じ銃を持つ人が上を歩くと拾う（弾倉の数が初めの数より少ない時）
+export function dropMag(S, a, wi, n, ev) {
+  const L = S.mdrops || (S.mdrops = []);
+  const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
+  const d = { id: (S.mdropN = (S.mdropN || 0) + 1), wid: wi.id, n, x: a.x + fx * 0.25 + Math.cos(a.yaw) * 0.12, y: a.y, z: a.z + fz * 0.25 - Math.sin(a.yaw) * 0.12, yaw: a.yaw + 0.7, t: S.t, by: a.id };
+  L.push(d); if (L.length > 40) L.shift();
+  if (ev) ev.push({ e: 'magDrop', id: a.id, x: d.x, y: d.y, z: d.z });
+}
+export function pickMags(S, ev) {
+  const L = S.mdrops; if (!L || !L.length) return;
+  const life = Math.round(60 / S.dt);
+  for (let i = L.length - 1; i >= 0; i--) {
+    const d = L[i];
+    if (S.t - d.t > life) { L.splice(i, 1); continue; }
+    // 落としてすぐは拾わない（0.6秒）
+    if (S.t - d.t < Math.round(0.6 / S.dt)) continue;
+    for (const a of S.actors) {
+      if (a.pid == null || !a.alive || a.down || Math.abs(a.y - d.y) > 1.5 || Math.hypot(a.x - d.x, a.z - d.z) > 1.1) continue;
+      const wi = a.inv && a.inv.w && a.inv.w.find(w => w && w.id === d.wid && w.mags);
+      if (!wi || wi.mags.length >= (wi.spare0 || 0)) continue;
+      wi.mags.push(d.n); L.splice(i, 1);
+      if (ev) ev.push({ e: 'magPick', id: a.id, n: d.n });
+      break;
+    }
+  }
+}
 export function startReload(S, a, fast, ev) {
   const ws = a.ws, wi = curWeapon(a), W = curW(a);
   // 押してすぐ普通のリロードが始まり、そのまま長押しなら速いリロード（弾倉を落とす）に切り替える

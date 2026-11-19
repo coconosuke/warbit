@@ -17,6 +17,7 @@ import { CLASSES, classLoadout, classGuns } from '../../war/classes.js';
 import { hrand } from '../rng.js';
 import { WEAPONS } from '../data/weapons.js';
 import { RALLY, rallyOf, rallyKey } from '../rally.js';
+import { pickMags } from '../weapon.js';
 
 export const OUT_LIMIT = 10;
 // 点（自分の点。BattleBit に合わせる: 敵を倒すと 200。頭への一発は上乗せ（長距離の狙撃で 400 の例。距離で増える形は推測）。
@@ -400,6 +401,7 @@ export default {
     if (m.over) return;
     if (m.spots && m.spots.length && S.t % 30 === 0) m.spots = m.spots.filter(q => q.until > S.t && S.byId[q.id] && S.byId[q.id].alive && !S.byId[q.id].down);
     stepFlags(S, w, dt, ev);
+    if (S.mdrops && S.mdrops.length) pickMags(S, ev);
     // ボットの分隊長: 分隊ポイントがたまり、目標の手前（35〜110m）で敵を追っていない時に集合地点を置く（2 秒ごとに調べる）
     if (m.mode !== 'range' && m.mode !== 'tdm' && S.t % Math.max(1, Math.round(2 / S.dt)) === 0) {
       for (const a of S.actors) {

@@ -106,6 +106,8 @@ export class ViewModel {
     let draw = 0;
     if (ws.st === 'holster') draw = 1 - clamp(ws.t / 0.22, 0, 1);
     else if (ws.st === 'draw') draw = clamp(ws.t / Math.max(0.2, W ? W.draw : 0.3), 0, 1);
+    // 弾倉をまとめている（大規模戦）: 銃を少し下げる
+    else if (ws.st === 'consol') draw = 0.35;
     this.drawK = lerp(this.drawK, draw, 1 - Math.exp(-dt * 25));
     // 特殊装備そのものを使う動作（破城槌・散弾・ワンド）は銃を下げない
     const ownAct = !!(a.act && L3 && ((L3 === 'ram' && a.act.k === 'ram') || (L3 === 'breacher' && a.act.k === 'breach') || (L3 === 'wand' && a.act.k === 'wand')));

@@ -1,5 +1,6 @@
 // 大規模戦の地図（ミニマップと地図の画面）: 地面の色＋起伏の陰・道・建物・範囲の外（暗く）・拠点・本陣
 import { prepGround } from '../war/render.js';
+import { TC } from './teamcol.js';
 
 const toS = (v) => Math.round(255 * Math.pow(Math.max(0, Math.min(1, v)), 1 / 2.2));
 const PX = 2; // 1画素 = 2m
@@ -35,7 +36,7 @@ export function warPlanImage(ww, m) {
 // 拠点と本陣の印（ミニマップ・地図で、毎回描く。持ち主で色が変わる）
 export function drawWarMarks(ctx, m, myTeam, toXY, scale = 1) {
   if (!m) return;
-  const col = (o) => o < 0 ? 'rgba(235,235,235,0.95)' : o === myTeam ? '#4aa8ff' : '#ff4a3a';
+  const col = (o) => o < 0 ? 'rgba(235,235,235,0.95)' : o === myTeam ? TC.ally : TC.enemy;
   for (let t = 0; t < (m.hq || []).length; t++) {
     if (m.mode === 'range' && t !== myTeam) continue; // 射撃場の奥の本陣（人形の向きにだけ使う）は描かない
     const [x, y] = toXY(m.hq[t][0], m.hq[t][1]);

@@ -8,6 +8,7 @@ import { GEAR, LONG } from '../engine/data/equipment.js';
 import { ammoCount } from '../engine/actor.js';
 import { warPlanImage, drawWarMarks, WAR_PX } from './warplan.js';
 import { DeployScreen } from './deployscreen.js';
+import { setTeamCols } from './teamcol.js';
 
 // 移動スティックの既定の場所（左下から。左利きは左右が入れ替わる）
 const STICK_DEF = { name: '移動スティック', ax: 'l', ay: 'b', x: 118, y: 96 };
@@ -88,10 +89,20 @@ export class Hud {
       <div class="r3"><button data-a="reset1">元に戻す</button><button data-a="resetAll">すべて初期化</button><button data-a="done" class="pri">保存</button></div>`);
     r.appendChild(this.editBar);
   }
-  setSettings(s) { this.S = s; this.root.style.setProperty('--subbg', String(s.subBg ?? 0.42)); this.layout(); }
+  setSettings(s) {
+    this.S = s; this.root.style.setProperty('--subbg', String(s.subBg ?? 0.42));
+    // 照準の大きさ・濃さ・ヒットマーカーの色（設定）
+    setTeamCols(s);
+    const R = this.root.style, hc = s.hitCol || {};
+    R.setProperty('--cs', String(s.crossSize ?? 1)); R.setProperty('--co', String(s.crossOpacity ?? 1));
+    R.setProperty('--hit-body', hc.body || '#ffffff'); R.setProperty('--hit-head', hc.head || '#ffe600'); R.setProperty('--hit-armor', hc.armor || '#3d7dff'); R.setProperty('--hit-kill', hc.kill || '#ff2a1f');
+    this.layout();
+  }
   setMode(m) {
     this.mode = m;
     // 対戦: 画面上部のスコア（目的の欄）をタップするとスコア表（専用のボタンはない）
+    // 大規模戦: 弾の欄を押すと弾倉の残り・長押しで弾倉をまとめる
+    if (this.info.ammo) { if (m && m.war && !m.edit) { this.info.ammo.dataset.btn = 'ammo'; this.info.ammo.setAttribute('role', 'button'); this.info.ammo.setAttribute('aria-label', '弾倉（長押しでまとめる）'); } else { delete this.info.ammo.dataset.btn; this.info.ammo.removeAttribute('role'); } }
     if (this.info.obj) { if (m && (m.pvp || (m.war && !m.range))) { this.info.obj.dataset.btn = 'board'; this.info.obj.setAttribute('role', 'button'); this.info.obj.setAttribute('aria-label', 'スコア表を開く'); } else { delete this.info.obj.dataset.btn; this.info.obj.removeAttribute('role'); } }
     this.layout();
   }
@@ -338,7 +349,7 @@ export class Hud {
         } else if (wi && W) {
           const [m, r] = ammoCount(wi);
           am.querySelector('.mode').textContent = v.war
-            ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') + (zoomsOf(wi.att) ? (zoomOf(wi) <= 1 ? ' · 1x' : ` · ${zoomOf(wi)}x`) : '') + (p.ws.st === 'reload' ? ' · RELOAD' : p.ws.st === 'shell' ? ' · LOAD' : '')
+            ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') + (zoomsOf(wi.att) ? (zoomOf(wi) <= 1 ? ' · 1x' : ` · ${zoomOf(wi)}x`) : '') + (p.ws.st === 'consol' ? ' · 弾倉をまとめる' : p.ws.st === 'reload' ? ' · RELOAD' : p.ws.st === 'shell' ? ' · LOAD' : '')
             : (W.bolt ? 'ボルト' : W.modes[wi.mode] === 'auto' ? '連射' : W.modes[wi.mode] === 'burst' ? '3点' : '単発') + (zoomsOf(wi.att) ? (zoomOf(wi) <= 1 ? '・等倍' : `・${zoomOf(wi)}倍`) : '') + (p.ws.st === 'reload' ? '・リロード中' : p.ws.st === 'shell' ? '・装填中' : '');
           // 対戦は予備が減らない（∞）
           // 大規模戦は弾倉の数（BattleBit も残りを弾倉で見せる）

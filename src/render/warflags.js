@@ -3,9 +3,17 @@
 import { MeshBuilder, hex } from './build.js';
 import { LAYER } from './textures.js';
 import { makeWorldMesh, drawMesh } from './renderer.js';
+import { TC } from '../ui/teamcol.js';
 
 const POLE_H = 9;
 export const FLAG_COL = { [-1]: [0.85, 0.85, 0.82], 0: [0.18, 0.42, 0.95], 1: [0.92, 0.22, 0.16] };
+// 味方・敵の色の設定（teamcol.js）が既定と違えば、旗の布の色もそれに（画面の色 → 布の色: だいたい 2.2 乗）
+const FLAG_DEF = { 0: FLAG_COL[0].slice(), 1: FLAG_COL[1].slice() };
+function syncFlagCols() {
+  const c = (h) => [1, 3, 5].map(i => Math.pow(parseInt(h.slice(i, i + 2), 16) / 255, 2.2) * 0.95);
+  FLAG_COL[0] = TC.ally === '#4aa8ff' ? FLAG_DEF[0] : c(TC.ally);
+  FLAG_COL[1] = TC.enemy === '#ff4b3e' ? FLAG_DEF[1] : c(TC.enemy);
+}
 const rel = (o, my) => o < 0 ? -1 : o === my ? 0 : 1;
 
 export class WarFlags {
@@ -46,6 +54,11 @@ export class WarFlags {
     const Lm = new MeshBuilder();
     Lm.box(-0.05, 0.47, 0.06, 0.05, 0.55, 0.14, LAYER.metal, hex('#ffffff'));
     this.rallyLamp = makeWorldMesh(this.gl, Lm);
+    // 落ちた弾倉（大規模戦）: 小さい黒い箱を横に寝かせる
+    const Mg = new MeshBuilder();
+    Mg.box(-0.018, 0, -0.06, 0.018, 0.028, 0.06, LAYER.metal, hex('#22241f'));
+    Mg.box(-0.012, 0.028, -0.055, 0.012, 0.034, -0.035, LAYER.metal, hex('#3a3c36'));
+    this.magMesh = makeWorldMesh(this.gl, Mg);
     this.M = new Float32Array(16);
     this.flags = [];
     this.wind = 0;
@@ -56,6 +69,7 @@ export class WarFlags {
   draw(f) {
     this._drawRallies(f);
     if (!this.flags.length) return;
+    syncFlagCols();
     const r = this.r, gl = this.gl, P = r.P.world, M = this.M;
     r._bindLight(P, f);
     gl.uniformMatrix4fv(P.u.uVP, false, r.vp);
@@ -97,6 +111,8 @@ export class WarFlags {
 }
 // 集合地点: 味方の物は緑の灯り（点滅）、敵の物は赤
 WarFlags.prototype._drawRallies = function (f) {
+  const D = this.S && this.S.mdrops;
+  if (D && D.length) this._drawMags(f, D);
   const L = this.S && this.S.rallies;
   if (!L || !L.length) return;
   const r = this.r, gl = this.gl, P = r.P.world, M = this.M;
@@ -118,6 +134,23 @@ WarFlags.prototype._drawRallies = function (f) {
   M.fill(0); M[0] = M[5] = M[10] = M[15] = 1;
   gl.uniformMatrix4fv(P.u.uModel, false, M);
   gl.uniform3f(P.u.uTint, 1, 1, 1);
+  if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, -1);
+};
+WarFlags.prototype._drawMags = function (f, D) {
+  const r = this.r, gl = this.gl, P = r.P.world, M = this.M;
+  r._bindLight(P, f);
+  gl.uniformMatrix4fv(P.u.uVP, false, r.vp);
+  if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, 1);
+  gl.uniform3f(P.u.uTint, 1, 1, 1);
+  for (const q of D) {
+    if (Math.hypot(q.x - r.camPos[0], q.z - r.camPos[2]) > 40) continue;
+    const c = Math.cos(q.yaw), s = Math.sin(q.yaw);
+    M.fill(0); M[0] = c; M[2] = -s; M[5] = 1; M[8] = s; M[10] = c; M[15] = 1; M[12] = q.x; M[13] = q.y + 0.005; M[14] = q.z;
+    gl.uniformMatrix4fv(P.u.uModel, false, M);
+    drawMesh(gl, this.magMesh);
+  }
+  M.fill(0); M[0] = M[5] = M[10] = M[15] = 1;
+  gl.uniformMatrix4fv(P.u.uModel, false, M);
   if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, -1);
 };
 function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
