@@ -891,7 +891,7 @@ function medkitTick(S, a, dt, ev) {
   if (!tgt) { ws.healT = 0; return; }
   const add = Math.min(tgt.maxHp - tgt.hp, MEDKIT.rate * dt);
   tgt.hp += add; tgt.bleed = 0;
-  ws.healT = (ws.healT || 0) + dt;
+  ws.healT = (ws.healT || 0) + dt; ws.healSelf = tgt === a;
   if (tgt !== a) {
     tgt._healGot = (tgt._healGot || 0) + add;
     if (tgt._healGot >= 10) { tgt._healGot -= 10; ev.push({ e: 'healPts', id: a.id, v: tgt.id }); }

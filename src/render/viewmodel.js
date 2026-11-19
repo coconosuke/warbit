@@ -53,7 +53,7 @@ export class ViewModel {
     }
     if (id === 'ammobig' || id === 'ammosmall') {
       // 弾薬箱（手に持つ。この作品の形: 暗い緑の小箱と取っ手）
-      const k = id === 'ammobig' ? 0.55 : 0.45;
+      const k = id === 'ammobig' ? 0.8 : 0.62;
       B.box(-0.09 * k, -0.06 * k, -0.06 * k, 0.09 * k, 0.05 * k, 0.06 * k, LAYER.metal, hex('#2f3822'));
       B.box(-0.03 * k, 0.05 * k, -0.008, 0.03 * k, 0.07 * k, 0.008, LAYER.rubber, hex('#15170f'));
       const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
@@ -274,18 +274,58 @@ export class ViewModel {
     }
     // 腕: 肩（カメラ空間）→ 手
     const shR = camP(0.17, -0.25, -0.08), shL = camP(-0.17, -0.24, -0.05);
-    let hR, hL;
+    let hR, hL, handUp = null;
     if (nade) {
       const th = clamp(a.throwT || 0, 0, 1);
       // 11-19 23:27: 投げ物を持っている時も、銃と同じ歩き・走り・呼吸・見回しの揺れを手に（前は手が画面に貼りついて動かず、安っぽかった）。
       //  走ると少し下げ、持ち替えの間は下から上がる。向きも揺れで傾ける（gR・gU・gF）
       const bx = Math.sin(ph) * 0.007 * amp - this.sway[0] * 0.05;
       const by = -Math.abs(Math.cos(ph)) * 0.011 * amp + Math.sin(this.t * 1.7) * 0.0022 - this.sway[1] * 0.04 - 0.05 * this.sprK - 0.25 * this.drawK;
-      // 持ち方（11-20）: 右手で胸の高さ・体の右前に持ち、左手はピンの輪へ指を掛ける位置（前は顔の近くで大きく見えすぎた）
-      hR = camP(0.135 + th * 0.05 + bx, -0.155 + th * 0.14 + by, 0.34 + th * 0.16);
-      hL = camP(0.03 + bx * 0.8, -0.2 + by * 0.9, 0.33);
+      // 11-20: 手に持つ物の向きは、銃の向き（腰だめのひねり・走りで銃を大きく横へ倒す）を使わず、カメラの向きに揺れだけ足す
+      //  （前は箱や双眼鏡も、走ると銃と同じに 55° 横を向いた）
+      let qR = R, qU = U, qF = F;
+      const rq = (ax, ang) => { qR = rot(qR, ax, ang); qU = rot(qU, ax, ang); qF = rot(qF, ax, ang); };
+      rq(U, this.sway[0] * 0.6 + 0.3 * this.sprK);
+      rq(qR, this.sway[1] * 0.6 + Math.sin(this.t * 1.25) * 0.004 - 0.35 * this.sprK - 0.9 * this.drawK);
+      rq(qF, -(Math.sin(ph) * 0.014 * amp + 0.12 * this.sprK));
+      gR = qR; gU = qU; gF = qF;
+      const kind = GEAR[ws.gear].kind;
+      const side = (c, s, d, dn, bk) => [c[0] + qR[0] * s * d - qU[0] * dn - qF[0] * bk, c[1] + qR[1] * s * d - qU[1] * dn - qF[1] * bk, c[2] + qR[2] * s * d - qU[2] * dn - qF[2] * bk];
+      let mAt;
+      if (kind === 'ammo' || kind === 'medkit') {
+        // 弾薬箱・医療キット: 両手で体の前に抱える。弾薬箱は手のひらを上へ向けて底の左右を持つ（指は前の縁）、医療キットは小さいので
+        //  左右から手のひらで挟む（前の札が見えるように）。医療キットは使っている間（引き金）、仲間へは
+        //  前へ差し出して小さく押し、自分へは胸へ引き寄せる。置いた直後（持ち替え）は下から上がる
+        const hw = kind === 'medkit' ? 0.05 : (ws.gear === 'ammobig' ? 0.8 : 0.62) * 0.09;
+        this.healK = lerp(this.healK || 0, kind === 'medkit' && (ws.healT || 0) > 0 ? 1 : 0, 1 - Math.exp(-dt * 10));
+        const pump = this.healK * Math.sin(this.t * 9) * 0.008;
+        const fwd = ws.healSelf ? -0.05 : 0.07;
+        mAt = camP(0.04 + bx, (kind === 'medkit' ? -0.118 : -0.13) + by + (ws.healSelf ? -0.03 : 0.03) * this.healK, (kind === 'medkit' ? 0.36 : 0.38) + fwd * this.healK + pump);
+        if (kind === 'medkit') {
+          hR = side(mAt, 1, hw + 0.008, 0.045, -0.005); hL = side(mAt, -1, hw + 0.008, 0.045, -0.005);
+          handUp = [qR, [-qR[0], -qR[1], -qR[2]]];
+        } else {
+          const bot = (ws.gear === 'ammobig' ? 0.8 : 0.62) * 0.06 + 0.014;
+          hR = side(mAt, 1, hw * 0.6, bot, 0.035); hL = side(mAt, -1, hw * 0.6, bot, 0.035);
+          const dn = [-qU[0], -qU[1], -qU[2]];
+          handUp = [dn, dn];
+        }
+      } else if (kind === 'binoc') {
+        // 双眼鏡: 両手で2本の筒を外から持ち、胸の高さ。構えると目の前へ上げる（0.9 で手と双眼鏡は消え、のぞき窓だけ）
+        const k = sm(clamp(a.ads / 0.9, 0, 1));
+        mAt = camP(lerp(0.03 + bx, 0, k), lerp(-0.115 + by, -0.006, k), lerp(0.32, 0.12, k));
+        //  上げる途中は手を下の外へ逃がす（目の前で手が画面をふさがないように）
+        hR = side(mAt, 1, 0.06 + 0.04 * k, 0.055 + 0.11 * k, 0.04); hL = side(mAt, -1, 0.06 + 0.04 * k, 0.055 + 0.11 * k, 0.04);
+        handUp = [qR, [-qR[0], -qR[1], -qR[2]]];
+      } else {
+        // 投げ物（11-20）: 右手で胸の高さ・体の右前に持ち、左手はピンの輪へ指を掛ける位置（前は顔の近くで大きく見えすぎた）
+        //  右手は投げ物の右から指を回して握る（手のひらを内へ。前は手のひらが下を向いて投げ物の下に隠れていた）
+        mAt = camP(0.13 + th * 0.05 + bx, -0.122 + th * 0.14 + by, 0.35 + th * 0.16);
+        hR = side(mAt, 1, 0.045, 0.024, 0.006); hL = camP(0.03 + bx * 0.8, -0.197 + by * 0.9, 0.335);
+        handUp = [qR, null];
+      }
       this.nadeM = this.Mm;
-      const n = this.Mm; n.set([-gR[0], -gR[1], -gR[2], 0, gU[0], gU[1], gU[2], 0, gF[0], gF[1], gF[2], 0, hR[0] + gU[0] * 0.03, hR[1] + gU[1] * 0.03, hR[2] + gU[2] * 0.03, 1]);
+      const n = this.Mm; n.set([-qR[0], -qR[1], -qR[2], 0, qU[0], qU[1], qU[2], 0, qF[0], qF[1], qF[2], 0, mAt[0], mAt[1], mAt[2], 1]);
     } else {
       hR = toW(P.gripR);
       hL = toW(P.gripL);
@@ -368,10 +408,11 @@ export class ViewModel {
     const armMax = ap === 'kneel' || ap === 'grab' || ap === 'place' ? 0.68 : 0.585;
     const clampArm = (sh, h) => { const d = [h[0] - sh[0], h[1] - sh[1], h[2] - sh[2]], l = Math.hypot(d[0], d[1], d[2]), mx = armMax; return l > mx ? [sh[0] + d[0] * mx / l, sh[1] + d[1] * mx / l, sh[2] + d[2] * mx / l] : h; };
     hL = clampArm(shL, hL); if (!this.gm || this.freeK > 0.5) hR = clampArm(shR, hR);
-    this._arms(shR, hR, shL, hL, gF, gU, R, U, tool);
+    this._arms(shR, hR, shL, hL, gF, gU, R, U, tool, this.freeK > 0.5 ? null : handUp);
   }
 
-  _arms(shR, hR, shL, hL, gF, gU, R, U, tool) {
+  // handUp: 手の甲の向き（右・左）。箱や双眼鏡を横から持つ時は、手のひらを内へ向ける
+  _arms(shR, hR, shL, hL, gF, gU, R, U, tool, handUp) {
     const B = new MeshBuilder();
     // 動作の道具（結束バンド・ピック・ウェッジ・C2・包帯・ブーツ…）
     if (tool) {
@@ -424,7 +465,7 @@ export class ViewModel {
     // 手の向きの箱（中心 c、軸 r u f、半分の長さ）
     const hbox = (c, r, u, f, hx, hy, hz, col, rad) => { B.xf = [r[0], r[1], r[2], u[0], u[1], u[2], f[0], f[1], f[2], c[0], c[1], c[2]]; B.bbox(-hx, -hy, -hz, hx, hy, hz, rad, LAYER.rubber, col); B.xf = null; };
     let side = 1;
-    for (const [sh, el, hd] of [[shR, eR, hR], [shL, eL, hL]]) {
+    for (const [sh, el, hd, hu] of [[shR, eR, hR, handUp && handUp[0]], [shL, eL, hL, handUp && handUp[1]]]) {
       B.tube(sh, el, 0.052, 0.046, 9, LAYER.cloth, this.sleeve);
       // 肘のしわ（少し太い輪）
       B.tube(lerpV(sh, el, 0.9), lerpV(el, hd, 0.06), 0.05, 0.049, 9, LAYER.cloth, sleeveD);
@@ -435,7 +476,8 @@ export class ViewModel {
       B.tube(wr, hd, 0.032, 0.03, 8, LAYER.rubber, this.glove);
       // 手: 手のひら（平たい箱）・握った指（下へ巻く）・親指（銃の横へ）。手袋の縫い目の濃い帯
       const f = norm3([hd[0] - el[0], hd[1] - el[1], hd[2] - el[2]]);
-      let r = norm3([gU[1] * f[2] - gU[2] * f[1], gU[2] * f[0] - gU[0] * f[2], gU[0] * f[1] - gU[1] * f[0]]);
+      const uu = hu || gU;
+      let r = norm3([uu[1] * f[2] - uu[2] * f[1], uu[2] * f[0] - uu[0] * f[2], uu[0] * f[1] - uu[1] * f[0]]);
       const u = norm3([f[1] * r[2] - f[2] * r[1], f[2] * r[0] - f[0] * r[2], f[0] * r[1] - f[1] * r[0]]);
       const at = (a, b, c) => [hd[0] + f[0] * a + u[0] * b + r[0] * c, hd[1] + f[1] * a + u[1] * b + r[1] * c, hd[2] + f[2] * a + u[2] * b + r[2] * c];
       hbox(at(0.035, 0, 0), r, u, f, 0.04, 0.022, 0.042, this.glove, 0.012);

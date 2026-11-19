@@ -24,10 +24,12 @@ test('前の傷ついた仲間を治す（1秒に 20・血が止まる）・仲�
   ok(mate.hp > 45 && mate.hp < 55, '1秒で約 20 ' + mate.hp.toFixed(1));
   eq(mate.bleed, 0, '血が止まる');
   ok((me.stats.sc || 0) > sc0, '点 ' + me.stats.sc);
+  eq(me.ws.healSelf, false, '仲間を治している（手は前へ差し出す）');
   // 仲間が満タンなら自分
   mate.hp = mate.maxHp; me.hp = 50;
   for (let i = 0; i < 30; i++) { put(); step(G, { [me.id]: idle(me, { fire: true }), [mate.id]: idle(mate) }); }
   ok(me.hp > 55, '自分 ' + me.hp.toFixed(1));
+  eq(me.ws.healSelf, true, '自分を治している（手は胸へ）');
   eq(me.inv.gear.find(g => g.id === 'medkit').n, 1, 'なくならない');
 });
 
