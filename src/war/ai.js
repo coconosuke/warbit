@@ -7,6 +7,35 @@ import { curW, curWeapon, ammoCount } from '../engine/actor.js';
 import { los as wLos } from './world.js';
 import { buildWarNav, findWarPath } from './nav.js';
 import { hrand } from '../engine/rng.js';
+import { smokeBetween } from '../engine/nades.js';
+
+// 茂みの目隠し（11-19 18:16）: 見る線が茂みの中を通ると見つけにくい（1つ）・見えない（2つ以上）。16m のマスで引く
+function bushGrid(w) {
+  if (w._bushG) return w._bushG;
+  const G = new Map();
+  for (const b of w.bushes || []) { const k = Math.floor(b.x / 16) * 4096 + Math.floor(b.z / 16); let L = G.get(k); if (!L) G.set(k, L = []); L.push(b); }
+  return (w._bushG = G);
+}
+export function bushesBetween(w, ax, ay, az, bx, by, bz) {
+  const G = bushGrid(w); if (!G.size) return 0;
+  const dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz); if (L < 0.5) return 0;
+  const seen = new Set(); let n = 0;
+  for (let s = 0; s <= L + 8; s += 8) {
+    const t = Math.min(1, s / L), cx = Math.floor((ax + dx * t) / 16), cz = Math.floor((az + dz * t) / 16);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const list = G.get((cx + i) * 4096 + cz + j); if (!list) continue;
+      for (const b of list) {
+        if (seen.has(b)) continue; seen.add(b);
+        let u = ((b.x - ax) * dx + (b.z - az) * dz) / (L * L); u = Math.max(0, Math.min(1, u));
+        if (Math.hypot(ax + dx * u - b.x, az + dz * u - b.z) > (b.r || 1) * 0.85) continue;
+        const y = ay + (by - ay) * u;
+        if (y < (b.y || 0) || y > (b.y || 0) + (b.h || 1)) continue;
+        if (++n >= 2) return n;
+      }
+    }
+  }
+  return n;
+}
 
 export const SQUAD = 8;           // 分隊の人数（BattleBit: research/WARBIT.md の 3）
 const SCAN_EVERY = 6;             // 見回す間隔（ステップ）
@@ -215,10 +244,17 @@ function scan(S, w, a, ctx, sk) {
     n++;
     const by = b.y + (b.st > 1.5 ? 0.35 : b.st > 0.5 ? 0.95 : 1.35);
     if (!wLos(w, e[0], e[1], e[2], b.x, by, b.z)) continue;
+    // 煙（発煙弾）の向こうは見えない。薄いところは見つけにくい（11-19 18:16: 煙の向こうから撃ってきていた）
+    const sm = smokeBetween(S, e[0], e[1], e[2], b.x, by, b.z);
+    if (sm >= 0.6) continue;
+    // 茂み: 2つ以上通ると見えない。1つなら見つけにくい（撃っていれば見つかる）
+    const nb = d > 4 ? bushesBetween(w, e[0], e[1], e[2], b.x, by, b.z) : 0;
+    if (nb >= 2 && !((b.fireK || 0) > 0.2)) continue;
     // 遠い・伏せ・しゃがみは見つけにくい（見ている時間をためる）
     const mem = ai.seen || (ai.seen = {});
     const r = mem[b.id] || (mem[b.id] = { det: 0, t: -1e9 });
-    const k = (d < 30 ? 1 : d < 100 ? 0.6 : 0.35) * (b.st > 1.5 ? 0.45 : b.st > 0.5 ? 0.75 : 1) * ((b.spd || 0) > 1 ? 1.3 : 1) * ((b.fireK || 0) > 0.2 ? 2 : 1) * (ang < 0.5 ? 1 : 0.6);
+    const k = (d < 30 ? 1 : d < 100 ? 0.6 : 0.35) * (b.st > 1.5 ? 0.45 : b.st > 0.5 ? 0.75 : 1) * ((b.spd || 0) > 1 ? 1.3 : 1) * ((b.fireK || 0) > 0.2 ? 2 : 1) * (ang < 0.5 ? 1 : 0.6)
+      * (1 - sm) * (nb ? 0.25 : 1) * (b.st > 1.5 && d > 20 ? 0.6 : 1);
     r.det = Math.min(1.5, r.det + k * SCAN_EVERY * S.dt * 2.4);
     r.t = S.t;
     if (r.det >= 1) { found = b; break; }

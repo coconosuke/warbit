@@ -16,7 +16,7 @@ export const DEFAULTS = {
   // 画面
   quality: 'medium', // low | medium | high | custom（下の gfx を自分で選ぶ）
   gfx: { detail: 'medium', shadow: 'low', bloom: true, aa: 'fxaa', lights: 6, fx: 'normal', shells: true },
-  fps: 60, scale: 1.0, autoRes: true, hfov: 82, vmFov: 54, sat: 1.08, vignette: true, blood: true, shake: true, showFps: false, bright: 1.0,
+  fps: 60, scale: 1.0, autoRes: true, hfov: 82, vmFov: 54, scopePip: 'on', sat: 1.08, vignette: true, blood: true, shake: true, showFps: false, bright: 1.0,
   // 音
   vol: { master: 0.9, bgm: 0.5, sfx: 0.9, voice: 1.0, ui: 0.7 }, playSilent: false,
 };

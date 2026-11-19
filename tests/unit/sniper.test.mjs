@@ -36,13 +36,13 @@ test('sniper: ボルトアクションは1発ごとにボルトを操作し（�
   ok(ev.some(e => e.e === 'shot'), '次の1発');
 });
 
-test('sniper: 射撃モードのボタンでスコープの倍率が4倍と8倍に切り替わる（ほかのスコープは固定）', () => {
+test('sniper: 倍率のボタン（zoom）でスコープの倍率が4倍と8倍に切り替わる（ほかのスコープは固定）', () => {
   const { G, p, wi } = mkSniper();
   eq(zoomOf(wi), 4, '最初は4倍');
-  let ev = step(G, { [p.id]: { yaw: p.yaw, pitch: 0, act: [{ a: 'mode' }] } });
+  let ev = step(G, { [p.id]: { yaw: p.yaw, pitch: 0, act: [{ a: 'zoom' }] } });
   ok(ev.some(e => e.e === 'zoom' && e.z === 8), '8倍に');
   eq(zoomOf(wi), 8);
-  ev = step(G, { [p.id]: { yaw: p.yaw, pitch: 0, act: [{ a: 'mode' }] } });
+  ev = step(G, { [p.id]: { yaw: p.yaw, pitch: 0, act: [{ a: 'zoom' }] } });
   eq(zoomOf(wi), 4, '4倍に戻る');
   eq(zoomOf(makeWeapon({ id: 'at308', sight: 'acog' })), 4, 'ACOG は4倍のまま');
   eq(zoomOf(makeWeapon({ id: 'at308', sight: 'lpvo' })), 4, '等倍〜4倍は4倍から');
@@ -99,7 +99,7 @@ test('optics: 2・3・4・6・8倍の照準器（実在の物）。等倍に切�
   for (const k of ['acog2', 'acog', 'lpvo', 'scope6', 'lpvo8']) { const m = gunModel('hk417', { sight: k }); ok(m.pts.optic && m.pts.optic.kind === k && m.pts.optic.scope, `形 ${k}`); }
 });
 
-test('optics: 構えている間は射撃モードのボタンで倍率を、構えていないときは連射・単発を切り替える', () => {
+test('optics: 射撃モードのボタンはいつも連射・単発、倍率は倍率のボタン（11-19 14:03 から別。古い手元の zoom: true も受ける）', () => {
   const G = createGame({ map: 'training', mode: 'train', seed: 7, team: 1, house: false });
   const p = G.S.actors[0];
   p.inv.w[0] = makeWeapon({ id: 'hk416', sight: 'lpvo8', ammo: 'ap' });
@@ -111,12 +111,14 @@ test('optics: 構えている間は射撃モードのボタンで倍率を、構
   eq(zoomOf(wi), 8, '倍率はそのまま');
   for (let i = 0; i < 40; i++) step(G, { [p.id]: { yaw: p.yaw, pitch: 0, ads: true } });
   const m1 = wi.mode;
-  ev = step(G, { [p.id]: { yaw: p.yaw, pitch: 0, ads: true, act: [{ a: 'mode' }] } });
-  ok(ev.some(e => e.e === 'zoom' && e.z === 1), '構えている: 等倍へ');
+  ev = step(G, { [p.id]: { yaw: p.yaw, pitch: 0, ads: true, act: [{ a: 'zoom' }] } });
+  ok(ev.some(e => e.e === 'zoom' && e.z === 1), '倍率のボタン: 等倍へ');
   eq(wi.mode, m1, '射撃モードはそのまま');
-  // 手元で決めた向き（オンラインのゲスト）: 構えていても zoom: false なら射撃モード
-  ev = step(G, { [p.id]: { yaw: p.yaw, pitch: 0, ads: true, act: [{ a: 'mode', zoom: false }] } });
-  ok(ev.some(e => e.e === 'fmode') && wi.mode !== m1, '手元の指示どおり射撃モード');
+  ev = step(G, { [p.id]: { yaw: p.yaw, pitch: 0, ads: true, act: [{ a: 'mode' }] } });
+  ok(ev.some(e => e.e === 'fmode') && wi.mode !== m1 && zoomOf(wi) === 1, '構えていても射撃モードのボタンは射撃モード');
+  const m2 = wi.mode;
+  ev = step(G, { [p.id]: { yaw: p.yaw, pitch: 0, ads: true, act: [{ a: 'mode', zoom: true }] } });
+  ok(ev.some(e => e.e === 'zoom') && wi.mode === m2, '古い手元（zoom: true）は倍率');
 });
 
 test('optics: 付けられる銃は実銃の取り付け方に合わせる', () => {

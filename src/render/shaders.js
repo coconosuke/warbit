@@ -342,6 +342,7 @@ void main(){
 export const COMP_FS = `
 uniform sampler2D uSrc; uniform sampler2D uBloom; uniform float uBloomK; uniform float uExposure; uniform float uVig;
 uniform float uNVG; uniform float uFlashW; uniform float uDamage; uniform float uSupp; uniform float uGas; uniform float uTime2; uniform float uSat; uniform vec4 uGrade; uniform vec3 uLift; uniform vec3 uGain; uniform float uBlur; uniform vec2 uTexel2; uniform float uPeek; uniform float uSmoke;
+uniform sampler2D uPip; uniform vec4 uPipC;
 in vec2 vUV; layout(location=0) out vec4 oCol;
 vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 void main(){
@@ -355,7 +356,18 @@ void main(){
     b += texture(uSrc, uv + uTexel2 * vec2(0.0, t)).rgb; b += texture(uSrc, uv - uTexel2 * vec2(0.0, t)).rgb;
     c = mix(c, b * 0.25, clamp(uBlur, 0.0, 1.0));
   }
-  if (uBloomK > 0.0) c += texture(uBloom, uv).rgb * uBloomK;
+  // スコープの中の像（倍率の低いスコープ）: レンズの丸の中だけ、拡大して描いた世界。縁はレンズの筒の影で暗く
+  float pipIn = 0.0;
+  if (uPipC.w > 0.5) {
+    vec2 d = (vUV - uPipC.xy) / uTexel2;
+    float rp = length(d) / uPipC.z;
+    if (rp < 1.0) {
+      c = texture(uPip, d / (2.0 * uPipC.z) + 0.5).rgb;
+      c *= 1.0 - 0.75 * smoothstep(0.72, 1.0, rp);
+      pipIn = 1.0;
+    }
+  }
+  if (uBloomK > 0.0 && pipIn < 0.5) c += texture(uBloom, uv).rgb * uBloomK;
   c *= uExposure;
   vec2 q = vUV - 0.5;
   float r2 = dot(q * vec2(1.6, 1.0), q * vec2(1.6, 1.0));

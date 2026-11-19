@@ -500,6 +500,27 @@ try {
       }
       rec('操作', '乗り越えのボタン: 越える物がなければ跳ぶ（大規模戦）', top - y0 > 0.3 && Math.abs(y1 - y0) < 0.1, `高さ ${(top - y0).toFixed(2)}m・降りて ${(y1 - y0).toFixed(2)}・越えた ${vaulted}`);
     }
+    // 照準の十字が点滅しない（11-19 18:16: toggle に undefined が渡って毎こま出たり消えたりしていた）
+    {
+      const r = await page.evaluate(async () => { const c = document.querySelector('#hud .hud-cross'); let hid = 0, n = 0; for (let i = 0; i < 40; i++) { await new Promise(r => requestAnimationFrame(r)); n++; if (c.classList.contains('hidden')) hid++; } return { hid, n, ads: window.__app.game.p.ads }; });
+      rec('画面', '照準の十字が点滅しない（構えていない間はずっと出ている）', r.hid === 0 && r.ads < 0.1, JSON.stringify(r));
+    }
+    // スコープの中の像（6倍未満）: 銃とスコープの筒が見えたまま、レンズの丸の中だけ拡大して描く。6倍は画面いっぱいの黒い輪
+    {
+      const res = {};
+      await page.evaluate(() => { const p = window.__app.game.p, wi = p.inv.w[p.ws.slot]; window.__sg0 = [wi.att.sight, wi.zi]; });
+      for (const sg of ['acog', 'scope6']) {
+        await page.evaluate((sg) => { const g = window.__app.game, p = g.p, wi = p.inv.w[p.ws.slot]; wi.att.sight = sg; wi.zi = 0; g.adsOn = true; }, sg);
+        await page.waitForFunction(() => window.__app.game.p.ads > 0.98, null, { timeout: 20000 }).catch(() => {});
+        await page.waitForTimeout(600);
+        res[sg] = await page.evaluate(() => { const g = window.__app.game, r = window.__app.renderer; return { pip: r.pipOn, lensR: g._pip ? Math.round(g._pip.r) : 0, cls: document.querySelector('#hud .hud-scope').className, vm: g.vm.on && !g.vm.scoped }; });
+        await page.evaluate(() => { window.__app.game.adsOn = false; });
+        await page.waitForTimeout(400);
+      }
+      await page.evaluate(() => { const g = window.__app.game, p = g.p, wi = p.inv.w[p.ws.slot]; wi.att.sight = window.__sg0[0]; wi.zi = window.__sg0[1]; });
+      const okP = res.acog.pip && res.acog.lensR > 40 && /pip/.test(res.acog.cls) && res.acog.vm && !res.scope6.pip && /scope6/.test(res.scope6.cls) && !/pip/.test(res.scope6.cls);
+      rec('画面', 'スコープ: 4倍はレンズの中だけ拡大（銃が見える）・6倍は画面いっぱい', okP, JSON.stringify(res));
+    }
     await page.evaluate(() => { window.__app.game.adsOn = false; });
     const bar = await page.evaluate(() => (document.querySelector('#hud .hud-obj .wb.rg') || {}).textContent || '');
     rec('射撃場', '人形に当てると、上の帯に部位・ダメージ・距離が出る', !!hit && hit.m > 15 && hit.m < 40 && /m/.test(bar), `${JSON.stringify(hit)}・帯「${bar}」`);
@@ -614,6 +635,37 @@ try {
   await tapAt(await center('#hud .dps-go'), 90);
   await page.waitForFunction(() => window.__app.game.p.alive, null, { timeout: 60000 }).catch(() => {});
   await page.waitForTimeout(500);
+  // メニューの再出撃（11-19 18:16）: 生きている間は REDEPLOY がある
+  {
+    await page.evaluate(() => window.__app.pauseGame());
+    await page.waitForTimeout(300);
+    const hasRd = await page.evaluate(() => !!document.querySelector('[data-a="redeploy"]'));
+    await page.evaluate(() => window.__app.resumeGame());
+    await page.waitForTimeout(300);
+    rec('画面', '大規模戦の一時停止に REDEPLOY（再出撃）がある', hasRd, String(hasRd));
+  }
+  // ダウン中にあきらめる（11-19 18:16）: GIVE UP を2回押すとすぐ出撃の画面へ
+  {
+    await page.evaluate(() => { const p = window.__app.game.p; p.down = true; p.dbno = 20; p.hp = 0; });
+    await page.waitForFunction(() => document.querySelector('#hud .hud-giveup.on'), null, { timeout: 10000 }).catch(() => {});
+    const on = await page.evaluate(() => !!document.querySelector('#hud .hud-giveup.on'));
+    const c = await center('#hud .hud-giveup');
+    let arm = false, dep = {};
+    if (c) {
+      await tapAt(c, 95); await page.waitForTimeout(300);
+      arm = await page.evaluate(() => !!document.querySelector('#hud .hud-giveup.arm') && window.__app.game.p.alive);
+      await tapAt(c, 96);
+      await page.waitForFunction(() => document.querySelector('#hud .hud-deploy.on .dps-go'), null, { timeout: 10000 }).catch(() => {});
+      dep = await page.evaluate(() => ({ alive: window.__app.game.p.alive, deploy: !!document.querySelector('#hud .hud-deploy.on') }));
+    }
+    rec('操作', 'ダウン中: GIVE UP を2回押すとすぐ出撃の画面へ', on && arm && dep.alive === false && dep.deploy, JSON.stringify({ on, arm, ...dep }));
+    if (dep.deploy) {
+      await page.waitForTimeout(300);
+      await tapAt(await center('#hud .dps-go'), 97);
+      await page.waitForFunction(() => window.__app.game.p.alive, null, { timeout: 60000 }).catch(() => {});
+      await page.waitForTimeout(500);
+    }
+  }
   await page.evaluate(() => { window.__app.freeze = true; });
   const fakeWar = { pvp: true, war: true, mode: 'war', wmode: 'conquest', why: 'tickets', map: 'riverbend', per: 16, size: 'small', time: 1311, win: 0, myTeam: 0, score: [112, 0],
     rows: Array.from({ length: 32 }, (_, i) => ({ name: i ? (i < 16 ? 'アルファ' : 'オスカー') + ((i % 8) + 1) : 'ブラボー1', team: i < 16 ? 0 : 1, k: 20 - (i % 20), d: i % 7, a: i % 5, me: i === 0, bot: i > 0 })) };

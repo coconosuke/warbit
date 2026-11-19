@@ -700,7 +700,7 @@ function addSight(B, P, kind) {
     B.tube([0, y, zf - 0.02], [0, y, zf], 0.0128, 0.0146, 12, LAYER.metal, K.blk, { caps: true });
     B.tube([0, y, zb], [0, y, zb + 0.015], 0.0142, 0.0128, 12, LAYER.metal, K.blk, { caps: true });
     sbx(B, 0.0042, y + 0.0118, z - 0.04, y + 0.0165, z + 0.03, hex('#a8382a'));
-    P.sightY = y; P.eyeZ = zb - 0.053; P.optic = { kind, z, r: 0.011, y, scope: true };
+    P.sightY = y; P.eyeZ = zb - 0.053; P.optic = { kind, z, r: 0.011, y, scope: true, zb, rr: 0.0118 };
   } else if (kind === 'mag3') {
     // EOTech EXPS3（前）＋ G33 3倍ブースター（後ろ）。ブースターは STS の台の左の蝶番で横へ倒れる（別の部品 P.flip）
     const z = (z0 + z1) / 2, zh = z + 0.045, zm = z - 0.07, y = ry + 0.04;
@@ -715,7 +715,7 @@ function addSight(B, P, kind) {
       bx(M, 0.004, ry + 0.012, zm - 0.012, 0.0195, y, zm + 0.012, K.blk);                                   // 輪から蝶番への腕
     };
     P.flipPivot = [0.0185, ry + 0.012];
-    P.sightY = y; P.eyeZ = zh - 0.2; P.optic = { kind, z: zh, r: 0.017, y, scope: true };
+    P.sightY = y; P.eyeZ = zh - 0.2; P.optic = { kind, z: zh, r: 0.017, y, scope: true, zb: zm - 0.062, rr: 0.0145 };
   } else if (kind === 'acog') {
     // トリジコン ACOG TA31 4x32（全長150mm）: 角ばった後ろと太い対物レンズ、上に緑の光ファイバー、TA51 の台（左に2つのねじ）
     const z = (z0 + z1) / 2, y = ry + 0.034, zb = z - 0.08, zf = z + 0.07;
@@ -728,7 +728,7 @@ function addSight(B, P, kind) {
     sbx(B, 0.0042, y + 0.0165, z - 0.05, y + 0.022, z + 0.035, hex('#3e7a3a'));
     sbx(B, 0.006, y + 0.016, z - 0.012, y + 0.026, z + 0.004, K.dg);                // 上のつまみ
     bx(B, -0.0158, y - 0.006, z - 0.012, -0.025, y + 0.006, z + 0.004, K.dg);        // 右のつまみ
-    P.sightY = y; P.eyeZ = zb - 0.038 - 0.04; P.optic = { kind: 'acog', z, r: 0.014, y, scope: true };
+    P.sightY = y; P.eyeZ = zb - 0.038 - 0.04; P.optic = { kind: 'acog', z, r: 0.014, y, scope: true, zb, rr: 0.0155 };
   } else if (kind === 'scope6') {
     // トリジコン ACOG TA648 6x48（全長229mm・1.1kg）: 太い48mmの対物レンズ、長い光ファイバー、TA75 の大きな台（左にレバー2本）
     const z = (z0 + z1) / 2, y = ry + 0.043, zb = z - 0.105, zf = z + 0.124;
@@ -741,7 +741,7 @@ function addSight(B, P, kind) {
     sbx(B, 0.0045, y + 0.019, z - 0.08, y + 0.025, z + 0.06, hex('#a8382a'));
     sbx(B, 0.0065, y + 0.019, z - 0.02, y + 0.03, z - 0.002, K.dg);
     bx(B, -0.0185, y - 0.008, z - 0.02, -0.028, y + 0.006, z - 0.002, K.dg);
-    P.sightY = y; P.eyeZ = zb - 0.069; P.optic = { kind: 'scope6', z, r: 0.016, y, scope: true };
+    P.sightY = y; P.eyeZ = zb - 0.069; P.optic = { kind: 'scope6', z, r: 0.016, y, scope: true, zb, rr: 0.0175 };
   } else if (kind === 'lpvo') {
     // ELCAN SpecterDR 1-4x: 箱形の胴、丸い対物レンズ、上の倍率のレバー、一体の台（左にレバー）
     const z = (z0 + z1) / 2, y = ry + 0.04;
@@ -753,7 +753,7 @@ function addSight(B, P, kind) {
     bx(B, 0.003, ry + 0.063, z - 0.035, 0.021, ry + 0.068, z + 0.012, K.dg);          // 倍率のレバー
     B.tube([0.012, ry + 0.068, z + 0.01], [0.012, ry + 0.076, z + 0.01], 0.0055, 0.0055, 8, LAYER.metal, K.dg, { caps: true });
     B.tube([-0.022, y, z - 0.012], [-0.03, y, z - 0.012], 0.009, 0.009, 10, LAYER.metal, K.dg, { caps: true });
-    P.sightY = y; P.eyeZ = z - 0.088 - 0.07; P.optic = { kind, z, r: 0.015, y, scope: true };
+    P.sightY = y; P.eyeZ = z - 0.088 - 0.07; P.optic = { kind, z, r: 0.015, y, scope: true, zb: z - 0.088, rr: 0.0175 };
   } else if (kind === 'lpvo8') {
     // ナイトフォース NX8 1-8x24（全長218mm・30mmの胴）: 片持ちの台に2つの輪、小さな対物、倍率の輪とつまみ、ふたつきのつまみ
     const z = (z0 + z1) / 2, y = ry + 0.04, zb = z - 0.108, zf = z + 0.11;
@@ -767,7 +767,7 @@ function addSight(B, P, kind) {
     B.tube([0, y + 0.012, z + 0.005], [0, y + 0.026, z + 0.005], 0.0105, 0.0105, 10, LAYER.metal, K.blk, { caps: true });
     B.tube([-0.012, y, z + 0.005], [-0.026, y, z + 0.005], 0.0105, 0.0105, 10, LAYER.metal, K.blk, { caps: true });
     B.tube([0.012, y, z + 0.005], [0.024, y, z + 0.005], 0.0118, 0.0118, 10, LAYER.metal, K.dg, { caps: true });
-    P.sightY = y; P.eyeZ = zb - 0.09; P.optic = { kind, z, r: 0.013, y, scope: true };
+    P.sightY = y; P.eyeZ = zb - 0.09; P.optic = { kind, z, r: 0.013, y, scope: true, zb, rr: 0.0175 };
   } else if (kind === 'sniper') {
     // シュミット＆ベンダー PM II 3-12x50（34mmの胴・50mmの対物）: 2つの輪、太い対物、高い上のつまみ・右・左（距離）
     const z = (z0 + z1) / 2, y = ry + 0.048, zb = z - 0.17, zf = z + 0.18;
@@ -780,7 +780,7 @@ function addSight(B, P, kind) {
     B.tube([0, y + 0.015, z], [0, y + 0.041, z], 0.0135, 0.0135, 12, LAYER.metal, K.dg, { caps: true });
     B.tube([-0.015, y, z], [-0.038, y, z], 0.013, 0.013, 12, LAYER.metal, K.dg, { caps: true });
     B.tube([0.015, y, z - 0.004], [0.034, y, z - 0.004], 0.0152, 0.0152, 12, LAYER.metal, K.dg, { caps: true });
-    P.sightY = y; P.eyeZ = zb - 0.09; P.optic = { kind: 'sniper', z, r: 0.017, y, scope: true };
+    P.sightY = y; P.eyeZ = zb - 0.09; P.optic = { kind: 'sniper', z, r: 0.017, y, scope: true, zb, rr: 0.0195 };
   }
 }
 // ホロサイト（EOTech EXPS3）: 台と窓の枠（左右の柱と屋根）。中は空いている

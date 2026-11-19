@@ -37,19 +37,19 @@ export const AMMO = {
 const W = (o) => o;
 export const WEAPONS = {
   // ---------- SWAT: 小銃 ----------
-  mk18: W({ name: 'Mk18 Mod 0', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 850, vel: 790, kg: 2.9, len: 0.76,
+  mk18: W({ name: 'Mk18 Mod 0', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 850, vel: 680, kg: 2.9, len: 0.76,
     ads: 0.28, draw: 0.55, move: 0.95, rc: { v: 0.78, h: 0.42, bias: 0.08, first: 1.5, ctrl: 9, kick: 1 }, sp: { hip: 2.4, ads: 0.1, move: 1.8 }, rl: { tac: 2.5, fast: 1.9, empty: 0.45 },
     pvp: { dmg: 39, fall: [22, 38, 0.7] }, model: 'ar15', mdl: { barrel: 0.26, rail: 'long', stock: 'crane' }, snd: 'r556',
     desc: 'M4A1を短銃身（10.3インチ）にしたカービン。米軍特殊部隊や多くのSWATが使う。軽くて扱いやすく、5.56mmで防弾ベストにも強い。' }),
-  hk416: W({ name: 'HK416A5', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 850, vel: 800, kg: 3.3, len: 0.8,
+  hk416: W({ name: 'HK416A5', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'burst', 'semi'], rpm: 850, vel: 700, kg: 3.3, len: 0.8,
     ads: 0.3, draw: 0.6, move: 0.94, rc: { v: 0.72, h: 0.38, bias: -0.05, first: 1.4, ctrl: 10, kick: 1 }, sp: { hip: 2.4, ads: 0.09, move: 1.8 }, rl: { tac: 2.6, fast: 2.0, empty: 0.45 },
     pvp: { dmg: 41, fall: [22, 38, 0.7] }, model: 'ar15', mdl: { barrel: 0.28, rail: 'hk', stock: 'hk' }, snd: 'r556',
     desc: 'ヘッケラー&コッホのショートストロークピストン式。AR-15と同じ操作で、汚れに強く反動が素直。' }),
-  g36c: W({ name: 'G36C', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 750, vel: 725, kg: 2.8, len: 0.72,
+  g36c: W({ name: 'G36C', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 750, vel: 660, kg: 2.8, len: 0.72,
     ads: 0.27, draw: 0.5, move: 0.96, rc: { v: 0.7, h: 0.48, bias: 0.12, first: 1.6, ctrl: 9, kick: 1 }, sp: { hip: 2.3, ads: 0.12, move: 1.7 }, rl: { tac: 2.7, fast: 2.1, empty: 0.5 },
     pvp: { dmg: 37, fall: [20, 35, 0.68] }, model: 'g36', mdl: {}, snd: 'r556',
     desc: 'G36の最も短いモデル（9インチ）。樹脂の機関部で軽い。発射速度がおだやかで制御しやすい。' }),
-  scarl: W({ name: 'Mk16 SCAR-L CQC', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 625, vel: 790, kg: 3.3, len: 0.8,
+  scarl: W({ name: 'Mk16 SCAR-L CQC', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 625, vel: 650, kg: 3.3, len: 0.8,
     ads: 0.31, draw: 0.6, move: 0.94, rc: { v: 0.82, h: 0.36, bias: 0.03, first: 1.35, ctrl: 10, kick: 1 }, sp: { hip: 2.4, ads: 0.09, move: 1.8 }, rl: { tac: 2.6, fast: 2.0, empty: 0.4 },
     pvp: { dmg: 44, fall: [24, 40, 0.72] }, model: 'scar', mdl: {}, snd: 'r556',
     desc: 'FN製。米特殊作戦軍のために作られた小銃の短銃身型。発射速度は遅めで1発が重い。' }),
@@ -57,15 +57,15 @@ export const WEAPONS = {
     ads: 0.36, draw: 0.7, move: 0.91, rc: { v: 1.35, h: 0.6, bias: 0.15, first: 1.3, ctrl: 8, kick: 1.35 }, sp: { hip: 2.8, ads: 0.1, move: 2.0 }, rl: { tac: 2.8, fast: 2.2, empty: 0.5 },
     pvp: { dmg: 52, fall: [28, 45, 0.75] }, model: 'fal', mdl: {}, snd: 'r762',
     desc: 'FN FALの流れをくむ7.62mm NATOの短い小銃（11インチ）。壁も防具も抜く威力。反動は大きい。' }),
-  m4a1: W({ name: 'M4A1', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 800, vel: 880, kg: 3.1, len: 0.84, drum: 60,
+  m4a1: W({ name: 'M4A1', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'burst', 'semi'], rpm: 800, vel: 700, kg: 3.1, len: 0.84, drum: 60,
     ads: 0.31, draw: 0.58, move: 0.945, rc: { v: 0.74, h: 0.4, bias: 0.06, first: 1.45, ctrl: 9.5, kick: 1 }, sp: { hip: 2.5, ads: 0.08, move: 1.85 }, rl: { tac: 2.5, fast: 1.9, empty: 0.45 },
     pvp: { dmg: 41, fall: [25, 42, 0.72] }, model: 'ar15', mdl: { barrel: 0.37, rail: 'long', stock: 'crane' }, snd: 'r556',
     desc: '米軍の標準のカービン（14.5インチ）。Mk18より銃身が長く、弾が速いぶん遠くまで威力が落ちにくい。少し長く、構えるのは遅め。' }),
-  mcx: W({ name: 'MCX VIRTUS SBR', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 850, vel: 760, kg: 2.9, len: 0.72, fold: true,
+  mcx: W({ name: 'MCX VIRTUS SBR', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 850, vel: 650, kg: 2.9, len: 0.72, fold: true,
     ads: 0.27, draw: 0.5, move: 0.955, rc: { v: 0.76, h: 0.44, bias: 0.05, first: 1.5, ctrl: 9.5, kick: 1 }, sp: { hip: 2.3, ads: 0.1, move: 1.75 }, rl: { tac: 2.4, fast: 1.85, empty: 0.4 },
     pvp: { dmg: 38, fall: [20, 36, 0.68] }, model: 'ar15', mdl: { barrel: 0.24, rail: 'mcx', stock: 'mcx' }, snd: 'r556',
     desc: 'シグ・ザウエルのピストン式。銃床を折りたためて、室内で取り回しやすい。軽くて構えが速い。' }),
-  aug: W({ name: 'AUG A3', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 680, vel: 940, kg: 3.6, len: 0.79,
+  aug: W({ name: 'AUG A3', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 680, vel: 900, kg: 3.6, len: 0.79,
     ads: 0.31, draw: 0.6, move: 0.945, rc: { v: 0.66, h: 0.34, bias: 0.02, first: 1.4, ctrl: 10, kick: 0.95 }, sp: { hip: 2.4, ads: 0.08, move: 1.8 }, rl: { tac: 2.8, fast: 2.2, empty: 0.5 },
     pvp: { dmg: 40, fall: [26, 44, 0.72] }, model: 'aug', mdl: {}, snd: 'r556',
     desc: 'オーストリアのブルパップ（弾倉が握りより後ろ）。全長が短いのに銃身は長い。反動は素直だが、弾倉を替えるのに手間がかかる。' }),
@@ -73,18 +73,18 @@ export const WEAPONS = {
     ads: 0.29, draw: 0.55, move: 0.95, rc: { v: 0.72, h: 0.42, bias: -0.04, first: 1.45, ctrl: 9.5, kick: 1 }, sp: { hip: 2.3, ads: 0.09, move: 1.75 }, rl: { tac: 2.7, fast: 2.1, empty: 0.5 },
     pvp: { dmg: 39, fall: [22, 40, 0.7] }, model: 'tavor', mdl: {}, snd: 'r556',
     desc: 'イスラエルのブルパップ。短く扱いやすく、発射速度が速い。室内の戦いに向く。' }),
-  scarh: W({ name: 'Mk17 SCAR-H CQC', cat: 'rifle', side: 'swat', cal: '762x51', ammo: ['ap', 'jhp'], mag: 20, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 600, vel: 760, kg: 3.6, len: 0.84,
+  scarh: W({ name: 'Mk17 SCAR-H CQC', cat: 'rifle', side: 'swat', cal: '762x51', ammo: ['ap', 'jhp'], mag: 20, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 600, vel: 750, kg: 3.6, len: 0.84,
     ads: 0.34, draw: 0.66, move: 0.92, rc: { v: 1.25, h: 0.55, bias: 0.1, first: 1.3, ctrl: 8.5, kick: 1.3 }, sp: { hip: 2.7, ads: 0.08, move: 2.0 }, rl: { tac: 2.7, fast: 2.1, empty: 0.45 },
     pvp: { dmg: 54, fall: [28, 46, 0.76] }, model: 'scar', mdl: { heavy: true }, snd: 'r762',
     desc: 'SCARの7.62mm NATO型。1発が重く、壁の向こうの相手にも届く。反動は大きく、弾倉は20発。' }),
-  hk417: W({ name: 'HK417 16"', cat: 'rifle', side: 'swat', cal: '762x51', ammo: ['ap', 'jhp'], mag: 20, spare: 5, chamber: true, modes: ['semi', 'auto'], rpm: 600, vel: 780, kg: 4.4, len: 0.97,
+  hk417: W({ name: 'HK417 16"', cat: 'rifle', side: 'swat', cal: '762x51', ammo: ['ap', 'jhp'], mag: 20, spare: 5, chamber: true, modes: ['semi'], rpm: 600, vel: 1000, kg: 4.4, len: 0.97,
     ads: 0.38, draw: 0.75, move: 0.9, rc: { v: 1.4, h: 0.5, bias: 0.08, first: 1.2, ctrl: 8, kick: 1.4 }, sp: { hip: 3.0, ads: 0.05, move: 2.2 }, rl: { tac: 2.9, fast: 2.3, empty: 0.5 },
     pvp: { dmg: 62, fall: [35, 55, 0.82] }, model: 'ar15', mdl: { barrel: 0.42, rail: 'hk', stock: 'hk', mag762: true }, snd: 'r762',
     desc: 'HK416を7.62mm NATOにした選抜射手の小銃。遠くまでとてもよく当たる。重く長いので、室内では振り回しにくい。' }),
   // ---------- SWAT: 狙撃銃（11-12 追加。ボルトアクション: 1発ごとに手でボルトを引いて次の弾を込める） ----------
   // bolt: ボルトを操作する時間（秒）。この間は撃てない（ポンプと同じ扱い。見た目と音はボルト）。sway: 構えたときの照準の揺れ（度。立ち）
   // tdmBoth: 攻守のモード（爆弾・殲滅戦）では SWAT 側だけの銃。両チームが同じ条件で戦う TDM では、両方のチームが使える（11-12 17:50 の要望）
-  at308: W({ name: 'AT308', cat: 'sniper', side: 'swat', tdmBoth: true, cal: '762x51', ammo: ['ap', 'jhp'], mag: 10, spare: 4, chamber: true, bolt: true, pump: 0.95, modes: ['semi'], rpm: 60, vel: 850, kg: 6.4, len: 1.13,
+  at308: W({ name: 'AT308', cat: 'sniper', side: 'swat', tdmBoth: true, cal: '762x51', ammo: ['ap', 'jhp'], mag: 10, spare: 4, chamber: true, bolt: true, pump: 0.95, modes: ['semi'], rpm: 60, vel: 1100, kg: 6.4, len: 1.13,
     ads: 0.5, draw: 0.85, move: 0.88, sway: 0.2, rc: { v: 3.0, h: 0.45, bias: 0.05, first: 1, ctrl: 7, kick: 2.2 }, sp: { hip: 6.0, ads: 0.012, move: 3.0 }, rl: { tac: 3.1, fast: 2.5, empty: 0.6 },
     pvp: { dmg: 115, fall: [70, 110, 0.9] }, model: 'bolt', mdl: {}, snd: 'r308',
     desc: '英国アキュラシー・インターナショナル社の警察向けのボルトアクション狙撃銃（7.62mm NATO・10発の箱弾倉）。1発ごとに手でボルトを引く（約1秒）。狙撃用スコープは4倍と8倍を切り替えられる（射撃モードのボタン）。構えると照準がわずかに揺れる（しゃがむ・伏せると小さい）。腰だめはまず当たらない。' }),
@@ -97,7 +97,7 @@ export const WEAPONS = {
     ads: 0.25, draw: 0.5, move: 0.97, rc: { v: 0.36, h: 0.26, bias: 0.02, first: 1.2, ctrl: 12, kick: 0.65 }, sp: { hip: 2.1, ads: 0.15, move: 1.5 }, rl: { tac: 2.6, fast: 2.2, empty: 0.55 },
     pvp: { dmg: 25, fall: [12, 24, 0.6] }, model: 'mp5', mdl: { sd: true }, snd: 'sup9', integral: 'supp',
     desc: '消音器が一体になったMP5。銃声が小さく、気づかれずに近づく作戦に向く。弾が遅く、威力はやや落ちる。' }),
-  ump45: W({ name: 'UMP45', cat: 'smg', side: 'swat', cal: '45', ammo: ['ap', 'jhp'], mag: 25, spare: 6, chamber: false, modes: ['auto', 'semi'], rpm: 600, vel: 285, kg: 2.3, len: 0.69,
+  ump45: W({ name: 'UMP45', cat: 'smg', side: 'swat', cal: '45', ammo: ['ap', 'jhp'], mag: 25, spare: 6, chamber: false, modes: ['auto', 'semi'], rpm: 600, vel: 375, kg: 2.3, len: 0.69,
     ads: 0.24, draw: 0.45, move: 0.98, rc: { v: 0.55, h: 0.34, bias: -0.06, first: 1.35, ctrl: 11, kick: 0.85 }, sp: { hip: 2.2, ads: 0.16, move: 1.5 }, rl: { tac: 2.5, fast: 2.0, empty: 0.5 },
     pvp: { dmg: 38, fall: [14, 26, 0.6] }, model: 'ump', mdl: {}, snd: 'p45',
     desc: 'MP5の後継として作られた樹脂製の短機関銃。.45ACPの重い弾で、発射速度は遅い。' }),
@@ -105,11 +105,11 @@ export const WEAPONS = {
     ads: 0.24, draw: 0.45, move: 0.97, rc: { v: 0.44, h: 0.32, bias: 0.05, first: 1.3, ctrl: 12, kick: 0.75 }, sp: { hip: 2.0, ads: 0.13, move: 1.5 }, rl: { tac: 2.3, fast: 1.8, empty: 0.4 },
     pvp: { dmg: 29, fall: [14, 26, 0.6] }, model: 'mpx', mdl: {}, snd: 'p9',
     desc: 'シグ・ザウエルのガスピストン式。AR-15に近い操作で、9mmとしては反動が軽く速い。' }),
-  mp7: W({ name: 'MP7A1', cat: 'smg', side: 'swat', cal: '46', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 950, vel: 720, kg: 1.9, len: 0.64,
+  mp7: W({ name: 'MP7A1', cat: 'smg', side: 'swat', cal: '46', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 950, vel: 350, kg: 1.9, len: 0.64,
     ads: 0.21, draw: 0.4, move: 0.99, rc: { v: 0.4, h: 0.36, bias: 0.06, first: 1.35, ctrl: 13, kick: 0.7 }, sp: { hip: 2.1, ads: 0.15, move: 1.4 }, rl: { tac: 2.2, fast: 1.7, empty: 0.4 },
     pvp: { dmg: 31, fall: [16, 28, 0.62] }, model: 'mp7', mdl: {}, snd: 'p46',
     desc: '4.6mmの小さく速い弾で、短機関銃なのに防弾ベストを抜く。とても軽く、発射速度が速い。' }),
-  vector: W({ name: 'Vector SMG', cat: 'smg', side: 'swat', cal: '45', ammo: ['ap', 'jhp'], mag: 25, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 1100, vel: 290, kg: 2.7, len: 0.62, fold: true,
+  vector: W({ name: 'Vector SMG', cat: 'smg', side: 'swat', cal: '45', ammo: ['ap', 'jhp'], mag: 25, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 1100, vel: 400, kg: 2.7, len: 0.62, fold: true,
     ads: 0.24, draw: 0.45, move: 0.975, rc: { v: 0.34, h: 0.3, bias: 0.02, first: 1.2, ctrl: 13, kick: 0.6 }, sp: { hip: 2.1, ads: 0.15, move: 1.5 }, rl: { tac: 2.4, fast: 1.9, empty: 0.5 },
     pvp: { dmg: 30, fall: [12, 24, 0.58] }, model: 'vector', mdl: {}, snd: 'p45',
     desc: 'KRISSの短機関銃。ボルトを下へ逃がす独特の仕組みで、.45ACPなのに縦の反動がとても小さい。毎分1100発で弾はすぐ尽きる。' }),
@@ -121,7 +121,7 @@ export const WEAPONS = {
     ads: 0.2, draw: 0.36, move: 0.99, rc: { v: 0.52, h: 0.42, bias: 0.06, first: 1.35, ctrl: 12, kick: 0.75 }, sp: { hip: 2.0, ads: 0.17, move: 1.4 }, rl: { tac: 2.2, fast: 1.7, empty: 0.4 },
     pvp: { dmg: 26, fall: [12, 22, 0.58] }, model: 'mp9', mdl: {}, snd: 'p9',
     desc: 'スイスのB&T製。拳銃ほどの大きさの短機関銃。前の握りと折りたたみの銃床で、狭い所で振り回しやすい。' }),
-  evo3: W({ name: 'Scorpion EVO 3', cat: 'smg', side: 'swat', cal: '9mm', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'semi'], rpm: 1150, vel: 370, kg: 2.8, len: 0.67, fold: true,
+  evo3: W({ name: 'Scorpion EVO 3', cat: 'smg', side: 'swat', cal: '9mm', ammo: ['ap', 'jhp'], mag: 30, spare: 6, chamber: true, modes: ['auto', 'burst', 'semi'], rpm: 1150, vel: 370, kg: 2.8, len: 0.67, fold: true,
     ads: 0.23, draw: 0.42, move: 0.98, rc: { v: 0.46, h: 0.4, bias: 0.08, first: 1.3, ctrl: 12, kick: 0.75 }, sp: { hip: 2.1, ads: 0.15, move: 1.5 }, rl: { tac: 2.4, fast: 1.9, empty: 0.45 },
     pvp: { dmg: 25, fall: [14, 26, 0.6] }, model: 'evo', mdl: {}, snd: 'p9',
     desc: 'チェコのCZ製。樹脂の機関部で軽く、とても速く撃てる。近い距離の制圧に強い。' }),
@@ -196,15 +196,15 @@ export const WEAPONS = {
     pvp: null, model: 'taser', mdl: {}, snd: 'taser',
     desc: '電極を撃ち出して筋肉を一時的に動けなくする。届くのは約7.6m。当たった相手はたいてい投降する。' }),
   // ---------- 容疑者・犯人 ----------
-  akm: W({ name: 'AKM', cat: 'rifle', side: 'sus', cal: '762x39', ammo: ['ap', 'jhp'], mag: 30, spare: 5, chamber: true, modes: ['auto', 'semi'], rpm: 600, vel: 715, kg: 3.3, len: 0.88,
+  akm: W({ name: 'AKM', cat: 'rifle', side: 'sus', cal: '762x39', ammo: ['ap', 'jhp'], mag: 30, spare: 5, chamber: true, modes: ['auto', 'semi'], rpm: 600, vel: 750, kg: 3.3, len: 0.88,
     ads: 0.33, draw: 0.6, move: 0.93, rc: { v: 1.1, h: 0.62, bias: 0.18, first: 1.5, ctrl: 8, kick: 1.2 }, sp: { hip: 2.8, ads: 0.14, move: 2.0 }, rl: { tac: 2.7, fast: 2.1, empty: 0.6 },
     pvp: { dmg: 46, fall: [22, 38, 0.7] }, model: 'ak', mdl: { wood: true }, snd: 'r762',
     desc: 'AK-47を改良したソ連の小銃。どこでも手に入り、犯罪組織も使う。7.62x39mmで威力が大きい。' }),
-  aks74u: W({ name: 'AKS-74U', cat: 'rifle', side: 'sus', cal: '545', ammo: ['ap', 'jhp'], mag: 30, spare: 5, chamber: true, modes: ['auto', 'semi'], rpm: 700, vel: 735, kg: 2.7, len: 0.73,
+  aks74u: W({ name: 'AKS-74U', cat: 'rifle', side: 'sus', cal: '545', ammo: ['ap', 'jhp'], mag: 30, spare: 5, chamber: true, modes: ['auto', 'semi'], rpm: 700, vel: 700, kg: 2.7, len: 0.73,
     ads: 0.29, draw: 0.5, move: 0.95, rc: { v: 0.82, h: 0.58, bias: 0.12, first: 1.5, ctrl: 9, kick: 1 }, sp: { hip: 2.6, ads: 0.16, move: 1.8 }, rl: { tac: 2.6, fast: 2.0, empty: 0.6 },
     pvp: { dmg: 38, fall: [18, 32, 0.66] }, model: 'ak', mdl: { short: true, fold: true }, snd: 'r545',
     desc: 'AK-74を極端に短くしたカービン。銃口の炎が大きく、反動は荒い。' }),
-  g3: W({ name: 'G3A3', cat: 'rifle', side: 'sus', cal: '762x51', ammo: ['ap', 'jhp'], mag: 20, spare: 4, chamber: true, modes: ['auto', 'semi'], rpm: 550, vel: 800, kg: 4.4, len: 1.02,
+  g3: W({ name: 'G3A3', cat: 'rifle', side: 'sus', cal: '762x51', ammo: ['ap', 'jhp'], mag: 20, spare: 4, chamber: true, modes: ['auto', 'semi'], rpm: 550, vel: 900, kg: 4.4, len: 1.02,
     ads: 0.38, draw: 0.72, move: 0.9, rc: { v: 1.45, h: 0.62, bias: 0.1, first: 1.3, ctrl: 7, kick: 1.4 }, sp: { hip: 3.0, ads: 0.08, move: 2.2 }, rl: { tac: 2.9, fast: 2.3, empty: 0.6 },
     pvp: { dmg: 51, fall: [30, 50, 0.78] }, model: 'g3', mdl: {}, snd: 'r762',
     desc: 'ドイツのローラー遅延式の戦闘小銃。長く重いが、7.62mm NATOで遠くまでよく当たる。' }),
@@ -216,15 +216,15 @@ export const WEAPONS = {
     ads: 0.33, draw: 0.62, move: 0.93, rc: { v: 1.0, h: 0.4, bias: 0.05, first: 1.2, ctrl: 9, kick: 1.1 }, sp: { hip: 2.8, ads: 0.07, move: 2.0 }, rl: { tac: 2.6, fast: 2.0, empty: 0.45 },
     pvp: { dmg: 43, fall: [26, 44, 0.72] }, model: 'mini14', mdl: {}, snd: 'r556',
     desc: 'ルガーの半自動の小銃。木の銃床の狩猟用に見えるが、5.56mmで20発。' }),
-  vz58: W({ name: 'vz. 58', cat: 'rifle', side: 'sus', cal: '762x39', ammo: ['ap', 'jhp'], mag: 30, spare: 5, chamber: true, modes: ['auto', 'semi'], rpm: 800, vel: 705, kg: 2.9, len: 0.85,
+  vz58: W({ name: 'vz. 58', cat: 'rifle', side: 'sus', cal: '762x39', ammo: ['ap', 'jhp'], mag: 30, spare: 5, chamber: true, modes: ['auto', 'semi'], rpm: 800, vel: 750, kg: 2.9, len: 0.85,
     ads: 0.31, draw: 0.56, move: 0.94, rc: { v: 1.05, h: 0.6, bias: 0.15, first: 1.5, ctrl: 8.5, kick: 1.2 }, sp: { hip: 2.7, ads: 0.14, move: 1.9 }, rl: { tac: 2.6, fast: 2.0, empty: 0.6 },
     pvp: { dmg: 45, fall: [22, 38, 0.7] }, model: 'ak', mdl: { vz: true }, snd: 'r762',
     desc: 'チェコスロバキアの小銃。AKに似ているが中身は別物で、軽く発射速度が速い。' }),
-  rpk: W({ name: 'RPK', cat: 'rifle', side: 'sus', cal: '762x39', ammo: ['ap', 'jhp'], mag: 75, spare: 2, chamber: true, modes: ['auto'], rpm: 600, vel: 745, kg: 4.8, len: 1.04,
+  rpk: W({ name: 'RPK', cat: 'rifle', side: 'sus', cal: '762x39', ammo: ['ap', 'jhp'], mag: 75, spare: 2, chamber: true, modes: ['auto', 'semi'], rpm: 600, vel: 690, kg: 4.8, len: 1.04,
     ads: 0.42, draw: 0.85, move: 0.88, rc: { v: 0.95, h: 0.5, bias: 0.12, first: 1.3, ctrl: 7.5, kick: 1.15 }, sp: { hip: 3.2, ads: 0.12, move: 2.4 }, rl: { tac: 4.2, fast: 3.6, empty: 0.6 },
     pvp: { dmg: 45, fall: [26, 42, 0.72] }, model: 'ak', mdl: { rpk: true }, snd: 'r762',
     desc: 'AKの銃身を長く重くした分隊支援火器。75発のドラム弾倉で撃ち続ける。重く、振り向くのが遅い。' }),
-  bizon: W({ name: 'PP-19 Bizon', cat: 'smg', side: 'sus', cal: '9x18', ammo: ['ap', 'jhp'], mag: 64, spare: 3, chamber: true, modes: ['auto', 'semi'], rpm: 680, vel: 330, kg: 2.7, len: 0.66, fold: true,
+  bizon: W({ name: 'PP-19 Bizon', cat: 'smg', side: 'sus', cal: '9x18', ammo: ['ap', 'jhp'], mag: 64, spare: 3, chamber: true, modes: ['auto', 'semi'], rpm: 680, vel: 400, kg: 2.7, len: 0.66, fold: true,
     ads: 0.26, draw: 0.48, move: 0.97, rc: { v: 0.45, h: 0.4, bias: 0.05, first: 1.3, ctrl: 11, kick: 0.8 }, sp: { hip: 2.3, ads: 0.17, move: 1.6 }, rl: { tac: 3.0, fast: 2.5, empty: 0.5 },
     pvp: { dmg: 24, fall: [12, 24, 0.58] }, model: 'ak', mdl: { bizon: true }, snd: 'p9',
     desc: 'AKの機関部に、らせん状に64発入る筒の弾倉を下につけた短機関銃。' }),
@@ -244,7 +244,7 @@ export const WEAPONS = {
     ads: 0.22, draw: 0.4, move: 0.98, rc: { v: 0.62, h: 0.62, bias: 0.12, first: 1.3, ctrl: 10, kick: 0.9 }, sp: { hip: 2.8, ads: 0.3, move: 1.6 }, rl: { tac: 2.2, fast: 1.7, empty: 0.4 },
     pvp: { dmg: 29, fall: [10, 20, 0.55] }, model: 'mac10', mdl: {}, snd: 'p45',
     desc: '箱のような小さな短機関銃。毎分1000発をこえる速さで、すぐに弾が切れる。' }),
-  p90: W({ name: 'P90', cat: 'smg', side: 'sus', cal: '57', ammo: ['ap', 'jhp'], mag: 50, spare: 3, chamber: true, modes: ['auto', 'semi'], rpm: 900, vel: 715, kg: 2.6, len: 0.5,
+  p90: W({ name: 'P90', cat: 'smg', side: 'sus', cal: '57', ammo: ['ap', 'jhp'], mag: 50, spare: 3, chamber: true, modes: ['auto', 'semi'], rpm: 900, vel: 390, kg: 2.6, len: 0.5,
     ads: 0.23, draw: 0.42, move: 0.98, rc: { v: 0.36, h: 0.3, bias: 0.04, first: 1.25, ctrl: 13, kick: 0.65 }, sp: { hip: 2.0, ads: 0.15, move: 1.4 }, rl: { tac: 2.9, fast: 2.4, empty: 0.4 },
     pvp: { dmg: 23, fall: [16, 28, 0.62] }, model: 'p90', mdl: {}, snd: 'p57',
     desc: 'FN製のブルパップ。上に寝かせた50発の弾倉。5.7mmで防弾ベストを抜く。' }),
@@ -451,8 +451,12 @@ export function swayOf(W) {
 // 揺れのうち、視界（カメラ）が受け持つ割合。スコープをのぞききると目と筒が一緒に動くので全部（像ごと揺れ、照準の模様は真ん中のまま）。
 // 等倍の照準器（ドット・ホロ・アイアン）は目はほとんど動かず銃が揺れるので 35%（残りは銃と照準の点が画面の上で動く）
 export const SWAY_CAM_SIGHT = 0.35;
-export function swayCamK(wi, ads) {
+// スコープの中だけ拡大して描く（倍率 6 未満のスコープ。BattleBit と同じく、銃とスコープの筒が見え、レンズの中だけ拡大。6倍以上は画面いっぱいの黒い輪）
+export const PIP_MAX_ZOOM = 6;
+export function scopePip(wi) { const o = opticOf(wi); return o.scope && o.zoom < PIP_MAX_ZOOM; }
+// pip: スコープの中の像を使っている（銃とレンズが揺れを受け持つ。等倍の照準器と同じ割合）
+export function swayCamK(wi, ads, pip = false) {
   const o = opticOf(wi);
-  const k = o.scope ? Math.max(0, Math.min(1, (ads - 0.7) / 0.25)) : 0;
+  const k = o.scope && !(pip && o.zoom < PIP_MAX_ZOOM) ? Math.max(0, Math.min(1, (ads - 0.7) / 0.25)) : 0;
   return SWAY_CAM_SIGHT + (1 - SWAY_CAM_SIGHT) * k * k * (3 - 2 * k);
 }

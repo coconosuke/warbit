@@ -151,6 +151,9 @@ ul, ol { margin: 4px 0; padding-left: 1.3em; line-height: 1.55; }
 .wp-size.last { border-color: #f2b33d; } .wp-size:active, .wp-size.down { background: #f2b33d; color: #17120a; } .wp-size:active small { color: #3b2c0e; }
 #stage[data-size="s"] .wp-card { padding: 8px; gap: 4px; } #stage[data-size="s"] .wp-card p { font-size: 11px; line-height: 1.4; } #stage[data-size="s"] .wp-size { min-height: 38px; }
 .pz-menu { position: static; width: 100%; }
+/* 低い画面（小さい横画面）: 一時停止の項目が5つになったので2列に（RESUME は横いっぱい） */
+#stage[data-size="s"] .pz-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+#stage[data-size="s"] .pz-menu .wm.main { grid-column: 1 / -1; }
 .pz h2 { letter-spacing: .14em; }
 .wr .wr-head { display: flex; align-items: center; gap: 14px; flex: none; }
 .wr .wr-head h2 { margin: 0; font: 900 2em/1 var(--f-head); }
@@ -264,6 +267,9 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hb.down { background: rgba(255,255,255,.32); transform: scale(.94); }
 .hb.on { background: rgba(242,179,61,.42); border-color: var(--accent2); }
 .hb.dis { opacity: .35 !important; }
+/* その銃で使えないボタン（倍率を切り替えられない照準器の 倍率）: 出さない。HUD の編集では出す */
+.hb.na { display: none; }
+#hud.editing .hb.na { display: flex; }
 .hb[data-btn="fire"], .hb[data-btn="fireL"] { background: rgba(200,40,30,.28); border-color: rgba(255,140,120,.8); }
 .hb[data-btn="fire"].down, .hb[data-btn="fireL"].down { background: rgba(255,70,50,.55); }
 .hb[data-btn="shout"] { border-color: rgba(255,207,106,.85); }
@@ -360,6 +366,9 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-scope { position: absolute; inset: 0; display: none; pointer-events: none; --sr: calc(min(var(--sh), var(--sw)) * 0.43); --scx: 0px; --scy: 0px; --se: 6px;
   background: radial-gradient(circle at calc(50% + var(--scx)) calc(50% + var(--scy)), transparent 0, transparent calc(var(--sr) * 0.72), rgba(0,0,0,.2) calc(var(--sr) - var(--se) * 1.6), rgba(0,0,0,.8) calc(var(--sr) - var(--se) * 0.4), #000 calc(var(--sr) + var(--se) * 0.3)); }
 .hud-scope.on { display: block; }
+/* スコープの中の像（大規模戦）: 外は暗くしない。照準の模様はレンズの丸の位置と大きさに */
+.hud-scope.pip { background: none; }
+.hud-scope.pip .ret { left: calc(50% + var(--scx)); top: calc(50% + var(--scy)); }
 .hud-scope .ret { position: absolute; left: 50%; top: 50%; width: 60%; height: 1px; background: rgba(0,0,0,.85); transform: translate(-50%, 0); }
 .hud-scope .ret::after { content: ''; position: absolute; left: 50%; top: -120px; width: 1px; height: 240px; background: rgba(0,0,0,.85); }
 .hud-scope .ret::before { content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #ff3a2a; box-shadow: 0 0 4px #ff2a1a; z-index: 1; }
@@ -375,12 +384,18 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-scope.sniper .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23000' stroke-opacity='.92'><path d='M0 100H200M100 0V200' stroke-width='.5'/><path d='M0 100H62M138 100H200M100 0V62M100 138V200' stroke-width='3.2'/></g><g fill='%23000' fill-opacity='.92'><circle cx='108' cy='100' r='1'/><circle cx='92' cy='100' r='1'/><circle cx='100' cy='108' r='1'/><circle cx='100' cy='92' r='1'/><circle cx='116' cy='100' r='1'/><circle cx='84' cy='100' r='1'/><circle cx='100' cy='116' r='1'/><circle cx='100' cy='84' r='1'/><circle cx='124' cy='100' r='1'/><circle cx='76' cy='100' r='1'/><circle cx='100' cy='124' r='1'/><circle cx='100' cy='76' r='1'/><circle cx='132' cy='100' r='1'/><circle cx='68' cy='100' r='1'/><circle cx='100' cy='132' r='1'/><circle cx='100' cy='68' r='1'/></g><circle cx='100' cy='100' r='.9' fill='%23ff3a2a'/></svg>"); }
 .hud-scope.mag3 .ret, .hud-scope.acog2 .ret, .hud-scope.acog .ret, .hud-scope.scope6 .ret, .hud-scope.lpvo .ret, .hud-scope.lpvo8 .ret { filter: drop-shadow(0 0 1.5px rgba(255,60,40,.55)); }
 .hud-scope.wide { background: radial-gradient(circle at calc(50% + var(--scx)) calc(50% + var(--scy)), transparent 0, transparent calc(var(--sr) * 1.86), rgba(0,0,0,.9) calc(var(--sr) * 2.09 + var(--se))); }
-.hud-hit { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px; opacity: 0; }
-.hud-hit::before, .hud-hit::after { content: ''; position: absolute; left: 50%; top: 50%; width: 26px; height: 2px; margin: -1px -13px; background: #fff; transform: rotate(45deg); box-shadow: 0 0 2px #000; }
-.hud-hit::after { transform: rotate(-45deg); }
+.hud-hit { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; --hc: #fff; --hg: 5px; --hl: 8px; pointer-events: none; }
+.hud-hit i { position: absolute; left: 0; top: -1px; width: var(--hl); height: 2px; background: var(--hc); box-shadow: 0 0 2px rgba(0,0,0,.9); transform-origin: 0 50%; }
+.hud-hit i:nth-child(1) { transform: rotate(45deg) translateX(var(--hg)); }
+.hud-hit i:nth-child(2) { transform: rotate(135deg) translateX(var(--hg)); }
+.hud-hit i:nth-child(3) { transform: rotate(225deg) translateX(var(--hg)); }
+.hud-hit i:nth-child(4) { transform: rotate(315deg) translateX(var(--hg)); }
 .hud-hit.on { opacity: 1; }
-.hud-hit.head::before, .hud-hit.head::after { background: #ffcf4a; }
-.hud-hit.kill::before, .hud-hit.kill::after { background: #ff4a3a; width: 32px; margin-left: -16px; }
+.hud-hit.fade { opacity: 0; transition: opacity .12s linear; }
+.hud-hit.head { --hc: #ffe600; }
+.hud-hit.armor { --hc: #3d7dff; }
+.hud-hit.kill { --hc: #ff2a1f; --hg: 7px; --hl: 11px; }
+.hud-hit.kill i { height: 3px; top: -1.5px; }
 .hud-dmg { position: absolute; left: 50%; top: 50%; }
 .hud-dmg i { position: absolute; left: 0; top: 0; width: 60px; height: 14px; border-radius: 50% 50% 0 0; border-top: 4px solid rgba(255,40,30,.85); }
 .hud-prog { position: absolute; left: 50%; top: 58%; width: 64px; height: 64px; margin-left: -32px; display: none; }
@@ -388,6 +403,11 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-prog svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .hud-prog circle { fill: none; stroke-width: 5; } .hud-prog .bg { stroke: rgba(0,0,0,.45); } .hud-prog .fg { stroke: var(--accent2); stroke-dasharray: 163.4; stroke-linecap: round; }
 .hud-prog .lb { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); font-size: 11px; font-family: var(--f-body); font-weight: 700; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+.hud-giveup { position: absolute; left: 50%; bottom: calc(var(--sb) + 132px); transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 2px; padding: 8px 20px; min-width: 150px; background: rgba(8,12,18,.72); border: 1px solid rgba(255,255,255,.28); border-radius: 6px; font-family: var(--f-body); pointer-events: auto; z-index: 3; }
+.hud-giveup.on { display: flex; }
+.hud-giveup b { font-size: 15px; letter-spacing: .08em; }
+.hud-giveup span { font-size: 11px; opacity: .8; }
+.hud-giveup.arm { border-color: #ff5a4a; background: rgba(90,16,12,.78); }
 .hud-prompt { position: absolute; left: 50%; bottom: calc(var(--sb) + 104px); transform: translateX(-50%); font-family: var(--f-body); font-size: 12px; font-weight: 700; background: rgba(8,12,18,.62); padding: 4px 12px; border-radius: 4px; white-space: nowrap; display: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
 .hud-prompt.on { display: block; }
 .hud-subs { position: absolute; width: 340px; min-height: 18px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; pointer-events: none; transform-origin: 50% 50%; }

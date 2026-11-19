@@ -103,7 +103,9 @@ function detonate(S, w, n, ev) {
     S.clouds.push({ x: n.x, y: n.y, z: n.z, r: 0.5, max: 4.6, t: 20, type: 'cs', L: levelOfY(n.y) });
   } else if (n.type === 'smoke') {
     // 煙: 床から立ちのぼって半径 3.2m の玉になる（目の高さを覆うよう、中心は床から 1.1m）
-    S.clouds.push({ x: n.x, y: n.y + 1.1, z: n.z, r: 0.4, max: 3.2, t: 16, type: 'smoke', L: levelOfY(n.y) });
+    // 大規模戦（屋外）: 半径 6.5m・30 秒（BattleBit の発煙弾は大きく濃い。research の 21）
+    if (S.war) S.clouds.push({ x: n.x, y: n.y + 1.6, z: n.z, r: 0.6, max: 6.5, t: 30, type: 'smoke', L: levelOfY(n.y) });
+    else S.clouds.push({ x: n.x, y: n.y + 1.1, z: n.z, r: 0.4, max: 3.2, t: 16, type: 'smoke', L: levelOfY(n.y) });
   } else if (n.type === 'frag') {
     // 大規模戦の M67: 5m でほぼ致命、15m まで（research/WARBIT.md の 6）。今までのモードの罠は 5m
     if (S.war) S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 15, dmg: 250, fall: 2.2, kind: 'frag', by: n.by, t: 0 });

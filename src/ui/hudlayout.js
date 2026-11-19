@@ -8,8 +8,9 @@ export const BTN = {
   reload: { name: 'リロード', ax: 'r', ay: 'b', x: 36, y: 205, s: 50, icon: 'reload' },
   crouch: { name: 'しゃがむ（長押しで伏せ）', ax: 'r', ay: 'b', x: 36, y: 40, s: 50, icon: 'crouch' },
   breath: { name: '息止め（構えている間）', ax: 'r', ay: 'b', x: 240, y: 126, s: 50, icon: 'breath', warOnly: true, adsOnly: true },
-  vault: { name: '乗り越え・跳ぶ', ax: 'r', ay: 'b', x: 160, y: 200, s: 48, icon: 'vault' },
-  melee: { name: '近接（銃床で殴る）', ax: 'r', ay: 'b', x: 160, y: 254, s: 44, icon: 'melee' },
+  vault: { name: '乗り越え・跳ぶ', ax: 'r', ay: 'b', x: 160, y: 200, s: 48, icon: 'jump' },
+  // 近接: 上のライトのボタンと重なっていたので、構えるボタンの左へ（11-19）
+  melee: { name: '近接（銃床で殴る）', ax: 'r', ay: 'b', x: 252, y: 30, s: 44, icon: 'melee' },
   leanL: { name: '左にリーン', ax: 'l', ay: 'b', x: 36, y: 168, s: 48, icon: 'leanL' },
   leanR: { name: '右にリーン', ax: 'l', ay: 'b', x: 210, y: 168, s: 48, icon: 'leanR' },
   shout: { name: '警告（呼びかけ）', ax: 'r', ay: 'b', x: 252, y: 52, s: 60, icon: 'shout', noWar: true },
@@ -18,11 +19,12 @@ export const BTN = {
   team: { name: '命令する隊', ax: 'r', ay: 'b', x: 316, y: 160, s: 38, icon: 'team', pve: true },
   gear: { name: '投げ物・装備（長押しで選ぶ）', ax: 'r', ay: 'b', x: 92, y: 236, s: 52, icon: 'gear' },
   fmode: { name: '射撃モード', ax: 'r', ay: 't', x: 214, y: 92, s: 36, icon: 'fmode' },
+  zoom: { name: 'スコープの倍率', ax: 'r', ay: 't', x: 258, y: 92, s: 36, icon: 'zoom', zoomOnly: true },
   light: { name: 'ライト', ax: 'r', ay: 't', x: 170, y: 92, s: 36, icon: 'light' },
   nvg: { name: '暗視装置', ax: 'r', ay: 't', x: 126, y: 92, s: 36, icon: 'nvg', noWar: true },
   pause: { name: 'メニュー', ax: 'r', ay: 't', x: 30, y: 28, s: 38, icon: 'pause' },
   drone: { name: 'ドローン', ax: 'r', ay: 't', x: 82, y: 92, s: 40, icon: 'drone', pvp: true },
-  loadout: { name: '兵科・装備（射撃場）', ax: 'r', ay: 't', x: 82, y: 92, s: 40, icon: 'loadout', rangeOnly: true },
+  loadout: { name: '兵科・装備（射撃場）', ax: 'r', ay: 't', x: 76, y: 28, s: 40, icon: 'loadout', rangeOnly: true },
   cams: { name: '監視カメラ（対戦の防衛側）', ax: 'r', ay: 't', x: 82, y: 140, s: 40, icon: 'cams', pvp: true },
   zone: { name: '出現地点（攻撃側の準備中）', ax: 'c', ay: 't', x: 0, y: 98, s: 34, w: 190, icon: 'zone', pvp: true },
   wpn1: { name: '主武器', ax: 'c', ay: 'b', x: -64, y: 22, s: 40, w: 120, icon: 'wpn', group: 'wpn' },
@@ -53,6 +55,8 @@ export const ICONS = {
   // 息止め: 肺の形
   breath: '<path d="M12 3v7M12 9c-1.5 1.5-3 2-4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 9c1.5 1.5 3 2 4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9.6 7.6C6.3 7 3.6 11 3.4 16.3c-.1 2.6 1.2 3.9 3.2 3.4 2.6-.6 3.6-2.3 3.6-5.3V8.2zM14.4 7.6c3.3-.6 6 3.4 6.2 8.7.1 2.6-1.2 3.9-3.2 3.4-2.6-.6-3.6-2.3-3.6-5.3V8.2z" fill="currentColor"/>',
   crouch: '<circle cx="13" cy="5" r="2.5" fill="currentColor"/><path d="M12 8l-3 6h6l-2 6M9 14l-3 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  // 跳ぶ（11-19 18:16: 乗り越えの絵から変更）: 地面の線から上へ向かう矢印
+  jump: '<path d="M4 21h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 17.5V4.5M6.5 10 12 4.5 17.5 10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 17.5h2M15 17.5h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>',
   vault: '<path d="M3 20h18M7 20v-7h10v7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 9c3-6 9-6 13-1l-2-3M18 8l-3 1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   leanL: '<path d="M10 4l-4 4 4 4M6 8h8a5 5 0 0 1 0 10h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
   leanR: '<path d="M14 4l4 4-4 4M18 8h-8a5 5 0 0 0 0 10h3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -61,6 +65,8 @@ export const ICONS = {
   cmd: '<path d="M5 21V3M5 4h12l-3 4 3 4H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   team: '<circle cx="8" cy="9" r="3" fill="currentColor"/><circle cx="16" cy="9" r="3" fill="currentColor"/><path d="M2 20c0-4 3-6 6-6s6 2 6 6M10 20c0-4 3-6 6-6s6 2 6 6" fill="currentColor"/>',
   gear: '<rect x="8" y="7" width="8" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 7V4h4v3M14 4l4-2" fill="none" stroke="currentColor" stroke-width="2"/>',
+  // 倍率（11-19 14:03）: 虫めがね
+  zoom: '<circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M8 10.5h5M10.5 8v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   fmode: '<text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" font-family="sans-serif" font-weight="700">FM</text>',
   light: '<path d="M4 9h9l6-4v14l-6-4H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   nvg: '<circle cx="7.5" cy="13" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16.5" cy="13" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11.5 13h1M9 6h6" stroke="currentColor" stroke-width="2"/>',

@@ -372,7 +372,7 @@ export class Screens {
     const el = this._mk('pause', `<div class="pz"><h2>PAUSED<small>${esc(line)}</small></h2>
       <nav class="wt-menu pz-menu">
         <button class="wm main" data-a="resume"><b>RESUME</b><span>再開</span></button>
-        ${range ? '<button class="wm" data-a="loadout"><b>LOADOUT</b><span>兵科・銃を変える</span></button>' : '<button class="wm" data-a="tablet"><b>MAP</b><span>地図・状況</span></button>'}
+        ${range ? '<button class="wm" data-a="loadout"><b>LOADOUT</b><span>兵科・銃を変える</span></button>' : `${g.p.alive ? '<button class="wm" data-a="redeploy"><b>REDEPLOY</b><span>再出撃（倒れたことになる）</span></button>' : ''}<button class="wm" data-a="tablet"><b>MAP</b><span>地図・状況</span></button>`}
         <button class="wm" data-a="settings"><b>SETTINGS</b><span>設定</span></button>
         <button class="wm danger" data-a="quit"><b>QUIT</b><span>${range ? '射撃場を出る' : '試合を出る'}</span></button>
       </nav></div>`, 'dim');
@@ -383,6 +383,9 @@ export class Screens {
       loadout: () => { a.resumeGame(); if (a.game && a.game.p.alive) a.game.acts.push({ a: 'warRedeploy' }); },
     });
     confirmTap(el.querySelector('[data-a="quit"]'), () => a.confirmMode(), () => a.quitToTitle(), '<b>QUIT</b><span>もう一度押すと出る</span>');
+    // 再出撃（11-19 18:16）: 生きていても倒れていても、倒れたことにしてすぐ出撃の画面へ。やり直せないので指だと2回押す
+    const rd = el.querySelector('[data-a="redeploy"]');
+    if (rd) confirmTap(rd, () => a.confirmMode(), () => { a.resumeGame(); if (a.game && a.game.p.alive) a.game.acts.push({ a: 'warRedeploy' }); }, '<b>REDEPLOY</b><span>もう一度押すと再出撃</span>');
     this.show('pause'); a.scene('pause');
   }
   // ---- 地図（タブレット）
@@ -535,7 +538,6 @@ export class Screens {
       row('スコープ', '倍率あり（4倍が基準。倍率に合わせて変わる）', 'sensScope'); sl('sensScope', 0.1, 1.2, 0.05, pct);
       row('射撃中', '射撃ボタンで視点移動', 'sensFire'); sl('sensFire', 0.3, 1.5, 0.05, pct);
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);
-      row('エイムアシスト', '照準が敵へ少し寄る', 'aimAssist'); ch('aimAssist', [['off', 'オフ'], ['weak', '弱'], ['strong', '標準']]);
       row('ジャイロ', '端末の傾きで照準', 'gyro'); ch('gyro', [['off', 'オフ'], ['ads', 'ADS時'], ['always', '常時']]);
       row('ジャイロ感度', '', 'gyroSens'); sl('gyroSens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ジャイロ 左右', '', 'gyroInvX'); ch('gyroInvX', [[false, '標準'], [true, '反転']]);
@@ -550,15 +552,10 @@ export class Screens {
       row('移動スティックの大きさ', '位置は「配置を編集」でドラッグ', 'stickS'); binds.push(() => slider(this.stage, body.querySelector('[data-k="stickS"]'), { min: 0.6, max: 1.8, step: 0.05, value: (S.hud && S.hud.stick && S.hud.stick.s) || 1, fmt: pct, label: '移動スティックの大きさ', onInput: (v) => { stk().s = v; save(); } }));
       row('移動スティックの濃さ', '', 'stickO'); binds.push(() => slider(this.stage, body.querySelector('[data-k="stickO"]'), { min: 0.15, max: 1, step: 0.05, value: (S.hud && S.hud.stick && S.hud.stick.o) ?? 0.55, fmt: pct, label: '移動スティックの濃さ', onInput: (v) => { stk().o = v; save(); } }));
       row('ダッシュの判定位置', 'スティックの中心からの距離（半径の何倍か）', 'stickSpr'); binds.push(() => slider(this.stage, body.querySelector('[data-k="stickSpr"]'), { min: 1, max: 2.4, step: 0.05, value: (S.hud && S.hud.stick && S.hud.stick.spr) ?? 1.25, fmt: (v) => v.toFixed(2) + '倍', label: 'ダッシュの判定位置', onInput: (v) => { stk().spr = v; save(); } }));
-      row('長押しメニューの大きさ', '命令などの円形メニュー', 'radialScale'); sl('radialScale', 0.8, 1.6, 0.05, pct);
+      row('長押しメニューの大きさ', '投げ物・装備を選ぶ円形メニュー', 'radialScale'); sl('radialScale', 0.8, 1.6, 0.05, pct);
       row('照準', '腰だめ', 'crosshair'); ch('crosshair', [['cross', '十字'], ['dot', '点'], ['none', 'なし']]);
       row('照準の色', '', 'crossColor'); binds.push(() => chips(body.querySelector('[data-k="crossColor"]'), [['#ffffff', '白'], ['#7dff7a', '緑'], ['#ffe14a', '黄'], ['#4ae8ff', '水色'], ['#ff5ad2', '桃']], S.crossColor, (v) => { S.crossColor = v; save(); }, { swatch: true }));
       row('ミニマップ', 'タップで地図', 'minimap'); ch('minimap', [[true, '表示'], [false, '非表示']]);
-      row('字幕', '無線と呼びかけ', 'subtitles'); ch('subtitles', [[true, '表示'], [false, '非表示']]);
-      row('字幕の位置', '自由な位置は「配置を編集」', 'subPos');
-      binds.push(() => { const H = S.hud || (S.hud = {}); const cur = H.i_subs && H.i_subs.ay === 't' ? 't' : (H.i_subs && (H.i_subs.x || H.i_subs.y != null) && !H.i_subs.preset ? 'free' : 'b'); chips(body.querySelector('[data-k="subPos"]'), [['b', '下'], ['t', '上'], ...(cur === 'free' ? [['free', '自由']] : [])], cur, (v) => { if (v === 'free') return; const o = H.i_subs || (H.i_subs = {}); o.ay = v; o.x = 0; o.y = v === 't' ? 84 : 78; o.preset = true; save(); }); });
-      row('字幕の大きさ', '', 'subSize'); binds.push(() => { const H = S.hud || (S.hud = {}); slider(this.stage, body.querySelector('[data-k="subSize"]'), { min: 0.7, max: 1.6, step: 0.05, value: (H.i_subs && H.i_subs.s) || 1, fmt: pct, label: '字幕の大きさ', onInput: (v) => { const o = H.i_subs || (H.i_subs = {}); o.s = v; save(); } }); });
-      row('字幕の濃さ', '後ろの帯', 'subBg'); sl('subBg', 0, 0.9, 0.05, pct);
       row('ヒットマーカー', '', 'hitMarker'); ch('hitMarker', [[true, '表示'], [false, '非表示']]);
     } else if (tab === 'gfx') {
       // まとめて選ぶ（低・中・高）と、細かい設定（変えるとカスタム）
@@ -578,6 +575,7 @@ export class Screens {
       gc('shells', '薬莢', '飛び出す薬莢', [[true, '表示'], [false, '非表示']]);
       row('視野角', '横の角度（16:9の画面で）。横長の画面ではもっと広く見える', 'hfov'); sl('hfov', 70, 110, 1, (v) => v + '°');
       row('武器の視野角', '手と銃の見え方。小さいほど大きく見える', 'vmFov'); sl('vmFov', 45, 70, 1, (v) => v + '°');
+      row('スコープ（6倍未満）', '大規模戦。レンズの中だけ拡大は少し重い', 'scopePip'); ch('scopePip', [['on', 'レンズの中だけ拡大'], ['off', '画面いっぱい']]);
       row('明るさ', '', 'bright'); sl('bright', 0.6, 1.6, 0.05, pct);
       row('色の鮮やかさ', '', 'sat'); sl('sat', 0.6, 1.5, 0.02, pct);
       row('周辺減光', '画面のふちを暗く', 'vignette'); ch('vignette', [[true, 'オン'], [false, 'オフ']]);

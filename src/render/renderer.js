@@ -85,7 +85,7 @@ function prog(gl, vs, fs, name, defs = '') {
   for (let k = 0; k < n; k++) { const info = gl.getActiveUniform(p, k); u[info.name.replace(/\[0\]$/, '')] = gl.getUniformLocation(p, info.name); }
   // テクスチャの番号は固定
   gl.useProgram(p);
-  const units = { uTex: 0, uLG: 1, uWM: 2, uAO: 3, uDLR: 4, uShadow: 5, uSrc: 6, uBloom: 7 };
+  const units = { uTex: 0, uLG: 1, uWM: 2, uAO: 3, uDLR: 4, uShadow: 5, uSrc: 6, uBloom: 7, uPip: 8 };
   for (const [k, v] of Object.entries(units)) if (u[k]) gl.uniform1i(u[k], v);
   return { p, u, name };
 }
@@ -443,8 +443,30 @@ export class Renderer {
     // 影
     this.shadowOn = false;
     if (this.q.shadow && this.sky.night < 0.5 && f.shadows !== false) this._shadowPass(c);
+    // スコープの中の像（倍率の低いスコープ。画面の中の丸いレンズにだけ拡大した世界を描く。research の 20）
+    this.pipOn = false;
+    if (f.pip && f.pip.r > 8) this._pipPass(f, c);
     // 本描画
-    const target = this.msaa ? this.msF : this.hdrF;
+    this._scene(f, c, this.msaa ? this.msF : this.hdrF, W, H);
+    // 一人称（深さを消して手前に）
+    if (this.hooks.viewmodel.length && f.vm) {
+      gl.clear(gl.DEPTH_BUFFER_BIT);
+      m4persp(this.tmpM, f.vm.fov, W / H, 0.01, 6);
+      m4mul(this.vmVP, this.tmpM, this.view);
+      for (const h of this.hooks.viewmodel) h(this, f);
+    }
+    // MSAA を解く
+    if (this.msaa) {
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.msF);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.hdrF);
+      gl.blitFramebuffer(0, 0, W, H, 0, 0, W, H, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    }
+    this._post(f.post || {}, W, H);
+  }
+
+  // 世界・空・透明な物を target へ描く（本描画とスコープの中の像で同じ）。行列（this.vp など）は呼ぶ前にそろえておく
+  _scene(f, c, target, W, H) {
+    const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, target);
     gl.viewport(0, 0, W, H);
     gl.clearColor(0, 0, 0, 1);
@@ -506,22 +528,29 @@ export class Renderer {
     gl.depthMask(true);
     gl.disable(gl.BLEND);
     gl.enable(gl.CULL_FACE);
-    // 一人称（深さを消して手前に）
-    if (this.hooks.viewmodel.length && f.vm) {
-      gl.clear(gl.DEPTH_BUFFER_BIT);
-      m4persp(this.tmpM, f.vm.fov, W / H, 0.01, 6);
-      m4mul(this.vmVP, this.tmpM, this.view);
-      for (const h of this.hooks.viewmodel) h(this, f);
-    }
-    // MSAA を解く
-    if (this.msaa) {
-      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.msF);
-      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.hdrF);
-      gl.blitFramebuffer(0, 0, W, H, 0, 0, W, H, gl.COLOR_BUFFER_BIT, gl.NEAREST);
-    }
-    this._post(f.post || {}, W, H);
   }
-
+  // スコープの中の像: f.pip = { r: レンズの半径（画素）, fov: 縦の画角, fwd: 向き, up: 上の向き, scale: 解像度の倍率 }
+  _pipPass(f, c) {
+    const gl = this.gl, pp = f.pip, S = Math.max(64, Math.min(1024, Math.round(pp.r * 2 * (pp.scale || 1))));
+    if (this.pipS !== S || !this.pipF) {
+      if (this.pipT) { gl.deleteTexture(this.pipT); gl.deleteTexture(this.pipD); gl.deleteFramebuffer(this.pipF); }
+      const hf = gl.hdr ? gl.RGBA16F : gl.RGBA8, ht = gl.hdr ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
+      this.pipT = tex2D(gl, S, S, { internal: hf, format: gl.RGBA, type: ht });
+      this.pipD = depthTex(gl, S, S, false);
+      this.pipF = fbo(gl, this.pipT, this.pipD);
+      this.pipS = S;
+    }
+    const keep = [this.view.slice(), this.proj.slice(), this.vp.slice(), this.invVP.slice(), this.planes.slice()];
+    const F = pp.fwd, U = pp.up || [0, 1, 0];
+    m4lookAt(this.view, c.x, c.y, c.z, c.x + F[0], c.y + F[1], c.z + F[2], U[0], U[1], U[2]);
+    m4persp(this.proj, pp.fov, 1, this.war ? 0.3 : 0.1, this.war ? this.viewDist + 60 : 400);
+    m4mul(this.vp, this.proj, this.view);
+    m4invert(this.invVP, this.vp);
+    frustumPlanes(this.vp, this.planes);
+    this._scene(f, c, this.pipF, S, S);
+    this.view.set(keep[0]); this.proj.set(keep[1]); this.vp.set(keep[2]); this.invVP.set(keep[3]); this.planes.set(keep[4]);
+    this.pipOn = true; this.pipR = pp.r; this.pipC = pp.c;
+  }
   _drawDoors(P, doors) {
     const gl = this.gl, w = this.w0;
     const M = this.tmpM;
@@ -701,6 +730,7 @@ export class Renderer {
     gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, this.hdr);
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, this.bloomT.length ? this.bloomT[0].t : this.blank);
     gl.uniform1f(C.u.uBloomK, bloomK);
+    if (C.u.uPipC) { gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, this.pipOn ? this.pipT : this.blank); gl.uniform4f(C.u.uPipC, this.pipOn ? this.pipC[0] : 0.5, this.pipOn ? this.pipC[1] : 0.5, this.pipOn ? this.pipR : 0, this.pipOn ? 1 : 0); }
     gl.uniform1f(C.u.uExposure, p.exposure ?? 1);
     gl.uniform1f(C.u.uVig, p.vig ?? 0.35);
     gl.uniform1f(C.u.uNVG, p.nvg ? 1 : 0);

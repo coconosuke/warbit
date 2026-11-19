@@ -836,7 +836,9 @@ function gearInHand(S, w, a, dt, ev) {
   if (GEAR[id].kind === 'nade') {
     g.n--;
     throwNade(S, a, id, inp.power ?? 0.75, ev);
-    if (g.n <= 0 || !inp.keepGear) { ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.35; }
+    // 残りがあれば持ったまま（大規模戦。11-19 18:16）: 次を取り出す間（0.75 秒）を置いて、また投げられる。なくなったら前の銃へ
+    if (g.n > 0 && (inp.keepGear || S.war)) { ws.st = 'draw'; ws.t = 0.75; ws.gearTrig = true; }
+    else { ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.35; }
   } else if (GEAR[id].kind === 'deploy') {
     startDeploy(S, w, a, id, ev);
   } else if (GEAR[id].kind === 'spray') {

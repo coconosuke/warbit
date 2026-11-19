@@ -55,7 +55,9 @@ export class Hud {
     this.reticle = el('div', 'hud-reticle'); r.appendChild(this.reticle);
     // 息の残り（息止めの間と、戻るまで。構えているときだけ）
     this.breathEl = el('div', 'hud-breath', '<i></i>'); r.appendChild(this.breathEl);
-    this.hitm = el('div', 'hud-hit'); r.appendChild(this.hitm);
+    this.hitm = el('div', 'hud-hit', '<i></i><i></i><i></i><i></i>'); r.appendChild(this.hitm);
+    // ダウン中にあきらめて出撃の画面へ（大規模戦。指だと2回押す。11-19 18:16）
+    this.giveup = el('div', 'hud-giveup', '<b>GIVE UP</b><span>出撃の画面へ</span>'); this.giveup.dataset.btn = 'giveup'; this.giveup.setAttribute('role', 'button'); r.appendChild(this.giveup);
     this.dmg = el('div', 'hud-dmg'); r.appendChild(this.dmg);
     this.prog = el('div', 'hud-prog', '<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg"/></svg><div class="lb"></div>'); r.appendChild(this.prog);
     this.prompt = el('div', 'hud-prompt'); r.appendChild(this.prompt);
@@ -120,7 +122,8 @@ export class Hud {
       // 設定で消したボタン（左の射撃）: 配置を動かしたことがあっても消す（動かすと設定が効かなくなっていた）
       const offBySetting = def.opt === 'leftFire' && this.S.leftFire === false;
       if (offBySetting) hide = true;
-      if (this.editing) hide = (def.pve && !this.mode.pve) || (def.rangeOnly && !this.mode.range) || (def.warOnly && !this.mode.war) ? true : false;
+      // 編集のときも、このモードで使わないボタン（大規模戦の 警告・調べる・暗視 など）は出さない（11-19 14:03）
+      if (this.editing) hide = (def.pve && !this.mode.pve) || (def.rangeOnly && !this.mode.range) || (def.warOnly && !this.mode.war) || (def.noWar && this.mode.war) || (def.pvp && !this.mode.drone) || (def.pvpOnly && !this.mode.pvp) ? true : false;
       e.classList.toggle('hidden', hide && !this.editing);
       const [x, y] = this.posOf(def, ov);
       const s = (ov.s || 1) * def.s * k;
@@ -135,7 +138,7 @@ export class Hud {
       const sc = (ov.s || 1) * k;
       e.style.left = x + 'px'; e.style.top = y + 'px';
       e.style.transform = `translate(-50%,-50%) scale(${sc})`;
-      e.classList.toggle('hidden', (!!ov.hide && !this.editing) || (id === 'squad' && !this.mode.pve) || (id === 'minimap' && this.S.minimap === false) || (id === 'subs' && this.S.subtitles === false && !this.editing));
+      e.classList.toggle('hidden', (!!ov.hide && !this.editing) || (id === 'squad' && !this.mode.pve) || (id === 'minimap' && this.S.minimap === false) || (id === 'subs' && (this.mode.war || (this.S.subtitles === false && !this.editing))));
       if (this.editing) e.style.opacity = ov.hide ? 0.25 : 1; else e.style.opacity = '';
     }
     // 移動スティック: 位置（固定のとき・待っているときの場所）・大きさ・濃さ・ダッシュの判定位置は HUD の設定（H.stick）
@@ -229,7 +232,8 @@ export class Hud {
     // 開きはなめらかに追い、1px 単位で変える（小数の位置で線がにじんで点滅して見えないように。11-13 20:50）
     const hideNow = this.cache.crossHid ? ads > 0.45 : ads > 0.6;
     this.cache.crossHid = hideNow;
-    this.cross.classList.toggle('hidden', !p || hideNow || this.S.crosshair === 'none' || v.hideCross);
+    // 十字が点滅していた本当の原因: 最後の v.hideCross が undefined のとき toggle が「切り替え」になり、毎こま出たり消えたりしていた（!! で真偽に）
+    this.cross.classList.toggle('hidden', !!(!p || hideNow || this.S.crosshair === 'none' || v.hideCross));
     if (p && !hideNow) {
       const gt = Math.max(3, Math.min(40, (v.spread || 2) * 5)), now = performance.now(), dtc = Math.min(0.1, Math.max(0, (now - (this.cache.gapT || now)) / 1000));
       this.cache.gapT = now;
@@ -238,13 +242,14 @@ export class Hud {
       if (this.cache.gap !== g) { this.cache.gap = g; this.cross.style.setProperty('--gap', g + 'px'); }
       this.cross.classList.toggle('dot', this.S.crosshair === 'dot');
     }
+    { const gk = v.giveup || 0; if (this.cache.giveup !== gk) { this.cache.giveup = gk; this.giveup.classList.toggle('on', gk > 0); this.giveup.classList.toggle('arm', gk === 2); this.giveup.lastChild.textContent = gk === 2 ? 'もう一度押すと出撃の画面へ' : '出撃の画面へ'; } }
     // 息止め: ボタンは構えている間だけ出す。息の残りの棒は、止めている間と戻るまで
     {
       const ws = p && p.ws, on = !!(p && p.alive && ads > 0.6);
       const bk = on ? 1 : 0;
       if (this.btn.breath && this.cache.brOn !== bk && !this.editing) { this.cache.brOn = bk; this.btn.breath.classList.toggle('ads-off', !on); }
       if (this.btn.breath) this._flag('breath', !!(ws && ws.holding));
-      const br = ws && ws.br != null ? ws.br : 1, show = on && (br < 0.995 || (ws && ws.holding));
+      const br = ws && ws.br != null ? ws.br : 1, show = !!(on && (br < 0.995 || (ws && ws.holding)));
       const key = show ? Math.round(br * 100) + (ws.gasp > 0 ? 'g' : '') : '';
       if (this.cache.brKey !== key) { this.cache.brKey = key; this.breathEl.classList.toggle('on', show); this.breathEl.classList.toggle('gasp', !!(ws && ws.gasp > 0)); if (show) this.breathEl.firstChild.style.width = (br * 100).toFixed(0) + '%'; }
     }
@@ -254,10 +259,20 @@ export class Hud {
     const ro = retOn && v.retOff ? 'translate(' + v.retOff[0].toFixed(1) + 'px,' + v.retOff[1].toFixed(1) + 'px)' : '';
     if (this.cache.retT !== ro) { this.cache.retT = ro; this.reticle.style.transform = ro; }
     // スコープ: 目に寄せる途中（構え 0.7〜0.95）で接眼レンズの像が大きくなりながら現れ、目と筒のずれで丸い視界がずれて縁が暗くなる
-    const fx = optic && optic.scope ? v.scopeFx : null;
-    const sk = fx ? 'hud-scope on ' + optic.kind + (optic.wide ? ' wide' : '') : 'hud-scope';
+    // スコープの中の像（大規模戦・倍率 6 未満）: 照準の模様はレンズの丸の上だけに（外は銃と世界がそのまま見える）
+    const pf = optic && optic.scope ? v.pipFx : null;
+    const fx = optic && optic.scope && !pf ? v.scopeFx : null;
+    const sk = pf ? 'hud-scope on pip ' + optic.kind : fx ? 'hud-scope on ' + optic.kind + (optic.wide ? ' wide' : '') : 'hud-scope';
     if (this.cache.scope !== sk) { this.cache.scope = sk; this.scope.className = sk; }
-    if (fx) {
+    if (pf) {
+      const key = 'p' + Math.round(pf.r * 2) + ',' + Math.round(pf.x * 2) + ',' + Math.round(pf.y * 2) + ',' + Math.round(pf.k * 20);
+      if (this.cache.sfx !== key) {
+        this.cache.sfx = key;
+        const st = this.scope.style, W2 = this.scope.clientWidth || 0, H2 = this.scope.clientHeight || 0;
+        st.setProperty('--sr', pf.r.toFixed(1) + 'px'); st.setProperty('--scx', (pf.x - W2 / 2).toFixed(1) + 'px'); st.setProperty('--scy', (pf.y - H2 / 2).toFixed(1) + 'px');
+        st.opacity = pf.k >= 0.99 ? '' : pf.k.toFixed(2);
+      }
+    } else if (fx) {
       const key = Math.round(fx.r) + ',' + Math.round(fx.dx * 2) + ',' + Math.round(fx.dy * 2) + ',' + Math.round(fx.e) + ',' + Math.round(fx.k * 50);
       if (this.cache.sfx !== key) {
         this.cache.sfx = key;
@@ -347,16 +362,23 @@ export class Hud {
       this.btn.nvg.classList.toggle('dis', !v.hasNvg);
       this.btn.light.classList.toggle('dis', !(wi && wi.att && (wi.att.light || wi.att.laser)));
       const m320 = p.ws.slot === 3 && p.inv.long === 'm320';
-      // 倍率を切り替えられるスコープ（狙撃銃）: 射撃モードのボタンで倍率を切り替える
-      // 構えている間（射撃モードが1つの銃はいつも）は倍率
-      const zs = !m320 && W && wi && (W.modes.length <= 1 || p.ads > 0.5) ? zoomsOf(wi.att) : null;
-      this.btn.fmode.querySelector('.lb').textContent = m320 ? '弾種' : zs ? (zoomOf(wi) <= 1 ? '×1' : `×${zoomOf(wi)}`) : W ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : 'SEMI') : '';
-      this.btn.fmode.classList.toggle('dis', !m320 && !zs && !(W && W.modes.length > 1));
+      // 射撃モードのボタン: 射撃モードだけ（フル・バースト・単発）。倍率は別のボタン（倍率を切り替えられる照準器の時だけ出す。11-19 14:03）
+      const zs = !m320 && W && wi ? zoomsOf(wi.att) : null;
+      const fm = m320 ? '弾種' : W ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') : '';
+      const zl = zs ? (zoomOf(wi) <= 1 ? '×1' : `×${zoomOf(wi)}`) : '';
+      const fk = fm + '|' + zl + '|' + (zs ? 1 : 0) + (m320 || (W && W.modes.length > 1) ? 1 : 0);
+      if (this.cache.fmk !== fk) {
+        this.cache.fmk = fk;
+        this.btn.fmode.querySelector('.lb').textContent = fm;
+        this.btn.fmode.classList.toggle('dis', !m320 && !(W && W.modes.length > 1));
+        this.btn.zoom.querySelector('.lb').textContent = zl;
+        this.btn.zoom.classList.toggle('na', !zs);
+      }
       const gtxt = v.gearSel ? (GEAR[v.gearSel] ? GEAR[v.gearSel].name.replace(/（.*）/, '') : '') : '';
       const gn = v.gearSel ? (p.inv.gear.find(x => x.id === v.gearSel) || { n: 0 }).n : 0;
       const gk = gtxt + gn;
       if (this.cache.gear !== gk) { this.cache.gear = gk; this.btn.gear.querySelector('.lb').textContent = gtxt; this.btn.gear.querySelector('.ct').textContent = v.gearSel ? gn : ''; }
-      this.btn.vault.classList.toggle('dis', !v.canVault); // 乗り越えのボタンは文字を出さない（11-12 の要望）
+      this.btn.vault.classList.toggle('dis', !v.canVault && !this.mode.war); // 乗り越えのボタンは文字を出さない（11-12 の要望）。大規模戦は越える物がなくても跳ぶ
       this.btn.reload.classList.toggle('dis', false);
       // 調べる: その時できること
       const ukey = v.ctxLabel || '';
@@ -426,7 +448,13 @@ export class Hud {
     while (this.subs.children.length > 2) this.subs.firstChild.remove();
     setTimeout(() => { e.classList.add('old'); setTimeout(() => e.remove(), 500); }, 3600);
   }
-  hit(kind) { this.hitm.className = 'hud-hit on ' + (kind || ''); clearTimeout(this._hitT); this._hitT = setTimeout(() => { this.hitm.className = 'hud-hit'; }, kind === 'kill' ? 380 : 160); }
+  // 当たりの印: 照準の真ん中は空けた4本の斜めの線。倒した印（赤）は大きく長く。続けて当たると出し直す
+  hit(kind) {
+    if (this._hitKind === 'kill' && kind !== 'kill' && this.hitm.classList.contains('on')) return;
+    this._hitKind = kind || '';
+    this.hitm.className = 'hud-hit ' + (kind || ''); void this.hitm.offsetWidth; this.hitm.className = 'hud-hit on ' + (kind || '');
+    clearTimeout(this._hitT); this._hitT = setTimeout(() => { this.hitm.className = 'hud-hit fade ' + (kind || ''); this._hitKind = ''; }, kind === 'kill' ? 420 : 150);
+  }
   damageFrom(ang) { this.dmgArcs.push({ ang, t: performance.now() }); }
   showBanner(html, ms = 2600, cls = '') { this.banner.innerHTML = html; this.banner.className = 'hud-banner on ' + cls; clearTimeout(this._banT); if (ms > 0) this._banT = setTimeout(() => { this.banner.className = 'hud-banner'; }, ms); }
   hideBanner() { this.banner.className = 'hud-banner'; }

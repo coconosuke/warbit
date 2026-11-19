@@ -240,10 +240,17 @@ export default {
   act(S, w, a, ac, ev) {
     if (ac.a === 'warClass') { if (!a.alive) setClass(a, ac.cls, ac.gun, ac.sec); return true; }
     if (ac.a === 'warRedeploy') {
-      // 射撃場だけ: その場で出撃の画面へ（倒されたことにはしない）
-      if (S.m.mode !== 'range' || !a.alive) return true;
-      Object.assign(a, { alive: false, dead: true, down: false, deployed: false, deployAt: null, act: null, ads: 0, adsOn: false, sprint: false });
-      S.m.respawn.push({ id: a.id, at: S.t });
+      if (!a.alive) return true;
+      // 射撃場: その場で出撃の画面へ（倒されたことにはしない）
+      if (S.m.mode === 'range') {
+        Object.assign(a, { alive: false, dead: true, down: false, deployed: false, deployAt: null, act: null, ads: 0, adsOn: false, sprint: false });
+        S.m.respawn.push({ id: a.id, at: S.t });
+        ev.push({ e: 'redeploy', id: a.id });
+        return true;
+      }
+      // 試合: ダウン中にあきらめる・メニューの再出撃（11-19 18:16）。倒れたことになり（チケットも減る）、すぐ出撃の画面へ。
+      //  ダウンさせた相手・最後に撃った相手の手柄になる（killActor が lastHit を見る）
+      killActor(S, a, null, ev, a.down ? 'bleed' : 'redeploy');
       ev.push({ e: 'redeploy', id: a.id });
       return true;
     }

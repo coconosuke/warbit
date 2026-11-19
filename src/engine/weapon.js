@@ -121,8 +121,9 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
     if (ac.a === 'reload') startReload(S, a, !!ac.fast, ev);
     else if (ac.a === 'switch') switchTo(S, a, ac.slot, ev);
     else if (ac.a === 'mode' && ws.slot === 3) m320Next(a, ev);
-    // 倍率を切り替えられる照準器: 構えている間（射撃モードが1つの銃はいつも）は射撃モードのボタンで倍率を切り替える
-    else if (ac.a === 'mode' && W && wi && zoomsOf(wi.att) && (ac.zoom != null ? ac.zoom : (W.modes.length <= 1 || a.ads > 0.5))) { const zs = zoomsOf(wi.att); wi.zi = ((wi.zi || 0) + 1) % zs.length; ev.push({ e: 'zoom', id: a.id, z: zs[wi.zi], sight: wi.att.sight }); }
+    // 倍率を切り替えられる照準器: 倍率のボタン（'zoom'。11-19 14:03 から射撃モードと別。BattleBit も別のキー）。
+    //  古い手元（'mode' に zoom: true）も受ける
+    else if ((ac.a === 'zoom' || (ac.a === 'mode' && ac.zoom === true)) && W && wi && zoomsOf(wi.att)) { const zs = zoomsOf(wi.att); wi.zi = ((wi.zi || 0) + 1) % zs.length; ev.push({ e: 'zoom', id: a.id, z: zs[wi.zi], sight: wi.att.sight }); }
     else if (ac.a === 'mode' && W && wi && W.modes.length > 1 && ws.st === 'ready') { wi.mode = (wi.mode + 1) % W.modes.length; ev.push({ e: 'fmode', id: a.id, m: W.modes[wi.mode] }); }
     else if (ac.a === 'light' && wi && (wi.att.light || wi.att.laser)) { wi.lightOn = !wi.lightOn; ev.push({ e: 'lightsw', id: a.id, on: wi.lightOn }); }
   }
@@ -130,7 +131,7 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   if (wi) { a.light = !!(wi.lightOn && wi.att.light); a.laser = wi.lightOn && wi.att.laser ? wi.att.laser : null; } else { a.light = false; a.laser = null; }
   // 撃つ
   const trig = !!inp.fire;
-  if (W && wi && (trig || ws.pend)) tryFire(S, w, a, W, wi, inp, ev);
+  if (W && wi && (trig || ws.pend || ws.burstLeft > 0)) tryFire(S, w, a, W, wi, inp, ev);
   if (!trig) ws.burstN = 0;
   if (!(ws.so > 0)) ws.pend = false; // 銃が上がったときに撃てなかった（リロード中など）: 覚えていた引き金は捨てる
   ws.trigWas = trig;
@@ -259,12 +260,16 @@ function tryFire(S, w, a, W, wi, inp, ev) {
   if (ws.cd > 0) return;
   const mode = W.modes[wi.mode] || 'semi';
   if (mode === 'semi' && ws.trigWas && !ws.pend) return;
+  // 3点バースト: 引いた時に3発。撃ち終わるまで離しても続く。撃ち終えたら引き直すまで撃たない
+  if (mode === 'burst') {
+    if (!(ws.burstLeft > 0)) { if (inp.fire && (!ws.trigWas || ws.pend)) ws.burstLeft = 3; else return; }
+  } else ws.burstLeft = 0;
   if (W.range && a.ai == null) { /* テーザーの射程は弾で判定 */ }
   // 弾があるか
   const hasRound = W.chamber ? wi.ch > 0 : wi.mag > 0;
   if (!hasRound) {
     if (!ws.trigWas || ws.pend) ev.push({ e: 'dry', id: a.id });
-    ws.cd = 0.25; ws.pend = false;
+    ws.cd = 0.25; ws.pend = false; ws.burstLeft = 0;
     return;
   }
   // 撃つ
@@ -274,6 +279,7 @@ function tryFire(S, w, a, W, wi, inp, ev) {
     else if (wi.mag > 0) { wi.mag--; wi.ch = 1; }
   } else wi.mag--;
   ws.cd = 60 / W.rpm;
+  if (ws.burstLeft > 0) ws.burstLeft--;
   const m = attMods(wi);
   const am = AMMO[W.cal][wi.am];
   // 散らばりと反動

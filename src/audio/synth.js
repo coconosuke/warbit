@@ -182,6 +182,15 @@ function boom(sr, seed, big) {
   for (let k = 0; k < 12; k++) { const m = S(sr, 0.04); const z = noise(m, r); bp(z, 1000 + r() * 3000, 2, sr); mulEnv(z, expEnv(m, sr, 0.0005, 0.01)); mixInto(out, z, S(sr, 0.1 + r() * 0.9), 0.25); }
   return fadeEdges(normalize(sat(out, 2.2), 0.98), sr, 0.0005, 0.1);
 }
+// 遠くの爆発（11-19 18:16）: 高い音は空気に吸われて、低いとどろきと長い尾だけ。建物や地面の反射で少し遅れてもう一度
+function boomFar(sr, seed) {
+  const r = rng(seed), out = buf(sr, 3.4);
+  mixInto(out, thump(sr, r, 48, 22, 1.8, 1.8), 0, 1);
+  const n = S(sr, 3.2); const rb = noise(n, r); lp(rb, 180, sr); mulEnv(rb, expEnv(n, sr, 0.04, 0.9)); mixInto(out, rb, S(sr, 0.01), 1.1);
+  const m = S(sr, 2.6); const e2 = noise(m, r); lp(e2, 140, sr); mulEnv(e2, expEnv(m, sr, 0.08, 0.8)); mixInto(out, e2, S(sr, 0.35 + r() * 0.2), 0.45);
+  const b = S(sr, 0.5); const cr = noise(b, r); bp(cr, 700, 0.8, sr); mulEnv(cr, expEnv(b, sr, 0.005, 0.12)); mixInto(out, cr, 0, 0.25);
+  return fadeEdges(normalize(sat(out, 1.6), 0.95), sr, 0.002, 0.3);
+}
 function flashBang(sr, seed) { const r = rng(seed), out = buf(sr, 1.6); mixInto(out, blast(sr, r, 0.35, 12000, 0.03), 0, 1.2); mixInto(out, thump(sr, r, 90, 40, 0.5, 1.3), 0, 1); const n = S(sr, 1.4); const rb = noise(n, r); lp(rb, 900, sr); mulEnv(rb, expEnv(n, sr, 0.01, 0.25)); mixInto(out, rb, 0, 0.5); return fadeEdges(normalize(sat(out, 2.5), 0.98), sr); }
 function stingerBang(sr, seed) { const r = rng(seed), out = buf(sr, 1.4); mixInto(out, flashBang(sr, seed), 0, 0.8); for (let k = 0; k < 40; k++) { const m = S(sr, 0.03); const z = noise(m, r); bp(z, 2000 + r() * 3000, 3, sr); mulEnv(z, expEnv(m, sr, 0.0003, 0.006)); mixInto(out, z, S(sr, 0.03 + r() * 0.5), 0.3); } return fadeEdges(normalize(out, 0.95), sr); }
 function gasPop(sr, seed) { const r = rng(seed), out = buf(sr, 2.5); mixInto(out, clack(sr, r, 1100, 0.1, 1), 0, 1); mixInto(out, thump(sr, r, 160, 90, 0.1, 0.6), 0, 1); const n = S(sr, 2.3); const h = noise(n, r); hp(h, 1800, sr); bp(h, 4500, 0.7, sr); mulEnv(h, env(n, sr, 0.15, 2.0, 1.2)); mixInto(out, h, S(sr, 0.12), 0.7); return fadeEdges(normalize(out, 0.75), sr); }
@@ -269,7 +278,7 @@ export const SFX = {
   doorRam: [(sr, i) => doorRam(sr, 540 + i), 1], doorBreach: [(sr, i) => doorBreach(sr, 550 + i), 1], doorLocked: [(sr, i) => doorLocked(sr, 560 + i), 2], lockPick: [(sr, i) => lockPick(sr, 570 + i), 1], wedge: [(sr, i) => wedge(sr, 580 + i), 1],
   barricade: [(sr, i) => hammer(sr, 590 + i), 1], barBreak: [(sr, i) => doorKick(sr, 600 + i), 1], woodHit: [(sr, i) => impact(sr, 610 + i, 'wood'), 2],
   // 爆発物
-  explosion: [(sr, i) => boom(sr, 700 + i, true), 2], flashbang: [(sr, i) => flashBang(sr, 710 + i), 2], stinger: [(sr, i) => stingerBang(sr, 720 + i), 1], gasPop: [(sr, i) => gasPop(sr, 730 + i), 1],
+  explosion: [(sr, i) => boom(sr, 700 + i, true), 2], explosion_far: [(sr, i) => boomFar(sr, 740 + i), 2], flashbang: [(sr, i) => flashBang(sr, 710 + i), 2], stinger: [(sr, i) => stingerBang(sr, 720 + i), 1], gasPop: [(sr, i) => gasPop(sr, 730 + i), 1],
   nadeBounce: [(sr, i) => nadeBounce(sr, 740 + i), 2], throw: [(sr, i) => throwW(sr, 750 + i), 2],
   // 銃と装備の扱い
   magOut: [(sr, i) => magOut(sr, 800 + i), 2], magIn: [(sr, i) => magIn(sr, 810 + i), 2], pump: [(sr, i) => pump(sr, 820 + i), 1], bolt: [(sr, i) => boltS(sr, 1020 + i), 2], shellIn: [(sr, i) => shellIn(sr, 830 + i), 2], shellStart: [(sr, i) => cloth(sr, 840 + i, 0.2, 2000), 1],

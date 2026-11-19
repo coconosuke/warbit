@@ -155,10 +155,22 @@ export function moveActor(S, w, a, inp, dt, ev) {
   let dvx = 0, dvz = 0;
   if (mag > 0.01) { const ux = (sy * mz - cy * mx) / mag, uz = (cy * mz + sy * mx) / mag; dvx = ux * tgt; dvz = uz * tgt; }
   const cur = Math.hypot(a.vx, a.vz);
-  const ac = (tgt >= cur ? accelOf(S, a) : 10) * dt * (air ? 0.12 : 1); // 宙では向きをほとんど変えられない
-  let ex = dvx - a.vx, ez = dvz - a.vz; const el = Math.hypot(ex, ez);
-  if (el > ac) { ex *= ac / el; ez *= ac / el; }
-  a.vx += ex; a.vz += ez;
+  if (S.war && !air) {
+    // 大規模戦（11-19 18:16: 向きを変えるときのもっさり感をなくす）: 進みたい向きに沿った速さは加速 12・減速 18 m/秒²、
+    //  横へずれた分（向きを変えた・指を離した）は 30 m/秒² ですぐ消す。曲がり角・出入り口へすっと入れる
+    let ux = 0, uz = 0; if (mag > 0.01 && tgt > 1e-4) { ux = dvx / tgt; uz = dvz / tgt; }
+    const along = a.vx * ux + a.vz * uz;
+    let qx = a.vx - ux * along, qz = a.vz - uz * along;
+    const ql = Math.hypot(qx, qz), qd = (ux || uz ? 30 : 22) * dt;
+    if (ql <= qd) { qx = 0; qz = 0; } else { qx *= (ql - qd) / ql; qz *= (ql - qd) / ql; }
+    const na = tgt > along ? Math.min(tgt, along + 12 * dt) : Math.max(tgt, along - 18 * dt);
+    a.vx = ux * na + qx; a.vz = uz * na + qz;
+  } else {
+    const ac = (tgt >= cur ? accelOf(S, a) : 10) * dt * (air ? 0.12 : 1); // 宙では向きをほとんど変えられない
+    let ex = dvx - a.vx, ez = dvz - a.vz; const el = Math.hypot(ex, ez);
+    if (el > ac) { ex *= ac / el; ez *= ac / el; }
+    a.vx += ex; a.vz += ez;
+  }
   // 動かす（速いときは2回に分ける）
   const h = bodyHeight(a);
   const n = Math.hypot(a.vx, a.vz) * dt > 0.12 ? 2 : 1;

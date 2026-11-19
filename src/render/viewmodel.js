@@ -2,7 +2,9 @@
 import { MeshBuilder, hex, mulc } from './build.js';
 import { LAYER } from './textures.js';
 import { makeWorldMesh, drawMesh } from './renderer.js';
-import { WEAPONS, opticOf, swayCamK } from '../engine/data/weapons.js';
+import { WEAPONS, opticOf, swayCamK, PIP_MAX_ZOOM } from '../engine/data/weapons.js';
+// スコープの中の像のレンズの大きさ（画面の縦の半分に対する半径。BattleBit の 4倍の見え方に合わせて約半分）
+export const PIP_LENS = 0.5;
 import { GEAR } from '../engine/data/equipment.js';
 import { curWeapon } from '../engine/actor.js';
 import { WV } from './build.js';
@@ -90,7 +92,10 @@ export class ViewModel {
     // 倍率スコープをのぞいている: 銃（筒とレンズのふた）は描かず、HUD のスコープの像に任せる（筒の中から見ると視界がふさがれていた）
     const os = P.optic && wi ? opticOf(wi) : null;
     // 構え 0.7〜0.95 で HUD のスコープの像が現れる（game.js _aimFx）。像がほぼ出そろう 0.9 で銃を消す（入れ替わりが目立たないように）
-    this.scoped = !!(os && os.scope && a.ads > 0.9);
+    // スコープの中の像（o.pip。倍率 6 未満）: 銃とスコープは描いたまま、目をレンズに寄せる。レンズの丸の中は renderer が拡大した世界を描く
+    const pip = !!(o.pip && os && os.scope && os.zoom < PIP_MAX_ZOOM && P.optic.zb != null);
+    this.pip = pip;
+    this.scoped = !!(os && os.scope && a.ads > 0.9 && !pip);
     // ブースター（ホロ＋3倍）: 等倍のときは横へ倒す（0.25秒）
     this.flipK = lerp(this.flipK || 0, os && P.optic.kind === 'mag3' && !os.scope ? 1 : 0, 1 - Math.exp(-dt * 12));
     this.flipP = P.flipPivot || null;
@@ -116,19 +121,28 @@ export class ViewModel {
     const hip = P.heavy ? [0.05, -0.25, 0.5] : L3 === 'wand' ? [0.09, -0.2, 0.4] : pistol ? [0.105, -0.112, 0.4] : [0.128, -0.128, 0.36];
     // 照準の窓が画面に対して大きすぎないよう、目を少し後ろに（スマホの小さい画面向け）
     const adsP = [0, -P.sightY, -P.eyeZ + (P.optic && !(os && os.scope) ? (pistol ? 0.03 : 0.09) : 0.04)];
+    // スコープの中の像: 後ろのレンズ（半径 rr）が画面の縦の半分の PIP_LENS になる距離まで目を寄せる
+    const tv = Math.tan((o.vmFov || 54 * Math.PI / 180) / 2);
+    if (pip) adsP[2] = P.optic.rr / (PIP_LENS * tv) - P.optic.zb;
     let px = lerp(hip[0], adsP[0], ads), py = lerp(hip[1], adsP[1], ads) - bell(a.ads) * 0.012, pz = lerp(hip[2], adsP[2], ads);
     let yaw = lerp(pistol ? 0.03 : 0.05, 0, ads), pitch = 0, roll = 0;
     // 破城槌は体の前で斜めに抱える
     if (P.heavy) { yaw = 0.5; pitch = -0.1; roll = 0.22; }
     // 歩き・呼吸
-    const amp = clamp(a.spd / 2.4, 0, 1.6) * (1 - 0.82 * ads) * (a.ground ? 1 : 0.3);
-    const ph = a.phase || 0;
-    px += Math.sin(ph) * 0.007 * amp; py += -Math.abs(Math.cos(ph)) * 0.011 * amp + Math.sin(this.t * 1.7) * 0.0018 * (1 - 0.7 * ads);
-    roll += Math.sin(ph) * 0.02 * amp; pitch += Math.sin(this.t * 1.25) * 0.004 * (1 - 0.7 * ads);
+    // 歩き・走りの揺れ（11-19 18:16: まっすぐ走ると細かく速く揺れていた）: エンジンの歩きの位相（ステップごとに飛ぶ）は使わず、
+    //  なめらかにした速さでこまごとに位相を進める。走りは歩幅を長く（ゆっくり大きく）、横揺れ・傾きは控えめ
+    this.spdS = lerp(this.spdS ?? (a.spd || 0), a.spd || 0, 1 - Math.exp(-dt * 8));
+    this.gndK = lerp(this.gndK ?? 1, a.ground ? 1 : 0.3, 1 - Math.exp(-dt * 10));
+    const stepL = this.sprK > 0.5 ? 1.35 : a.st > 1.5 ? 0.4 : a.st > 0.5 ? 0.6 : 0.8;
+    this.ph = ((this.ph || 0) + this.spdS * dt * Math.PI / stepL) % (Math.PI * 2000);
+    const amp = clamp(this.spdS / 2.4, 0, 1.3) * (1 - 0.82 * ads) * this.gndK;
+    const ph = this.ph;
+    px += Math.sin(ph) * 0.006 * amp; py += -Math.abs(Math.cos(ph)) * 0.009 * amp + Math.sin(this.t * 1.7) * 0.0018 * (1 - 0.7 * ads);
+    roll += Math.sin(ph) * 0.014 * amp; pitch += Math.sin(this.t * 1.25) * 0.004 * (1 - 0.7 * ads);
     // 揺れ
     yaw += this.sway[0] * 0.6; pitch += this.sway[1] * 0.6; px -= this.sway[0] * 0.04; py -= this.sway[1] * 0.03;
     // 構えたときの照準の揺れ（エンジンの ws.sx/sy。度）のうち銃が受け持つ分（等倍の照準器は 65%。視界は残り。HUD の点も同じだけずれる）
-    if (wi && a.ads > 0.01) { const g = 1 - swayCamK(wi, a.ads); yaw += g * (ws.sx || 0) * Math.PI / 180; pitch += g * (ws.sy || 0) * Math.PI / 180; }
+    if (wi && a.ads > 0.01) { const g = 1 - swayCamK(wi, a.ads, pip); yaw += g * (ws.sx || 0) * Math.PI / 180; pitch += g * (ws.sy || 0) * Math.PI / 180; }
     // ローレディ・ダッシュ・動作中・持ち替え
     const lowK = Math.max(low, this.actK * (1 - this.freeK) * 0.9);
     pitch -= 1.25 * this.freeK; py -= 0.32 * this.freeK; px += 0.07 * this.freeK; pz -= 0.05 * this.freeK;
@@ -204,6 +218,13 @@ export class ViewModel {
     const camP = (x, y, z) => [cx + R[0] * x + U[0] * y + F[0] * z, cy + R[1] * x + U[1] * y + F[1] * z, cz + R[2] * x + U[2] * y + F[2] * z];
     this.out.muzzle = toW([0, 0, P.muzzle]); this.out.fwd = gF; this.out.right = gR; this.out.up = gU;
     this.out.eject = toW([-0.02, 0.025, 0.02]);
+    // スコープの後ろのレンズの、画面の上の位置（u・v は 0〜1、下が 0）と半径（縦の半分に対する割合）。向きは銃の向き
+    this.out.lens = null;
+    if (pip) {
+      const Lw = toW([0, P.optic.y, P.optic.zb]), dx = Lw[0] - cx, dy = Lw[1] - cy, dz = Lw[2] - cz;
+      const lx = dx * R[0] + dy * R[1] + dz * R[2], ly = dx * U[0] + dy * U[1] + dz * U[2], lz = dx * F[0] + dy * F[1] + dz * F[2];
+      if (lz > 0.01) this.out.lens = { u: 0.5 + 0.5 * lx / lz / (tv * (o.aspect || 16 / 9)), v: 0.5 + 0.5 * ly / lz / tv, rf: P.optic.rr / lz / tv, fwd: gF, up: gU };
+    }
     this.out.light = P.lightPt && wi && wi.lightOn && wi.att.light ? toW(P.lightPt) : null;
     this.out.laser = P.laserPt && wi && wi.lightOn && wi.att.laser ? toW(P.laserPt) : null;
     // 盾: 画面の左下。ADSでは下げて、拳銃の照準の邪魔にならないように

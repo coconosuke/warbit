@@ -163,7 +163,8 @@ export class AudioSys {
     const c = this.ctx;
     if (!o.loop && this.active.size >= this.maxActive) {
       // いちばん小さい（古い）音を止める
-      const old = this.active.values().next().value;
+      // 爆発など大事な音（prio）は止めない
+      let old = null; for (const h0 of this.active) { if (!h0.prio) { old = h0; break; } }
       if (old) { this.active.delete(old); try { old.g.gain.setTargetAtTime(0, c.currentTime, 0.02); old.src.stop(c.currentTime + 0.08); } catch (e) { /* 止まっている */ } }
     }
     const src = c.createBufferSource();
@@ -190,7 +191,7 @@ export class AudioSys {
     let out = g;
     if (o.pos) {
       const p = c.createPanner();
-      p.panningModel = o.hrtf ? 'HRTF' : 'equalpower'; p.distanceModel = 'inverse'; p.refDistance = o.ref || 2; p.maxDistance = 400; p.rolloffFactor = o.roll ?? 1.0;
+      p.panningModel = o.hrtf ? 'HRTF' : 'equalpower'; p.distanceModel = 'inverse'; p.refDistance = o.ref || 2; p.maxDistance = o.maxD || 400; p.rolloffFactor = o.roll ?? 1.0;
       if (p.positionX) { p.positionX.value = o.pos[0]; p.positionY.value = o.pos[1]; p.positionZ.value = o.pos[2]; } else p.setPosition(o.pos[0], o.pos[1], o.pos[2]);
       g.connect(p); out = p; nodes.push(p);
     }
@@ -200,7 +201,7 @@ export class AudioSys {
       const sI = c.createGain(); sI.gain.value = vb; out.connect(sI); sI.connect(this.sendIn); nodes.push(sI);
       const sO = c.createGain(); sO.gain.value = vb; out.connect(sO); sO.connect(this.sendOut); nodes.push(sO);
     }
-    const h = { src, g };
+    const h = { src, g, prio: !!o.prio };
     src.onended = () => { this.active.delete(h); setTimeout(() => { for (const n of nodes) { try { n.disconnect(); } catch (e) { /* 外れている */ } } }, 80); };
     if (!o.loop) this.active.add(h);
     const at = c.currentTime + (o.delay || 0);
@@ -216,6 +217,17 @@ export class AudioSys {
     return this.play(name, { pos, vol: o.vol ?? 1, rate: o.rate, vary: o.vary ?? 0.06, verb: o.verb ?? 0.5, hrtf: pos && d < 12, delay: pos ? d / 343 : 0, ref: o.ref || 2.2 });
   }
   ui(name) { return this.play('ui_' + name, { bus: 'ui', verb: 0, vol: 0.9 }); }
+  // 爆発（11-19 18:16: 70m より遠いと鳴っていなかった）: 近い音（はじける高い音）と遠い音（低いとどろき）を距離で混ぜる。
+  //  音の速さで遅れて届き、約 900m まで聞こえる。30m までは HRTF で向きをはっきり。ほかの音に押されて止まらない
+  boom(pos, o = {}) {
+    const size = o.size || 1;
+    if (!pos) { this.play('explosion', { vol: 1.2 * size, verb: 0.9, prio: true }); return; }
+    const d = this._dist(pos);
+    if (d > 900) return;
+    const delay = d / 343, k = clamp((d - 25) / 90, 0, 1);
+    if (k < 1) this.play('explosion', { pos, vol: (1 - k) * 1.35 * size, vary: 0.05, verb: 0.9, delay, ref: 9, roll: 0.85, hrtf: d < 30, prio: true, maxD: 1000 });
+    if (k > 0.02) this.play('explosion_far', { pos, vol: (0.3 + 0.7 * k) * 1.5 * size, vary: 0.06, verb: 1, delay, ref: 30, roll: 0.55, prio: true, maxD: 1000 });
+  }
   // 銃声: 近い音と遠い音を距離で混ぜる。自分の銃は耳元
   gun(wid, pos, o = {}) {
     const W = WEAPONS[wid]; if (!W) return;
