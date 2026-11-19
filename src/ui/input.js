@@ -185,7 +185,7 @@ export class Input {
     });
     window.addEventListener('blur', () => { this.keys.clear(); this.mouseBtn = { l: false, r: false }; });
     document.addEventListener('mousemove', (e) => { if (!this.enabled || document.pointerLockElement !== this.area) return; this.lookDX += e.movementX; this.lookDY += e.movementY; });
-    a.addEventListener('mousedown', (e) => { if (!this.enabled || !document.pointerLockElement) return; if (e.button === 0) this.mouseBtn.l = true; if (e.button === 2) { this.mouseBtn.r = true; this.edges.push({ b: 'ads', k: 'down', mouse: true }); } });
+    a.addEventListener('mousedown', (e) => { if (!this.enabled || !document.pointerLockElement) return; if (e.button === 0) this.mouseBtn.l = true; if (e.button === 1) { e.preventDefault(); this.edges.push({ b: 'spot', k: 'down', mouse: true }); } if (e.button === 2) { this.mouseBtn.r = true; this.edges.push({ b: 'ads', k: 'down', mouse: true }); } });
     window.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouseBtn.l = false; if (e.button === 2) { this.mouseBtn.r = false; if (this.enabled) this.edges.push({ b: 'ads', k: 'up', mouse: true }); } });
     a.addEventListener('contextmenu', (e) => e.preventDefault());
     a.addEventListener('wheel', (e) => { if (this.enabled && document.pointerLockElement) this.edges.push({ b: e.deltaY > 0 ? 'wpn2' : 'wpn1', k: 'tap', wheel: true }); }, { passive: true });

@@ -484,6 +484,12 @@ export class Hud {
         const w = c.measureText(m.t).width + 10;
         c.fillStyle = 'rgba(8,12,18,0.62)'; c.fillRect(m.x - w / 2, m.y - 9, w, 18);
         c.fillStyle = '#f2f4f5'; c.fillText(m.t, m.x, m.y + 0.5);
+      } else if (m.k === 'spot') {
+        // 印をつけた敵: 赤い菱形と距離
+        c.globalAlpha = 0.95; const s = 6;
+        c.fillStyle = m.col; c.strokeStyle = 'rgba(0,0,0,0.6)'; c.lineWidth = 1.5;
+        c.beginPath(); c.moveTo(m.x, m.y - s); c.lineTo(m.x + s * 0.8, m.y); c.lineTo(m.x, m.y + s); c.lineTo(m.x - s * 0.8, m.y); c.closePath(); c.fill(); c.stroke();
+        c.font = '700 10px Inter, sans-serif'; c.fillStyle = 'rgba(255,215,210,0.95)'; c.fillText(Math.round(m.d) + 'm', m.x, m.y - s - 7);
       } else {
         // 味方: 頭の上の小さな山形（分隊は緑・ほかは青）。近いほど大きく
         const s = Math.max(3.5, Math.min(7, 7 - (m.d || 0) / 40));

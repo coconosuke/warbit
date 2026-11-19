@@ -130,3 +130,27 @@ test('起こす（大規模戦）: 包帯を1つ使い、体力の半分で起�
   ok(mate.hp === Math.round(mate.maxHp * 0.5), `体力の半分 ${mate.hp}/${mate.maxHp}`);
   ok(g.n === n0 - 1, `包帯を1つ使う ${n0}→${g.n}`);
 });
+
+test('敵に印（spot）: 狙っている向きの見えている敵に印がつき、分隊のボットにも場所が伝わる。向きが外れていると付かない', async () => {
+  const { SPOT_T } = await import('../../src/engine/modes/war.js');
+  const G = game({ bots: true, per: 2 }), S = G.S, me = S.actors[0];
+  const foe = S.actors.find(b => b.team !== me.team && b.ai);
+  for (const b of S.actors) if (b !== me && b !== foe) { b.alive = false; b.dead = true; }
+  foe.ai = null;
+  const cx = 790, cz = 705;
+  put(G, me, cx, cz - 40); put(G, foe, cx, cz + 20);
+  for (let i = 0; i < 10; i++) step(G, inp(me, { yaw: 0 }));
+  put(G, foe, cx, cz + 20);
+  // 外れた向き
+  // 動作は向きが変わる前に行われるので、先に向きを変えておく
+  step(G, inp(me, { yaw: 0.6, pitch: 0 }));
+  let ev = step(G, inp(me, { yaw: 0.6, pitch: 0, act: [{ a: 'spot' }] }));
+  ok(ev.some(e => e.e === 'spot' && e.id === -1), '外れると付かない');
+  for (let i = 0; i < 40; i++) step(G, inp(me, { yaw: 0 }));
+  const e0 = me.y + 1.5, yaw = Math.atan2(foe.x - me.x, foe.z - me.z), pitch = Math.atan2(foe.y + 1.3 - e0, Math.hypot(foe.x - me.x, foe.z - me.z));
+  for (let i = 0; i < 3; i++) step(G, inp(me, { yaw, pitch }));
+  ev = step(G, inp(me, { yaw, pitch, act: [{ a: 'spot' }] }));
+  ok(ev.some(e => e.e === 'spot' && e.id === foe.id), '狙った敵に印');
+  const sp = (S.m.spots || []).find(q => q.id === foe.id);
+  ok(sp && sp.team === me.team && Math.abs((sp.until - S.t) * S.dt - SPOT_T) < 0.1, `印は ${SPOT_T} 秒`);
+});

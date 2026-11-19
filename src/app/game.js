@@ -23,6 +23,7 @@ import { LINES } from '../audio/lines.js';
 import { vfovOf } from './settings.js';
 import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
+import { los as warLos } from '../war/world.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
 import { CLASSES, CLASS_LIST, classGuns, classSecs } from '../war/classes.js';
 import { WarFlags, FLAG_COL } from '../render/warflags.js';
@@ -292,6 +293,8 @@ export class Match {
         // 射撃モード（フル・バースト・単発）。倍率は別のボタン（11-19 14:03）
         case 'fmode': if (k === 'down') this.acts.push({ a: 'mode', zoom: false }); break;
         case 'zoom': if (k === 'down') this.acts.push({ a: 'zoom' }); break;
+        // 敵に印をつける（大規模戦。PC は中ボタン）
+        case 'spot': if (k === 'down' && this.S.war && p.alive && !p.down) this.acts.push({ a: 'spot' }); break;
         case 'light': if (k === 'down') this.acts.push({ a: 'light' }); break;
         case 'nvg': if (k === 'down' && p.armor.head === 'nvg') { this.nvgOn = !this.nvgOn; p.nvgOn = this.nvgOn; this.au.sfx('nvg', null, { vol: 0.5 }); } break;
         case 'map': if (k === 'tap' || (k === 'longup' && !e.key)) this.app.openTablet(); break;
@@ -717,6 +720,7 @@ export class Match {
         case 'redeploy': if (e.id === me) { this.kiaT = -99; this.dlo = false; this._resetControls(); } break;
         case 'respawn': if (e.id === me) { this.dlo = false; hud.deploy(null); if (S.war) this.r.warmWar(p.x, p.z); this.dead = false; this.spec = null; this.yaw = p.yaw; this.pitch = 0; this._resetControls(); this.av.hidden.add(me); if (e.zone == null) hud.hideBanner(); } break;
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
+        case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
         case 'revive': if (this._downBy) this._downBy.delete(e.id); hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
         case 'bandaged': if (e.id === me) au.sfx('bandage', null); break;
         case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); break;
@@ -784,6 +788,34 @@ export class Match {
     this.kiaT = this.time;
     this.hud.showBanner(this.S.war ? `KIA` : this.S.pvp ? (this.S.m.kind === 'tdm' ? 'KIA — 4秒後に復帰' : 'KIA — 観戦中') : 'KIA — 観戦中', 3000, 'bad');
     this.au.deafen(1.5);
+  }
+
+  // スコープのきらめき: 相手の銃の向きとこちらへの向きが近いほど強い（約 25° まで）。壁の向こうは光らない（0.25 秒ごとに見通しを調べる）
+  _glints(dt) {
+    const S = this.S, cam = this.cam, me = this.p;
+    if (!cam) return;
+    this._glT = (this._glT || 0) + dt;
+    const recheck = this._glT > 0.25; if (recheck) this._glT = 0;
+    const vis = this._glVis || (this._glVis = new Map());
+    for (const a of S.actors) {
+      if (a === me || !a.alive || a.down || (a.ads || 0) < 0.6 || a.team === me.team) continue;
+      const wi = curWeapon(a); if (!wi) continue;
+      const o = opticOf(wi); if (!o.scope) continue;
+      const zs = zoomsOf(wi.att); if (Math.max(zoomOf(wi), ...(zs || [0])) < 6) continue; // 倍率を変えられるスコープは、いちばん高い倍率で決める
+      const e = eyeOf(S, a), dx = cam.x - e[0], dy = cam.y - e[1], dz = cam.z - e[2], d = Math.hypot(dx, dy, dz);
+      if (d < 4) continue;
+      const cp = Math.cos(a.pitch), fx = Math.sin(a.yaw) * cp, fy = Math.sin(a.pitch), fz = Math.cos(a.yaw) * cp;
+      const dot = (fx * dx + fy * dy + fz * dz) / d;
+      if (dot < 0.9) { vis.delete(a.id); continue; }
+      if (recheck || !vis.has(a.id)) vis.set(a.id, warLos(this.w, e[0], e[1], e[2], cam.x, cam.y, cam.z));
+      if (!vis.get(a.id)) continue;
+      // 大きさは見かけの角度で決める（遠くても点にならない: 芯 約 0.9°・まわりのにじみ 約 2.4°）。のぞいている倍率の分は小さく見える
+      const k = Math.pow((dot - 0.9) / 0.1, 2), fl = 0.8 + 0.2 * Math.sin(this.time * 9 + a.id), zc = cam.fov ? Math.max(1, (55 * DEG) / cam.fov) : 1;
+      const core = Math.max(0.12, d * 0.016 / Math.sqrt(zc)) * (0.55 + 0.45 * k), halo = core * 2.6;
+      const x = e[0] + fx * 0.25, y = e[1] + fy * 0.25 - 0.02, z = e[2] + fz * 0.25, life = Math.max(0.02, dt * 1.05);
+      this.fx.add({ x, y, z, vx: 0, vy: 0, vz: 0, life, s0: core, s1: core, c: [16 * k * fl, 15 * k * fl, 12 * k * fl, 1], add: true, sh: 0 });
+      this.fx.add({ x, y, z, vx: 0, vy: 0, vz: 0, life, s0: halo, s1: halo, c: [1.6 * k * fl, 1.5 * k * fl, 1.3 * k * fl, 1], add: true, sh: 0 });
+    }
   }
 
   // ステップの前の位置（描くときの補間に使う）
@@ -944,6 +976,9 @@ export class Match {
       }
     }
     this.fx.update(dt);
+    // スコープの反射（BattleBit の狙撃のスコープのきらめき）: 6倍以上のスコープをのぞいている相手が、こちらを向いていると光って見える。
+    //  このこまだけの光（進めたあとに足すので、描くときに薄まらない）
+    if (S.war) this._glints(dt);
     this._lasers(fp, cam);
     this._tension(dt);
     // 動く光: 自分と隊員のライト、銃口・爆発
@@ -1263,6 +1298,14 @@ export class Match {
       const q = proj(a.x, a.y + bodyH(a) + 0.45, a.z); if (!q || q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) continue;
       const sq = a.squad === p.squad;
       list.push({ k: sq ? 'squad' : 'ally', x: q[0], y: q[1], col: a.down ? '#ffaa33' : sq ? '#6ee07a' : '#4aa8ff', t: sq ? a.name : '', d });
+    }
+    // 印をつけた敵（分隊の誰かがつけた。10 秒。頭の上の赤い印と距離）
+    for (const q of S.m.spots || []) {
+      if (q.team !== my || q.sq !== p.squad || q.until <= S.t) continue;
+      const a = S.byId[q.id]; if (!a || !a.alive || a.down) continue;
+      const d = Math.hypot(a.x - cam.x, a.z - cam.z);
+      const pr = proj(a.x, a.y + bodyH(a) + 0.55, a.z); if (!pr || pr[0] < -20 || pr[0] > W + 20 || pr[1] < -20 || pr[1] > H + 20) continue;
+      list.push({ k: 'spot', x: pr[0], y: pr[1], col: '#ff3b2f', d });
     }
     this.hud.warMarks(list);
   }

@@ -7,7 +7,9 @@
 // 共通: 拠点は範囲に立つと奪える（味方が多いほど速く 4 人分まで、同数なら止まる。敵の拠点はまず中立に戻す）。
 // 範囲の外に 10 秒いると死ぬ。倒されたら数秒で出撃し直す（人は出撃の画面で兵科と場所を選ぶ）
 import { createActor, makeInventory, makeArmor } from '../actor.js';
-import { killActor } from '../combat.js';
+import { killActor, eyeOf } from '../combat.js';
+import { los as warLos } from '../../war/world.js';
+import { smokeBetween } from '../nades.js';
 import { groundAt, pushOut } from '../world.js';
 import { heightAt } from '../../war/world.js';
 import { warThink, botSpawnPoint, goalOf, SQUAD } from '../../war/ai.js';
@@ -129,6 +131,32 @@ function redeploy(S, w, a, at) {
   if (m.mode === 'conquest') m.tickets[a.team] = Math.max(0, m.tickets[a.team] - 1);
 }
 
+// 印: S.m.spots = [{ id, team, sq, by, until }]（10 秒。付け直すと延びる）。分隊のボットも場所を知る（ai の intel）
+export const SPOT_T = 10;
+export function spotEnemy(S, w, a, ev) {
+  if (!a.alive || a.down || (a.spotT || -1e9) > S.t) return null;
+  a.spotT = S.t + Math.round(0.4 / S.dt);
+  const e = eyeOf(S, a), cp = Math.cos(a.pitch), fx = Math.sin(a.yaw) * cp, fy = Math.sin(a.pitch), fz = Math.cos(a.yaw) * cp;
+  let best = null, bc = Math.cos(5 * Math.PI / 180);
+  for (const b of S.actors) {
+    if (!b.alive || b.down || b.team === a.team || b.team < 0 || b.team > 1 || b.dummy && false) continue;
+    const ty = b.y + (b.st > 1.5 ? 0.3 : b.st > 0.5 ? 0.9 : 1.3), dx = b.x - e[0], dy = ty - e[1], dz = b.z - e[2], d = Math.hypot(dx, dy, dz);
+    if (d > 450 || d < 0.5) continue;
+    const c = (dx * fx + dy * fy + dz * fz) / d;
+    if (c <= bc) continue;
+    if (!warLos(w, e[0], e[1], e[2], b.x, ty, b.z) || smokeBetween(S, e[0], e[1], e[2], b.x, ty, b.z) >= 0.6) continue;
+    bc = c; best = b;
+  }
+  if (!best) { if (ev) ev.push({ e: 'spot', id: -1, by: a.id }); return null; }
+  const m = S.m, L = m.spots || (m.spots = []);
+  const old = L.find(q => q.id === best.id && q.team === a.team);
+  const until = S.t + Math.round(SPOT_T / S.dt);
+  if (old) { old.until = until; old.sq = a.squad; old.by = a.id; } else L.push({ id: best.id, team: a.team, sq: a.squad, by: a.id, until });
+  if (m.intel && m.intel[a.team]) m.intel[a.team].set(best.id, { x: best.x, z: best.z, y: best.y, t: S.t, sq: a.squad });
+  if (ev) ev.push({ e: 'spot', id: best.id, by: a.id });
+  return best;
+}
+
 function stepFlags(S, w, dt, ev) {
   const m = S.m;
   const rate = dt / m.capT;
@@ -239,6 +267,8 @@ export default {
   // 出撃の画面から（倒れている間）: 兵科・銃を変える、出撃する場所を選ぶ
   act(S, w, a, ac, ev) {
     if (ac.a === 'warClass') { if (!a.alive) setClass(a, ac.cls, ac.gun, ac.sec); return true; }
+    // 敵に印をつける（BattleBit の中ボタン。分隊に見える。11-19・research の 24）: 狙っている向きから 5° 以内・450m 以内・見えている敵のうち一番まっすぐの1人
+    if (ac.a === 'spot') { spotEnemy(S, w, a, ev); return true; }
     if (ac.a === 'warRedeploy') {
       if (!a.alive) return true;
       // 射撃場: その場で出撃の画面へ（倒されたことにはしない）
@@ -263,6 +293,7 @@ export default {
   step(S, w, dt, ev) {
     const m = S.m;
     if (m.over) return;
+    if (m.spots && m.spots.length && S.t % 30 === 0) m.spots = m.spots.filter(q => q.until > S.t && S.byId[q.id] && S.byId[q.id].alive && !S.byId[q.id].down);
     stepFlags(S, w, dt, ev);
     // 出撃し直す: ボットは時間が来たら、人は場所を選んでから
     for (let i = m.respawn.length - 1; i >= 0; i--) {

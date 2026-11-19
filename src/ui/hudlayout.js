@@ -19,6 +19,7 @@ export const BTN = {
   team: { name: '命令する隊', ax: 'r', ay: 'b', x: 316, y: 160, s: 38, icon: 'team', pve: true },
   gear: { name: '投げ物・装備（長押しで選ぶ）', ax: 'r', ay: 'b', x: 92, y: 236, s: 52, icon: 'gear' },
   fmode: { name: '射撃モード', ax: 'r', ay: 't', x: 214, y: 92, s: 36, icon: 'fmode' },
+  spot: { name: '敵に印（分隊に知らせる）', ax: 'l', ay: 't', x: 170, y: 40, s: 40, icon: 'spot', warOnly: true },
   zoom: { name: 'スコープの倍率', ax: 'r', ay: 't', x: 258, y: 92, s: 36, icon: 'zoom', zoomOnly: true },
   light: { name: 'ライト', ax: 'r', ay: 't', x: 170, y: 92, s: 36, icon: 'light' },
   nvg: { name: '暗視装置', ax: 'r', ay: 't', x: 126, y: 92, s: 36, icon: 'nvg', noWar: true },
@@ -65,6 +66,8 @@ export const ICONS = {
   cmd: '<path d="M5 21V3M5 4h12l-3 4 3 4H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   team: '<circle cx="8" cy="9" r="3" fill="currentColor"/><circle cx="16" cy="9" r="3" fill="currentColor"/><path d="M2 20c0-4 3-6 6-6s6 2 6 6M10 20c0-4 3-6 6-6s6 2 6 6" fill="currentColor"/>',
   gear: '<rect x="8" y="7" width="8" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 7V4h4v3M14 4l4-2" fill="none" stroke="currentColor" stroke-width="2"/>',
+  // 敵に印: 目と小さな菱形
+  spot: '<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8.6l3 3.4-3 3.4-3-3.4z" fill="currentColor"/>',
   // 倍率（11-19 14:03）: 虫めがね
   zoom: '<circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M8 10.5h5M10.5 8v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   fmode: '<text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" font-family="sans-serif" font-weight="700">FM</text>',

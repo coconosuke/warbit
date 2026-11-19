@@ -521,6 +521,27 @@ try {
       const okP = res.acog.pip && res.acog.lensR > 40 && /pip/.test(res.acog.cls) && res.acog.vm && !res.scope6.pip && /scope6/.test(res.scope6.cls) && !/pip/.test(res.scope6.cls);
       rec('画面', 'スコープ: 4倍はレンズの中だけ拡大（銃が見える）・6倍は画面いっぱい', okP, JSON.stringify(res));
     }
+    // 敵に印（11-19）: 標的を狙って印のボタン → 分隊に見える印がつく
+    {
+      await page.evaluate(() => { const g = window.__app.game, p = g.p, t = g.S.actors.find(a => a.dummy && a.dummy.d === 50) || g.S.actors.find(a => a.dummy); g.yaw = Math.atan2(t.x - p.x, t.z - p.z); g.pitch = Math.atan2(t.y + 1.2 - (p.y + 1.55), Math.hypot(t.x - p.x, t.z - p.z)); });
+      await page.waitForTimeout(400);
+      await tapAt(await btn('spot'), 74);
+      await page.waitForTimeout(400);
+      const sp = await page.evaluate(() => { const g = window.__app.game; return (g.S.m.spots || []).filter(q => q.until > g.S.t).length; });
+      rec('操作', '敵に印のボタン: 狙っている敵に印がつく（大規模戦）', sp > 0, String(sp));
+    }
+    // 狙撃のスコープのきらめき（11-19）: 6倍以上のスコープをのぞいた敵がこちらを向くと光る
+    {
+      const gl = await page.evaluate(async () => {
+        const g = window.__app.game, p = g.p, t = g.S.actors.find(a => a.dummy && a.dummy.d === 150) || g.S.actors.find(a => a.dummy);
+        const wi = t.inv.w[0], keep0 = [wi.id, wi.att.sight, t.ws.slot]; wi.id = 'at308'; wi.att.sight = 'sniper'; t.ws.slot = 0;
+        let n = 0;
+        for (let i = 0; i < 20; i++) { t.ads = 1; t.yaw = Math.atan2(p.x - t.x, p.z - t.z); t.pitch = 0; await new Promise(r => requestAnimationFrame(r)); if (g.fx.p.some(q => q.add && q.c[0] > 5 && q.s0 > 0.5)) n++; }
+        [wi.id, wi.att.sight, t.ws.slot] = keep0; t.ads = 0;
+        return n;
+      });
+      rec('画面', '狙撃のスコープのきらめき: こちらを向いてのぞいている敵が光る', gl > 0, String(gl));
+    }
     await page.evaluate(() => { window.__app.game.adsOn = false; });
     const bar = await page.evaluate(() => (document.querySelector('#hud .hud-obj .wb.rg') || {}).textContent || '');
     rec('射撃場', '人形に当てると、上の帯に部位・ダメージ・距離が出る', !!hit && hit.m > 15 && hit.m < 40 && /m/.test(bar), `${JSON.stringify(hit)}・帯「${bar}」`);
