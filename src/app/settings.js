@@ -17,7 +17,7 @@ export const DEFAULTS = {
   // HUD
   hud: {}, hudOpacity: 0.85, hudScale: 1.0, crosshair: 'cross', crossColor: '#ffffff', minimap: true, subtitles: true, subBg: 0.42, hitMarker: true,
   // BattleBit のゲームの設定に合わせて足した物（11-20）: 照準の大きさ・濃さ、ヒットマーカーの色（体・頭・防具・倒した）、倒れたら自動で出撃、描画距離
-  crossSize: 1, crossOpacity: 1, hitCol: { body: '#ffffff', head: '#ffe600', armor: '#3d7dff', kill: '#ff2a1f' }, autoDeploy: false, viewDistSel: 'auto', allyCol: '#4aa8ff', enemyCol: '#ff4b3e', flagMarkSize: 1, markSize: 1,
+  crossSize: 1, crossOpacity: 1, hitCol: { body: '#ffffff', head: '#ffe600', armor: '#3d7dff', kill: '#ff2a1f' }, autoDeploy: false, viewDistSel: 'auto', allyCol: '#4aa8ff', enemyCol: '#ff4b3e', flagMarkSize: 1, markSize: 1, squadList: false, contrast: 1,
   // 画面
   quality: 'medium', // low | medium | high | custom（下の gfx を自分で選ぶ）
   gfx: { detail: 'medium', shadow: 'low', bloom: true, aa: 'fxaa', lights: 6, fx: 'normal', shells: true },

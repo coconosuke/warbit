@@ -323,6 +323,7 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .sq.red i { background: var(--red); } .sq.blue i { background: var(--blue); }
 .sq b { font-weight: 700; } .sq em { height: 3px; background: var(--ok); border-radius: 2px; } .sq small { color: #cfd6dc; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sq.dn { opacity: .5; } .sq.dn em { background: var(--bad); }
+.sq.w i { background: #6ee07a; }
 .hud-vitals { position: absolute; width: 150px; display: flex; flex-direction: column; gap: 2px; }
 .hud-vitals .sqp { position: absolute; left: 0; bottom: 100%; margin-bottom: 3px; white-space: nowrap; display: none; align-items: baseline; gap: 6px; font-family: var(--f-body); font-size: 11px; color: var(--sub); text-shadow: 0 1px 2px rgba(0,0,0,.9); }
 .hud-vitals .sqp.on { display: flex; }

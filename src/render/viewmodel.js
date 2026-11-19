@@ -51,6 +51,25 @@ export class ViewModel {
       B.box(0.008, 0.0, -0.009, 0.014, 0.064, 0.009, LAYER.metal, hex('#9a9a90'));
       const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
     }
+    if (id === 'ammobig' || id === 'ammosmall') {
+      // 弾薬箱（手に持つ。この作品の形: 暗い緑の小箱と取っ手）
+      const k = id === 'ammobig' ? 0.55 : 0.45;
+      B.box(-0.09 * k, -0.06 * k, -0.06 * k, 0.09 * k, 0.05 * k, 0.06 * k, LAYER.metal, hex('#2f3822'));
+      B.box(-0.03 * k, 0.05 * k, -0.008, 0.03 * k, 0.07 * k, 0.008, LAYER.rubber, hex('#15170f'));
+      const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
+    }
+    if (id === 'medkit') {
+      // 医療キット（この作品の形: 暗い色の布の袋に、白い札と赤い十字）
+      B.box(-0.05, -0.032, -0.03, 0.05, 0.032, 0.03, LAYER.cloth, hex('#3a3d2e'));
+      // 札は手前（目の側）と上に
+      B.box(-0.018, -0.018, -0.032, 0.018, 0.018, -0.0305, LAYER.metal, hex('#d9d4c8'));
+      B.box(-0.004, -0.012, -0.0335, 0.004, 0.012, -0.032, LAYER.metal, hex('#a3241c'));
+      B.box(-0.012, -0.004, -0.0335, 0.012, 0.004, -0.032, LAYER.metal, hex('#a3241c'));
+      B.box(-0.018, 0.0305, -0.018, 0.018, 0.032, 0.018, LAYER.metal, hex('#d9d4c8'));
+      B.box(-0.004, 0.032, -0.012, 0.004, 0.0335, 0.012, LAYER.metal, hex('#a3241c'));
+      B.box(-0.012, 0.032, -0.004, 0.012, 0.0335, 0.004, LAYER.metal, hex('#a3241c'));
+      const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
+    }
     const col = id === 'flash' ? hex('#3a4a3a') : id === 'stinger' ? hex('#3a3a40') : id === 'cs' ? hex('#5a5a40') : hex('#4a4a4a');
     B.cyl(0, 0, -0.06, 0.06, 0.03, 0.03, 10, LAYER.metal, col, { capB: true });
     B.cyl(0, 0, 0.06, 0.085, 0.012, 0.012, 6, LAYER.metal, hex('#8a8a80'));
@@ -202,7 +221,7 @@ export class ViewModel {
       } else pumpOff = -(P.pumpZ || 0.08) * bell(pr);
     }
     // 投げ物を持っている
-    const nade = ws.slot === 2 && ws.gear && GEAR[ws.gear] && GEAR[ws.gear].kind === 'nade';
+    const nade = ws.slot === 2 && ws.gear && GEAR[ws.gear] && (GEAR[ws.gear].kind === 'nade' || GEAR[ws.gear].kind === 'ammo' || GEAR[ws.gear].kind === 'medkit');
     this.nade = nade ? ws.gear : null;
     // 世界へ
     let gR = R, gU = U, gF = F;

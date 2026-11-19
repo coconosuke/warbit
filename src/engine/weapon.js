@@ -70,7 +70,8 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   const busy = ws.st === 'draw' || ws.st === 'holster' || a.sprint || a.vault || (a.act && a.act.noAds);
   a.adsOn = !!inp.ads && !busy && canAim(a);
   a.lowOn = !!inp.low && !a.adsOn;
-  const adsT = W ? W.ads + attMods(wi).ads : 0.25;
+  // 突撃は構えるのが速い（BattleBit の 2024 の手直し。どれだけ速いかは書いていないので 0.85 倍は推測。research §30）
+  const adsT = (W ? W.ads + attMods(wi).ads : 0.25) * (S.war && a.warCls === 'assault' ? CLS_FAST : 1);
   a.ads = Math.max(0, Math.min(1, a.ads + (a.adsOn ? dt / adsT : -dt / (adsT * 0.8))));
   a.low = Math.max(0, Math.min(1, a.low + (a.lowOn ? dt * 5 : -dt * 6)));
   // 構えたときの照準の揺れ（度。弾も揺れた向きへ飛ぶ。11-12 22:05: どの銃も。実際に沿って、強さは程よく）
@@ -158,6 +159,8 @@ export function cancelReload(a, ev) {
   return true;
 }
 
+// 突撃の速さ（構える・リロード）
+export const CLS_FAST = 0.85;
 // 予備の弾が減らない: 対戦（作り直す前のモード）・射撃場・大規模戦のボット
 function infAmmo(S, a) { return !!S.pvp && (!S.war || (S.m && S.m.mode === 'range') || a.pid == null); }
 function finishState(S, a, ev) {
@@ -256,7 +259,7 @@ export function startReload(S, a, fast, ev) {
   // 押してすぐ普通のリロードが始まり、そのまま長押しなら速いリロード（弾倉を落とす）に切り替える
   if (fast && wi && W && ws.st === 'reload' && ws.rk === 'tac' && ws.rd - ws.t < 0.7 && W.rl.fast) {
     const done = ws.rd - ws.t, empty = !wi.ch && W.chamber;
-    ws.rk = 'fast'; ws.rd = (W.rl.fast + (empty ? W.rl.empty : 0)) * attMods(wi).reload * (a.inj.arm ? 1.15 : 1); ws.t = Math.max(0.05, ws.rd - done);
+    ws.rk = 'fast'; ws.rd = (W.rl.fast + (empty ? W.rl.empty : 0)) * attMods(wi).reload * (a.inj.arm ? 1.15 : 1) * (S.war && a.warCls === 'assault' ? CLS_FAST : 1); ws.t = Math.max(0.05, ws.rd - done);
     if (ev) ev.push({ e: 'reload', id: a.id, k: 'fast', dur: ws.t, empty, up: 1 });
     return true;
   }
@@ -280,7 +283,7 @@ export function startReload(S, a, fast, ev) {
   if (wi.mag >= magCap(wi) && (wi.ch || !W.chamber)) return false;
   const empty = !wi.ch && W.chamber;
   ws.rk = fast ? 'fast' : 'tac';
-  ws.t = ((fast ? W.rl.fast : W.rl.tac) + (empty ? W.rl.empty : 0)) * attMods(wi).reload;
+  ws.t = ((fast ? W.rl.fast : W.rl.tac) + (empty ? W.rl.empty : 0)) * attMods(wi).reload * (S.war && a.warCls === 'assault' ? CLS_FAST : 1);
   if (a.inj.arm) ws.t *= 1.15;
   ws.rd = ws.t; ws.st = 'reload'; if (run) a.sprint = false;
   if (ev) ev.push({ e: 'reload', id: a.id, k: ws.rk, dur: ws.t, empty });

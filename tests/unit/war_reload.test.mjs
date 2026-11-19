@@ -60,3 +60,11 @@ test('弾倉をまとめる: 1回で、いちばん多い途中の弾倉を、�
   const ev = []; run(G, me, 1, { act: [{ a: 'consol' }] });
   eq(me.ws.st, 'ready', '1本ではできない');
 });
+
+test('突撃はリロードが速い（0.85 倍）', () => {
+  const G = game(), S = G.S, me = S.actors[0]; ready(G, me);
+  const wi = curWeapon(me); wi.mag = 5;
+  me.warCls = 'medic'; run(G, me, 1, { act: [{ a: 'reload' }] }); const t1 = me.ws.t; ready(G, me);
+  wi.mag = 5; me.warCls = 'assault'; run(G, me, 1, { act: [{ a: 'reload' }] }); const t2 = me.ws.t;
+  ok(Math.abs(t2 / t1 - 0.85) < 0.03, (t2 / t1).toFixed(3));
+});

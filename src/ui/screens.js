@@ -567,6 +567,7 @@ export class Screens {
       for (const [k, lb] of [['body', '体'], ['head', '頭'], ['armor', '防具'], ['kill', '倒した']]) { row('ヒットマーカーの色（' + lb + '）', '', 'hc_' + k); binds.push(() => chips(body.querySelector(`[data-k="hc_${k}"]`), HC, (S.hitCol || {})[k], (v) => { S.hitCol = { ...(S.hitCol || {}), [k]: v }; save(); })); }
       row('味方の色', '地図・印・拠点', 'allyCol'); ch('allyCol', [['#4aa8ff', '青'], ['#4ae8ff', '水色'], ['#6ee07a', '緑'], ['#ffffff', '白']]);
       row('敵の色', '地図・印・拠点', 'enemyCol'); ch('enemyCol', [['#ff4b3e', '赤'], ['#ff8a1e', '橙'], ['#ff5ad2', '桃'], ['#ffe14a', '黄']]);
+      row('分隊の欄', '分隊の仲間の兵科・名前・体力・状態（位置は「配置を編集」で動かす）', 'squadList'); ch('squadList', [[false, '非表示'], [true, '表示']]);
       row('拠点の印の大きさ', '画面の上の A・B・C などの丸', 'flagMarkSize'); sl('flagMarkSize', 0.7, 1.6, 0.05, pct);
       row('印の大きさ', '仲間・分隊・敵の印・集合地点・距離の札', 'markSize'); sl('markSize', 0.7, 1.6, 0.05, pct);
       row('倒れたら自動で出撃', '出撃の画面で待たずに、時間が来たら前に選んだ場所から出る（場所と兵科は変えられる）', 'autoDeploy'); ch('autoDeploy', [[false, 'オフ'], [true, 'オン']]);
@@ -591,6 +592,7 @@ export class Screens {
       row('武器の視野角', '手と銃の見え方。小さいほど大きく見える', 'vmFov'); sl('vmFov', 45, 70, 1, (v) => v + '°');
       row('明るさ', '', 'bright'); sl('bright', 0.6, 1.6, 0.05, pct);
       row('色の鮮やかさ', '', 'sat'); sl('sat', 0.6, 1.5, 0.02, pct);
+      row('コントラスト', '大規模戦の色の締まり', 'contrast'); sl('contrast', 0.5, 1.5, 0.05, pct);
       row('周辺減光', '画面のふちを暗く', 'vignette'); ch('vignette', [[true, 'オン'], [false, 'オフ']]);
       row('流血表現', '', 'blood'); ch('blood', [[true, 'オン'], [false, 'オフ']]);
       row('画面の揺れ', '', 'shake'); ch('shake', [[true, '標準'], [false, '弱']]);

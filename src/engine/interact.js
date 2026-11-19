@@ -825,7 +825,7 @@ function selectGear(S, a, id, ev) {
   if (!g || g.n <= 0) { ev.push({ e: 'deny', id: a.id, why: 'nogear' }); return; }
   // 回復の道具は、体力が満タンで血も止まっているときは使えない（11-13 20:50。道具が変わっても同じ）
   if (G.kind === 'heal') { if (a.act) return; if (!needsHeal(a)) { ev.push({ e: 'deny', id: a.id, why: 'fullhp' }); return; } if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage, kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
-  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy' || G.kind === 'ammo') {
+  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy' || G.kind === 'ammo' || G.kind === 'medkit') {
     // 手に持つ（slot 2）。引き金で投げる・吹きつける・前に置く
     a.ws.gear = id;
     if (a.ws.slot !== 2) switchTo(S, a, 2, ev);
@@ -843,6 +843,8 @@ function gearInHand(S, w, a, dt, ev) {
   const id = ws.gear;
   const g = a.inv.gear.find(x => x.id === id);
   if (!g || g.n <= 0) { switchTo(S, a, ws.prev >= 0 ? ws.prev : 0, ev); ws.st = 'holster'; return; }
+  // 医療キット: 押している間ずっと
+  if (GEAR[id].kind === 'medkit') { ws.gearTrig = !!inp.fire; if (inp.fire) medkitTick(S, a, dt, ev); else ws.healT = 0; return; }
   const press = !!inp.fire && !ws.gearTrig;
   ws.gearTrig = !!inp.fire;
   if (!press) return;
@@ -869,6 +871,32 @@ function gearInHand(S, w, a, dt, ev) {
   }
 }
 
+// 医療キット（大規模戦の衛生）: 前 2.5m・左右 35° の、傷ついた・血の出ている味方を、いなければ自分を、1 秒に 20 戻す（量は推測）。
+//  血は止まる。ダウンしている人には使えない（起こすのは包帯）。ほかの人を治すと、10 戻すごとに 10 点（推測）
+export const MEDKIT = { rate: 20, range: 2.5, cos: Math.cos(35 * Math.PI / 180), pts: 10 };
+function medkitTick(S, a, dt, ev) {
+  const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
+  let tgt = null, bd = 1e9;
+  for (const b of S.actors) {
+    if (b === a || b.team !== a.team || !b.alive || b.down || b.isDrone || !needsHeal(b)) continue;
+    const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+    if (d > MEDKIT.range || Math.abs(b.y - a.y) > 1.5 || d < 0.05) continue;
+    if ((dx * fx + dz * fz) / d < MEDKIT.cos) continue;
+    if (d < bd) { bd = d; tgt = b; }
+  }
+  if (!tgt && needsHeal(a)) tgt = a;
+  const ws = a.ws;
+  if (!tgt) { ws.healT = 0; return; }
+  const add = Math.min(tgt.maxHp - tgt.hp, MEDKIT.rate * dt);
+  tgt.hp += add; tgt.bleed = 0;
+  ws.healT = (ws.healT || 0) + dt;
+  if (tgt !== a) {
+    tgt._healGot = (tgt._healGot || 0) + add;
+    if (tgt._healGot >= 10) { tgt._healGot -= 10; ev.push({ e: 'healPts', id: a.id, v: tgt.id }); }
+  }
+  // 0.5 秒ごとに知らせる（音と表示）
+  if ((ws._healN = (ws._healN || 0) + dt) >= 0.5) { ws._healN = 0; ev.push({ e: 'medkit', id: a.id, tgt: tgt.id, hp: Math.round(tgt.hp) }); }
+}
 // 置く（置ける盾・有刺鉄線）: ひざをついて前の床に置く。置ける所でなければ理由を知らせる
 function startDeploy(S, w, a, id, ev) {
   const G = GEAR[id];

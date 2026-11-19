@@ -743,7 +743,9 @@ try {
     const c = await center('#hud .hud-giveup');
     let arm = false, dep = {};
     if (c) {
-      await tapAt(c, 95); await page.waitForTimeout(300);
+      // 1回目を押したら、こまが進んで受け取るまで待つ（本陣へ移した直後は、景色を作り直すので1こまが長い。11-20）
+      await tapAt(c, 95);
+      await page.waitForFunction(() => !!document.querySelector('#hud .hud-giveup.arm') || !window.__app.game.p.alive, null, { timeout: 10000 }).catch(() => {});
       arm = await page.evaluate(() => !!document.querySelector('#hud .hud-giveup.arm') && window.__app.game.p.alive);
       await tapAt(c, 96);
       await page.waitForFunction(() => document.querySelector('#hud .hud-deploy.on .dps-go'), null, { timeout: 10000 }).catch(() => {});

@@ -26,8 +26,8 @@ export const CLASSES = {
     desc: '短い銃で仲間についていく。包帯が多い（16）。',
     guns: ['mp7', 'mp5', 'ump45', 'vector', 'p90', 'mpx', 'bizon', 'mk18', 'aks74u'],
     sec: ['m17', 'g19', 'makarov'],
-    gear: [['frag', 1], ['smoke', 2], ['bandage', 16]],
-    tools: ['医療キット'],
+    gear: [['frag', 1], ['smoke', 2], ['bandage', 16], ['medkit', 1]],
+    tools: [],
   },
   engineer: {
     name: '工兵', en: 'ENGINEER', short: 'ENGINEER', hp: 100,

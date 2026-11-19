@@ -49,3 +49,15 @@ test('中身が尽きると消える・遠いと補給しない', () => {
   ok(w0.mags.length === n0 + 1 && w0.mags.includes(20), '残りの 20 発だけ ' + w0.mags.join(','));
   eq(S.ammo.length, 0, '尽きて消えた');
 });
+
+test('ボットの援護: 近くの仲間の人の予備が2本以下だと弾薬箱を置く', () => {
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: true, per: 4 }); step(G, {});
+  const S = G.S, me = S.actors[0];
+  const b = S.actors.find(a => a.ai && a.team === me.team);
+  b.inv.gear.push({ id: 'ammobig', n: 2 });
+  for (let i = 0; i < 30; i++) step(G, {});
+  me.inv.w[0].mags.splice(0, me.inv.w[0].mags.length - 1);
+  let placed = false;
+  for (let i = 0; i < 200 && !placed; i++) { b.x = me.x + 3; b.z = me.z; b.y = me.y; b.ai.tgt = null; step(G, {}); placed = (S.ammo || []).some(x => x.by === b.id); }
+  ok(placed, '置いた');
+});

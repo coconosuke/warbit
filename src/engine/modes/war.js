@@ -18,7 +18,7 @@ import { hrand } from '../rng.js';
 import { WEAPONS } from '../data/weapons.js';
 import { RALLY, rallyOf, rallyKey } from '../rally.js';
 import { pickMags } from '../weapon.js';
-import { stepAmmo } from '../ammobox.js';
+import { stepAmmo, placeAmmo } from '../ammobox.js';
 
 export const OUT_LIMIT = 10;
 // 点（自分の点。BattleBit に合わせる: 敵を倒すと 200。頭への一発は上乗せ（長距離の狙撃で 400 の例。距離で増える形は推測）。
@@ -404,6 +404,24 @@ export default {
     stepFlags(S, w, dt, ev);
     if (S.mdrops && S.mdrops.length) pickMags(S, ev);
     if (S.ammo && S.ammo.length) stepAmmo(S, ev, (a, pts, why, ex) => award(S, a, pts, why, ev, ex));
+    // ボットの衛生: 近く（2.5m）の仲間の人が傷ついていて、敵を追っていない時に医療キットで治す（1 秒に 20。持ち替えの見た目は省く）
+    if (m.mode !== 'range') for (const b of S.actors) {
+      if (!b.ai || b.warCls !== 'medic' || !b.alive || b.down || b.ai.tgt != null) continue;
+      const h = S.actors.find(a => a.pid != null && a.team === b.team && a.alive && !a.down && a.hp < a.maxHp * 0.85 && Math.hypot(a.x - b.x, a.z - b.z) < 2.5 && Math.abs(a.y - b.y) < 1.5);
+      if (!h) continue;
+      h.hp = Math.min(h.maxHp, h.hp + 20 * dt); h.bleed = 0;
+      if ((S.t + b.id) % Math.max(1, Math.round(0.5 / S.dt)) === 0) ev.push({ e: 'medkit', id: b.id, tgt: h.id, hp: Math.round(h.hp) });
+    }
+    // ボットの援護・突撃: 近く（8m）の仲間の人の予備の弾倉が2本以下で、敵を追っていない時に弾薬箱を置く（2 秒ごとに調べる）
+    if (m.mode !== 'range' && S.t % Math.max(1, Math.round(2 / S.dt)) === 1) {
+      for (const b of S.actors) {
+        if (!b.ai || !b.alive || b.down || b.ai.tgt != null || !b.inv || !b.inv.gear) continue;
+        const g = b.inv.gear.find(x => (x.id === 'ammobig' || x.id === 'ammosmall') && x.n > 0); if (!g) continue;
+        const h = S.actors.find(a => a.pid != null && a.team === b.team && a.alive && !a.down && Math.hypot(a.x - b.x, a.z - b.z) < 8 && a.inv && a.inv.w[0] && a.inv.w[0].mags && a.inv.w[0].mags.length <= 2);
+        if (!h || (S.ammo || []).some(x => x.team === b.team && Math.hypot(x.x - h.x, x.z - h.z) < 10)) continue;
+        g.n--; placeAmmo(S, b, g.id, ev);
+      }
+    }
     // ボットの分隊長: 分隊ポイントがたまり、目標の手前（35〜110m）で敵を追っていない時に集合地点を置く（2 秒ごとに調べる）
     if (m.mode !== 'range' && m.mode !== 'tdm' && S.t % Math.max(1, Math.round(2 / S.dt)) === 0) {
       for (const a of S.actors) {
@@ -463,6 +481,7 @@ export default {
       const e = evs[i];
       if (m.mode === 'range' || m.over) { if (e.e === 'kill' && m.scd) delete m.scd[e.id]; if (e.e !== 'kill') continue; }
       else if (e.e === 'down') { const v = S.byId[e.id]; if (v) creditKill(S, v, S.byId[e.by], e.part, evs); continue; }
+      else if (e.e === 'healPts') { award(S, S.byId[e.id], 10, 'heal', evs, { v: e.v }); continue; }
       else if (e.e === 'revive') { const v = S.byId[e.id], b = S.byId[e.by]; if (m.scd) delete m.scd[e.id]; if (b && v && b !== v) award(S, b, PTS.revive, 'revive', evs, { v: v.id }); continue; }
       if (e.e !== 'kill') continue;
       const v = S.byId[e.id], k = S.byId[e.by];

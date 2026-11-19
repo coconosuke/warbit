@@ -31,7 +31,7 @@ export function onRepeat(el, fn) {
   el.addEventListener('pointerup', stop); el.addEventListener('pointercancel', stop); el.addEventListener('pointerleave', stop);
 }
 
-const LONG = 420; // 長押し（ms）
+const LONG = 360; // 長押し（ms）。11-20: 420 → 360（伏せ・投げ物を選ぶ・弾倉をまとめる の長押しが遅く感じる）
 // ダッシュの固定を続けるボタン（11-12）: 撃つ・構える・リーン・リロードの間は走らず、終わるとまた走る（押したままのダッシュと同じ）。
 // 持ち替え・乗り越えも走ったまま。ほかのボタン（調べる・命令・装備・しゃがむなど）は、今までどおり固定をやめる
 const KEEP_LOCK = new Set(['map', 'pause', 'fire', 'fireL', 'ads', 'leanL', 'leanR', 'reload', 'fmode', 'zoom', 'light', 'nvg', 'team', 'board', 'wpn1', 'wpn2', 'vault']);
@@ -247,7 +247,8 @@ export class Input {
         if (o === 90) { yawRate = r.alpha ?? 0; pitchRate = -(r.beta ?? 0); } // 実際の向きは端末で違うので、設定で反転できる
         else if (o === -90 || o === 270) { yawRate = r.alpha ?? 0; pitchRate = r.beta ?? 0; }
         else { yawRate = r.beta ?? 0; pitchRate = r.alpha ?? 0; }
-        this.gyro.x += yawRate * dt; this.gyro.y += pitchRate * dt;
+        // 11-20: タッチと同じく時刻で直線に求めて取り出す（届く間隔とこまの間隔のずれで、かくつかない）
+        (this.gk || (this.gk = new LookResampler())).add(yawRate * dt, pitchRate * dt, evT(e));
       });
     }
   }
@@ -267,8 +268,9 @@ export class Input {
     }
     // タッチの見回しは時刻で直線に求めて取り出す（lookres.js）。マウスはそのまま
     const [tlx, tly] = this.lk.take(performance.now());
+    const [tgx, tgy] = this.gk ? this.gk.take(performance.now()) : [0, 0];
     const out = {
-      mx, mz, lookDX: this.lookDX + tlx, lookDY: this.lookDY + tly, gyroX: this.gyro.x, gyroY: this.gyro.y,
+      mx, mz, lookDX: this.lookDX + tlx, lookDY: this.lookDY + tly, gyroX: this.gyro.x + tgx, gyroY: this.gyro.y + tgy,
       fire: this.hold.has('fire') || this.hold.has('fireL') || this.mouseBtn.l,
       sprint: this.sprintArm || this.sprintLock || K.has('ShiftLeft') || this.hold.has('sprint'), sprPress: this.sprPress,
       hold: this.hold, edges: this.edges.slice(),

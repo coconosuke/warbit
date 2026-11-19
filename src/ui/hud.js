@@ -153,7 +153,7 @@ export class Hud {
       const sc = (ov.s || 1) * k;
       e.style.left = x + 'px'; e.style.top = y + 'px';
       e.style.transform = `translate(-50%,-50%) scale(${sc})`;
-      e.classList.toggle('hidden', (!!ov.hide && !this.editing) || (id === 'squad' && (!this.mode.pve || this.editing)) || (id === 'minimap' && this.S.minimap === false) || (id === 'subs' && (this.mode.war || (this.S.subtitles === false && !this.editing))));
+      e.classList.toggle('hidden', (!!ov.hide && !this.editing) || (id === 'squad' && !((this.mode.pve && !this.editing) || (this.mode.war && !this.mode.range && this.S.squadList))) || (id === 'minimap' && this.S.minimap === false) || (id === 'subs' && (this.mode.war || (this.S.subtitles === false && !this.editing))));
       if (this.editing) e.style.opacity = ov.hide ? 0.25 : 1; else e.style.opacity = '';
     }
     // 移動スティック: 位置（固定のとき・待っているときの場所）・大きさ・濃さ・ダッシュの判定位置は HUD の設定（H.stick）

@@ -267,6 +267,12 @@ export class Match {
     }
     return best;
   }
+  // 色の調整（大規模戦）: コントラストの強さは設定（BattleBit の Contrast Intensity）。変わった時だけ作り直す
+  _grade(st) {
+    const c = st.contrast ?? 1;
+    if (!this._gr || this._grC !== c) { this._grC = c; this._gr = { ...WAR_GRADE, contrast: WAR_GRADE.contrast * c }; }
+    return this._gr;
+  }
   // 照準の近くの敵（エイムアシスト用）
   _nearTarget(cone) {
     const p = this.p; if (!p.alive) return null;
@@ -786,6 +792,7 @@ export class Match {
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
         case 'score': if (e.id === me && S.war) this._score(e); break;
         case 'ammoBox': if (e.k === 'place') { au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.6, rate: 1.3 }); if (e.by === me) hud.feed(`${e.big ? '大きい' : '小さい'}弾薬箱を置いた（近くに立つと弾倉を補給）`, 'ok'); } break;
+        case 'medkit': if (e.id === me) { au.sfx('bandage', null, { vol: 0.35, rate: 1.2 }); const t = S.byId[e.tgt]; hud.feed(t === p ? `自分を手当て（体力 ${e.hp}）` : `${t ? t.name : '仲間'} を手当て（体力 ${e.hp}）`, 'ok'); } else if (e.tgt === me) hud.feed(`${S.byId[e.id] ? S.byId[e.id].name : '衛生'} が手当てしている（体力 ${e.hp}）`, 'ok'); break;
         case 'resupply': if (e.id === me) { au.ui('pickup'); hud.feed(`弾倉を補給した（+${e.n}発）`, 'ok'); } break;
         case 'magDrop': au.sfx('magOut', [e.x, e.y + 0.1, e.z], { vol: 0.5, rate: 0.8 }); break;
         case 'magPick': if (e.id === me) { au.ui('pickup'); hud.feed(`弾倉を拾った（${e.n}発）`, 'ok'); } break;
@@ -1101,7 +1108,7 @@ export class Match {
     const room = roomOf(this.w, cam.x, cam.y - 1, cam.z);
     r.render({
       cam, doors: S.doors, lights, dt,
-      post: { smoke: smk, exposure: this.exposure * (st.bright || 1) * (S.war ? 1 : 1), nvg: nvg && !p.peek, flash, damage: Math.max(this.dmgK * 0.8, lowHp), supp: Math.max(this.suppK * 0.8, oobK * 0.7), gas, blur: Math.max(this.blurK, gas * 0.5, p.stun > 0 ? 0.4 : 0, flash * 0.6), vig: (p.peek ? 0.15 : (st.vignette === false ? 0.08 : 0.32)) + 0.22 * (this.hpK || 0), grade: S.war ? WAR_GRADE : null, sat: (st.sat ?? 1.08) * (S.war ? WAR_GRADE.sat : 1) * (1 - 0.85 * oobK) * (1 - 0.45 * (this.hpK || 0)) * (1 - 0.7 * (this.deathK || 0)), peek: p.peek ? (p.peek.k === 'mirror' ? 2 : 1) : 0 },
+      post: { smoke: smk, exposure: this.exposure * (st.bright || 1) * (S.war ? 1 : 1), nvg: nvg && !p.peek, flash, damage: Math.max(this.dmgK * 0.8, lowHp), supp: Math.max(this.suppK * 0.8, oobK * 0.7), gas, blur: Math.max(this.blurK, gas * 0.5, p.stun > 0 ? 0.4 : 0, flash * 0.6), vig: (p.peek ? 0.15 : (st.vignette === false ? 0.08 : 0.32)) + 0.22 * (this.hpK || 0), grade: S.war ? this._grade(st) : null, sat: (st.sat ?? 1.08) * (S.war ? WAR_GRADE.sat : 1) * (1 - 0.85 * oobK) * (1 - 0.45 * (this.hpK || 0)) * (1 - 0.7 * (this.deathK || 0)), peek: p.peek ? (p.peek.k === 'mirror' ? 2 : 1) : 0 },
       vm: fp ? { fov: (st.vmFov || 54) * DEG, room } : null, pip: this._pip, shadows: st.shadows !== 'off' && st.quality !== 'low',
       ambMin: nvg ? 0.02 : 0,
     });
@@ -1308,6 +1315,13 @@ export class Match {
     // 目的
     const ob = this._objectives();
     v.objKey = ob.key; v.objHTML = ob.html;
+    // 分隊の欄（大規模戦。設定で出す。BattleBit の Show Squad List）: 兵科・名前・体力・状態（ダウン・出撃待ち・距離）
+    if (S.war && S.m.mode !== 'range' && this.app.settings.squadList) {
+      const team = S.actors.filter(a => a !== p && a.team === p.team && a.squad === p.squad && !a.isDrone);
+      const stOf = (a) => !a.alive ? '出撃待ち' : a.down ? 'ダウン' : Math.round(Math.hypot(a.x - p.x, a.z - p.z)) + 'm';
+      v.squadKey = team.map(a => `${a.id}${Math.round(a.hp / 10)}${stOf(a)}${a.warCls || ''}`).join('|');
+      v.squadHTML = team.map(a => `<div class="sq w${a.down || !a.alive ? ' dn' : ''}"><i></i><b>${(CLASSES[a.warCls] || {}).short || ''} ${a.name || ''}</b><em style="width:${a.alive ? Math.max(0, a.hp / a.maxHp * 100) : 0}%"></em><small>${stOf(a)}</small></div>`).join('');
+    }
     // 隊員
     if (!S.pvp) {
       const team = S.actors.filter(a => a.kind === 'swat' && a !== p);
@@ -1489,7 +1503,7 @@ export class Match {
   // 点の表示（照準の下）。倒した時は頭への上乗せを別の行に分ける
   _score(e) {
     const S = this.S, hud = this.hud, v = S.byId[e.v];
-    const LB = { assist: '倒すのを支援', revive: '仲間を起こした', cap: '拠点を奪った', neut: '拠点を中立に戻した', resupply: '弾を補給した' };
+    const LB = { assist: '倒すのを支援', revive: '仲間を起こした', cap: '拠点を奪った', neut: '拠点を中立に戻した', resupply: '弾を補給した', heal: '仲間を手当てした' };
     if (e.why === 'kill') {
       const W = WEAPONS[e.w];
       const line = `${v ? (v.name || '敵') : '敵'} を倒した${W ? '　' + W.name : ''}${e.d ? '　' + e.d + 'm' : ''}`;
