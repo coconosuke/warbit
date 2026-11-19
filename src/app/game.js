@@ -134,7 +134,11 @@ export class Match {
     this._alpha = Math.max(0, Math.min(1, this.acc / step0));
     if (hostNet) this.netAfterSteps(ev);
     this._events(ev);
-    this._render(dt, inp);
+    // 描く間だけ、照準の揺れと反動をステップの間の値にする（エンジンの値は描いたあと元に戻す）
+    const ws = this.p.ws, A = this._prevAim, kk = 1 - this._alpha;
+    let keep = null;
+    if (ws && A && kk > 0.001 && !this.done) { keep = [ws.sx, ws.sy, ws.ry, ws.rp]; ws.sx = (ws.sx || 0) + (A[0] - (ws.sx || 0)) * kk; ws.sy = (ws.sy || 0) + (A[1] - (ws.sy || 0)) * kk; ws.ry = (ws.ry || 0) + (A[2] - (ws.ry || 0)) * kk; ws.rp = (ws.rp || 0) + (A[3] - (ws.rp || 0)) * kk; }
+    try { this._render(dt, inp); } finally { if (keep) { ws.sx = keep[0]; ws.sy = keep[1]; ws.ry = keep[2]; ws.rp = keep[3]; } }
     this._hud(dt);
     // 終わり
     const m = this.S.m;
@@ -166,14 +170,9 @@ export class Match {
     const slow = inp.mouse ? 1 : this.aaK;
     let rdx = inp.lookDX, rdy = inp.lookDY;
     if (!inp.mouse) {
-      // タッチの見回し（11-19 の要望: 遠くを狙うとかくつく）
-      //  1) 応答曲線: 指の速さ（なめらかにした値）で倍率を変える。ゆっくり＝細かく（約0.45倍）、ふつう＝ほぼ等倍、速く振る＝少し速く（1.2倍）
-      //  2) 届いた量を一度にではなく 約20ms かけて足す（指の動きの届く間隔と、こまの間隔がずれても動きが一定になる）
-      const raw = Math.hypot(rdx, rdy), v = raw / Math.max(dt, 1 / 240);
-      this.lkV = this.lkV == null ? v : this.lkV + (v - this.lkV) * (1 - Math.exp(-dt / (v > this.lkV ? 0.05 : 0.09)));
-      const t = Math.max(0, Math.min(1, (this.lkV - 25) / 700)), sm = t * t * (3 - 2 * t);
-      const curve = st.aimCurve === false ? 1 : 0.45 + 0.75 * Math.pow(sm, 0.6);
-      this.lkBX = (this.lkBX || 0) + rdx * curve; this.lkBY = (this.lkBY || 0) + rdy * curve;
+      // タッチの見回し（11-19 の要望: 遠くを狙うとかくつく）: 指の動きにそのまま比例（加速はしない。12:51）。
+      //  届いた量を一度にではなく 約20ms かけて足す（指の動きの届く間隔と、こまの間隔がずれても、細かい動きまで一定の速さで映る）
+      this.lkBX = (this.lkBX || 0) + rdx; this.lkBY = (this.lkBY || 0) + rdy;
       const f = 1 - Math.exp(-dt / 0.02);
       rdx = this.lkBX * f; rdy = this.lkBY * f; this.lkBX -= rdx; this.lkBY -= rdy;
       if (Math.abs(this.lkBX) < 1e-4) this.lkBX = 0; if (Math.abs(this.lkBY) < 1e-4) this.lkBY = 0;
@@ -758,6 +757,9 @@ export class Match {
   _savePrev() {
     const P = this._prev || (this._prev = new Map());
     for (const a of this.S.actors) { let q = P.get(a.id); if (!q) P.set(a.id, q = [0, 0, 0]); q[0] = a.x; q[1] = a.y; q[2] = a.z; }
+    // 自分の照準の揺れと反動も、ステップの間を補間して描く（こまとステップのずれで、スコープの像が小さく跳ねないように）
+    const ws = this.p && this.p.ws;
+    if (ws) { const A = this._prevAim || (this._prevAim = [0, 0, 0, 0]); A[0] = ws.sx || 0; A[1] = ws.sy || 0; A[2] = ws.ry || 0; A[3] = ws.rp || 0; }
   }
   // 補間した位置へ一時的に動かす（戻すのは _unlerp）
   _lerpActors() {

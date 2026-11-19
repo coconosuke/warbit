@@ -5,7 +5,7 @@ import { LOADOUTS, PVP_LOADOUTS } from '../engine/data/npc.js';
 export const DEFAULTS = {
   sv: 2,
   // 視点と照準
-  sens: 1.0, sensAds: 0.75, sensScope: 0.45, sensFire: 1.0, aimCurve: true, invertY: false, fireLook: true,
+  sens: 1.0, sensAds: 0.75, sensScope: 0.45, sensFire: 1.0, invertY: false, fireLook: true,
   aimAssist: 'weak', // off | weak | strong（対戦は部屋の設定が優先）
   gyro: 'off', gyroSens: 1.0, gyroInvX: false, gyroInvY: false,
   // 操作
