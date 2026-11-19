@@ -1,0 +1,51 @@
+// 弾薬箱: 援護は大きい ×2・突撃は小さい ×1。置くと、近くに立った味方（人）に弾倉を補給。中身が尽きると消える。置いた人に点
+import { test, ok, eq } from '../lib/t.mjs';
+import { createGame, step } from '../../src/engine/engine.js';
+import { curWeapon, magCap } from '../../src/engine/actor.js';
+import { AMMOBOX } from '../../src/engine/ammobox.js';
+import { classLoadout } from '../../src/war/classes.js';
+
+function game() { const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false }); step(G, {}); return G; }
+const idle = (a, o = {}) => Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o);
+
+test('兵科: 援護は大きい弾薬箱 2・突撃は小さい弾薬箱 1', () => {
+  const s = classLoadout('support'), a = classLoadout('assault');
+  ok(s.gear.some(g => g[0] === 'ammobig' && g[1] === 2), '援護');
+  ok(a.gear.some(g => g[0] === 'ammosmall' && g[1] === 1), '突撃');
+});
+
+test('置く: 手に持って引き金で足もとの前に置く。近くに立つと弾倉が戻り、箱の中身が減る', () => {
+  const G = game(), S = G.S, me = S.actors[0];
+  for (let i = 0; i < 60 && me.ws.st !== 'ready'; i++) step(G, { [me.id]: idle(me) });
+  me.inv.gear.push({ id: 'ammobig', n: 2 });
+  step(G, { [me.id]: idle(me, { act: [{ a: 'gear', id: 'ammobig' }] }) });
+  for (let i = 0; i < 120 && me.ws.st !== 'gear'; i++) step(G, { [me.id]: idle(me) });
+  eq(me.ws.st, 'gear', '持った');
+  step(G, { [me.id]: idle(me, { fire: true }) });
+  ok(S.ammo && S.ammo.length === 1, '置いた');
+  const b = S.ammo[0];
+  ok(Math.hypot(b.x - me.x, b.z - me.z) < 1, '足もとの前');
+  eq(me.inv.gear.find(g => g.id === 'ammobig').n, 1, '1つ減る');
+  const wi = curWeapon(me) || me.inv.w[0];
+  const w0 = me.inv.w[0];
+  w0.mags.splice(0, 3);
+  const n0 = w0.mags.length, left0 = b.left;
+  for (let i = 0; i < Math.round(3 / S.dt); i++) step(G, { [me.id]: idle(me) });
+  ok(w0.mags.length > n0, '弾倉が戻る ' + n0 + ' → ' + w0.mags.length);
+  ok(b.left < left0, '箱の中身が減る ' + b.left);
+});
+
+test('中身が尽きると消える・遠いと補給しない', () => {
+  const G = game(), S = G.S, me = S.actors[0];
+  for (let i = 0; i < 60 && me.ws.st !== 'ready'; i++) step(G, { [me.id]: idle(me) });
+  const w0 = me.inv.w[0];
+  S.ammo = [{ id: 1, team: me.team, big: false, left: 20, x: me.x + 6, y: me.y, z: me.z, yaw: 0, t: S.t, by: me.id }];
+  w0.mags.splice(0, 2);
+  const n0 = w0.mags.length;
+  for (let i = 0; i < 90; i++) step(G, { [me.id]: idle(me) });
+  eq(w0.mags.length, n0, '6m は遠い');
+  S.ammo[0].x = me.x + 1;
+  for (let i = 0; i < 180; i++) step(G, { [me.id]: idle(me) });
+  ok(w0.mags.length === n0 + 1 && w0.mags.includes(20), '残りの 20 発だけ ' + w0.mags.join(','));
+  eq(S.ammo.length, 0, '尽きて消えた');
+});

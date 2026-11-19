@@ -548,7 +548,7 @@ export class Screens {
       row('ジャイロ 上下', '', 'gyroInvY'); ch('gyroInvY', [[false, '標準'], [true, '反転']]);
       R.push('<div class="row"><div class="rl"><b>ジャイロの許可</b><small>iPhoneは初回に許可が必要</small></div><div class="rc"><button class="btn small" data-a="gyroPerm">許可</button></div></div>');
     } else if (tab === 'hud') {
-      R.push('<div class="row"><div class="rl"><b>HUDの配置</b><small>ボタン・字幕などの位置・大きさ・濃さ</small></div><div class="rc"><button class="btn small" data-a="editHud">配置を編集</button></div></div>');
+      R.push('<div class="row"><div class="rl"><b>HUDの配置</b><small>ボタン・ミニマップ・弾などの位置・大きさ・濃さ</small></div><div class="rc"><button class="btn small" data-a="editHud">配置を編集</button></div></div>');
       row('全体の濃さ', '', 'hudOpacity'); sl('hudOpacity', 0.2, 1, 0.05, pct);
       row('全体の大きさ', '', 'hudScale'); sl('hudScale', 0.75, 1.3, 0.05, pct);
       // 移動スティック（位置は「配置を編集」でスティックをドラッグ）
@@ -567,6 +567,8 @@ export class Screens {
       for (const [k, lb] of [['body', '体'], ['head', '頭'], ['armor', '防具'], ['kill', '倒した']]) { row('ヒットマーカーの色（' + lb + '）', '', 'hc_' + k); binds.push(() => chips(body.querySelector(`[data-k="hc_${k}"]`), HC, (S.hitCol || {})[k], (v) => { S.hitCol = { ...(S.hitCol || {}), [k]: v }; save(); })); }
       row('味方の色', '地図・印・拠点', 'allyCol'); ch('allyCol', [['#4aa8ff', '青'], ['#4ae8ff', '水色'], ['#6ee07a', '緑'], ['#ffffff', '白']]);
       row('敵の色', '地図・印・拠点', 'enemyCol'); ch('enemyCol', [['#ff4b3e', '赤'], ['#ff8a1e', '橙'], ['#ff5ad2', '桃'], ['#ffe14a', '黄']]);
+      row('拠点の印の大きさ', '画面の上の A・B・C などの丸', 'flagMarkSize'); sl('flagMarkSize', 0.7, 1.6, 0.05, pct);
+      row('印の大きさ', '仲間・分隊・敵の印・集合地点・距離の札', 'markSize'); sl('markSize', 0.7, 1.6, 0.05, pct);
       row('倒れたら自動で出撃', '出撃の画面で待たずに、時間が来たら前に選んだ場所から出る（場所と兵科は変えられる）', 'autoDeploy'); ch('autoDeploy', [[false, 'オフ'], [true, 'オン']]);
     } else if (tab === 'gfx') {
       // まとめて選ぶ（低・中・高）と、細かい設定（変えるとカスタム）
@@ -596,7 +598,6 @@ export class Screens {
     } else if (tab === 'snd') {
       row('全体', '', 'vm'); sl('vm', 0, 1, 0.05, pct, 'vol.master');
       row('効果音', '', 'vs'); sl('vs', 0, 1, 0.05, pct, 'vol.sfx');
-      row('ボイス', '', 'vv'); sl('vv', 0, 1, 0.05, pct, 'vol.voice');
       row('BGM', '', 'vb'); sl('vb', 0, 1, 0.05, pct, 'vol.bgm');
       row('UI', 'ボタン・ヒット音', 'vu'); sl('vu', 0, 1, 0.05, pct, 'vol.ui');
       row('消音モードでも再生', 'オンでロック画面に再生中と表示', 'playSilent'); ch('playSilent', [[false, 'オフ'], [true, 'オン']]);

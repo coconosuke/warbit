@@ -253,8 +253,9 @@ export class ViewModel {
       //  走ると少し下げ、持ち替えの間は下から上がる。向きも揺れで傾ける（gR・gU・gF）
       const bx = Math.sin(ph) * 0.007 * amp - this.sway[0] * 0.05;
       const by = -Math.abs(Math.cos(ph)) * 0.011 * amp + Math.sin(this.t * 1.7) * 0.0022 - this.sway[1] * 0.04 - 0.05 * this.sprK - 0.25 * this.drawK;
-      hR = camP(0.12 + th * 0.05 + bx, -0.13 + th * 0.12 + by, 0.28 + th * 0.18);
-      hL = camP(-0.06 + bx * 0.8, -0.16 + by * 0.9, 0.3);
+      // 持ち方（11-20）: 右手で胸の高さ・体の右前に持ち、左手はピンの輪へ指を掛ける位置（前は顔の近くで大きく見えすぎた）
+      hR = camP(0.135 + th * 0.05 + bx, -0.155 + th * 0.14 + by, 0.34 + th * 0.16);
+      hL = camP(0.03 + bx * 0.8, -0.2 + by * 0.9, 0.33);
       this.nadeM = this.Mm;
       const n = this.Mm; n.set([-gR[0], -gR[1], -gR[2], 0, gU[0], gU[1], gU[2], 0, gF[0], gF[1], gF[2], 0, hR[0] + gU[0] * 0.03, hR[1] + gU[1] * 0.03, hR[2] + gU[2] * 0.03, 1]);
     } else {

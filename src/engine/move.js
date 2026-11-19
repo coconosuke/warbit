@@ -139,7 +139,7 @@ export function moveActor(S, w, a, inp, dt, ev) {
   let mag = Math.hypot(mx, mz); if (mag > 1) { mx /= mag; mz /= mag; mag = 1; }
   // ダッシュ: 作戦・対戦とも（スティックを上へ押し込む・Shift）。立って前へ。盾を構えている・運んでいる・拘束されているときは走れない。
   // 押していても、ほかの操作が先（11-12）: 構える・リーン・撃つ（離して0.4秒まで）・リロードの間は走らず、やめるとまた走る
-  const reloading = !!a.ws && (a.ws.st === 'reload' || a.ws.st === 'shell');
+  const reloading = !!a.ws && (a.ws.st === 'reload' || a.ws.st === 'shell' || a.ws.st === 'consol');
   const busy = (inp.ads && canAim(a)) || !!inp.lean || a.trigT < SPRINT_HOLD || reloading;
   a.sprint = !!(inp.sprint && !busy && a.st < 0.2 && mz > 0.55 && !a.down && !a.act && !a.cuffed && !a.comply && !(a.ws && a.ws.slot === 1 && a.inv && a.inv.long === 'shield') && !(S.deps && S.deps.length && wireAt(S, a.x, a.z, a.y)));
   // まっすぐ走り続けた時間（大規模戦: 走る速さが少し上がる。向きを大きく変えると戻る）

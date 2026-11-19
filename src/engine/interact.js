@@ -1,4 +1,5 @@
 // 調べる・使う: 見ている物（扉・人・落ちている物・爆弾・壁）と、そのときできる操作。時間のかかる動作の進み。
+import { placeAmmo } from './ammobox.js';
 import { raycast, los, CS, LH, levelOfY, NB, isWallish, C, leafEnd, pushOut, rayBox } from './world.js';
 import { M, MATS } from './data/materials.js';
 import { GEAR, LONG, HAND_LONG } from './data/equipment.js';
@@ -824,7 +825,7 @@ function selectGear(S, a, id, ev) {
   if (!g || g.n <= 0) { ev.push({ e: 'deny', id: a.id, why: 'nogear' }); return; }
   // 回復の道具は、体力が満タンで血も止まっているときは使えない（11-13 20:50。道具が変わっても同じ）
   if (G.kind === 'heal') { if (a.act) return; if (!needsHeal(a)) { ev.push({ e: 'deny', id: a.id, why: 'fullhp' }); return; } if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage, kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
-  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy') {
+  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy' || G.kind === 'ammo') {
     // 手に持つ（slot 2）。引き金で投げる・吹きつける・前に置く
     a.ws.gear = id;
     if (a.ws.slot !== 2) switchTo(S, a, 2, ev);
@@ -854,6 +855,12 @@ function gearInHand(S, w, a, dt, ev) {
     else { ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.35; }
   } else if (GEAR[id].kind === 'deploy') {
     startDeploy(S, w, a, id, ev);
+  } else if (GEAR[id].kind === 'ammo') {
+    // 弾薬箱: 足もとの前へ置く。残りがあれば持ったまま、なければ前の銃へ
+    g.n--;
+    placeAmmo(S, a, id, ev);
+    if (g.n > 0) { ws.st = 'draw'; ws.t = 0.6; ws.gearTrig = true; }
+    else { ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.35; }
   } else if (GEAR[id].kind === 'spray') {
     spray(S, w, a, ev);
     g.n = Math.max(0, g.n - 0); // 本数ではなく回数で管理（6回）

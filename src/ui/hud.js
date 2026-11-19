@@ -508,7 +508,18 @@ export class Hud {
     c.clearRect(0, 0, st.w, st.h);
     if (!list || !list.length) return;
     c.textAlign = 'center'; c.textBaseline = 'middle';
+    // 印の大きさ（設定。BattleBit の旗・印・名前の大きさ）: 拠点の印と、ほかの印（仲間・敵・集合など）を別に
+    const fS = this.S.flagMarkSize ?? 1, mS = this.S.markSize ?? 1;
     for (const m of list) {
+      const sc = m.k === 'flag' ? fS : mS;
+      if (sc !== 1) { c.save(); c.translate(m.x, m.y); c.scale(sc, sc); c.translate(-m.x, -m.y); }
+      this._mark(c, m);
+      if (sc !== 1) c.restore();
+    }
+    c.globalAlpha = 1;
+  }
+  _mark(c, m) {
+    {
       if (m.k === 'flag') {
         c.globalAlpha = 0.92;
         c.beginPath(); c.arc(m.x, m.y, 11, 0, Math.PI * 2); c.fillStyle = 'rgba(8,12,18,0.6)'; c.fill();

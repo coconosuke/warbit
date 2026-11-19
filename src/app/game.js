@@ -785,6 +785,8 @@ export class Match {
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
         case 'score': if (e.id === me && S.war) this._score(e); break;
+        case 'ammoBox': if (e.k === 'place') { au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.6, rate: 1.3 }); if (e.by === me) hud.feed(`${e.big ? '大きい' : '小さい'}弾薬箱を置いた（近くに立つと弾倉を補給）`, 'ok'); } break;
+        case 'resupply': if (e.id === me) { au.ui('pickup'); hud.feed(`弾倉を補給した（+${e.n}発）`, 'ok'); } break;
         case 'magDrop': au.sfx('magOut', [e.x, e.y + 0.1, e.z], { vol: 0.5, rate: 0.8 }); break;
         case 'magPick': if (e.id === me) { au.ui('pickup'); hud.feed(`弾倉を拾った（${e.n}発）`, 'ok'); } break;
         case 'consol': if (e.id === me) { au.sfx('magOut', null, { vol: 0.5 }); hud.feed('弾倉をまとめている…', 'ok'); } break;
@@ -1340,6 +1342,7 @@ export class Match {
   _warPrompt(prompt) {
     const S = this.S, p = this.p, m = S.m;
     if (!p.alive) return '';
+    if (S.ammo) for (const b of S.ammo) if (b.team === p.team && Math.hypot(p.x - b.x, p.z - b.z) < 2 && Math.abs(p.y - b.y) < 1.6) return `${b.big ? '大きい' : '小さい'}弾薬箱 ― 近くにいると弾倉を補給（残り ${b.left} 発）`;
     for (const f of m.flags) {
       if (Math.hypot(p.x - f.x, p.z - f.z) > f.r) continue;
       const my = p.team, mine = my === 0 ? f.prog : -f.prog, pct = Math.round(Math.abs(f.prog) * 100);
@@ -1486,7 +1489,7 @@ export class Match {
   // 点の表示（照準の下）。倒した時は頭への上乗せを別の行に分ける
   _score(e) {
     const S = this.S, hud = this.hud, v = S.byId[e.v];
-    const LB = { assist: '倒すのを支援', revive: '仲間を起こした', cap: '拠点を奪った', neut: '拠点を中立に戻した' };
+    const LB = { assist: '倒すのを支援', revive: '仲間を起こした', cap: '拠点を奪った', neut: '拠点を中立に戻した', resupply: '弾を補給した' };
     if (e.why === 'kill') {
       const W = WEAPONS[e.w];
       const line = `${v ? (v.name || '敵') : '敵'} を倒した${W ? '　' + W.name : ''}${e.d ? '　' + e.d + 'm' : ''}`;

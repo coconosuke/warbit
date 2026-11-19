@@ -18,8 +18,8 @@ export const CLASSES = {
     desc: '前に出て撃ち合う。破片と衝撃の手榴弾を持つ。',
     guns: ['m4a1', 'akm', 'hk416', 'mk18', 'aks74u', 'vz58', 'g36c', 'scarl', 'aug', 'tavor', 'mcx'],
     sec: ['m17', 'g17', 'm1911'],
-    gear: [['frag', 2], ['impact', 1], ['smoke', 2], ['bandage', 3]],
-    tools: ['小さい弾薬箱'],
+    gear: [['frag', 2], ['impact', 1], ['smoke', 2], ['bandage', 3], ['ammosmall', 1]],
+    tools: [],
   },
   medic: {
     name: '衛生', en: 'MEDIC', short: 'MEDIC', hp: 100,
@@ -42,8 +42,8 @@ export const CLASSES = {
     desc: '機関銃で制圧する。体力が多い（125）。',
     guns: ['m249', 'rpk'],
     sec: ['m17', 'm92', 'm1911'],
-    gear: [['frag', 2], ['smoke', 2], ['bandage', 3]],
-    tools: ['大きい弾薬箱'],
+    gear: [['frag', 2], ['smoke', 2], ['bandage', 3], ['ammobig', 2]],
+    tools: [],
   },
   recon: {
     name: '偵察', en: 'RECON', short: 'RECON', hp: 90,

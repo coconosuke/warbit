@@ -36,6 +36,9 @@ export const GEAR = {
   spray: { name: 'ペッパースプレー', kind: 'spray', max: 1, uses: 6, desc: '至近距離（約3m）の相手の顔に吹きつけ、抵抗をやめさせる。' },
   taser: { name: 'テーザー（予備）', kind: 'taserGear', max: 1, desc: '副武器とは別に持つテーザー。' },
   chem: { name: 'ケミライト', kind: 'chem', max: 8, desc: '光る棒。確認した部屋に置いて印にする。' },
+  // 大規模戦の弾薬箱（援護・突撃。research/WARBIT.md の 32）
+  ammobig: { name: '大きい弾薬箱', kind: 'ammo', max: 2, desc: '足もとの前に置く。近くに立った味方に弾倉を補給する（弾 244 発分）。置いたら拾えない。' },
+  ammosmall: { name: '小さい弾薬箱', kind: 'ammo', max: 1, desc: '足もとの前に置く。近くに立った味方に弾倉を補給する（弾 90 発分）。' },
   bandage: { name: '包帯', kind: 'heal', max: 3, use: 3.5, desc: '止血して体力を40回復する（対戦）。作戦では止血のみ（50%まで回復）。' },
   frame: { name: '壁用の爆破薬（フレームチャージ）', kind: 'wallcharge', max: 1, place: 4.0, desc: '対戦の攻撃側だけ。補強した壁にも大きな穴を開ける。' },
   claymore: { name: '扉の罠（手榴弾とワイヤー）', kind: 'trap', max: 2, place: 3.0, desc: '対戦の守る側だけ。扉に仕掛け、開けた人を吹き飛ばす。ミラーで見つけられ、マルチツールで外せる。' },

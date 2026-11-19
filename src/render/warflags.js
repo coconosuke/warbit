@@ -59,6 +59,14 @@ export class WarFlags {
     Mg.box(-0.018, 0, -0.06, 0.018, 0.028, 0.06, LAYER.metal, hex('#22241f'));
     Mg.box(-0.012, 0.028, -0.055, 0.012, 0.034, -0.035, LAYER.metal, hex('#3a3c36'));
     this.magMesh = makeWorldMesh(this.gl, Mg);
+    // 弾薬箱（この作品の形: 緑の箱・ふたの帯・取っ手。小さいのは縮める）
+    const Ab = new MeshBuilder();
+    Ab.box(-0.26, 0, -0.16, 0.26, 0.3, 0.16, LAYER.metal, hex('#4b5a34'));
+    Ab.box(-0.27, 0.3, -0.17, 0.27, 0.34, 0.17, LAYER.metal, hex('#3d4a2b'));
+    Ab.box(-0.08, 0.34, -0.025, 0.08, 0.37, 0.025, LAYER.rubber, hex('#1e2118'));
+    Ab.box(-0.265, 0.12, -0.05, -0.255, 0.2, 0.05, LAYER.metal, hex('#d8c9a0'));
+    Ab.box(0.255, 0.12, -0.05, 0.265, 0.2, 0.05, LAYER.metal, hex('#d8c9a0'));
+    this.ammoMesh = makeWorldMesh(this.gl, Ab);
     this.M = new Float32Array(16);
     this.flags = [];
     this.wind = 0;
@@ -113,6 +121,8 @@ export class WarFlags {
 WarFlags.prototype._drawRallies = function (f) {
   const D = this.S && this.S.mdrops;
   if (D && D.length) this._drawMags(f, D);
+  const A = this.S && this.S.ammo;
+  if (A && A.length) this._drawMags(f, A, true);
   const L = this.S && this.S.rallies;
   if (!L || !L.length) return;
   const r = this.r, gl = this.gl, P = r.P.world, M = this.M;
@@ -136,18 +146,18 @@ WarFlags.prototype._drawRallies = function (f) {
   gl.uniform3f(P.u.uTint, 1, 1, 1);
   if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, -1);
 };
-WarFlags.prototype._drawMags = function (f, D) {
+WarFlags.prototype._drawMags = function (f, D, box) {
   const r = this.r, gl = this.gl, P = r.P.world, M = this.M;
   r._bindLight(P, f);
   gl.uniformMatrix4fv(P.u.uVP, false, r.vp);
   if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, 1);
   gl.uniform3f(P.u.uTint, 1, 1, 1);
   for (const q of D) {
-    if (Math.hypot(q.x - r.camPos[0], q.z - r.camPos[2]) > 40) continue;
-    const c = Math.cos(q.yaw), s = Math.sin(q.yaw);
-    M.fill(0); M[0] = c; M[2] = -s; M[5] = 1; M[8] = s; M[10] = c; M[15] = 1; M[12] = q.x; M[13] = q.y + 0.005; M[14] = q.z;
+    if (Math.hypot(q.x - r.camPos[0], q.z - r.camPos[2]) > (box ? 150 : 40)) continue;
+    const k = box && !q.big ? 0.72 : 1, c = Math.cos(q.yaw) * k, s = Math.sin(q.yaw) * k;
+    M.fill(0); M[0] = c; M[2] = -s; M[5] = k; M[8] = s; M[10] = c; M[15] = 1; M[12] = q.x; M[13] = q.y + 0.005; M[14] = q.z;
     gl.uniformMatrix4fv(P.u.uModel, false, M);
-    drawMesh(gl, this.magMesh);
+    drawMesh(gl, box ? this.ammoMesh : this.magMesh);
   }
   M.fill(0); M[0] = M[5] = M[10] = M[15] = 1;
   gl.uniformMatrix4fv(P.u.uModel, false, M);
