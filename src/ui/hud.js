@@ -324,7 +324,7 @@ export class Hud {
       const wi = v.wi, W = wi ? WEAPONS[wi.id] : null;
       let akey = '';
       if (p.ws.slot === 2 && v.gearId) { const g = p.inv.gear.find(x => x.id === v.gearId); akey = 'g|' + v.gearId + '|' + (g ? g.n : 0); }
-      else if (p.ws.slot === 3 && p.inv.long) { const m = p.inv.m320; akey = 'L|' + p.inv.long + '|' + (m ? [m.sel, m.flash, m.stinger, m.cs].join(',') : '') + '|' + (p.ws.lt > 0 ? 1 : 0); }
+      else if (p.ws.slot === 3 && p.inv.long) { const m = p.inv.m320, rp = p.inv.rpg; akey = 'L|' + p.inv.long + '|' + (m ? [m.sel, m.flash, m.stinger, m.cs].join(',') : rp ? rp.in + ',' + rp.n : '') + '|' + (p.ws.lt > 0 ? 1 : 0); }
       else if (wi && W) { const [m, r] = ammoCount(wi); akey = wi.id + '|' + m + '|' + r + '|' + wi.mode + '|' + (wi.zi || 0) + '|' + (wi.mags ? wi.mags.join(',') : '') + '|' + p.ws.st; }
       if (this.cache.ammo !== akey) {
         this.cache.ammo = akey;
@@ -336,6 +336,12 @@ export class Hud {
             am.querySelector('.mode').textContent = (RN[m.sel] || '') + (p.ws.lt > 0 ? '・装填中' : '');
             am.querySelector('.cnt').innerHTML = `<b class="${m[m.sel] ? '' : 'empty'}">${m[m.sel] || 0}</b><span>/${m.flash + m.stinger + m.cs}</span>`;
             am.querySelector('.mags').innerHTML = ['flash', 'stinger', 'cs'].map(k => `<em class="${k === m.sel ? 'on' : ''}">${RN[k].slice(0, 2)}${m[k]}</em>`).join('');
+          } else if (L === 'rpg' && p.inv.rpg) {
+            // RPG-7: 込めた弾（0/1）と予備
+            const rp = p.inv.rpg;
+            am.querySelector('.mode').textContent = 'RPG-7' + (p.ws.lt > 0 ? '・装填中' : '');
+            am.querySelector('.cnt').innerHTML = `<b class="${rp.in ? '' : 'empty'}">${rp.in}</b><span>/${rp.n}</span>`;
+            am.querySelector('.mags').innerHTML = '';
           } else {
             am.querySelector('.mode').textContent = '';
             am.querySelector('.cnt').innerHTML = `<b class="lname">${LONG[L] ? LONG[L].name : ''}</b>`;
@@ -389,8 +395,10 @@ export class Hud {
         this.btn.zoom.querySelector('.lb').textContent = zl;
         this.btn.zoom.classList.toggle('na', !zs);
       }
-      const gtxt = v.gearSel ? (GEAR[v.gearSel] ? GEAR[v.gearSel].name.replace(/（.*）/, '') : '') : '';
-      const gn = v.gearSel ? (p.inv.gear.find(x => x.id === v.gearSel) || { n: 0 }).n : 0;
+      // '@long' は手に持つ特殊装備（大規模戦の工兵の RPG-7）
+      const lg = v.gearSel === '@long' && LONG[p.inv.long] ? p.inv.long : null;
+      const gtxt = lg ? LONG[lg].name : v.gearSel ? (GEAR[v.gearSel] ? GEAR[v.gearSel].name.replace(/（.*）/, '') : '') : '';
+      const gn = lg ? (p.inv.rpg ? p.inv.rpg.in + p.inv.rpg.n : 1) : v.gearSel ? (p.inv.gear.find(x => x.id === v.gearSel) || { n: 0 }).n : 0;
       const gk = gtxt + gn;
       if (this.cache.gear !== gk) { this.cache.gear = gk; this.btn.gear.querySelector('.lb').textContent = gtxt; this.btn.gear.querySelector('.ct').textContent = v.gearSel ? gn : ''; }
       if (this.btn.rally) { const rk = (v.rally ? 1 : 0) + '|' + (v.rally && v.rally.ok ? 1 : 0) + '|' + (v.rally ? v.rally.lb : ''); if (this.cache.rally !== rk) { this.cache.rally = rk; this.btn.rally.classList.toggle('na', !v.rally); this.btn.rally.classList.toggle('dis', !!v.rally && !v.rally.ok); this.btn.rally.querySelector('.lb').textContent = v.rally ? v.rally.lb : ''; } }
@@ -510,6 +518,8 @@ export class Hud {
     c.textAlign = 'center'; c.textBaseline = 'middle';
     // 印の大きさ（設定。BattleBit の旗・印・名前の大きさ）: 拠点の印と、ほかの印（仲間・敵・集合など）を別に
     const fS = this.S.flagMarkSize ?? 1, mS = this.S.markSize ?? 1;
+    // 味方の名前の文字（px。印の大きさで縮めない）
+    this._nameF = `700 ${Math.round((this.S.nameSize ?? 11) / mS * 10) / 10}px "Noto Sans JP", sans-serif`;
     for (const m of list) {
       const sc = m.k === 'flag' ? fS : mS;
       if (sc !== 1) { c.save(); c.translate(m.x, m.y); c.scale(sc, sc); c.translate(-m.x, -m.y); }
@@ -553,7 +563,7 @@ export class Hud {
         c.globalAlpha = m.k === 'enemy' ? 0.95 : 0.85;
         c.fillStyle = m.col;
         c.beginPath(); c.moveTo(m.x - s, m.y - s * 0.9); c.lineTo(m.x + s, m.y - s * 0.9); c.lineTo(m.x, m.y + s * 0.5); c.closePath(); c.fill();
-        if (m.t && (m.d || 0) < 30) { c.font = '700 10px "Noto Sans JP", sans-serif'; c.fillStyle = m.col; c.fillText(m.t, m.x, m.y - s - 7); }
+        if (m.t && (m.d || 0) < 30) { c.font = this._nameF || '700 11px "Noto Sans JP", sans-serif'; c.fillStyle = m.col; c.fillText(m.t, m.x, m.y - s - 7); }
       }
     }
     c.globalAlpha = 1;

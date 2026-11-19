@@ -906,6 +906,39 @@ const LONG_MODELS = {
     P.sightY = 0.062; P.eyeZ = -0.24; P.muzzle = 0.27; P.railZ = null; P.rail2 = null; P.foreY = -0.05; P.breakAction = true;
     P.gripR = [0, -0.095, -0.075]; P.gripL = [0, -0.1, 0.133]; P.magWell = [0, 0.0, 0.0];
   },
+  // RPG-7（大規模戦の工兵。この作品の形）: 筒は照準の線の右下（照準器は筒の左上。本物も左側）。後ろは広がった噴射口、
+  //  まん中に木の熱よけ、下に引き金の握りと前の握り。弾頭（PG-7V に似せた HEAT。太い胴と円すい）は別の形（pump。込めていない時は隠す）
+  rpg(B, P) {
+    const X = -0.042, col = hex('#3f4437'), wd = hex('#4a3626');
+    tz(B, -0.4, 0.36, 0.021, 0, col, 12, undefined, X);
+    B.tube([X, 0, -0.4], [X, 0, -0.56], 0.022, 0.037, 12, LAYER.metal, K.dg, { caps: true });
+    B.tube([X, 0, -0.5605], [X, 0, -0.562], 0.03, 0.03, 12, LAYER.metal, hex('#111214'), { caps: true });
+    B.tube([X, 0, -0.16], [X, 0, 0.04], 0.028, 0.028, 12, LAYER.wood, wd, { caps: true });
+    for (const z of [-0.165, 0.035]) tz(B, z, z + 0.01, 0.03, 0, K.blk, 12, undefined, X);
+    tz(B, 0.335, 0.362, 0.0245, 0, K.blk, 12, undefined, X);
+    withXf(B, T(X, 0, 0), () => {
+      grip(B, -0.02, -0.04, -0.115, -0.075, 0.014, 0.021, K.blk);
+      grip(B, -0.02, 0.1, -0.1, 0.085, 0.013, 0.019, K.blk);
+      bx(B, -0.004, -0.06, -0.035, 0.004, -0.055, 0.02, K.blk); bx(B, -0.004, -0.06, 0.016, 0.004, -0.028, 0.02, K.blk);
+    });
+    // 照準器（筒の左上）: 台は照準の線の右下に寄せ（狙う所の下をふさがない）、細い腕の先に照門と照星
+    bx(B, -0.032, 0.0, -0.044, -0.012, 0.024, -0.02, K.blk);
+    bx(B, -0.014, 0.024, -0.036, 0.011, 0.029, -0.028, K.blk);
+    notch(B, 0.045, -0.032, K.blk, 0.029);
+    bx(B, -0.032, 0.0, 0.205, -0.012, 0.022, 0.225, K.blk);
+    bx(B, -0.014, 0.022, 0.211, 0.003, 0.026, 0.219, K.blk);
+    post(B, 0.045, 0.215, K.blk, 0.026);
+    // 弾頭
+    const W = new MeshBuilder(), od = hex('#4a5136');
+    W.tube([X, 0, 0.34], [X, 0, 0.43], 0.016, 0.016, 10, LAYER.metal, hex('#2b2d2a'), { caps: true });
+    W.tube([X, 0, 0.43], [X, 0, 0.455], 0.03, 0.0425, 14, LAYER.paint, od, { caps: true });
+    W.tube([X, 0, 0.455], [X, 0, 0.53], 0.0425, 0.0425, 14, LAYER.paint, od, { caps: true });
+    W.tube([X, 0, 0.53], [X, 0, 0.7], 0.0425, 0.011, 14, LAYER.paint, od, { caps: true });
+    W.tube([X, 0, 0.7], [X, 0, 0.745], 0.008, 0.005, 8, LAYER.metal, K.mg, { caps: true });
+    P._pump = W;
+    P.sightY = 0.045; P.eyeZ = -0.22; P.muzzle = 0.36; P.railZ = null; P.rail2 = null; P.rocket = true; P.rocketX = X;
+    P.gripR = [X, -0.095, -0.065]; P.gripL = [X, -0.08, 0.09]; P.magWell = [X, 0, 0.4];
+  },
   // オプティワンド: 握りと画面、伸びる棒、先で曲がるカメラ
   wand(B, P) {
     B.tube([0, -0.03, -0.09], [0, -0.03, 0.05], 0.017, 0.016, 10, LAYER.rubber, K.dg, { caps: true });
@@ -965,7 +998,8 @@ export function longModel(kind) {
   if (g) return g;
   const B = new MeshBuilder(), P = { sightY: 0.06, eyeZ: -0.25, muzzle: 0.3 };
   fn(B, P);
-  g = { key, wid: null, long: kind, body: B, mag: null, pump: null, pts: P, len: P.muzzle };
+  g = { key, wid: null, long: kind, body: B, mag: null, pump: P._pump || null, pts: P, len: P.muzzle };
+  delete P._pump;
   cache.set(key, g);
   return g;
 }

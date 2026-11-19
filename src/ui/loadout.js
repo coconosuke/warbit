@@ -78,7 +78,7 @@ export class LoadoutEditor {
       case 'secondary': return allowedS.map(id => ({ v: id, label: WEAPONS[id].name, sub: CAT_NAME[WEAPONS[id].cat], on: S2.id === id }));
       case 'ammo': return (W ? W.ammo : []).map(k => ({ v: k, label: AMMO_NAME[k] || k, on: (P.ammo || W.ammo[0]) === k, sub: ammoSub(W, k) }));
       case 'ammo2': return (W2 ? W2.ammo : []).map(k => ({ v: k, label: AMMO_NAME[k] || k, on: (S2.ammo || W2.ammo[0]) === k, sub: ammoSub(W2, k) }));
-      case 'long': return Object.keys(LONG).map(k => ({ v: k, label: LONG[k].name, sub: LONG[k].desc || '', on: (lo.long || 'none') === k }));
+      case 'long': return Object.keys(LONG).filter(k => !LONG[k].war).map(k => ({ v: k, label: LONG[k].name, sub: LONG[k].desc || '', on: (lo.long || 'none') === k }));
       case 'g0': case 'g1': case 'g2': {
         const pool = this.kind === 'pvp' ? PVP_ALLOWED[side].gear : PVE_GEAR;
         const cur = (lo.gear || [])[+slot[1]];

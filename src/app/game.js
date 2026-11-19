@@ -317,7 +317,7 @@ export class Match {
         //  設定で「1回押しで落とす」にもできる
         case 'reload': {
           if (k === 'down') {
-            const dbl = this.time - (this._rlT ?? -9) < 0.4 && p.ws.st === 'reload' && p.ws.rk === 'tac';
+            const dbl = this.time - (this._rlT ?? -9) < (st.rlDbl ?? 0.4) && p.ws.st === 'reload' && p.ws.rk === 'tac';
             this.acts.push({ a: 'reload', fast: dbl || (this.S.war && st.reloadDrop === true) }); this._rlT = dbl ? -9 : this.time;
           } else if (k === 'long' || (k === 'longup' && e.key)) this.acts.push({ a: 'reload', fast: true });
           break;
@@ -355,7 +355,8 @@ export class Match {
         case 'team': if (k === 'down') { if (this.S.pvp || this.S.war) this.boardOn = !this.boardOn; else this.team = TEAMS[(TEAMS.indexOf(this.team) + 1) % 3]; } break;
         case 'board': if (k === 'down') this.boardOn = !this.boardOn; break;
         case 'gear':
-          if (k === 'tap') { if (p.ws.slot === 2) this.acts.push({ a: 'switch', slot: p.ws.prev >= 0 ? p.ws.prev : 0 }); else if (this.gearSel) this.acts.push({ a: 'gear', id: this.gearSel }); }
+          // 手に持った物（投げ物・RPG など）を持っていれば銃に戻す。選んだのが RPG（@long）なら構える
+          if (k === 'tap') { if (p.ws.slot === 2 || p.ws.slot === 3) this.acts.push({ a: 'switch', slot: p.ws.prev >= 0 && p.ws.prev < 2 ? p.ws.prev : 0 }); else if (this.gearSel === '@long') this.acts.push({ a: 'long' }); else if (this.gearSel) this.acts.push({ a: 'gear', id: this.gearSel }); }
           else if (k === 'long') this._gearMenu(e);
           break;
         case 'wpn1': if (k === 'down' || (k === 'tap' && e.wheel)) this.acts.push({ a: 'switch', slot: 0 }); break;
@@ -599,8 +600,9 @@ export class Match {
     const items = p.inv.gear.filter(g => g.n > 0).map(g => ({ label: GEAR[g.id].name.replace(/（.*）/, ''), sub: '×' + g.n, go: () => { this.gearSel = g.id; if (GEAR[g.id].kind === 'nade' || GEAR[g.id].kind === 'spray' || GEAR[g.id].kind === 'heal') this.acts.push({ a: 'gear', id: g.id }); } }));
     if (p.inv.long && p.inv.long !== 'none' && LONG[p.inv.long]) {
       const L = p.inv.long, on = L === 'shield' ? p.ws.slot === 1 : p.ws.slot === 3;
-      const sub = L === 'm320' && p.inv.m320 ? '弾 ' + (p.inv.m320.flash + p.inv.m320.stinger + p.inv.m320.cs) : on ? '銃に戻す' : '構える';
-      items.push({ label: LONG[L].name.replace(/（.*）/, '').replace(' グレネードランチャー', ''), sub, go: () => this.acts.push({ a: 'long' }) });
+      const sub = L === 'm320' && p.inv.m320 ? '弾 ' + (p.inv.m320.flash + p.inv.m320.stinger + p.inv.m320.cs) : L === 'rpg' && p.inv.rpg ? '×' + (p.inv.rpg.in + p.inv.rpg.n) : on ? '銃に戻す' : '構える';
+      // 大規模戦: 選ぶと装備のボタンの物になる（次からボタンを押すだけで構える）
+      items.push({ label: LONG[L].name.replace(/（.*）/, '').replace(' グレネードランチャー', ''), sub, go: () => { if (this.S.war) this.gearSel = '@long'; if (!on) this.acts.push({ a: 'long' }); } });
     }
     if (!items.length) return;
     this.app.input.openRadial('gear', items, e.pid, e.x, e.y);
@@ -740,7 +742,7 @@ export class Match {
         }
         case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', fullhp: '体力が満タン', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
         case 'nade': { if (e.type === 'frag' || e.type === 'impact') break; if (e.type === 'smoke') { for (let i = 0; i < 6; i++) fx.smoke(e.x, e.y + 0.5, e.z, 0.9, [0.62, 0.63, 0.64], 0.6, 3); au.sfx('gasPop', [e.x, e.y, e.z], { rate: 0.8 }); break; } if (e.type === 'cs') { for (let i = 0; i < 8; i++) fx.smoke(e.x, e.y + 0.4, e.z, 1.2, [0.85, 0.85, 0.8], 0.5, 6); au.sfx('gasPop', [e.x, e.y, e.z]); } else { fx.explosion(e.x, e.y, e.z, 3, e.type === 'flash' ? 'flash' : 'stinger'); au.sfx(e.type === 'flash' ? 'flashbang' : 'stinger', [e.x, e.y, e.z]); } const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 10) * 0.6); break; }
-        case 'boom': case 'c2': { fx.explosion(e.x, e.y, e.z, Math.min(5, e.r || 3), e.kind || 'c2'); au.boom([e.x, e.y, e.z], { size: e.kind === 'frag' ? 1 : 1.1 }); const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 18)); this._heatUp(0.5 * Math.max(0, 1 - d / 40)); break; }
+        case 'boom': case 'c2': { fx.explosion(e.x, e.y, e.z, Math.min(5, e.r || 3), e.kind || 'c2'); au.boom([e.x, e.y, e.z], { size: e.kind === 'frag' ? 1 : e.kind === 'rpg' ? 1.2 : 1.1 }); const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 18)); this._heatUp(0.5 * Math.max(0, 1 - d / 40)); break; }
         case 'flashed': if (e.id === me) { this.flashW = Math.max(this.flashW, Math.min(1, 0.4 + e.k * 1.2)); au.deafen(2 + 4 * e.k); } break;
         case 'stung': if (e.id === me) { this.shake = 1; this.blurK = Math.max(this.blurK, 0.8); } break;
         case 'tase': au.sfx('taser', S.byId[e.id] ? [S.byId[e.id].x, S.byId[e.id].y + 1, S.byId[e.id].z] : null); break;
@@ -793,13 +795,16 @@ export class Match {
         case 'matchend': if (S.war) { const win = e.win === p.team, draw = e.win < 0; const why = e.why === 'time' ? '時間切れ' : S.m.mode === 'conquest' ? (win ? '敵のチケットが尽きた' : 'チケットが尽きた') : S.m.mode === 'tdm' ? `${S.m.limit} キルに到達` : `${S.m.limit} 点に到達`; hud.showBanner(`${draw ? 'DRAW' : win ? 'VICTORY' : 'DEFEAT'}<br><small>${draw ? '引き分け' : win ? '勝利' : '敗北'} ― ${why}</small>`, 4000, draw ? '' : win ? 'good' : 'bad'); au.ui(win ? 'win' : 'lose'); break; }
           { const mine = e.win === p.team; hud.showBanner(e.win < 0 ? '引き分け' : mine ? '勝利' : '敗北', 0, mine ? 'ok' : 'bad'); au.ui(mine ? 'win' : 'lose'); } break;
         case 'redeploy': if (e.id === me) { this.kiaT = -99; this.dlo = false; this._resetControls(); } break;
-        case 'respawn': if (e.id === me) { this.dlo = false; hud.deploy(null); if (S.war) this.r.warmWar(p.x, p.z); this.dead = false; this.spec = null; this.yaw = p.yaw; this.pitch = 0; this._resetControls(); this.av.hidden.add(me); if (e.zone == null) hud.hideBanner(); } break;
+        case 'respawn': if (e.id === me) { this.dlo = false; hud.deploy(null); if (S.war) this.r.warmWar(p.x, p.z); this.dead = false; this.spec = null; this.yaw = p.yaw; this.pitch = 0; this._resetControls(); this.av.hidden.add(me); if (e.zone == null) hud.hideBanner();
+          // 工兵で初めて出た時: RPG-7 の出し方（1回だけ）
+          if (S.war && p.inv.long === 'rpg' && !this._rpgHint) { this._rpgHint = true; hud.feed('RPG-7: 装備のボタンを長押しして選ぶ（次からは押すだけで構える）', 'ok'); }
+        } break;
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
         case 'score': if (e.id === me && S.war) this._score(e); break;
         case 'ammoBox': if (e.k === 'place') { au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.6, rate: 1.3 }); if (e.by === me) hud.feed(`${e.big ? '大きい' : '小さい'}弾薬箱を置いた（近くに立つと弾倉を補給）`, 'ok'); } break;
         case 'medkit': if (e.id === me) { au.sfx('bandage', null, { vol: 0.35, rate: 1.2 }); const t = S.byId[e.tgt]; hud.feed(t === p ? `自分を手当て（体力 ${e.hp}）` : `${t ? t.name : '仲間'} を手当て（体力 ${e.hp}）`, 'ok'); } else if (e.tgt === me) hud.feed(`${S.byId[e.id] ? S.byId[e.id].name : '衛生'} が手当てしている（体力 ${e.hp}）`, 'ok'); break;
-        case 'resupply': if (e.id === me) { au.ui('pickup'); hud.feed(e.g ? `${GEAR[e.g] ? GEAR[e.g].name.replace(/（.*）/, '') : ''}を補給した` : `弾倉を補給した（+${e.n}発）`, 'ok'); } break;
+        case 'resupply': if (e.id === me) { au.ui('pickup'); hud.feed(e.g ? `${e.g === 'rpg' ? 'RPG-7 の弾' : GEAR[e.g] ? GEAR[e.g].name.replace(/（.*）/, '') : ''}を補給した` : `弾倉を補給した（+${e.n}発）`, 'ok'); } break;
         case 'magDrop': au.sfx('magOut', [e.x, e.y + 0.1, e.z], { vol: 0.5, rate: 0.8 }); break;
         case 'magPick': if (e.id === me) { au.ui('pickup'); hud.feed(`弾倉を拾った（${e.n}発）`, 'ok'); } break;
         case 'consol': if (e.id === me) { au.sfx('magOut', null, { vol: 0.5 }); hud.feed('弾倉をまとめている…', 'ok'); } break;
@@ -834,7 +839,18 @@ export class Match {
         }
         case 'throw': { const a = S.byId[e.id]; au.sfx('throw', a === p ? null : [a.x, a.y + 1.5, a.z], { vol: 0.6 }); break; }
         case 'bounce': if (e.v > 2) au.sfx('nadeBounce', [e.x, e.y, e.z], { vol: Math.min(1, e.v / 8) }); break;
-        case 'launch': { const a = S.byId[e.id]; if (!a) break; au.sfx('launch', a === p ? null : [a.x, a.y + 1.4, a.z], { vol: 0.9 }); if (a === p) { this.shake = Math.max(this.shake, 0.3); if (this.vm.on) { const mz = this.vm.out.muzzle, f = this.vm.out.fwd; fx.smoke(mz[0] + f[0] * 0.1, mz[1], mz[2] + f[2] * 0.1, 0.25, [0.75, 0.74, 0.7], 0.25, 1.2); } } break; }
+        case 'launch': { const a = S.byId[e.id]; if (!a) break;
+          if (e.type === 'rpg') {
+            // RPG: 低い噴射の音と、後ろへ噴き出す煙（後方の噴射）
+            au.sfx('launch', a === p ? null : [a.x, a.y + 1.4, a.z], { vol: 1, rate: 0.72 }); au.sfx('air', a === p ? null : [a.x, a.y + 1.4, a.z], { vol: 0.6, rate: 0.5 });
+            const bx = -Math.sin(a.yaw), bz = -Math.cos(a.yaw);
+            // 煙の尾の始まり（撃った所から）
+            if (e.n != null) (this._rkL || (this._rkL = new Map())).set(e.n, [a.x + Math.sin(a.yaw) * 0.9, a.y + 1.5, a.z + Math.cos(a.yaw) * 0.9]);
+            for (let i = 0; i < 6; i++) fx.smoke(a.x + bx * (0.8 + i * 0.35), a.y + 1.45 - i * 0.05, a.z + bz * (0.8 + i * 0.35), 0.5 + i * 0.08, [0.78, 0.77, 0.74], 0.4, 2.2);
+            if (a === p) this.shake = Math.max(this.shake, 0.45);
+            break;
+          }
+          au.sfx('launch', a === p ? null : [a.x, a.y + 1.4, a.z], { vol: 0.9 }); if (a === p) { this.shake = Math.max(this.shake, 0.3); if (this.vm.on) { const mz = this.vm.out.muzzle, f = this.vm.out.fwd; fx.smoke(mz[0] + f[0] * 0.1, mz[1], mz[2] + f[2] * 0.1, 0.25, [0.75, 0.74, 0.7], 0.25, 1.2); } } break; }
         case 'shieldhit': { const mine = e.id === me; au.sfx('plateHit', mine ? null : [e.x, e.y, e.z], { vol: mine ? 0.85 : 0.55 }); if (mine) { this.shake = Math.min(1, this.shake + (e.less ? 0.08 : 0.22)); const src = S.byId[e.by]; if (src) hud.damageFrom(Math.atan2(src.x - p.x, src.z - p.z)); } if (e.by === me) au.ui('hitArmor'); break; }
         case 'peek': if (e.id === me) { this.pkYaw = 0; this.pkPitch = e.door >= 0 ? 0.08 : 0; this.pkEnd = false; this.adsOn = false; au.sfx('mirror', null, { vol: 0.35 }); } break;
         case 'peekend': if (e.id === me) this.pkEnd = false; break;
@@ -981,7 +997,7 @@ export class Match {
       const z = pip ? 1 + 0.2 * p.ads : 1 + (zoom - 1) * p.ads;
       // 被弾のぶれ（エイムパンチ）と揺れ
       this.shake = Math.max(0, this.shake - dt * 1.8);
-      const sh = this.shake * this.shake;
+      const sh = this.shake * this.shake * (st.shakeK ?? 1);
       const t = this.time;
       // ボルトの操作中（スコープをのぞいたまま）: 像が少し跳ねて傾く（見た目だけ。狙いは変わらない）
       const bp = W && W.bolt && p.ws.st === 'pump' ? Math.sin(Math.PI * Math.max(0, Math.min(1, 1 - p.ws.t / (W.pump || 1)))) * p.ads : 0;
@@ -1058,6 +1074,16 @@ export class Match {
     if (this._cloudT > 0.25) {
       this._cloudT = 0;
       for (const c of S.clouds || []) { if (c.type === 'smoke') continue; const R = c.r || 1; const a = Math.random() * 6.28, d = Math.random() * R; this.fx.smoke(c.x + Math.cos(a) * d, c.y + 0.3 + Math.random() * 0.8, c.z + Math.sin(a) * d, Math.max(0.6, R * 0.6), c.type === 'pepper' ? [0.9, 0.75, 0.6] : [0.88, 0.88, 0.84], 0.32, 3.5); }
+    }
+    // RPG のロケット: 後ろに白い煙の尾（こまごとに、前のこまからの間を埋める）
+    const RL = this._rkL || (this._rkL = new Map());
+    for (const n of S.nades || []) {
+      if (n.type !== 'rpg') continue;
+      const key = n.id ?? Math.round(n.x * 10) + ':' + Math.round(n.z * 10), q = RL.get(key); RL.set(key, [n.x, n.y, n.z]);
+      if (RL.size > 24) RL.delete(RL.keys().next().value);
+      if (!q) continue;
+      const d = Math.hypot(n.x - q[0], n.y - q[1], n.z - q[2]), k = Math.min(10, Math.ceil(d / 0.8));
+      for (let i = 0; i < k; i++) { const t = i / k; this.fx.smoke(q[0] + (n.x - q[0]) * t, q[1] + (n.y - q[1]) * t, q[2] + (n.z - q[2]) * t, 0.32, [0.88, 0.87, 0.84], 0.42, 2.2); }
     }
     // 発煙弾の煙: 大きく濃い粒を絶えず足して、玉の形の壁にする
     this._smokeT = (this._smokeT || 0) + dt;
@@ -1276,6 +1302,8 @@ export class Match {
     }
     const c = this.ctx;
     const wi = curWeapon(p);
+    // 選んでいた物を持っていない（兵科を替えた・RPG のない兵科）: 投げ物の最初に戻す
+    if (this.gearSel === '@long' ? !(p.inv.long && p.inv.long !== 'none' && LONG[p.inv.long]) : this.gearSel && !p.inv.gear.some(g => g.id === this.gearSel)) this.gearSel = (p.inv.gear.find(g => GEAR[g.id].kind === 'nade') || p.inv.gear[0] || {}).id || null;
     const v = {
       p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn,
       // ダッシュを押しているが、ほかの操作（構える・リーン・撃つ・リロード）が先で走っていない
@@ -1414,7 +1442,7 @@ export class Match {
       list.push({ k: sq ? 'squad' : 'ally', x: q[0], y: q[1], col: a.down ? '#ffaa33' : sq ? '#6ee07a' : TC.ally, t: sq ? a.name : '', d });
     }
     // 印をつけた敵（分隊の誰かがつけた。10 秒。頭の上の赤い印と距離）
-    for (const q of S.m.spots || []) {
+    for (const q of this.app.settings.showPings === false ? [] : S.m.spots || []) {
       if (q.team !== my || q.sq !== p.squad || q.until <= S.t) continue;
       const a = S.byId[q.id]; if (!a || !a.alive || a.down) continue;
       const d = Math.hypot(a.x - cam.x, a.z - cam.z);
@@ -1502,7 +1530,7 @@ export class Match {
       title: (WAR_MAPS[this.w.mapId] || WAR_MAPS.riverbend).en, mode: m.mode === 'range' ? 'TRAINING' : `${MD.en} · ${sizeLabel(m.per)}`, scoreHtml: m.mode === 'range' ? '' : ob.html, scoreKey: m.mode === 'range' ? '' : ob.key, noSquad: m.mode === 'range',
       img: this.hud.plan && this.hud.plan.img, rect: m.rect, m, myTeam: p.team, mapKey: tick + '|' + m.flags.map(f => f.owner).join(','),
       opts, sel: this.dsel, dots, squad: { name: squadEn(p.squad, p.team), list: squad },
-      cls, classes: CLASS_LIST.map(id => ({ id, en: CLASSES[id].en, short: CLASSES[id].short, name: CLASSES[id].name, hp: CLASSES[id].hp, desc: CLASSES[id].desc, tools: CLASSES[id].tools.join('・'), ok: canPick(p, id) })),
+      cls, classes: CLASS_LIST.map(id => ({ id, en: CLASSES[id].en, short: CLASSES[id].short, name: CLASSES[id].name, hp: CLASSES[id].hp, desc: CLASSES[id].desc, tools: CLASSES[id].tools.join('・'), long: CLASSES[id].long ? `${LONG[CLASSES[id].long].name}×${LONG[CLASSES[id].long].rockets || 1}` : '', ok: canPick(p, id) })),
       lo: !!this.dlo, loTab: this.dloTab || 'gun', guns, secs, gun, sec, att: this._attRows(gun, W.att[gun] || {}), gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
       left, queued: !!p.deployAt, canGo: !(m.mode === 'conquest' && m.tickets[p.team] <= 0),
       msg: m.mode === 'range' ? '射台から' : m.mode === 'conquest' ? (m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
@@ -1617,7 +1645,7 @@ function nm(a) { return a ? (a.pid != null ? a.name : a.kind === 'sus' ? '容疑
 function feedKill(k, v, e, p) {
   const kn = k ? nm(k) : '?', vn = nm(v);
   if (!k && e.kind === 'redeploy') return `<b class="${v.team === p.team ? 'ally' : 'enemy'}">${vn}</b> <i>再出撃</i>`;
-  const wpn = e.kind === 'oob' ? '範囲の外' : e.kind === 'melee' ? '近接' : e.kind === 'fall' ? '落下' : k && curWeapon(k) ? WEAPONS[curWeapon(k).id].name : e.kind === 'bleed' ? '出血' : e.kind === 'blast' ? '爆発' : '';
+  const wpn = e.kind === 'oob' ? '範囲の外' : e.kind === 'melee' ? '近接' : e.kind === 'fall' ? '落下' : e.kind === 'blast' ? (k && k.inv && k.inv.long === 'rpg' && k.ws && k.ws.slot === 3 ? 'RPG-7' : '爆発') : k && curWeapon(k) ? WEAPONS[curWeapon(k).id].name : e.kind === 'bleed' ? '出血' : '';
   return `<b class="${k && k.team === p.team ? 'ally' : 'enemy'}">${kn}</b> <i>${wpn}${e.hs ? '・頭' : ''}</i> <b class="${v.team === p.team ? 'ally' : 'enemy'}">${vn}</b>`;
 }
 function ctxName(c, S) { return c.k === 'bar' ? (c.ops && c.ops[0] && c.ops[0].op === 'bar' ? '窓' : 'バリケード') : c.k === 'door' ? (S.doors[c.id] && S.doors[c.id].bar > 0 ? 'バリケード' : '扉') : c.k === 'person' ? (S.byId[c.id] ? (S.byId[c.id].kind === 'sus' ? '容疑者' : S.byId[c.id].kind === 'civ' ? '市民' : '隊員') : '人') : c.k === 'item' ? '物' : c.k === 'bomb' ? '爆弾' : c.k === 'site' ? '爆弾の場所' : c.k === 'wall' ? '壁' : ''; }

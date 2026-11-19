@@ -31,11 +31,12 @@ export const CLASSES = {
   },
   engineer: {
     name: '工兵', en: 'ENGINEER', short: 'ENGINEER', hp: 100,
-    desc: '短い銃・散弾銃・DMR。建物と乗り物を壊す役（RPG は次の段階）。',
+    desc: '短い銃・散弾銃・DMR と RPG-7。固まった敵や物陰の敵をロケットで吹き飛ばす。',
     guns: ['mk18', 'mp7', 'ump45', 'm4super', 'saiga', 'mini14', 'hk417'],
     sec: ['m17', 'g17', 'm92'],
     gear: [['frag', 1], ['smoke', 2], ['bandage', 3]],
-    tools: ['RPG-7', '修理工具'],
+    long: 'rpg',
+    tools: ['修理工具'],
   },
   support: {
     name: '援護', en: 'SUPPORT', short: 'SUPPORT', hp: 125,
@@ -74,5 +75,5 @@ export function classLoadout(cls, gun, sec, att) {
   // 付属品（出撃の画面の LOADOUT で選ぶ。付けられない物は makeWeapon が外す）
   const A = att && att[g];
   if (A) for (const k of ['sight', 'muzzle', 'grip', 'side']) if (A[k]) prim[k] = A[k];
-  return { war: true, primary: prim, secondary: { id: s, ammo: 'ap' }, long: 'none', gear: C.gear.map(x => x.slice()), vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
+  return { war: true, primary: prim, secondary: { id: s, ammo: 'ap' }, long: C.long || 'none', gear: C.gear.map(x => x.slice()), vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
 }

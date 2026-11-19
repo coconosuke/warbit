@@ -1,7 +1,8 @@
 // 投げ物と爆発: 閃光・スティンガー・CSガス・罠（破片）・C2・壁用の爆破薬。ガスの雲。
 import { raycast, los, CS, LH, levelOfY, NB } from './world.js';
 import { hrand } from './rng.js';
-import { eyeOf, hurt, killActor, pvpDamage, damageBlock, breakGlass, downActor, breakCamAt } from './combat.js';
+import { eyeOf, hurt, killActor, pvpDamage, damageBlock, breakGlass, downActor, breakCamAt, capsOf } from './combat.js';
+import { rayCapsule } from './pose.js';
 import { M, MATS } from './data/materials.js';
 import { blastBars } from './barricade.js';
 import { blastDeps } from './deploy.js';
@@ -31,10 +32,54 @@ export function launchNade(S, a, type, ev) {
   ev.push({ e: 'launch', id: a.id, type });
 }
 
+// RPG-7 のロケット（大規模戦の工兵。research/WARBIT.md の 37）: 出てすぐ 120m/s、0.4 秒で 190m/s まで加速。重力は 0.45 倍（遠いほど落ちる。
+//  200m で約 2.5m 下がる）。腰だめは 1.2°・構えると 0.3° ばらつく。人か物に当たると爆発（HEAT: 半径 7m、近いほど強い。3m までは倒れる）。
+//  撃った人には 0.3 秒は当たらない。5 秒（約 900m）で自爆。数値は推測（資料は「HEAT は人も建物も倒す」「200m より遠いと当てにくい」）
+export const ROCKET = { v0: 120, v1: 190, acc: 0.4, g: 0.45, hip: 1.2, ads: 0.3, life: 5, r: 7, dmg: 420, fall: 1.8, arm: 0.3 };
+export function launchRocket(S, a, ev) {
+  const eye = eyeOf(S, a);
+  const sp = (a.ads > 0.8 ? ROCKET.ads : ROCKET.hip) * Math.PI / 180, k = (S.rocketN = (S.rocketN || 0) + 1);
+  const yaw = a.yaw + (hrand(a.id, k, 1) - 0.5) * 2 * sp, pitch = a.pitch + (hrand(a.id, k, 2) - 0.5) * 2 * sp;
+  const cp = Math.cos(pitch), dx = Math.sin(yaw) * cp, dy = Math.sin(pitch), dz = Math.cos(yaw) * cp;
+  // 照準の線の上から出る（筒は目の右下にあるが、狙った所へまっすぐ行くように）
+  const n = { id: S.nextItem++, type: 'rpg', rocket: true, x: eye[0] + dx * 0.9, y: eye[1] + dy * 0.9 - 0.02, z: eye[2] + dz * 0.9, vx: dx * ROCKET.v0, vy: dy * ROCKET.v0, vz: dz * ROCKET.v0, t: 0, fuse: ROCKET.life, impact: true, by: a.id, team: a.team };
+  S.nades.push(n);
+  ev.push({ e: 'launch', id: a.id, type: 'rpg', n: n.id });
+  return n;
+}
+// ロケットの線分が人に当たるか（体の形の筒）。当たった距離（なければ -1）
+function rocketHitsActor(S, n, dx, dy, dz, L) {
+  let best = -1;
+  for (const a of S.actors) {
+    if (!a.alive || a.isDrone) continue;
+    if (a.id === n.by && n.t < ROCKET.arm) continue;
+    const ox = a.x - n.x, oy = a.y + 0.9 - n.y, oz = a.z - n.z, tc = ox * dx + oy * dy + oz * dz;
+    if (tc < -1.5 || tc > L + 1.5 || ox * ox + oy * oy + oz * oz - tc * tc > 2.6) continue;
+    // 弾頭の太さ（半径 4cm）と、かすっても信管が働く分を足す
+    for (const c of capsOf(S, a)) { const t = rayCapsule(n.x, n.y, n.z, dx, dy, dz, L, c.a, c.b, c.r + 0.07); if (t >= 0 && (best < 0 || t < best)) best = t; }
+  }
+  return best;
+}
+
 export function stepNades(S, w, dt, ev) {
   for (let i = S.nades.length - 1; i >= 0; i--) {
     const n = S.nades[i];
     n.t += dt;
+    if (n.rocket) {
+      // 加速（向きはそのまま）
+      const s0 = Math.hypot(n.vx, n.vy, n.vz), want = n.t < ROCKET.acc ? ROCKET.v0 + (ROCKET.v1 - ROCKET.v0) * n.t / ROCKET.acc : ROCKET.v1;
+      if (s0 > 1 && want > s0) { const f = want / s0; n.vx *= f; n.vy *= f; n.vz *= f; }
+      n.vy -= 9.81 * ROCKET.g * dt;
+      const sp = Math.hypot(n.vx, n.vy, n.vz), L = sp * dt, dx = n.vx / sp, dy = n.vy / sp, dz = n.vz / sp;
+      let tHit = -1;
+      for (const x of raycast(w, n.x, n.y, n.z, dx, dy, dz, L + 0.06, S.doors, _rc)) { if (x.mat === M.GLASSBROKEN) continue; if (x.mat === M.GLASS) { breakGlass(S, w, x, ev); continue; } tHit = x.t0; break; }
+      const tA = rocketHitsActor(S, n, dx, dy, dz, L);
+      if (tA >= 0 && (tHit < 0 || tA < tHit)) tHit = tA;
+      if (tHit >= 0 && tHit <= L + 0.06) { const t = Math.max(0, tHit - 0.05); n.x += dx * t; n.y += dy * t; n.z += dz * t; n.t = n.fuse; }
+      else { n.x += n.vx * dt; n.y += n.vy * dt; n.z += n.vz * dt; }
+      if (n.t >= n.fuse) { detonate(S, w, n, ev); S.nades.splice(i, 1); }
+      continue;
+    }
     if (!n.rest) {
       n.vy -= 9.81 * dt;
       const sp = Math.hypot(n.vx, n.vy, n.vz);
@@ -113,6 +158,8 @@ function detonate(S, w, n, ev) {
     else S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 5, dmg: 150, kind: 'frag', by: n.by, t: 0 });
   } else if (n.type === 'impact') {
     S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 8, dmg: 170, fall: 1.9, kind: 'frag', by: n.by, t: 0 });
+  } else if (n.type === 'rpg') {
+    S.blasts.push({ x: n.x, y: n.y + 0.1, z: n.z, r: ROCKET.r, dmg: ROCKET.dmg, fall: ROCKET.fall, kind: 'rpg', by: n.by, t: 0 });
   }
 }
 

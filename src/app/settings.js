@@ -18,6 +18,9 @@ export const DEFAULTS = {
   hud: {}, hudOpacity: 0.85, hudScale: 1.0, crosshair: 'cross', crossColor: '#ffffff', minimap: true, subtitles: true, subBg: 0.42, hitMarker: true,
   // BattleBit のゲームの設定に合わせて足した物（11-20）: 照準の大きさ・濃さ、ヒットマーカーの色（体・頭・防具・倒した）、倒れたら自動で出撃、描画距離
   crossSize: 1, crossOpacity: 1, hitCol: { body: '#ffffff', head: '#ffe600', armor: '#3d7dff', kill: '#ff2a1f' }, autoDeploy: false, viewDistSel: 'auto', allyCol: '#4aa8ff', enemyCol: '#ff4b3e', flagMarkSize: 1, markSize: 1, squadList: false, contrast: 1,
+  // 11-20 続き（BattleBit の Friendly Name Tag Size・Show Pings・Screen Shake・2回押しのリロードの間）: 味方の名前の大きさ（文字の px）、
+  //  敵の印を出す、画面の揺れ（0〜1。前の「画面の揺れ」標準／弱 は効いていなかった）、リロードの2回押しとみなす間（秒）
+  nameSize: 11, showPings: true, shakeK: 1, rlDbl: 0.4,
   // 画面
   quality: 'medium', // low | medium | high | custom（下の gfx を自分で選ぶ）
   gfx: { detail: 'medium', shadow: 'low', bloom: true, aa: 'fxaa', lights: 6, fx: 'normal', shells: true },
@@ -35,6 +38,8 @@ export function loadSettings() {
   if (!['low', 'medium', 'high', 'custom'].includes(out.quality)) out.quality = 'medium';
   // 前の「スコープ」の感度（1つ）を変えていた人: 倍率ごとの値をその割合で
   if (s.sensScope !== undefined && s.sensZ === undefined && s.sensScope !== DEFAULTS.sensScope) { const f = s.sensScope / DEFAULTS.sensScope; for (const k of Object.keys(out.sensZ)) out.sensZ[k] = +(DEFAULTS.sensZ[k] * f).toFixed(3); }
+  // 前の「画面の揺れ: 弱」→ 揺れ 50%
+  if (s.shake === false && s.shakeK === undefined) out.shakeK = 0.5;
   out.sv = DEFAULTS.sv;
   return out;
 }

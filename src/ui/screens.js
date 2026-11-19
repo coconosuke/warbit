@@ -542,6 +542,7 @@ export class Screens {
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);
       row('エイムアシスト', '照準が敵の体の近くでゆっくりに・敵の動きに少しついていく（タッチだけ。引き寄せはしない）', 'aimAssist'); ch('aimAssist', [['off', 'オフ'], ['weak', '弱'], ['mid', '中'], ['strong', '強'], ['max', '最大']]);
       row('リロード（1回押し）', '2回押すと、いつも弾倉を落として速くリロード。落とした弾倉は上を歩くと拾える', 'reloadDrop'); ch('reloadDrop', [[false, '弾倉を残す'], [true, '弾倉を落とす（速い）']]);
+      row('2回押しの間', 'リロードを2回押しとみなす間（短いと誤って落としにくい）', 'rlDbl'); sl('rlDbl', 0.25, 0.6, 0.05, (v) => v.toFixed(2) + '秒');
       row('ジャイロ', '端末の傾きで照準', 'gyro'); ch('gyro', [['off', 'オフ'], ['ads', 'ADS時'], ['always', '常時']]);
       row('ジャイロ感度', '', 'gyroSens'); sl('gyroSens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ジャイロ 左右', '', 'gyroInvX'); ch('gyroInvX', [[false, '標準'], [true, '反転']]);
@@ -570,6 +571,8 @@ export class Screens {
       row('分隊の欄', '分隊の仲間の兵科・名前・体力・状態（位置は「配置を編集」で動かす）', 'squadList'); ch('squadList', [[false, '非表示'], [true, '表示']]);
       row('拠点の印の大きさ', '画面の上の A・B・C などの丸', 'flagMarkSize'); sl('flagMarkSize', 0.7, 1.6, 0.05, pct);
       row('印の大きさ', '仲間・分隊・敵の印・集合地点・距離の札', 'markSize'); sl('markSize', 0.7, 1.6, 0.05, pct);
+      row('味方の名前の大きさ', '分隊の仲間の頭の上の名前（30m 以内）', 'nameSize'); sl('nameSize', 9, 16, 1, (v) => v + 'px');
+      row('敵の印', '分隊がつけた敵の印（赤い菱形）を出す', 'showPings'); ch('showPings', [[true, '表示'], [false, '非表示']]);
       row('倒れたら自動で出撃', '出撃の画面で待たずに、時間が来たら前に選んだ場所から出る（場所と兵科は変えられる）', 'autoDeploy'); ch('autoDeploy', [[false, 'オフ'], [true, 'オン']]);
     } else if (tab === 'gfx') {
       // まとめて選ぶ（低・中・高）と、細かい設定（変えるとカスタム）
@@ -595,7 +598,7 @@ export class Screens {
       row('コントラスト', '大規模戦の色の締まり', 'contrast'); sl('contrast', 0.5, 1.5, 0.05, pct);
       row('周辺減光', '画面のふちを暗く', 'vignette'); ch('vignette', [[true, 'オン'], [false, 'オフ']]);
       row('流血表現', '', 'blood'); ch('blood', [[true, 'オン'], [false, 'オフ']]);
-      row('画面の揺れ', '', 'shake'); ch('shake', [[true, '標準'], [false, '弱']]);
+      row('画面の揺れ', '被弾・爆発・着地で画面が揺れる強さ', 'shakeK'); sl('shakeK', 0, 1, 0.05, pct);
       row('FPS表示', '', 'showFps'); ch('showFps', [[false, 'オフ'], [true, 'オン']]);
     } else if (tab === 'snd') {
       row('全体', '', 'vm'); sl('vm', 0, 1, 0.05, pct, 'vol.master');

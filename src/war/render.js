@@ -647,7 +647,7 @@ function sortIn(ww) {
   for (const rp of ww.ramps) it[ck((rp.x0 + rp.x1) / 2, (rp.z0 + rp.z1) / 2)].ramps.push(rp);
   for (const t of ww.trees || []) it[ck(t.x, t.z)].trees.push(t);
   for (const c of ww.cyls) if (c.col && c.alive) it[ck(c.x, c.z)].cyls.push(c);
-  for (const d of ww.decos || []) { let x = 0, z = 0; for (const p of d.pts) { x += p[0]; z += p[2]; } it[ck(x / d.pts.length, z / d.pts.length)].decos.push(d); }
+  for (const d of ww.decos || []) { if (d.hide) continue; let x = 0, z = 0; for (const p of d.pts) { x += p[0]; z += p[2]; } it[ck(x / d.pts.length, z / d.pts.length)].decos.push(d); }
   for (const b of ww.bushes || []) it[ck(b.x, b.z)].bushes.push(b);
   for (const wi of ww.wires || []) it[ck((wi.a[0] + wi.b[0]) / 2, (wi.a[2] + wi.b[2]) / 2)].wires.push(wi);
   ww._chunkItems = { NX, NZ, it };
@@ -657,9 +657,16 @@ function sortIn(ww) {
 // 遠い形を全部の塊について作る。戻り値: [{ k, x0,z0,x1,z1,y0,y1, B }]
 export function buildWarFar(ww) {
   prepGround(ww);
-  const tops = bldTops(ww), { NX, NZ, it } = sortIn(ww), out = [];
-  for (let cz = 0; cz < NZ; cz++) for (let cx = 0; cx < NX; cx++) {
-    const k = cz * NX + cx, x0 = cx * CH, z0 = cz * CH, x1 = Math.min(ww.sx, x0 + CH), z1 = Math.min(ww.sz, z0 + CH);
+  const { NX, NZ } = sortIn(ww), out = [];
+  for (let k = 0; k < NX * NZ; k++) out.push(buildWarFarChunk(ww, k));
+  return out;
+}
+// 遠い形（1つの塊）。壁・床が壊れた時はその塊だけ作り直す
+export function buildWarFarChunk(ww, k) {
+  prepGround(ww);
+  const tops = bldTops(ww), { NX, it } = sortIn(ww);
+  {
+    const cx = k % NX, cz = Math.floor(k / NX), x0 = cx * CH, z0 = cz * CH, x1 = Math.min(ww.sx, x0 + CH), z1 = Math.min(ww.sz, z0 + CH);
     const B = new MeshBuilder();
     terrainMesh(B, ww, x0, z0, x1, z1, 8, 6);
     let y0 = 1e9, y1 = -1e9;
@@ -671,9 +678,8 @@ export function buildWarFar(ww) {
     for (const t of it[k].trees) { treeMesh(B, t, true); y1 = Math.max(y1, t.y + 7 * t.s); }
     // 茂みは大きい物だけ遠い形にも入れる（小さい物は近い形だけ）
     for (const b of it[k].bushes) if (b.h > 1.45 && b.r > 1.25) { bushMesh(B, b, true); y1 = Math.max(y1, b.y + b.h); }
-    out.push({ k, x0, z0, x1, z1, y0: y0 - 7, y1: y1 + 1, B });
+    return { k, x0, z0, x1, z1, y0: y0 - 7, y1: y1 + 1, B };
   }
-  return out;
 }
 // 近い形（1つの塊）
 // o.lite: 画質「低」。窓の桟・扉の板などの描くだけの細かい面と電線は省く

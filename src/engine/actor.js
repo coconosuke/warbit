@@ -37,6 +37,8 @@ export function makeInventory(lo) {
   // 大規模戦の兵科は数を兵科で決める（衛生の包帯 16 など）。ほかは道具ごとの上限まで
   for (const [id, n] of (lo.gear || [])) if (GEAR[id] && n > 0) { const k = lo.war ? n : Math.min(n, GEAR[id].max); inv.gear.push({ id, n: k, n0: k }); }
   if (inv.long === 'm320') inv.m320 = { ...LONG.m320.rounds, sel: 'flash' };
+  // RPG-7: in = 込めてある（0/1）、n = 予備、n0 = 出撃した時の予備（弾薬箱はここまで）
+  if (inv.long === 'rpg') inv.rpg = { in: 1, n: LONG.rpg.rockets - 1, n0: LONG.rpg.rockets - 1 };
   return inv;
 }
 

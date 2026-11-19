@@ -142,7 +142,7 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
 // 構えられる物を持っている（銃・M320）
 export function canAim(a) {
   const ws = a.ws;
-  return !!ws && ws.slot >= 0 && (ws.slot < 2 || (ws.slot === 3 && a.inv.long === 'm320') || (ws.slot === 2 && ws.gear === 'binoc')) && !a.down && !a.peek;
+  return !!ws && ws.slot >= 0 && (ws.slot < 2 || (ws.slot === 3 && (a.inv.long === 'm320' || a.inv.long === 'rpg')) || (ws.slot === 2 && ws.gear === 'binoc')) && !a.down && !a.peek;
 }
 // 走るのをやめてから撃てるまで（秒）。重い銃ほど長い（拳銃 0.1・小銃 0.15・狙撃銃 0.24）
 export function sprintOutT(W) { return W ? Math.min(0.25, 0.08 + 0.025 * (W.kg || 3)) : 0.1; }

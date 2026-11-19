@@ -8,7 +8,7 @@ import { prepareLevel, buildChunk, doorLeafMesh, barPanelMesh, CHUNK } from './l
 import { WV, MeshBuilder, hex } from './build.js';
 import { bakeLight } from '../engine/light.js';
 import { CS, LH, CEIL, NB, DSHIELD } from '../engine/world.js';
-import { buildWarFar, buildWarNear, buildWarGrass } from '../war/render.js';
+import { buildWarFar, buildWarFarChunk, buildWarNear, buildWarGrass } from '../war/render.js';
 
 // 大規模戦の空（もやを薄く、遠くまで見える。日は少し低めで影が長い）
 export const WAR_SKY = { sky: [0.54, 0.66, 0.88], ground: [0.3, 0.29, 0.24], sun: [2.75, 2.52, 2.15], sunDir: (() => { const v = [0.5, 0.64, 0.36], l = Math.hypot(...v); return v.map(x => x / l); })(), fog: [0.64, 0.74, 0.87], fogD: 0.00072, amb: 0.03, exposure: 0.8, zenith: [0.17, 0.39, 0.84], horizon: [0.58, 0.71, 0.9], night: 0 };
@@ -317,6 +317,18 @@ export class Renderer {
     this.doorMeshes = []; this.barMeshes = []; this.outer = null;
     this.roofY = 1e9;
     this.buildMs = performance.now() - t0;
+  }
+  // 大規模戦の壁・床が壊れた: その塊の遠い形と近い形を作り直す（ks: 塊の番号）
+  rebuildWarChunks(ks) {
+    if (!this.war || !this.chunks) return;
+    const gl = this.gl;
+    for (const k of ks) {
+      const ch = this.chunks.find(c => c.k === k); if (!ch || !('far' in ch)) continue;
+      const fb = buildWarFarChunk(this.war, k), m = makeWorldMesh(gl, fb.B);
+      if (ch.mesh === ch.far) ch.mesh = m;
+      delMesh(gl, ch.far); ch.far = m; ch.farTris = m ? m.n / 3 : 0;
+      if (ch.near) { const was = ch.mesh === ch.near; delMesh(gl, ch.near); ch.near = makeWorldMesh(gl, buildWarNear(this.war, k, { lite: this.warLite })); ch.nearTris = ch.near ? ch.near.n / 3 : 0; if (was) ch.mesh = ch.near; }
+    }
   }
   // 近い形を作る・捨てる。budget: 1こまで作る数（-1 で全部）
   _warSelect(c, budget = 2) {

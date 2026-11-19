@@ -66,7 +66,7 @@ export class DeployScreen {
         this.card.innerHTML = `<div class="dps-h"><span>CLASS</span><b>${esc(c.en)}</b><em>${esc(c.name)} · HP ${c.hp}</em></div>
           <p>${esc(c.desc)}</p>
           <div class="dps-kv"><span>主</span><b>${esc(d.gunName)}</b></div><div class="dps-kv"><span>副</span><b>${esc(d.secName)}</b></div>
-          <div class="dps-kv"><span>投げ物</span><b>${esc(d.gear)}</b></div>${c.tools ? `<div class="dps-kv soon"><span>道具</span><b>${esc(c.tools)}（準備中）</b></div>` : ''}`;
+          <div class="dps-kv"><span>投げ物</span><b>${esc(d.gear)}</b></div>${c.long ? `<div class="dps-kv"><span>道具</span><b>${esc(c.long)}</b></div>` : ''}${c.tools ? `<div class="dps-kv soon"><span>${c.long ? '' : '道具'}</span><b>${esc(c.tools)}（準備中）</b></div>` : ''}`;
       }
     }
     const k4 = d.cls + '|' + d.classes.map(c => c.ok ? 1 : 0).join('') + '|' + d.lo + '|' + Math.ceil(d.left) + '|' + d.queued + '|' + d.canGo + '|' + (d.msg || '');

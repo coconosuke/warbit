@@ -56,7 +56,7 @@ export class ActorView {
     const g = longModel(kind);
     if (!g) return null;
     let m = this.guns.get(g.key);
-    if (!m) { m = { body: makeWorldMesh(this.gl, g.body), mag: null, pump: null, g }; this.guns.set(g.key, m); }
+    if (!m) { m = { body: makeWorldMesh(this.gl, g.body), mag: null, pump: g.pump ? makeWorldMesh(this.gl, g.pump) : null, g }; this.guns.set(g.key, m); }
     return m;
   }
   shieldMesh() {
@@ -108,6 +108,17 @@ export class ActorView {
       B.box(0.006, 0.0, -0.008, 0.012, 0.055, 0.008, LAYER.metal, hex('#9a9a90'));
       return (this._nm[type] = makeWorldMesh(this.gl, B));
     }
+    if (type === 'rpg') {
+      // RPG のロケット（前が +Z）: 後ろのモーターの筒と羽根、太い弾頭と円すい
+      const od = hex('#4a5136');
+      B.tube([0, 0, -0.32], [0, 0, 0], 0.016, 0.016, 8, LAYER.metal, hex('#2b2d2a'), { caps: true });
+      const fc = hex('#3a3c38');
+      B.box(-0.002, 0.014, -0.32, 0.002, 0.046, -0.26, LAYER.metal, fc); B.box(-0.002, -0.046, -0.32, 0.002, -0.014, -0.26, LAYER.metal, fc);
+      B.box(0.014, -0.002, -0.32, 0.046, 0.002, -0.26, LAYER.metal, fc); B.box(-0.046, -0.002, -0.32, -0.014, 0.002, -0.26, LAYER.metal, fc);
+      B.tube([0, 0, 0], [0, 0, 0.1], 0.0425, 0.0425, 12, LAYER.paint, od, { caps: true });
+      B.tube([0, 0, 0.1], [0, 0, 0.27], 0.0425, 0.01, 12, LAYER.paint, od, { caps: true });
+      return (this._nm[type] = makeWorldMesh(this.gl, B));
+    }
     const col = type === 'flash' ? hex('#3a4a3a') : type === 'stinger' ? hex('#3a3a40') : type === 'cs' ? hex('#6a6a48') : hex('#4a4a4a');
     B.cyl(0, 0, -0.055, 0.055, 0.028, 0.028, 10, LAYER.metal, col, { capB: true });
     B.cyl(0, 0, 0.055, 0.08, 0.012, 0.012, 6, LAYER.metal, hex('#8a8a80'));
@@ -156,7 +167,7 @@ export class ActorView {
       M[12] = g.p[0]; M[13] = g.p[1]; M[14] = g.p[2]; M[15] = 1;
       gl.uniformMatrix4fv(W.u.uModel, false, M);
       gl.uniform1f(W.u.uRoomOverride, Math.max(0, e.room));
-      drawMesh(gl, gm.body); if (gm.mag && e.a.ws.st !== 'reload') drawMesh(gl, gm.mag); if (gm.pump) drawMesh(gl, gm.pump); if (gm.flip) drawMesh(gl, gm.flip);
+      drawMesh(gl, gm.body); if (gm.mag && e.a.ws.st !== 'reload') drawMesh(gl, gm.mag); if (gm.pump && !(e.gun.long === 'rpg' && e.a.inv.rpg && !e.a.inv.rpg.in)) drawMesh(gl, gm.pump); if (gm.flip) drawMesh(gl, gm.flip);
       r.stats.draws++;
     }
     // 結束バンド: 手首から手首へ（白い帯と、手首ごとの輪）
@@ -192,6 +203,15 @@ export class ActorView {
       const t = (r.time || 0) * 9 + (n.id || 0), c = Math.cos(t), s2 = Math.sin(t), M = this.M;
       M[0] = c; M[1] = s2; M[2] = 0; M[3] = 0; M[4] = -s2; M[5] = c; M[6] = 0; M[7] = 0; M[8] = 0; M[9] = 0; M[10] = 1; M[11] = 0;
       M[12] = n.x; M[13] = n.y; M[14] = n.z; M[15] = 1;
+      // ロケットは飛ぶ向きへ（速さがなければ前のこまからの動き）
+      if (n.type === 'rpg') {
+        let fx = n.vx, fy = n.vy, fz = n.vz;
+        if (fx == null) { const L0 = this._rk || (this._rk = new Map()), q = L0.get(n.id); fx = q ? n.x - q[0] : 0; fy = q ? n.y - q[1] : 0; fz = q ? n.z - q[2] : 1; L0.set(n.id, [n.x, n.y, n.z]); if (L0.size > 32) L0.delete(L0.keys().next().value); }
+        const fl = Math.hypot(fx, fy, fz) || 1; fx /= fl; fy /= fl; fz /= fl;
+        let rx = fz, rz = -fx; const rl = Math.hypot(rx, rz) || 1; rx /= rl; rz /= rl;
+        const ux = fy * rz, uy = fz * rx - fx * rz, uz = -fy * rx;
+        M[0] = rx; M[1] = 0; M[2] = rz; M[4] = ux; M[5] = uy; M[6] = uz; M[8] = fx; M[9] = fy; M[10] = fz;
+      }
       gl.uniformMatrix4fv(W.u.uModel, false, M);
       gl.uniform1f(W.u.uRoomOverride, Math.max(0, roomOf(r.w0, n.x, n.y + 0.2, n.z)));
       drawMesh(gl, m);

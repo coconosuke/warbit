@@ -13,7 +13,7 @@ import { curW, curWeapon, ammoCount } from '../engine/actor.js';
 import { los as wLos, heightAt } from './world.js';
 import { buildWarNav, findWarPath, navCellOf, navCenter, NS } from './nav.js';
 import { hrand } from '../engine/rng.js';
-import { smokeBetween } from '../engine/nades.js';
+import { smokeBetween, ROCKET } from '../engine/nades.js';
 
 export const SQUAD = 8;           // 分隊の人数（BattleBit: research/WARBIT.md の 3）
 const SCAN_EVERY = 6;             // 見回す間隔（ステップ）
@@ -195,6 +195,8 @@ function think(S, w, a, dt, ctx) {
   inp.stance = 0;
   if (a.down) { inp.mx = 0; inp.mz = 0; return inp; }
   if (a.act) { inp.mx = 0; inp.mz = 0; inp.stance = a.act.k === 'revive' ? 1 : a.stance; return inp; }
+  // RPG を持ったまま（撃ち終えた・敵を見失った）: 銃へ戻す
+  if (a.ws.slot === 3 && !(ai.rpgUntil && S.t < ai.rpgUntil) && a.ws.st !== 'holster' && a.ws.st !== 'draw' && (!ai.selT || S.t - ai.selT > SEC(S, 1))) { ai.selT = S.t; pushAct(inp, { a: 'switch', slot: 0 }); }
   // 見回す（交代で）
   if ((S.t + a.id) % SCAN_EVERY === 0) scan(S, w, a, ctx, sk);
   let tgt = ai.tgt != null ? S.byId[ai.tgt] : null;
@@ -255,6 +257,8 @@ function fight(S, w, a, inp, tgt, ctx, sk, dt, rEff, rMax) {
     const ux = (tgt.x - a.x) / d, uz = (tgt.z - a.z) / d;
     if (throwAt(S, a, inp, dt, 'smoke', a.x + ux * 9, a.z + uz * 9)) { if (inp.fire) ai.smokeT = S.t + SEC(S, 20); return true; }
   }
+  // 工兵の RPG
+  if (rpgAt(S, a, inp, tgt, d, visible && ready, sk, dt)) return true;
   // 撃つ・のぞく
   let canShoot = visible && ready;
   if (inCover) {
@@ -293,6 +297,38 @@ function fight(S, w, a, inp, tgt, ctx, sk, dt, rEff, rMax) {
   inp.ads = d > 12 && canShoot;
   if (canShoot) trigger(S, a, inp, d > rEff ? { ...sk, burst: [2, 4] } : sk, err < (d > 60 ? 0.02 : 0.06));
   ai.stuckT = 0;
+  return true;
+}
+
+// ---- 工兵の RPG（11-20）: 15〜150m の見えている敵が、しゃがむ・伏せる・身を出している（物陰）か、5m 以内に2人以上固まっている、
+//  または 3 割の運で、構えて撃つ（考えるのは 4 秒ごと、撃ったら 20〜35 秒は使わない）。味方が敵の 7m 以内にいれば撃たない。
+//  ロケットは遅く落ちるので、体のまん中を狙い、落ちる分だけ上へ。撃ったら銃へ戻す。true: この入力で決まり
+function rpgAt(S, a, inp, tgt, d, canShoot, sk, dt) {
+  const ai = a.ai, rp = a.inv && a.inv.rpg;
+  if (!rp) return false;
+  if (!(ai.rpgUntil && S.t < ai.rpgUntil)) {
+    if (S.t < (ai.rpgT || 0) || rp.in + rp.n <= 0 || !canShoot || d < 15 || d > 150) return false;
+    ai.rpgT = S.t + SEC(S, 4);
+    let crowd = 0, ally = false;
+    for (const b of S.actors) {
+      if (!b.alive || b.down || b === a || Math.hypot(b.x - tgt.x, b.z - tgt.z) > 7) continue;
+      if (b.team === a.team) ally = true; else if (Math.hypot(b.x - tgt.x, b.z - tgt.z) < 5) crowd++;
+    }
+    const covered = tgt.st > 0.5 || Math.abs(tgt.lean || 0) > 0.3;
+    if (ally || !(crowd >= 2 || covered || hrand(a.id, S.t, 61) < 0.3)) return false;
+    ai.rpgUntil = S.t + SEC(S, 7); ai.rpgShot = false;
+  }
+  inp.mx = 0; inp.mz = 0; inp.stance = a.st > 1.5 ? 2 : a.st > 0.5 ? 1 : 0;
+  const err = aimAtTgt(S, a, inp, tgt, sk, dt, true);
+  if (a.ws.slot !== 3) { if (!ai.selT || S.t - ai.selT > SEC(S, 1)) { ai.selT = S.t; pushAct(inp, { a: 'long' }); } return true; }
+  // 撃った（空になった）: 銃へ
+  if (ai.rpgShot && !rp.in) { ai.rpgUntil = 0; ai.rpgT = S.t + SEC(S, 20 + 15 * hrand(a.id, S.t, 62)); ai.selT = S.t; pushAct(inp, { a: 'switch', slot: 0 }); return true; }
+  // 体のまん中へ（aimAtTgt は胸か頭）・ロケットの落ちる分（弾の分は aimAtTgt が足している）
+  const tofR = d / 170, tofB = d / 800;
+  inp.pitch += Math.atan2(0.5 * G * ROCKET.g * tofR * tofR - 0.5 * G * tofB * tofB - 0.35, d);
+  inp.ads = true;
+  if (rp.in && a.ws.st === 'long' && !(a.ws.lt > 0) && a.ads > 0.8 && err < 0.035) { inp.fire = !ai.rpgPress; ai.rpgPress = !ai.rpgPress; if (inp.fire) ai.rpgShot = true; }
+  else ai.rpgPress = false;
   return true;
 }
 

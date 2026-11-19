@@ -145,7 +145,8 @@ export class ViewModel {
     this.freeK = lerp(this.freeK || 0, freeOn ? 1 : 0, 1 - Math.exp(-dt * 9));
     // 位置（カメラ空間: x右 y上 z前）と回転
     // 腰だめ: 画面の右下に収まり、銃口が画面の中央の少し下へ向く（スマホの小さい画面で大きすぎないよう、少し遠く・低く）
-    const hip = P.heavy ? [0.05, -0.25, 0.5] : L3 === 'wand' ? [0.09, -0.2, 0.4] : pistol ? [0.105, -0.112, 0.4] : [0.128, -0.128, 0.36];
+    // RPG-7 は右の肩に載せる（筒は照準の線の右下。腰だめでも筒の先と弾頭が画面の右に見える）
+    const hip = P.heavy ? [0.05, -0.25, 0.5] : L3 === 'wand' ? [0.09, -0.2, 0.4] : P.rocket ? [0.1, -0.07, 0.22] : pistol ? [0.105, -0.112, 0.4] : [0.128, -0.128, 0.36];
     // 照準の窓が画面に対して大きすぎないよう、目を少し後ろに（スマホの小さい画面向け）
     const adsP = [0, -P.sightY, -P.eyeZ + (P.optic && !(os && os.scope) ? (pistol ? 0.03 : 0.09) : 0.04)];
     // スコープの中の像: 後ろのレンズ（半径 rr）が画面の縦の半分の PIP_LENS になる距離まで目を寄せる
@@ -199,6 +200,8 @@ export class ViewModel {
     }
     // リロード
     let magOff = 0, magHide = false, pumpOff = 0, pumpRot = 0, boltHand = 0, lhand = null, rel = -1;
+    // RPG: 込めていない（撃った後・予備がない）間は弾頭を描かない
+    let rocketHide = !!(P.rocket && a.inv.rpg && !a.inv.rpg.in);
     const longRl = ws.slot === 3 && ws.lt > 0 && ws.rd > 0;
     if ((ws.st === 'reload' || longRl) && ws.rd > 0) {
       rel = 1 - (longRl ? ws.lt : ws.t) / ws.rd;
@@ -206,7 +209,12 @@ export class ViewModel {
       // 11-20: 銃を画面の中ほどへ寄せて、少し下げ・遠くする（前は右へ大きく持ち上がって画面をふさぎ、手が見えなかった）
       roll -= 0.5 * b; pitch += 0.1 * b; px -= 0.045 * b; py -= 0.01 * b; pz += 0.03 * b;
       if (P.revolver || P.breakAction) { roll -= 0.4 * b; }
-      else {
+      else if (P.rocket) {
+        // RPG: 筒の先を少し上げて左へ寄せ、左手でポーチから弾頭を出して前から差し込む（0.55〜0.85）
+        roll += 0.2 * b; pitch += 0.14 * b; px -= 0.02 * b; pz += 0.06 * b;
+        if (rel < 0.55) rocketHide = true;
+        else if (rel < 0.85) pumpOff = 0.28 * (1 - sm((rel - 0.55) / 0.3));
+      } else {
         if (rel > 0.12 && rel < 0.35) magOff = -0.3 * sm((rel - 0.12) / 0.23);
         else if (rel >= 0.35 && rel < 0.58) magHide = true;
         else if (rel >= 0.58 && rel < 0.75) magOff = -0.22 * (1 - sm((rel - 0.58) / 0.17));
@@ -243,7 +251,7 @@ export class ViewModel {
     M[4] = gU[0]; M[5] = gU[1]; M[6] = gU[2]; M[7] = 0;
     M[8] = gF[0]; M[9] = gF[1]; M[10] = gF[2]; M[11] = 0;
     M[12] = org[0]; M[13] = org[1]; M[14] = org[2]; M[15] = 1;
-    this.gm = nade ? null : gm; this.magOff = magOff; this.magHide = magHide; this.pumpOff = pumpOff; this.pumpRot = pumpRot;
+    this.gm = nade ? null : gm; this.magOff = magOff; this.magHide = magHide; this.pumpOff = pumpOff; this.pumpRot = pumpRot; this.pumpHide = rocketHide && !(rel >= 0.55);
     const toW = (p) => [org[0] - gR[0] * p[0] + gU[0] * p[1] + gF[0] * p[2], org[1] - gR[1] * p[0] + gU[1] * p[1] + gF[1] * p[2], org[2] - gR[2] * p[0] + gU[2] * p[1] + gF[2] * p[2]];
     const camP = (x, y, z) => [cx + R[0] * x + U[0] * y + F[0] * z, cy + R[1] * x + U[1] * y + F[1] * z, cz + R[2] * x + U[2] * y + F[2] * z];
     this.out.muzzle = toW([0, 0, P.muzzle]); this.out.fwd = gF; this.out.right = gR; this.out.up = gU;
@@ -329,7 +337,15 @@ export class ViewModel {
     } else {
       hR = toW(P.gripR);
       hL = toW(P.gripL);
-      if (rel >= 0 && !P.tube) {
+      if (rel >= 0 && P.rocket) {
+        // 左手: 前の握り → ポーチ（左下）→ 弾頭を持って筒の先へ → 押し込む → 前の握りへ
+        const pouch = camP(-0.14, -0.4, 0.16), tip = toW([P.rocketX || 0, -0.01, 0.6 + pumpOff]);
+        if (rel < 0.18) hL = lerpV(hL, pouch, sm(rel / 0.18));
+        else if (rel < 0.32) hL = pouch;
+        else if (rel < 0.55) hL = lerpV(pouch, tip, sm((rel - 0.32) / 0.23));
+        else if (rel < 0.85) hL = tip;
+        else hL = lerpV(tip, toW(P.gripL), sm((rel - 0.85) / 0.15));
+      } else if (rel >= 0 && !P.tube) {
         const well = toW(P.magWell || [0, -0.08, 0.04]);
         const pouch = camP(-0.12, -0.42, 0.18);
         const mag2 = [well[0] + gU[0] * magOff, well[1] + gU[1] * magOff, well[2] + gU[2] * magOff];
@@ -344,7 +360,7 @@ export class ViewModel {
         const below = [port[0] - gU[0] * 0.12, port[1] - gU[1] * 0.12, port[2] - gU[2] * 0.12];
         hL = lerpV(below, port, bell(1 - rel));
       }
-      if (pumpOff && !P.bolt) hL = [hL[0] + gF[0] * pumpOff, hL[1] + gF[1] * pumpOff, hL[2] + gF[2] * pumpOff];
+      if (pumpOff && !P.bolt && !P.rocket) hL = [hL[0] + gF[0] * pumpOff, hL[1] + gF[1] * pumpOff, hL[2] + gF[2] * pumpOff];
       // ボルト: 右手は槓桿の丸い握り（回して引いた位置）
       if (boltHand > 0 && P.boltPt) {
         const c = Math.cos(pumpRot), sn = Math.sin(pumpRot), b = P.boltPt;
@@ -519,7 +535,7 @@ export class ViewModel {
         gl.uniformMatrix4fv(P.u.uModel, false, M2);
         drawMesh(gl, this.gm.mag);
       }
-      if (this.gm.pump) {
+      if (this.gm.pump && !this.pumpHide) {
         const M2 = this.Mm, M = this.M;
         M2.set(M);
         // ボルトは銃身の軸（ローカルの Z）のまわりに回す

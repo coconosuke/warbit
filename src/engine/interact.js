@@ -5,7 +5,7 @@ import { M, MATS } from './data/materials.js';
 import { GEAR, LONG, HAND_LONG } from './data/equipment.js';
 import { doorOp, sideOf, isClosed, detonateC2, triggerTrap } from './doors.js';
 import { eyeOf, dropWeapon, capsOf, wristsOf, startMelee } from './combat.js';
-import { throwNade, launchNade } from './nades.js';
+import { throwNade, launchNade, launchRocket } from './nades.js';
 import { placeBar, clearBar, bashBar } from './barricade.js';
 import { curW } from './actor.js';
 import { startReload, switchTo, m320Next, cancelReload } from './weapon.js';
@@ -949,10 +949,13 @@ function longInHand(S, w, a, dt, ev) {
   if (!HAND_LONG[L]) { switchTo(S, a, a.inv.w[0] ? 0 : 1, ev); return; }
   if (ws.st !== 'ready' && ws.st !== 'long') { ws.longTrig = !!inp.fire; return; }
   ws.st = 'long';
+  const rp = L === 'rpg' ? a.inv.rpg : null;
   if (ws.lt > 0) {
     ws.lt -= dt;
-    if (ws.lt <= 0) { ws.lt = 0; ev.push({ e: 'reloaded', id: a.id }); }
+    if (ws.lt <= 0) { ws.lt = 0; if (rp && !rp.in && rp.n > 0) { rp.n--; rp.in = 1; } ev.push({ e: 'reloaded', id: a.id }); }
   }
+  // RPG: 空で予備があれば込め始める（撃った後・持ち替えて戻った時・弾薬箱で予備が増えた時）
+  if (rp && !rp.in && rp.n > 0 && !(ws.lt > 0)) { ws.lt = LONG.rpg.reload; ws.rd = ws.lt; ev.push({ e: 'reload', id: a.id, k: 'rocket', dur: ws.lt, long: 1 }); }
   const press = !!inp.fire && !ws.longTrig;
   ws.longTrig = !!inp.fire;
   if (!press || ws.lt > 0 || a.act || a.peek || a.sprint || a.vault) return;
@@ -968,6 +971,13 @@ function longInHand(S, w, a, dt, ev) {
     const left = m.flash + m.stinger + m.cs;
     if (!(m[m.sel] > 0)) m320Next(a, null);
     if (left > 0) { ws.lt = LONG.m320.reload || 2.6; ws.rd = ws.lt; ev.push({ e: 'reload', id: a.id, k: 'break', dur: ws.lt, long: 1 }); }
+    return;
+  }
+  if (rp) {
+    if (!rp.in) { ev.push({ e: 'dry', id: a.id }); ev.push({ e: 'deny', id: a.id, why: 'noammo' }); return; }
+    rp.in = 0;
+    launchRocket(S, a, ev);
+    a.fireK = 1;
     return;
   }
   if (L === 'wand') {

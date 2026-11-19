@@ -586,6 +586,24 @@ try {
     await page.waitForFunction(() => window.__app.game.p.alive, null, { timeout: 30000 }).catch(() => {});
     const re = await page.evaluate(() => { const p = window.__app.game.p; return { alive: p.alive, cls: p.warCls, gun: p.inv.w[0] && p.inv.w[0].id, d: p.stats.d }; });
     rec('射撃場', '兵科・装備のボタンで出撃の画面へ戻り、選んだ兵科で射台に出る（倒されたことにはしない）', re.alive && re.cls === 'medic' && re.d === 0, JSON.stringify(re));
+    // 工兵の RPG-7（0.1.39）: 工兵で出る → 装備で RPG を選んだ状態（@long）→ 装備のボタンで構える → 射撃のボタンで撃つ → 弾の欄が 0・装填中
+    await tapAt(await btn('loadout'), 69);
+    await page.waitForFunction(() => document.querySelector('#hud .hud-deploy.on .dps-go'), null, { timeout: 30000 }).catch(() => {});
+    await tapAt(await center('#hud .dps-c[data-sub="engineer"]'), 70);
+    await page.waitForFunction(() => window.__app.game.dcls === 'engineer', null, { timeout: 15000 }).catch(() => {});
+    await tapAt(await center('#hud .dps-go'), 71);
+    await page.waitForFunction(() => window.__app.game.p.alive && window.__app.game.p.warCls === 'engineer', null, { timeout: 30000 }).catch(() => {});
+    await page.evaluate(() => { const g = window.__app.game; g.gearSel = '@long'; g.pitch = 0.03; });
+    await page.waitForTimeout(400);
+    const glb = await page.evaluate(() => (document.querySelector('#hud [data-btn="gear"] .lb') || {}).textContent || '');
+    await tapAt(await btn('gear'), 72);
+    const held = await page.waitForFunction(() => { const p = window.__app.game.p; return p.ws.slot === 3 && p.ws.st === 'long'; }, null, { timeout: 30000 }).then(() => true).catch(() => false);
+    await holdAt(await btn('fire'), 300, 73);
+    const fired = await page.waitForFunction(() => window.__app.game.p.inv.rpg && window.__app.game.p.inv.rpg.in === 0, null, { timeout: 15000 }).then(() => true).catch(() => false);
+    await page.waitForTimeout(300);
+    const am = await page.evaluate(() => document.querySelector('#hud .hud-ammo').innerText.replace(/\s+/g, ' '));
+    await shot('射撃場-RPG');
+    rec('射撃場', '工兵の RPG-7: 装備のボタンで構え、射撃のボタンで撃つと弾の欄が 0（装填中）', glb === 'RPG-7' && held && fired && /RPG-7/.test(am) && /\b0\b/.test(am), `ボタン「${glb}」・構え${held ? '○' : '×'}・撃つ${fired ? '○' : '×'}・弾「${am}」`);
   } catch (e) { rec('射撃場', '射撃場だけの物', false, e.message.slice(0, 200)); }
 
   // ---- WAR BIT: タイトル → PLAY → コンクエスト 16 vs 16 → 出撃の画面 → 兵科を選んで出る → 撃つ → 倒れて出撃し直す → 勝ち → 結果 → もう一度

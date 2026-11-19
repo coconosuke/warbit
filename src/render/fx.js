@@ -103,13 +103,18 @@ export class FX {
     this.add({ x: x + this.rs(r * 0.3), y: y + this.rs(r * 0.15), z: z + this.rs(r * 0.3), vx: this.rs(0.08), vy: 0.03 + this.rnd() * 0.05, vz: this.rs(0.08), life: life * (0.75 + this.rnd() * 0.5), s0: r * 0.7, s1: r * 1.05, c: [col[0], col[1], col[2], a], sh: SH.soft, g: 0, lit: true, drag: 0.8, cull: true });
   }
   explosion(x, y, z, r, kind) {
-    const big = kind === 'c2' || kind === 'frame' || kind === 'frag';
+    const big = kind === 'c2' || kind === 'frame' || kind === 'frag' || kind === 'rpg';
     this.add({ x, y, z, vx: 0, vy: 0, vz: 0, life: 0.12, s0: r * 0.35, s1: r * 0.6, c: [20, 14, 8, 1], add: true, sh: SH.soft });
     if (big) for (let i = 0; i < 8; i++) this.add({ x, y, z, vx: this.rs(3), vy: this.rnd() * 3, vz: this.rs(3), life: 0.35, s0: 0.3, s1: 0.6, c: [6, 2.5, 0.8, 0.8], add: true, sh: SH.soft, drag: 4 });
     for (let i = 0; i < (big ? 12 : 5); i++) this.add({ x, y, z, vx: this.rs(4), vy: this.rnd() * 4, vz: this.rs(4), life: 0.8, s0: 0.03, s1: 0.02, c: [0.25, 0.22, 0.2, 1], sh: SH.square, g: 9.8, lit: true, bounce: true });
     for (let i = 0; i < (big ? 10 : 6); i++) this.smoke(x, y + 0.3, z, big ? 1.4 : 0.8, big ? [0.35, 0.33, 0.32] : [0.85, 0.85, 0.85], big ? 0.55 : 0.45, big ? 4 : 2.5);
     this.flashes.push({ x, y: y + 0.3, z, r: big ? 12 : 9, col: kind === 'flash' ? [60, 60, 60] : [40, 22, 8], t: kind === 'flash' ? 0.09 : 0.14 });
     if (big) this.decal(x, Math.floor((y + 0.2) / 3) * 3 + 0.01, z, 0, 1, 0, r * 0.25, [0.05, 0.05, 0.05, 0.85], SH.soft, this.rnd() * 6);
+    // RPG（HEAT）: 大きい火の玉と、巻き上がる土ぼこりの柱
+    if (kind === 'rpg') {
+      this.add({ x, y: y + 0.4, z, vx: 0, vy: 0, vz: 0, life: 0.22, s0: 1.6, s1: 3.2, c: [14, 6, 1.6, 1], add: true, sh: SH.soft });
+      for (let i = 0; i < 10; i++) this.smoke(x + this.rs(1.2), y + 0.4 + this.rnd() * 1.6, z + this.rs(1.2), 1.6 + this.rnd() * 0.8, [0.42, 0.38, 0.32], 0.6, 5 + this.rnd() * 2);
+    }
   }
   glassBreak(x, y, z, along) {
     for (let i = 0; i < 18; i++) this.add({ x: x + this.rs(0.25), y: y + this.rnd() * 1.3, z: z + this.rs(0.25), vx: this.rs(1.4), vy: this.rnd() * 0.8, vz: this.rs(1.4), life: 1.2, s0: 0.03, s1: 0.02, c: [0.75, 0.88, 0.95, 0.85], sh: SH.square, g: 9.8, lit: true, bounce: true });
