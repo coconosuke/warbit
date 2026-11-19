@@ -8,7 +8,7 @@ import { prepareLevel, buildChunk, doorLeafMesh, barPanelMesh, CHUNK } from './l
 import { WV, MeshBuilder, hex } from './build.js';
 import { bakeLight } from '../engine/light.js';
 import { CS, LH, CEIL, NB, DSHIELD } from '../engine/world.js';
-import { buildWarFar, buildWarFarChunk, buildWarNear, buildWarGrass } from '../war/render.js';
+import { buildWarFar, buildWarFarChunk, buildWarNear, buildWarNearBoxes, buildWarGrass } from '../war/render.js';
 
 // 大規模戦の空（もやを薄く、遠くまで見える。日は少し低めで影が長い）
 export const WAR_SKY = { sky: [0.54, 0.66, 0.88], ground: [0.3, 0.29, 0.24], sun: [2.75, 2.52, 2.15], sunDir: (() => { const v = [0.5, 0.64, 0.36], l = Math.hypot(...v); return v.map(x => x / l); })(), fog: [0.64, 0.74, 0.87], fogD: 0.00072, amb: 0.03, exposure: 0.8, zenith: [0.17, 0.39, 0.84], horizon: [0.58, 0.71, 0.9], night: 0 };
@@ -278,7 +278,7 @@ export class Renderer {
   }
   clearMap() {
     const gl = this.gl;
-    for (const ch of this.chunks || []) { if ('far' in ch) { delMesh(gl, ch.far); delMesh(gl, ch.near); delMesh(gl, ch.grass); } else { delMesh(gl, ch.mesh); delMesh(gl, ch.glass); } }
+    for (const ch of this.chunks || []) { if ('far' in ch) { delMesh(gl, ch.far); delMesh(gl, ch.near); delMesh(gl, ch.nearBox); delMesh(gl, ch.grass); } else { delMesh(gl, ch.mesh); delMesh(gl, ch.glass); } }
     this.war = null;
     for (const d of this.doorMeshes || []) { for (const m of d.leaves) delMesh(gl, m); }
     for (const b of this.barMeshes || []) if (b) delMesh(gl, b.mesh);
@@ -327,7 +327,8 @@ export class Renderer {
       const fb = buildWarFarChunk(this.war, k), m = makeWorldMesh(gl, fb.B);
       if (ch.mesh === ch.far) ch.mesh = m;
       delMesh(gl, ch.far); ch.far = m; ch.farTris = m ? m.n / 3 : 0;
-      if (ch.near) { const was = ch.mesh === ch.near; delMesh(gl, ch.near); ch.near = makeWorldMesh(gl, buildWarNear(this.war, k, { lite: this.warLite })); ch.nearTris = ch.near ? ch.near.n / 3 : 0; if (was) ch.mesh = ch.near; }
+      // 近い形は建物の箱の部分だけ（地形と木はそのまま。数 ms）
+      if (ch.near) { const was = ch.mesh2 === ch.nearBox; delMesh(gl, ch.nearBox); ch.nearBox = makeWorldMesh(gl, buildWarNearBoxes(this.war, k, { lite: this.warLite })); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); if (was) ch.mesh2 = ch.nearBox; }
     }
   }
   // 近い形を作る・捨てる。budget: 1こまで作る数（-1 で全部）
@@ -337,11 +338,11 @@ export class Renderer {
     for (const ch of this.chunks) {
       ch.d = Math.hypot((ch.x0 + ch.x1) / 2 - c.x, (ch.z0 + ch.z1) / 2 - c.z);
       if (ch.d < N && !ch.near) want.push(ch);
-      else if (ch.near && ch.d > N + 110) { delMesh(gl, ch.near); ch.near = null; ch.nearTris = 0; }
+      else if (ch.near && ch.d > N + 110) { delMesh(gl, ch.near); delMesh(gl, ch.nearBox); ch.near = null; ch.nearBox = null; ch.nearTris = 0; }
     }
     want.sort((a, b) => a.d - b.d);
     const nb = budget < 0 ? want.length : Math.min(want.length, budget);
-    for (let k = 0; k < nb; k++) { const ch = want[k]; ch.near = makeWorldMesh(gl, buildWarNear(this.war, ch.k, { lite: this.warLite })); ch.nearTris = ch.near ? ch.near.n / 3 : 0; }
+    for (let k = 0; k < nb; k++) { const ch = want[k], r = buildWarNear(this.war, ch.k, { lite: this.warLite, split: true }); ch.near = makeWorldMesh(gl, r.B); ch.nearBox = makeWorldMesh(gl, r.BX); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); }
     // 草（近い塊だけ。塊の中心から grassD＋45m 以内）
     const G = this.grassD;
     if (G > 0) {
@@ -356,7 +357,7 @@ export class Renderer {
     }
     for (const ch of this.chunks) {
       const useNear = ch.near && ch.d < N + 40;
-      ch.mesh = useNear ? ch.near : ch.far; ch.tris = useNear ? ch.nearTris : ch.farTris;
+      ch.mesh = useNear ? ch.near : ch.far; ch.mesh2 = useNear ? ch.nearBox : null; ch.tris = useNear ? ch.nearTris : ch.farTris;
     }
   }
   // 見る位置のまわりの近い形を先に全部作る（出撃のとき）
@@ -501,7 +502,7 @@ export class Renderer {
       vis.push([d, ch]);
     }
     vis.sort((a, b) => a[0] - b[0]);
-    for (const [, ch] of vis) { drawMesh(gl, ch.mesh); this.stats.draws++; this.stats.tris += ch.tris; this.stats.chunks++; }
+    for (const [, ch] of vis) { drawMesh(gl, ch.mesh); if (ch.mesh2) { drawMesh(gl, ch.mesh2); this.stats.draws++; } this.stats.draws++; this.stats.tris += ch.tris; this.stats.chunks++; }
     // 草（裏も描く）
     if (this.grassD > 0) {
       gl.disable(gl.CULL_FACE);
@@ -695,7 +696,7 @@ export class Renderer {
     const pl = frustumPlanes(this.shVP, new Float32Array(24));
     for (const ch of this.chunks) {
       if (!ch.mesh || !aabbVisible(pl, ch.x0, ch.y0, ch.z0, ch.x1, ch.y1, ch.z1)) continue;
-      drawMesh(gl, ch.mesh);
+      drawMesh(gl, ch.mesh); if (ch.mesh2) drawMesh(gl, ch.mesh2);
     }
     if (this.war) { const S = this.P.shadow; gl.useProgram(S.p); gl.uniformMatrix4fv(S.u.uVP, false, this.shVP); gl.uniformMatrix4fv(S.u.uModel, false, this.ident); }
     for (const h of this.hooks.shadow) h(this, pl);

@@ -1,18 +1,19 @@
 // 弾薬箱（大規模戦）: 援護は大きい弾薬箱 ×2、突撃は小さい弾薬箱 ×1。手に持って引き金で足もとの前へ置く（拾えない）。
 // 味方（人）が近く（2m）に立っていると、0.8 秒ごとに弾倉を1本ずつ補給する（スマホ向けに、見て押すのではなく近くにいれば補給）。
-// 箱の中身は弾の数で数える: 大きい 244・小さい 90（大きいのは BattleBit の Heavy Ammo Kit の「弾 244」。小さいのは推測）。
+// 箱の中身は弾の数で数える: 大きい 244・小さい 150（BattleBit の Wiki の Heavy Ammo Kit「弾 244」・Small Ammo Kit「弾 150」。research の 39）。
 // 中身がなくなるか、4 分で消える。置いた人以外に補給すると、置いた人に点（1本 10。推測）。research/WARBIT.md §32
 import { magCap } from './actor.js';
 
-export const AMMOBOX = { big: 244, small: 90, r: 2.0, every: 0.8, life: 240, pts: 10 };
-// 救急（包帯）と投げ物・RPG の弾も補給する（BattleBit の重い弾薬箱: 救急 100・投げ物 50。1つ 25 で数える。小さい箱は弾だけ）。4 秒に1つ
-export const AIDBOX = { aid: 100, thr: 50, cost: 25, every: 4 };
+export const AMMOBOX = { big: 244, small: 150, r: 2.0, every: 0.8, life: 240, pts: 10 };
+// 救急（包帯）と投げ物・RPG の弾も補給する（BattleBit の重い弾薬箱: 救急 100・投げ物 50・重い道具 100。小さい箱は救急 40 だけ）。
+//  包帯・投げ物は 1つ 25、RPG は 1 発 40（Wiki の補給の重さ）。4 秒に1つ
+export const AIDBOX = { aid: 100, thr: 50, gad: 100, aidSmall: 40, cost: 25, rpg: 40, every: 4 };
 
 export function placeAmmo(S, a, id, ev) {
   const big = id === 'ammobig';
   const L = S.ammo || (S.ammo = []);
   const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
-  const b = { id: (S.ammoN = (S.ammoN || 0) + 1), team: a.team, big, aid: big ? AIDBOX.aid : 0, thr: big ? AIDBOX.thr : 0, left: big ? AMMOBOX.big : AMMOBOX.small, x: a.x + fx * 0.75, y: a.y, z: a.z + fz * 0.75, yaw: a.yaw, t: S.t, by: a.id };
+  const b = { id: (S.ammoN = (S.ammoN || 0) + 1), team: a.team, big, aid: big ? AIDBOX.aid : AIDBOX.aidSmall, thr: big ? AIDBOX.thr : 0, gad: big ? AIDBOX.gad : 0, left: big ? AMMOBOX.big : AMMOBOX.small, x: a.x + fx * 0.75, y: a.y, z: a.z + fz * 0.75, yaw: a.yaw, t: S.t, by: a.id };
   L.push(b);
   if (ev) ev.push({ e: 'ammoBox', k: 'place', id: b.id, by: a.id, team: a.team, x: b.x, y: b.y, z: b.z, big });
   return b;
@@ -40,15 +41,15 @@ export function stepAmmo(S, ev, award) {
       const due = a._ammoT == null || S.t - a._ammoT >= every;
       if (!due) continue;
       // 救急と投げ物（大きい箱）: 4 秒に1つ。出撃した時の数まで
-      if ((b.aid > 0 || b.thr > 0) && (a._aidT == null || S.t - a._aidT >= Math.round(AIDBOX.every / S.dt))) {
+      if ((b.aid > 0 || b.thr > 0 || b.gad > 0) && (a._aidT == null || S.t - a._aidT >= Math.round(AIDBOX.every / S.dt))) {
         const gs = (a.inv && a.inv.gear) || [];
         const ban = gs.find(g => g.id === 'bandage' && g.n < (g.n0 || 0));
         const thr = gs.find(g => (g.id === 'frag' || g.id === 'impact' || g.id === 'smoke') && g.n < (g.n0 || 0));
-        // 工兵の RPG の予備も（BattleBit の重い弾薬箱は道具も補充する。投げ物と同じ枠から 1 発 25）
+        // 工兵の RPG の予備も（BattleBit の重い弾薬箱は道具も補充する。重い道具の枠から 1 発 40）
         const rp = a.inv && a.inv.rpg && a.inv.rpg.n + a.inv.rpg.in < (a.inv.rpg.n0 || 0) + 1 ? a.inv.rpg : null;
         if (ban && b.aid >= AIDBOX.cost) { ban.n++; b.aid -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'bandage' }); }
         else if (thr && b.thr >= AIDBOX.cost) { thr.n++; b.thr -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: thr.id }); }
-        else if (rp && b.thr >= AIDBOX.cost) { rp.n++; b.thr -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'rpg' }); }
+        else if (rp && (b.gad || 0) >= AIDBOX.rpg) { rp.n++; b.gad -= AIDBOX.rpg; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'rpg' }); }
       }
       // 主の銃から、満タンなら拳銃
       const w = a.inv && a.inv.w || [];

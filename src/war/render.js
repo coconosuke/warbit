@@ -683,9 +683,11 @@ export function buildWarFarChunk(ww, k) {
 }
 // 近い形（1つの塊）
 // o.lite: 画質「低」。窓の桟・扉の板などの描くだけの細かい面と電線は省く
+// o.split: 地形・木など（B）と、建物の箱・坂・柱・描くだけの面（BX）を分けて返す { B, BX }。壁が壊れた時は BX だけ作り直す
+//  （塊の時間のほとんどは地形と木。箱は数 ms）
 export function buildWarNear(ww, k, o = {}) {
   prepGround(ww);
-  const tops = bldTops(ww), { NX, it } = sortIn(ww);
+  const { NX } = sortIn(ww);
   const cx = k % NX, cz = Math.floor(k / NX), x0 = cx * CH, z0 = cz * CH, x1 = Math.min(ww.sx, x0 + CH), z1 = Math.min(ww.sz, z0 + CH);
   const B = new MeshBuilder();
   terrainMesh(B, ww, x0, z0, x1, z1, ww.hs, 1.5);
@@ -693,11 +695,9 @@ export function buildWarNear(ww, k, o = {}) {
   xwalkMesh(B, ww, ww._xwalkPieces ? ww._xwalkPieces[k] || [] : []);
   walkMesh(B, ww, ww._walkPieces ? ww._walkPieces[k] || [] : []);
   for (const pr of ww.paved || []) pavedMesh(B, ww, pr, x0, z0, x1, z1);
-  for (const b of it[k].boxes) boxMesh(B, ww, b, tops, true);
-  const rr = mulberry(8000 + k);
-  for (const rp of it[k].ramps) rampMesh(B, rp, rr, tops);
-  for (const c of it[k].cyls) cylMesh(B, c);
-  for (const d of it[k].decos) if (d.far || !o.lite) decoMesh(B, d, tops);
+  const BX = o.split ? new MeshBuilder() : B;
+  buildWarNearBoxes(ww, k, o, BX);
+  const { it } = sortIn(ww);
   for (const t of it[k].trees) treeMesh(B, t, false);
   for (const b of it[k].bushes) bushMesh(B, b, false);
   // 電線: たるんだ線（8つに分けた細い三角の筒）
@@ -705,7 +705,17 @@ export function buildWarNear(ww, k, o = {}) {
     const N = 8, P = (t) => [wi.a[0] + (wi.b[0] - wi.a[0]) * t, wi.a[1] + (wi.b[1] - wi.a[1]) * t - 4 * wi.sag * t * (1 - t), wi.a[2] + (wi.b[2] - wi.a[2]) * t];
     for (let q = 0; q < N; q++) tube(B, P(q / N), P((q + 1) / N), 0.018, 0.018, 3, LAYER.rubber, [0.09, 0.09, 0.1], null);
   }
-  return B;
+  return o.split ? { B, BX } : B;
+}
+// 近い形のうち、建物の箱・坂・柱・描くだけの面（壊れると作り直す）
+export function buildWarNearBoxes(ww, k, o = {}, BX = new MeshBuilder()) {
+  const tops = bldTops(ww), { it } = sortIn(ww);
+  for (const b of it[k].boxes) boxMesh(BX, ww, b, tops, true);
+  const rr = mulberry(8000 + k);
+  for (const rp of it[k].ramps) rampMesh(BX, rp, rr, tops);
+  for (const c of it[k].cyls) cylMesh(BX, c);
+  for (const d of it[k].decos) if (d.far || !o.lite) decoMesh(BX, d, tops);
+  return BX;
 }
 // 草（見る位置のまわりの塊だけ）: 地面の草の生え方（gw）に合わせて、細い葉3〜4枚の株を散らす。麦畑は高い金色の株。
 // 頂点の emit = -1 が草のしるし（シェーダーで遠い所から少しずつ消す・裏も同じ明るさ）

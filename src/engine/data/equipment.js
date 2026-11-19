@@ -57,9 +57,9 @@ export const LONG = {
   breacher: { name: 'ブリーチングショットガン', desc: '扉の錠を撃って開ける。離れて使えば扉の罠も無効にできる。', how: '装備の切り替えで構え、扉を見て射撃', move: 0.97, draw: 0.6 },
   wand: { name: 'オプティワンド', desc: '曲がるカメラ。扉の下や角の先をのぞいて、人と罠を見つける。', how: '装備の切り替えで構え、射撃でのぞく（扉を見ていれば扉の下から）', move: 1.0, draw: 0.45 },
   m320: { name: 'M320 グレネードランチャー', desc: '閃光弾・スティンガー弾・CSガス弾を遠くへ撃ち込む。当たった所で作動する。', how: '装備の切り替えで構え、射撃で撃つ。射撃モードで弾を替える', move: 0.96, draw: 0.7, reload: 2.6, rounds: { flash: 3, stinger: 3, cs: 2 } },
-  // 大規模戦の工兵の RPG-7（HEAT。BattleBit の工兵の道具。research/WARBIT.md の 37）: 込めた1発と予備5発の 6 発。
+  // 大規模戦の工兵の RPG-7（HEAT。BattleBit の工兵の道具。research/WARBIT.md の 37）: 込めた1発と予備2発の 3 発（Wiki の Gadgets。research の 39）。
   //  肩から撃ち、人か物に当たった所で爆発する。込めるのに 4.2 秒（推測）
-  rpg: { name: 'RPG-7', desc: 'HEAT 弾頭のロケットを肩から撃つ。当たった所で爆発し、まわりの人を倒す。遠いほど落ちる。', how: '装備のボタンで構え、射撃で撃つ', move: 0.93, draw: 0.9, reload: 4.2, rockets: 6, war: true },
+  rpg: { name: 'RPG-7', desc: 'HEAT 弾頭のロケットを肩から撃つ。当たった所で爆発し、まわりの人を倒し、薄い壁や床に穴を開ける。遠いほど落ちる。', how: '装備のボタンで構え、射撃で撃つ', move: 0.93, draw: 0.9, reload: 4.2, rockets: 3, war: true },
 };
 // 手に持って使う特殊装備（4番目の持ち物）。盾は副武器と一緒に構える
 export const HAND_LONG = { m320: 1, wand: 1, ram: 1, breacher: 1, rpg: 1 };

@@ -51,3 +51,41 @@ test('遠い爆発（壁から 2m）は穴を開けない', () => {
   eq(carve(ww, cx, cy, b.z0 - 2, 1.2).length, 0, '変わらない');
   ok(b.alive, '残る');
 });
+
+test('RPG を壁に撃つと穴が開き、試合を作り直すと元に戻る', async () => {
+  const { createGame, step } = await import('../../src/engine/engine.js');
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: true, per: 2 }); step(G, {});
+  const S = G.S, ww = G.w, me = S.actors[0];
+  for (const b of S.actors) if (b !== me) { b.alive = false; b.dead = true; }
+  // 外から 12m 手前に開けた所があるレンガの壁
+  let pick = null;
+  for (const b of ww.boxes) {
+    if (!b.alive || b.kind !== 'wall' || b.mat !== M.BRICK || b.z1 - b.z0 > 0.4 || b.x1 - b.x0 < 3 || b.y1 - b.y0 < 2.4) continue;
+    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, gy = heightAt(ww, cx, cz);
+    if (b.y0 > gy + 0.3 || b.y0 < gy - 0.6) continue;
+    for (const s of [-1, 1]) {
+      const sz = cz + s * 12, sy = heightAt(ww, cx, sz) + 1.5;
+      if (Math.abs(sy - (b.y0 + 1.5)) > 1) continue;
+      if (los(ww, cx, sy, sz, cx, b.y0 + 1.3, cz + s * 0.4)) { pick = { b, cx, cz, sz, s }; break; }
+    }
+    if (pick) break;
+  }
+  ok(pick, '壁が見つかった');
+  const { b, cx, cz, sz, s } = pick;
+  me.x = cx; me.z = sz; me.y = heightAt(ww, cx, sz); me.vx = me.vz = 0;
+  me.inv.long = 'rpg'; me.inv.rpg = { in: 1, n: 5, n0: 5 };
+  const idle = (o = {}) => Object.assign({ mx: 0, mz: 0, yaw: me.yaw, pitch: me.pitch || 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o);
+  for (let i = 0; i < 60 && me.ws.st !== 'ready'; i++) step(G, { [me.id]: idle() });
+  step(G, { [me.id]: idle({ act: [{ a: 'long' }] }) });
+  for (let i = 0; i < 200 && !(me.ws.slot === 3 && me.ws.st === 'long'); i++) step(G, { [me.id]: idle() });
+  me.yaw = Math.atan2(0, cz - sz); me.pitch = Math.atan2(b.y0 + 1.3 - (me.y + 1.55), 12);
+  for (let i = 0; i < 90 && me.ads < 0.95; i++) step(G, { [me.id]: idle({ yaw: me.yaw, pitch: me.pitch, ads: true }) });
+  const evs = [];
+  const o1 = step(G, { [me.id]: idle({ yaw: me.yaw, pitch: me.pitch, ads: true, fire: true }) }); if (Array.isArray(o1)) evs.push(...o1);
+  for (let i = 0; i < 30; i++) { const o = step(G, { [me.id]: idle({ yaw: me.yaw, pitch: me.pitch, ads: true }) }); if (Array.isArray(o)) evs.push(...o); }
+  ok(evs.some(e => e.e === 'carve'), '壁が壊れた出来事');
+  ok(!b.alive, '壁の箱が壊れた');
+  ok((S.carves || []).length === 1, '記録');
+  const G2 = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false });
+  ok(b.alive && G2.w === ww, '次の試合では元どおり（同じマップの形を使い回す）');
+});

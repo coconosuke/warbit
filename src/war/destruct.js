@@ -56,6 +56,7 @@ function cut(ww, b, hx0, hy0, hz0, hx1, hy1, hz1, ax) {
 // 試合で変えた物の記録（マップの形は試合をまたいで使い回すので、次の試合の前に戻す）
 function mods(ww) { return ww._mods || (ww._mods = { base: ww.boxes.length, dead: [], dmg: [], decos: [] }); }
 export function restoreWorld(ww) {
+  if (ww) ww._carveN = 0;
   const m = ww && ww._mods; if (!m) return false;
   for (const b of m.dead) b.alive = true;
   for (const b of m.dmg) { b.dmg = 0; b.chip = false; }

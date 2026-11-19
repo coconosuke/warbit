@@ -1,4 +1,4 @@
-// RPG-7（大規模戦の工兵）: 込めた1発と予備5発。肩から撃ち、当たった所で爆発。撃つと 4.2 秒で込め直す。遠いほど落ちる
+// RPG-7（大規模戦の工兵）: 込めた1発と予備2発（BattleBit の Wiki の 3 発）。肩から撃ち、当たった所で爆発。撃つと 4.2 秒で込め直す。遠いほど落ちる
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
 import { classLoadout } from '../../src/war/classes.js';
@@ -18,11 +18,11 @@ function arm(G, me) {
   step(G, { [me.id]: idle(me) });
 }
 
-test('工兵は RPG-7 を持つ（込めた1発と予備5発）。ほかの兵科は持たない', () => {
+test('工兵は RPG-7 を持つ（込めた1発と予備2発）。ほかの兵科は持たない', () => {
   eq(classLoadout('engineer').long, 'rpg', '工兵');
   eq(classLoadout('assault').long, 'none', '突撃');
   const inv = makeInventory(classLoadout('engineer'));
-  eq(inv.rpg.in, 1, '込めてある'); eq(inv.rpg.n, LONG.rpg.rockets - 1, '予備 5');
+  eq(inv.rpg.in, 1, '込めてある'); eq(inv.rpg.n, 2, '予備 2'); eq(LONG.rpg.rockets, 3, '3 発');
 });
 
 test('撃つ: ロケットが飛び、30m 先の敵に当たると爆発して倒す（撃った人は無事）', () => {
@@ -45,7 +45,7 @@ test('撃つ: ロケットが飛び、30m 先の敵に当たると爆発して�
   ok(!S.nades.some(n => n.type === 'rpg'), 'ロケットはなくなった');
 });
 
-test('込め直し: 撃つと 4.2 秒で次の1発（その間は撃てない）。6 発で尽きる', () => {
+test('込め直し: 撃つと 4.2 秒で次の1発（その間は撃てない）。持っている分（ここでは 6 発）で尽きる', () => {
   const G = createGame({ map: 'range', mode: 'war', wmode: 'range', seed: 3, bots: false }); step(G, {});
   const S = G.S, me = S.actors[0];
   arm(G, me);
