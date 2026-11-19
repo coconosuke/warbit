@@ -3,7 +3,7 @@ import { createGL, tex2D, fbo, depthTex } from './gl.js';
 import { m4, m4mul, m4persp, m4lookAt, m4invert, frustumPlanes, aabbVisible } from './math.js';
 import { buildOutskirts } from './outskirts.js';
 import { makeTextures, TEX, NLAYER, LAYER } from './textures.js';
-import { COMMON, LIGHT, WORLD_VS, WORLD_FS, SKIN_VS, SKIN_FS, SHADOW_VS, SHADOW_SKIN_VS, SHADOW_FS, FS_VS, SKY_FS, FX_VS, FX_FS, DOWN_FS, UP_FS, COMP_FS, FXAA_FS, COPY_FS, MAX_DL } from './shaders.js';
+import { COMMON, LIGHT, WORLD_VS, WORLD_FS, SKIN_VS, SKIN_FS, SHADOW_VS, SHADOW_SKIN_VS, SHADOW_FS, SHADOW_CUT_VS, SHADOW_CUT_FS, FS_VS, SKY_FS, FX_VS, FX_FS, DOWN_FS, UP_FS, COMP_FS, FXAA_FS, COPY_FS, MAX_DL } from './shaders.js';
 import { prepareLevel, buildChunk, doorLeafMesh, barPanelMesh, CHUNK } from './level.js';
 import { WV, MeshBuilder, hex } from './build.js';
 import { bakeLight } from '../engine/light.js';
@@ -117,6 +117,7 @@ export class Renderer {
       glass: prog(gl, WORLD_VS, L + WORLD_FS, 'glass', '#define GLASS 1\n'),
       skin: prog(gl, SKIN_VS, L + SKIN_FS, 'skin'),
       shadow: prog(gl, SHADOW_VS, SHADOW_FS, 'shadow'),
+      shadowCut: prog(gl, SHADOW_CUT_VS, SHADOW_CUT_FS, 'shadowCut'),
       shadowSkin: prog(gl, SHADOW_SKIN_VS, SHADOW_FS, 'shadowSkin'),
       sky: prog(gl, FS_VS, L + SKY_FS, 'sky'),
       fx: prog(gl, FX_VS, L + FX_FS, 'fx'),
@@ -643,15 +644,18 @@ export class Renderer {
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
     gl.disable(gl.CULL_FACE);
     gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1.5, 3.0);
-    const P = this.P.shadow;
+    // 大規模戦は葉の板の抜きを見る影（テクスチャを読む）
+    const P = this.war ? this.P.shadowCut : this.P.shadow;
     gl.useProgram(P.p);
     gl.uniformMatrix4fv(P.u.uVP, false, this.shVP);
     gl.uniformMatrix4fv(P.u.uModel, false, this.ident);
+    if (this.war && P.u.uTex) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.texArr); gl.uniform1i(P.u.uTex, 0); }
     const pl = frustumPlanes(this.shVP, new Float32Array(24));
     for (const ch of this.chunks) {
       if (!ch.mesh || !aabbVisible(pl, ch.x0, ch.y0, ch.z0, ch.x1, ch.y1, ch.z1)) continue;
       drawMesh(gl, ch.mesh);
     }
+    if (this.war) { const S = this.P.shadow; gl.useProgram(S.p); gl.uniformMatrix4fv(S.u.uVP, false, this.shVP); gl.uniformMatrix4fv(S.u.uModel, false, this.ident); }
     for (const h of this.hooks.shadow) h(this, pl);
     gl.disable(gl.POLYGON_OFFSET_FILL);
     gl.enable(gl.CULL_FACE);

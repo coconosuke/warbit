@@ -248,6 +248,8 @@ export class Match {
         case 'crouch': if (k === 'down') { this._stWas = this.stance; this.stance = this.stance === 0 ? 1 : this.stance === 1 ? 0 : 1; } else if (k === 'long' && !e.key) this.stance = this._stWas === 2 ? 0 : 2; break;
         case 'prone': if (k === 'down') this.stance = this.stance === 2 ? 0 : 2; break;
         case 'vault': if (k === 'down') this.acts.push({ a: 'vault' }); break;
+        // 息止め（11-19 13:31: 切り替えで）: 押すたびに入る・切れる。構えをやめる・息が切れると切れる（_command）
+        case 'breath': if (k === 'down' && (st.breathMode || 'toggle') === 'toggle') { this.breathOn = !this.breathOn; this._brT = this.time; } break;
         case 'leanL': case 'leanR': {
           const s = b === 'leanL' ? -1 : 1;
           if ((st.leanMode || 'toggle') === 'hold' || e.key) { if (k === 'down') this.leanSide = s; else if (k !== 'long' && this.leanSide === s) this.leanSide = 0; }
@@ -300,12 +302,18 @@ export class Match {
   }
   _command(inp) {
     const p = this.p;
+    // 息止めの切り替え: 構えをやめた・倒れた・息が切れた（あえいでいる）ら切る。押しても止められなかった（息が戻っていない）ときも 0.35 秒で切る
+    {
+      const ws = p && p.ws;
+      if (this.breathOn && (!this.adsOn || !p || !p.alive || p.down || (ws && ws.gasp > 0) || (!(ws && ws.holding) && this.time - (this._brT || 0) > 0.35))) this.breathOn = false;
+    }
+    const brBtn = (this.app.settings.breathMode || 'toggle') === 'hold' ? inp.hold.has('breath') : !!this.breathOn;
     const cmd = {
       mx: inp.mx, mz: inp.mz, yaw: this.yaw, pitch: this.pitch,
       // ローレディは人の操作からはなくした（0.1.13。撃てなくなるだけで使う理由がない）。AI は今までどおり使う（銃を下げて歩く・投降など）
       fire: inp.fire && !this.app.input.radial, ads: this.adsOn, low: false, stance: this.stance, lean: this.leanSide, sprint: inp.sprint,
-      // 息止め: ボタン（構えている間だけ出る）か、構えているときの Shift（BattleBit と同じ。走りにはならない）
-      breath: inp.hold.has('breath') || (this.adsOn && !!(this.app.input.keys && this.app.input.keys.has('ShiftLeft'))),
+      // 息止め: ボタン（構えている間だけ出る。切替か長押し）か、構えているときの Shift（押している間。走りにはならない）
+      breath: brBtn || (this.adsOn && !!(this.app.input.keys && this.app.input.keys.has('ShiftLeft'))),
       act: this.acts.length ? this.acts.splice(0) : null, power: 0.75,
     };
     if (cmd.breath && this.adsOn) cmd.sprint = false;

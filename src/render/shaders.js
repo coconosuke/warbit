@@ -111,7 +111,8 @@ vec3 shade(vec3 p, vec3 n, vec3 alb, float room, float ao, out float outdoor){
       float sv = clamp(room, 0.0, 1.0), nds0 = dot(n, uSunDir);
       if (uShadowOn > 0.5 && nds0 > 0.0 && sv > 0.0) { float s = sunShadow(p, n); if (s >= 0.0) sv *= s; }
       outdoor = mix(0.45, 1.0, clamp(room, 0.0, 1.0));
-      return alb * ((g0 + uAmbMin) * ao + uSunCol * max(nds0, 0.0) * 0.92 * sv + dynLights(p, n, 0.0));
+      // 影は BattleBit のように濃く（空の光を 0.84 倍。research の 20）
+      return alb * ((g0 * 0.84 + uAmbMin) * ao +uSunCol * max(nds0, 0.0) * 0.92 * sv + dynLights(p, n, 0.0));
     }
     return alb * ((g0 + uAmbMin) * ao + uSunCol * max(dot(n, uSunDir), 0.0) * 0.92);
   }
@@ -158,11 +159,16 @@ layout(location=0) out vec4 oCol;
 void main(){
   vec3 n = normalize(vNrm);
   // 草（emit < 0）: 遠い所から点を間引いて消す（塊の四角い境目を見せない）。裏も表と同じ向きの光
-  if (vEmit < -0.5) {
+  // 葉の板（emit = -2）: 裏も表と同じ向きの光（丸い房のような明るさ）。草（emit = -1）: 遠い所から点を間引いて消す
+  if (vEmit < -1.5) {}
+  else if (vEmit < -0.5) {
     float gd = length(vPos.xz - uCam.xz), fade = clamp((gd - uGrassD * 0.55) / (uGrassD * 0.45), 0.0, 1.0);
     if (fract(sin(dot(floor(vPos.xz * 9.0), vec2(12.9898, 78.233))) * 43758.5453) < fade) discard;
   } else if (!gl_FrontFacing) n = -n;
-  vec3 alb = texture(uTex, vec3(vUV, vLayer)).rgb * vCol * uTint;
+  vec4 tx = texture(uTex, vec3(vUV, vLayer));
+  // 抜きのある板（葉・針葉・草の株）: 透明の所は描かない
+  if (tx.a < 0.5) discard;
+  vec3 alb = tx.rgb * vCol * uTint;
   // 大規模戦の地面: 大きな模様を重ねて、くり返しを目立たせない
   if (uWar > 0.5 && abs(vLayer - 8.0) < 0.5) alb *= 0.72 + 0.4 * texture(uTex, vec3(vUV * 0.11 + 0.37, 9.0)).r;
   float yl = vPos.y - floor((vPos.y + 0.05) / uMapD.w) * uMapD.w;
@@ -248,6 +254,14 @@ layout(location=0) in vec3 aPos; layout(location=5) in float aJoint;
 uniform mat4 uVP; uniform mat4 uBones[17];
 void main(){ gl_Position = uVP * uBones[int(aJoint + 0.5)] * vec4(aPos, 1.0); }`;
 export const SHADOW_FS = `void main(){}`;
+// 影（抜きのある板の透明な所は影を落とさない）
+export const SHADOW_CUT_VS = `
+layout(location=0) in vec3 aPos; layout(location=2) in vec2 aUV; layout(location=3) in float aLayer;
+uniform mat4 uVP; uniform mat4 uModel; out vec2 vUV; flat out float vLayer;
+void main(){ vUV = aUV; vLayer = aLayer; gl_Position = uVP * uModel * vec4(aPos, 1.0); }`;
+export const SHADOW_CUT_FS = `
+uniform highp sampler2DArray uTex; in vec2 vUV; flat in float vLayer;
+void main(){ if (vLayer > 22.5 && texture(uTex, vec3(vUV, vLayer)).a < 0.5) discard; }`;
 
 // ---- 空
 export const FS_VS = `

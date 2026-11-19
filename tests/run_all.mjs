@@ -450,6 +450,25 @@ try {
       await page.waitForTimeout(400);
       hit = await page.evaluate(() => window.__app.game.rangeHit || null);
     }
+    // 息止めは切り替え（11-19 13:31）: 1回押す（離す）と止めたまま・もう1回で戻す・構えをやめると切れる
+    {
+      const BR = await btn('breath');
+      await tapAt(BR, 70);
+      await page.waitForFunction(() => window.__app.game.p.ws.holding, null, { timeout: 10000 }).catch(() => {});
+      const b1 = await page.evaluate(() => !!window.__app.game.p.ws.holding);
+      await page.waitForTimeout(500);
+      const b2 = await page.evaluate(() => !!window.__app.game.p.ws.holding);
+      await tapAt(BR, 71);
+      await page.waitForFunction(() => !window.__app.game.p.ws.holding, null, { timeout: 10000 }).catch(() => {});
+      const b3 = await page.evaluate(() => !window.__app.game.p.ws.holding && !window.__app.game.breathOn);
+      await page.waitForFunction(() => window.__app.game.p.ws.br > 0.3, null, { timeout: 15000 }).catch(() => {});
+      await tapAt(BR, 72);
+      await page.waitForFunction(() => window.__app.game.p.ws.holding, null, { timeout: 10000 }).catch(() => {});
+      await page.evaluate(() => { window.__app.game.adsOn = false; });
+      await page.waitForFunction(() => !window.__app.game.p.ws.holding, null, { timeout: 10000 }).catch(() => {});
+      const b4 = await page.evaluate(() => !window.__app.game.p.ws.holding && !window.__app.game.breathOn);
+      rec('操作', '息止めは切り替え: 押して離しても止めたまま・もう1回で戻す・構えをやめると切れる', b1 && b2 && b3 && b4, JSON.stringify({ b1, b2, b3, b4 }));
+    }
     await page.evaluate(() => { window.__app.game.adsOn = false; });
     const bar = await page.evaluate(() => (document.querySelector('#hud .hud-obj .wb.rg') || {}).textContent || '');
     rec('射撃場', '人形に当てると、上の帯に部位・ダメージ・距離が出る', !!hit && hit.m > 15 && hit.m < 40 && /m/.test(bar), `${JSON.stringify(hit)}・帯「${bar}」`);

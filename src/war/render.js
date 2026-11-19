@@ -101,7 +101,10 @@ export function prepGround(ww) {
     const p = fbm(x, z, 95, 3, 41), p2 = fbm(x, z, 33, 2, 77);
     let c = mixc(C.lush, C.dry, sstep(-0.15, 0.55, p));
     c = mixc(c, C.dark, sstep(0.25, 0.7, p2) * 0.6);
-    let g = 1 - sstep(0.14, 0.3, slope), dirt = false;
+    // 細かいむら（BattleBit の地面は土の出た所と濃い草がまだら。research の 20）
+    const p3 = fbm(x, z, 11, 2, 113), dp = sstep(0.1, 0.42, p3);
+    c = mixc(mulc(c, (0.92 + 0.12 * (r() - 0.5)) * (1 - 0.22 * sstep(-0.05, -0.4, p3))), mixc(C.dirt, C.mud, 0.35), dp * 0.72);
+    let g = (1 - sstep(0.14, 0.3, slope)) * (1 - dp * 0.6), dirt = false;
     // 畑（列の縞は 2m ごとの点で交互）
     const fi = fieldAt[q];
     if (fi >= 0) {
@@ -179,6 +182,65 @@ export function prepGround(ww) {
     }
   }
   ww._walkPieces = walks;
+  // 横断歩道（町の交差点の手前 7m。歩道のある通りだけ）: 交差点 = ほかの道が 4.5m 以内を通る折れ線の点
+  const xw = Array.from({ length: NX * NZ }, () => []), RL = ww.roads || [];
+  const nearRoad = (x, z, skip) => RL.some((rl, ri) => ri !== skip && rl.some((_, m) => m + 1 < rl.length && segDist(x, z, rl[m][0], rl[m][1], rl[m + 1][0], rl[m + 1][1]) < 4.5));
+  const nearWalk = (x, z) => (ww.walks || []).some(wl => wl.some((_, m) => m + 1 < wl.length && segDist(x, z, wl[m][0], wl[m][1], wl[m + 1][0], wl[m + 1][1]) < 6));
+  const seenX = new Set();
+  RL.forEach((rl, ri) => {
+    for (let k = 0; k + 1 < rl.length; k++) {
+      const [ax, az] = rl[k], [bx, bz] = rl[k + 1], L = Math.hypot(bx - ax, bz - az);
+      if (L < 18) continue;
+      const ux = (bx - ax) / L, uz = (bz - az) / L;
+      for (const [px0, pz0, sg] of [[ax, az, 1], [bx, bz, -1]]) {
+        if (!nearRoad(px0, pz0, ri) || !nearWalk(px0, pz0)) continue;
+        const cx = px0 + ux * sg * 7.5, cz = pz0 + uz * sg * 7.5, key = Math.round(cx) + ',' + Math.round(cz);
+        if (seenX.has(key)) continue; seenX.add(key);
+        const ci = Math.min(NX - 1, Math.max(0, Math.floor(cx / CH))), cj = Math.min(NZ - 1, Math.max(0, Math.floor(cz / CH)));
+        xw[cj * NX + ci].push({ cx, cz, ux, uz });
+      }
+    }
+  });
+  // 交差点の真ん中を通り抜ける道（T 字の上の棒）も、交わる道の両側に
+  RL.forEach((rl, ri) => {
+    for (let k = 0; k + 1 < rl.length; k++) {
+      const [ax, az] = rl[k], [bx, bz] = rl[k + 1], L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
+      RL.forEach((r2, rj) => {
+        if (rj === ri) return;
+        // 交わる点: 向こうの道の端か、向こうの線分とこちらの線分が交わる点（十字路）
+        const hits = [r2[0], r2[r2.length - 1]];
+        for (let m = 0; m + 1 < r2.length; m++) {
+          const [cx0, cz0] = r2[m], [cx1, cz1] = r2[m + 1], dx = cx1 - cx0, dz = cz1 - cz0, den = ux * dz - uz * dx;
+          if (Math.abs(den) < 1e-6) continue;
+          const t = ((cx0 - ax) * dz - (cz0 - az) * dx) / den, s = ((cx0 - ax) * uz - (cz0 - az) * ux) / den;
+          if (t > 0 && t < L && s > 0 && s < 1) hits.push([ax + ux * t, az + uz * t]);
+        }
+        for (const q of hits) {
+          const t = (q[0] - ax) * ux + (q[1] - az) * uz;
+          if (t < 12 || t > L - 12 || segDist(q[0], q[1], ax, az, bx, bz) > 4.5 || !nearWalk(q[0], q[1])) continue;
+          for (const sg of [-1, 1]) {
+            const cx = ax + ux * (t + sg * 7.5), cz = az + uz * (t + sg * 7.5), key = Math.round(cx) + ',' + Math.round(cz);
+            if (seenX.has(key)) continue; seenX.add(key);
+            const ci = Math.min(NX - 1, Math.max(0, Math.floor(cx / CH))), cj = Math.min(NZ - 1, Math.max(0, Math.floor(cz / CH)));
+            xw[cj * NX + ci].push({ cx, cz, ux, uz });
+          }
+        }
+      });
+    }
+  });
+  ww._xwalkPieces = xw;
+}
+// 横断歩道の白い縞（近い形だけ）: 道の向きに長さ 2.6m・幅 0.5m の帯を、横へ 1m ごとに 7 本
+function xwalkMesh(B, ww, list) {
+  B.room = 1;
+  for (const p of list) {
+    const px = -p.uz, pz = p.ux, y = 0.07 + 0.014;
+    for (let s = -3; s <= 3; s++) {
+      const o = s * 1.0, w = 0.25, l = 1.3, mx = p.cx + px * o, mz = p.cz + pz * o;
+      const pts = [[mx - p.ux * l + px * w, mz - p.uz * l + pz * w], [mx - p.ux * l - px * w, mz - p.uz * l - pz * w], [mx + p.ux * l - px * w, mz + p.uz * l - pz * w], [mx + p.ux * l + px * w, mz + p.uz * l + pz * w]].map(([x, z]) => [x, heightAt(ww, x, z) + y, z]);
+      B.poly(pts, [0, 1, 0], LAYER.paint, mulc(LINEC, 0.96));
+    }
+  }
 }
 
 // 地形の格子（なめらかな面）。step は ww.hs の倍数。skirt: すその深さ（0 なら作らない）
@@ -312,59 +374,102 @@ function pineTier(B, x, z, y0, y1, R, pts, col, r, rot, under = true) {
   if (under) { const c = [x, y0 + R * 0.06, z]; for (let k = 0; k < ring.length; k++) B.poly([ring[(k + 1) % ring.length], ring[k], c], [0, -1, 0], LAYER.leaves, mulc(col, 0.5)); }
 }
 const BIRCH = hex('#d9d6cc'), BIRCH_MARK = hex('#3a3632');
+// ---- 葉の板（抜きのある四角）: 中心 C・横の半分 R・縦の半分 U。法線は nf(点) で頂点ごと（房の丸い明るさ）。両面
+function card(B, C, R, U, layer, col, nf, ao = 1, uv = [0, 0, 1, 1]) {
+  const P = [[C[0] - R[0] - U[0], C[1] - R[1] - U[1], C[2] - R[2] - U[2]], [C[0] + R[0] - U[0], C[1] + R[1] - U[1], C[2] + R[2] - U[2]], [C[0] + R[0] + U[0], C[1] + R[1] + U[1], C[2] + R[2] + U[2]], [C[0] - R[0] + U[0], C[1] - R[1] + U[1], C[2] - R[2] + U[2]]];
+  const T = [[uv[0], uv[3]], [uv[2], uv[3]], [uv[2], uv[1]], [uv[0], uv[1]]];
+  const e0 = B.emit; B.emit = -2;
+  const i0 = B.vert(P[0], nf(P[0]), T[0][0], T[0][1], layer, col, ao); B.vert(P[1], nf(P[1]), T[1][0], T[1][1], layer, col, ao); B.vert(P[2], nf(P[2]), T[2][0], T[2][1], layer, col, ao); B.vert(P[3], nf(P[3]), T[3][0], T[3][1], layer, col, ao);
+  B.emit = e0;
+  B.i.push(i0, i0 + 1, i0 + 2, i0, i0 + 2, i0 + 3, i0, i0 + 2, i0 + 1, i0, i0 + 3, i0 + 2);
+}
+const nrmz = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+// 丸い房の法線（中心から外へ＋少し上）
+const sphN = (cx, cy, cz, up = 0.45) => (p) => nrmz([p[0] - cx, (p[1] - cy) + up * 2, p[2] - cz]);
+// 葉の房: 中の暗いかたまり＋まわりに向きのばらばらな葉の板 k 枚
+function leafClump(B, x, y, z, rr, col, r, k, ctr) {
+  lump(B, x, y, z, rr * 0.55, rr * 0.5, rr * 0.55, mulc(col, 0.72), r, { jit: 0.1 });
+  const nf = sphN(ctr[0], ctr[1], ctr[2], 0.5);
+  for (let q = 0; q < k; q++) {
+    // 板の向き: でたらめな法線から横・縦の向きを作る（真横すぎ・真上すぎを少し避ける）
+    const th = r() * 6.283, ph = (r() - 0.5) * 2.4, n = [Math.cos(th) * Math.cos(ph), Math.sin(ph), Math.sin(th) * Math.cos(ph)];
+    const a0 = Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    let Rv = nrmz([n[1] * a0[2] - n[2] * a0[1], n[2] * a0[0] - n[0] * a0[2], n[0] * a0[1] - n[1] * a0[0]]);
+    let Uv = nrmz([n[1] * Rv[2] - n[2] * Rv[1], n[2] * Rv[0] - n[0] * Rv[2], n[0] * Rv[1] - n[1] * Rv[0]]);
+    const rot = r() * 6.283, cs = Math.cos(rot), sn = Math.sin(rot), h = rr * (0.8 + r() * 0.3);
+    const R2 = [(Rv[0] * cs + Uv[0] * sn) * h, (Rv[1] * cs + Uv[1] * sn) * h, (Rv[2] * cs + Uv[2] * sn) * h], U2 = [(-Rv[0] * sn + Uv[0] * cs) * h, (-Rv[1] * sn + Uv[1] * cs) * h, (-Rv[2] * sn + Uv[2] * cs) * h];
+    const d = rr * (0.25 + r() * 0.35), dir = nrmz([r() - 0.5, (r() - 0.35) * 0.8, r() - 0.5]);
+    card(B, [x + dir[0] * d, y + dir[1] * d, z + dir[2] * d], R2, U2, LAYER.foliage, mulc(col, 0.88 + r() * 0.24), nf, 1);
+  }
+}
 function treeMesh(B, t, far) {
-  // 色と形は木ごとに決まる（近い形と遠い形で同じ）
+  // 色と形は木ごとに決まる（近い形と遠い形で同じ）。BattleBit のように葉は「葉の絵の板」を重ねた房（research の 20）
   const r = mulberry(5000 + (t.cyl ?? Math.round(t.x * 31 + t.z * 17)) * 7);
   const s = t.s, x = t.x, z = t.z, y = t.y, rot = r() * 6.28;
   B.room = 1;
   if (t.kind === 'pine') {
-    // 針葉樹: 細い幹に、星形の段を5つ（上ほど小さい）。段は少しずつ回して重ねる
+    // 針葉樹: 細い幹に、段ごとに放射状の垂れた枝の板（上から見た針葉の枝の絵）と、中の暗い星形のかさ
     const c = jitter(PINE[Math.floor(r() * PINE.length)], r, 0.06), H = 7.2 * s;
     if (far) { pineTier(B, x, z, y + 1.4 * s, y + 4.8 * s, 2.0 * s, 4, c, r, rot, false); pineTier(B, x, z, y + 3.6 * s, y + H, 1.35 * s, 4, mulc(c, 1.05), r, rot + 0.5, false); return; }
-    tube(B, [x, y - 0.3, z], [x, y + H * 0.82, z], 0.21 * s, 0.07 * s, 6, LAYER.wood, TRUNK, r);
-    const tiers = 5;
+    tube(B, [x, y - 0.3, z], [x, y + H * 0.85, z], 0.21 * s, 0.06 * s, 6, LAYER.wood, TRUNK, r);
+    const tiers = 5, nf = (p) => nrmz([(p[0] - x) * 0.6, 1.0, (p[2] - z) * 0.6]);
     for (let k = 0; k < tiers; k++) {
-      const f = k / (tiers - 1), y0 = y + (1.05 + f * 4.0) * s, R = (2.15 - f * 1.45) * s * (0.92 + r() * 0.16);
-      pineTier(B, x, z, y0, y0 + (1.9 - f * 0.35) * s + (k === tiers - 1 ? 0.8 * s : 0), R, 6, mulc(c, 0.9 + f * 0.16), r, rot + k * 0.7);
+      const f = k / (tiers - 1), y0 = y + (1.15 + f * 4.0) * s, R = (2.2 - f * 1.45) * s * (0.92 + r() * 0.16), cc = mulc(c, 0.9 + f * 0.14);
+      pineTier(B, x, z, y0 - 0.1 * s, y0 + (1.2 - f * 0.2) * s, R * 0.62, 5, mulc(cc, 0.62), r, rot + k * 0.7, false);
+      const nb = 7 - Math.floor(f * 2);
+      for (let q = 0; q < nb; q++) {
+        const a = rot + k * 0.7 + q / nb * 6.283 + (r() - 0.5) * 0.3, dx = Math.cos(a), dz = Math.sin(a), L = R * (0.9 + r() * 0.2), droop = 0.32 + r() * 0.12, W = L * 0.42;
+        // 枝の板: 幹から外へ L・幅 W。少し垂れ、横は少し起こす（横から見ても板が見える）
+        const C = [x + dx * L * 0.5, y0 + 0.35 * s - droop * L * 0.5, z + dz * L * 0.5];
+        const Rv = [dx * L * 0.5, -droop * L * 0.5, dz * L * 0.5], side = nrmz([-dz, 0.3, dx]), Uv = [side[0] * W * 0.5, side[1] * W * 0.5, side[2] * W * 0.5];
+        card(B, C, Rv, Uv, LAYER.needles, mulc(cc, 0.9 + r() * 0.2), nf, 1);
+      }
     }
+    // てっぺん: 細い星形と、縦の針葉の板2枚
+    pineTier(B, x, z, y + 5.6 * s, y + H + 0.3 * s, 0.55 * s, 5, mulc(c, 1.06), r, rot, false);
   } else if (((t.cyl ?? 0) * 7919) % 100 < 22) {
-    // 白樺（広葉樹の2割ほど）: 白い幹に黒い節、小さい葉のかたまり
+    // 白樺（広葉樹の2割ほど）: 白い幹に黒い節、小さい葉の房
     const c = jitter(hex('#6d7a45'), r, 0.08), H = 6.4 * s, lean = [(r() - 0.5) * 0.5 * s, (r() - 0.5) * 0.5 * s];
-    if (far) { lump(B, x + lean[0], y + 4.6 * s, z + lean[1], 1.5 * s, 1.9 * s, 1.5 * s, c, r, { jit: 0.12 }); return; }
-    const top = [x + lean[0], y + H, z + lean[1]];
+    if (far) { farCanopy(B, x + lean[0], y + 4.6 * s, z + lean[1], 1.6 * s, 1.9 * s, c, r); return; }
     for (let k = 0; k < 4; k++) { const a = k / 4, b = (k + 1) / 4; tube(B, [x + lean[0] * a, y - 0.3 + (H + 0.3) * a, z + lean[1] * a], [x + lean[0] * b, y - 0.3 + (H + 0.3) * b, z + lean[1] * b], 0.17 * s * (1 - a * 0.5), 0.17 * s * (1 - b * 0.5), 5, LAYER.wood, k % 2 ? BIRCH : mixc(BIRCH, BIRCH_MARK, 0.18), r); }
-    for (let k = 0; k < 5; k++) { const a = rot + k * 1.3, h = (3.4 + k * 0.6) * s, d = (0.5 + r() * 0.6) * s; lump(B, x + lean[0] * h / H + Math.cos(a) * d, y + h, z + lean[1] * h / H + Math.sin(a) * d, (0.85 + r() * 0.3) * s, (0.8 + r() * 0.25) * s, (0.85 + r() * 0.3) * s, mulc(c, 0.92 + r() * 0.16), r); }
-    lump(B, top[0], top[1] - 0.2 * s, top[2], 0.7 * s, 0.75 * s, 0.7 * s, mulc(c, 1.06), r);
+    const ctr = [x + lean[0] * 0.75, y + 4.8 * s, z + lean[1] * 0.75];
+    for (let k = 0; k < 5; k++) { const a = rot + k * 1.3, h = (3.4 + k * 0.6) * s, d = (0.5 + r() * 0.6) * s; leafClump(B, x + lean[0] * h / H + Math.cos(a) * d, y + h, z + lean[1] * h / H + Math.sin(a) * d, (0.9 + r() * 0.3) * s, mulc(c, 0.92 + r() * 0.16), r, 5, ctr); }
   } else {
-    // 広葉樹: 少し傾いた幹から枝を3〜4本、枝の先と真ん中に葉のかたまり
+    // 広葉樹: 少し傾いた幹から枝を3〜4本、枝の先と真ん中に葉の房
     const c = jitter(OAK[Math.floor(r() * OAK.length)], r, 0.06), H = 3.0 * s, lx = (r() - 0.5) * 0.5 * s, lz = (r() - 0.5) * 0.5 * s;
-    if (far) { lump(B, x + lx, y + 4.3 * s, z + lz, 2.5 * s, 1.9 * s, 2.5 * s, c, r, { jit: 0.14 }); return; }
-    const top = [x + lx, y + H, z + lz];
+    if (far) { farCanopy(B, x + lx, y + 4.3 * s, z + lz, 2.6 * s, 2.1 * s, c, r); return; }
+    const top = [x + lx, y + H, z + lz], ctr = [x + lx, y + H + 1.6 * s, z + lz];
     tube(B, [x, y - 0.3, z], top, 0.3 * s, 0.2 * s, 6, LAYER.wood, TRUNK, r);
     tube(B, top, [x + lx * 1.4, y + H + 1.3 * s, z + lz * 1.4], 0.2 * s, 0.12 * s, 5, LAYER.wood, TRUNK, r);
     const nb = 3 + (r() < 0.5 ? 1 : 0);
-    lump(B, x + lx * 1.4, y + H + 2.1 * s, z + lz * 1.4, 1.75 * s, 1.35 * s, 1.75 * s, mulc(c, 1.05), r);
+    leafClump(B, x + lx * 1.4, y + H + 2.1 * s, z + lz * 1.4, 1.7 * s, mulc(c, 1.04), r, 8, ctr);
     for (let k = 0; k < nb; k++) {
       const a = rot + k / nb * Math.PI * 2 + (r() - 0.5) * 0.6, d = (1.35 + r() * 0.5) * s, h = H - 0.4 * s + r() * 0.8 * s;
       const e = [top[0] + Math.cos(a) * d, y + h + 0.9 * s, top[2] + Math.sin(a) * d];
       tube(B, [top[0], y + h - 0.5 * s, top[2]], e, 0.12 * s, 0.05 * s, 4, LAYER.wood, TRUNK, r);
-      lump(B, e[0], e[1] + 0.35 * s, e[2], (1.15 + r() * 0.35) * s, (0.95 + r() * 0.3) * s, (1.15 + r() * 0.35) * s, mulc(c, 0.9 + r() * 0.16), r);
+      leafClump(B, e[0], e[1] + 0.35 * s, e[2], (1.15 + r() * 0.35) * s, mulc(c, 0.9 + r() * 0.16), r, 6, ctr);
     }
   }
 }
+// 遠い木の葉: 中の暗いかたまり＋縦の葉の板3枚の十字（少ない三角で、近い形と同じ葉の見え方）
+function farCanopy(B, x, y, z, rw, rh, c, r) {
+  lump(B, x, y, z, rw * 0.7, rh * 0.62, rw * 0.7, mulc(c, 0.7), r, { jit: 0.12 });
+  const nf = sphN(x, y, z, 0.6), a0 = r() * 3.14;
+  for (let q = 0; q < 3; q++) { const a = a0 + q * 1.047; card(B, [x, y, z], [Math.cos(a) * rw, 0, Math.sin(a) * rw], [0, rh, 0], LAYER.foliage, mulc(c, 0.95 + r() * 0.1), nf, 1); }
+  card(B, [x, y + rh * 0.3, z], [rw * 0.9, 0, 0], [0, 0, rw * 0.9], LAYER.foliage, c, nf, 1);
+}
 
-// 茂み: ゆがめた葉のかたまりを3〜5つ寄せる（低く横に広い）。遠くは1つ
+// 茂み: 中の暗いかたまり＋葉の板（低く横に広い）。遠くは1つのかたまり
 function blob(B, x, y, z, r0, h, seg, col, rot, rr) { lump(B, x, y + h * 0.45, z, r0, h * 0.55, r0, col, rr || mulberry(Math.round(x * 13 + z * 7 + h * 100))); }
 function bushMesh(B, b, far) {
   const r = mulberry(7000 + Math.round(b.x * 13 + b.z * 7));
   const c0 = b.col ? hex(b.col) : jitter(BUSH[Math.floor(r() * BUSH.length)], r, 0.07);
   B.room = 1;
   if (far) { lump(B, b.x, b.y + b.h * 0.42, b.z, b.r * 0.95, b.h * 0.55, b.r * 0.95, c0, r, { jit: 0.12 }); return; }
-  const n = b.n || 3 + Math.floor(r() * 3);
+  const n = b.n || 2 + Math.floor(r() * 2), ctr = [b.x, b.y + b.h * 0.3, b.z];
   for (let k = 0; k < n; k++) {
-    const a = r() * 6.28, d = k ? b.r * (0.35 + r() * 0.35) : 0;
-    const rr = b.r * (k ? 0.5 + r() * 0.25 : 0.78), hh = b.h * (k ? 0.55 + r() * 0.35 : 1);
-    lump(B, b.x + Math.cos(a) * d, b.y - 0.08 + hh * 0.42, b.z + Math.sin(a) * d, rr, hh * 0.55, rr * (0.85 + r() * 0.3), mulc(c0, 0.9 + r() * 0.18), r);
+    const a = r() * 6.28, d = k ? b.r * (0.35 + r() * 0.3) : 0, rr = b.r * (k ? 0.55 + r() * 0.2 : 0.8), hh = b.h * (k ? 0.6 + r() * 0.3 : 1);
+    leafClump(B, b.x + Math.cos(a) * d, b.y - 0.05 + hh * 0.5, b.z + Math.sin(a) * d, Math.max(rr, hh * 0.55), mulc(c0, 0.9 + r() * 0.18), r, 5, ctr);
   }
 }
 // 岩: 箱の中に収まる低ポリの塊（下・中・上の輪を少しずつずらし、面ごとに平らな光）
@@ -579,6 +684,7 @@ export function buildWarNear(ww, k, o = {}) {
   const B = new MeshBuilder();
   terrainMesh(B, ww, x0, z0, x1, z1, ww.hs, 1.5);
   roadMesh(B, ww, ww._roadPieces[k] || []);
+  xwalkMesh(B, ww, ww._xwalkPieces ? ww._xwalkPieces[k] || [] : []);
   walkMesh(B, ww, ww._walkPieces ? ww._walkPieces[k] || [] : []);
   for (const pr of ww.paved || []) pavedMesh(B, ww, pr, x0, z0, x1, z1);
   for (const b of it[k].boxes) boxMesh(B, ww, b, tops, true);
@@ -608,17 +714,24 @@ export function buildWarGrass(ww, k, dens = 1) {
     const w = gw[q];
     if (!(w > 0.02) || r() > w) continue;
     const y = heightAt(ww, x, z) - 0.04, wheat = gk[q] === 1;
-    const H = wheat ? 0.78 + r() * 0.32 : 0.2 + r() * 0.36;
+    const H = wheat ? 0.78 + r() * 0.32 : 0.28 + r() * 0.5;
     const base = [col[q * 3], col[q * 3 + 1], col[q * 3 + 2]];
-    const cB = mulc(base, 0.72), cT = wheat ? mixc(base, [0.8, 0.74, 0.48], 0.4) : mixc(mulc(base, 1.18), [0.56, 0.57, 0.4], 0.12 + r() * 0.12);
-    const nb = wheat ? 4 : 3, rot = r() * 6.283;
-    for (let b = 0; b < nb; b++) {
-      const a = rot + b * (6.283 / nb) + (r() - 0.5) * 0.6, wd = (wheat ? 0.035 : 0.055) + r() * 0.03;
-      const lx = Math.cos(a), lz = Math.sin(a), tx = -lz, tz = lx, lean = (0.12 + r() * 0.3) * H, ox = (r() - 0.5) * 0.18, oz = (r() - 0.5) * 0.18;
-      const nU = [lx * 0.35, 0.94, lz * 0.35];
-      const p0 = [x + ox + tx * wd, y, z + oz + tz * wd], p1 = [x + ox - tx * wd, y, z + oz - tz * wd], p2 = [x + ox + lx * lean, y + H, z + oz + lz * lean];
-      const i0 = B.vert(p0, nU, p0[0], p0[2], LAYER.grass, cB, 1); B.vert(p1, nU, p1[0], p1[2], LAYER.grass, cB, 1); B.vert(p2, nU, p2[0], p2[2], LAYER.grass, cT, 1);
-      B.i.push(i0, i0 + 1, i0 + 2, i0, i0 + 2, i0 + 1);
+    // 株の色: 地面より少し暗い緑が多く、ときどき枯れた茶・赤みの雑草（BattleBit の草むらは暗くまだら。research の 20）
+    const kk = r(), tip = wheat ? mixc(base, [0.8, 0.74, 0.48], 0.4)
+      : kk < 0.16 ? mixc(base, [0.52, 0.42, 0.27], 0.55 + r() * 0.2)
+      : kk < 0.22 ? mixc(base, [0.48, 0.27, 0.2], 0.5)
+      : mixc(mulc(base, 0.9 + r() * 0.12), [0.45, 0.47, 0.3], 0.1 + r() * 0.12);
+    const cB = mulc(base, 0.48), cT = tip;
+    // 草の株の絵の板を2枚十字に（BattleBit の草と同じ作り。research の 20）。下は暗く、先は明るい
+    const rot = r() * 3.1416, W = H * (wheat ? 0.55 : 0.85), nU = [0, 1, 0];
+    for (let b = 0; b < 2; b++) {
+      const a = rot + b * 1.5708, dx = Math.cos(a) * W * 0.5, dz = Math.sin(a) * W * 0.5, lean = (r() - 0.5) * 0.25 * H;
+      const lx = Math.cos(a + 1.5708) * lean, lz = Math.sin(a + 1.5708) * lean;
+      const i0 = B.vert([x - dx, y, z - dz], nU, 0, 1, LAYER.tuft, cB, 1);
+      B.vert([x + dx, y, z + dz], nU, 1, 1, LAYER.tuft, cB, 1);
+      B.vert([x + dx + lx, y + H, z + dz + lz], nU, 1, 0, LAYER.tuft, cT, 1);
+      B.vert([x - dx + lx, y + H, z - dz + lz], nU, 0, 0, LAYER.tuft, cT, 1);
+      B.i.push(i0, i0 + 1, i0 + 2, i0, i0 + 2, i0 + 3, i0, i0 + 2, i0 + 1, i0, i0 + 3, i0 + 2);
     }
   }
   B.emit = 0;

@@ -1,9 +1,11 @@
 // 手続きのテクスチャ（外部の画像なし）。BattleBit のように低い解像度でやわらかい質感。128×128 のテクスチャ配列の各層
 export const TEX = 128;
 export const LAYER = {
-  plain: 0, concrete: 1, brick: 2, plaster: 3, woodfloor: 4, tile: 5, carpet: 6, asphalt: 7, grass: 8, dirt: 9, metal: 10, wood: 11, fabric: 12, ceiling: 13, skin: 14, cloth: 15, plywood: 16, sidewalk: 17, nylon: 18, paint: 19, rubber: 20, leaves: 21, siding: 22,
+  plain: 0, concrete: 1, brick: 2, plaster: 3, woodfloor: 4, tile: 5, carpet: 6, asphalt: 7, grass: 8, dirt: 9, metal: 10, wood: 11, fabric: 12, ceiling: 13, skin: 14, cloth: 15, plywood: 16, sidewalk: 17, nylon: 18, paint: 19, rubber: 20, leaves: 21, siding: 22, foliage: 23, needles: 24, tuft: 25,
 };
-export const NLAYER = 23;
+export const NLAYER = 26;
+// 23〜25 は抜きのある板（透明 a=0 の所はシェーダーで描かない）: 葉の房・針葉の枝・草の株（BattleBit の植物は葉の絵の板を重ねた作り。research の 20）
+export const CUT_LAYERS = [23, 24, 25];
 
 function rng(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
 // 繰り返しのある値ノイズ
@@ -103,7 +105,7 @@ export function makeTextures() {
     return [v, v, v];
   });
   // 色は頂点の色で決めるので、テクスチャは明るさの細かさだけ（平均0.85にそろえる）
-  for (let L = 0; L < NLAYER; L++) {
+  for (let L = 0; L < 23; L++) {
     const o = L * N * N * 4;
     let sum = 0;
     const lum = new Float32Array(N * N);
@@ -112,6 +114,57 @@ export function makeTextures() {
     const target = L === LAYER.plain ? 0.92 : 0.85;
     for (let q = 0; q < N * N; q++) { const v = Math.min(1, lum[q] / mean * target); const k = o + q * 4; out[k] = out[k + 1] = out[k + 2] = Math.round(v * 255); }
   }
+  cutCards(out, N);
   return out;
 }
 function vnoiseLine(x, y) { return (Math.sin(y * 1.7 + Math.sin(x * 0.05) * 3) * 0.5 + 0.5); }
+
+// ---- 抜きのある板（葉の房・針葉の枝・草の株）。明るさ（灰色）と抜き（a）。抜いた所の色は葉の平均にして、遠くでふちが黒くならないように
+function cutCards(out, N) {
+  const r = rng(4242);
+  const layer = (L, draw) => {
+    const lum = new Float32Array(N * N).fill(-1), al = new Float32Array(N * N);
+    const dot = (x, y, v, a = 1) => { x = Math.round(x); y = Math.round(y); if (x < 0 || y < 0 || x >= N || y >= N) return; const q = y * N + x; if (a >= al[q]) { lum[q] = v; al[q] = a; } };
+    draw(dot);
+    let sum = 0, n = 0; for (let q = 0; q < N * N; q++) if (al[q] > 0) { sum += lum[q]; n++; }
+    const mean = n ? sum / n : 0.8, k0 = 0.85 / mean;
+    const o = L * N * N * 4;
+    for (let q = 0; q < N * N; q++) { const v = al[q] > 0 ? Math.min(1, lum[q] * k0) : 0.85; const k = o + q * 4; out[k] = out[k + 1] = out[k + 2] = Math.round(v * 255); out[k + 3] = al[q] > 0 ? 255 : 0; }
+  };
+  // 葉の房: 丸い範囲に小さな葉（向きと明るさがばらばら）。真ん中ほど込む。細い小枝が数本
+  layer(23, (dot) => {
+    for (let k = 0; k < 4; k++) { const a = r() * 6.28, L = 30 + r() * 25; for (let t = 0; t < L; t++) dot(64 + Math.cos(a) * t, 64 + Math.sin(a) * t, 0.35); }
+    for (let k = 0; k < 330; k++) {
+      const a = r() * 6.28, d = Math.pow(r(), 0.7) * 58, cx = 64 + Math.cos(a) * d, cy = 64 + Math.sin(a) * d;
+      const ang = r() * 3.14, len = 5 + r() * 6, wid = 2 + r() * 2.2, v = 0.55 + r() * 0.45 - d / 58 * 0.1, ca = Math.cos(ang), sa = Math.sin(ang);
+      for (let u = -len; u <= len; u += 0.5) { const w = wid * Math.sqrt(Math.max(0, 1 - (u / len) ** 2)); for (let s2 = -w; s2 <= w; s2 += 0.5) dot(cx + ca * u - sa * s2, cy + sa * u + ca * s2, v * (0.88 + 0.12 * (1 - Math.abs(s2) / Math.max(0.5, w)))); }
+    }
+  });
+  // 針葉の枝（上から見た枝）: 左（幹の側）から右へ伸びる太い枝に、前へ斜めの小枝が並び、小枝のまわりに短い針がびっしり。先ほど細い
+  layer(24, (dot) => {
+    const stem = (x) => 64 + 6 * (x / 124) * (x / 124);
+    for (let x = 0; x < 124; x++) for (let s2 = -1.6; s2 <= 1.6; s2 += 0.5) dot(x, stem(x) + s2, 0.3);
+    for (let x0 = 6; x0 < 118; x0 += 7) for (const sd of [-1, 1]) {
+      const t0 = x0 / 124, L = (46 - 34 * t0) * (0.8 + r() * 0.35), ang = sd * (0.75 + (r() - 0.5) * 0.25);
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      for (let u = 0; u < L; u += 1) {
+        const tx = x0 + ca * u, ty = stem(x0) + sa * u;
+        dot(tx, ty, 0.34);
+        for (let q = 0; q < 3; q++) {
+          const na = ang + (r() < 0.5 ? 1 : -1) * (0.6 + r() * 0.7), nl = 4 + r() * 5 * (1 - u / L * 0.5), v = 0.5 + r() * 0.5;
+          for (let w = 0.5; w < nl; w += 0.6) dot(tx + Math.cos(na) * w, ty + Math.sin(na) * w, v * (0.8 + 0.2 * w / nl));
+        }
+      }
+    }
+  });
+  // 草の株: 下の真ん中から上へ、少し曲がった細い葉。根もとは暗く、先は明るい
+  layer(25, (dot) => {
+    for (let k = 0; k < 34; k++) {
+      const x0 = 24 + r() * 80, H = 50 + r() * 74, bend = (r() - 0.5) * 50, w0 = 1.5 + r() * 1.6, v0 = 0.55 + r() * 0.35;
+      for (let t = 0; t <= 1; t += 1 / H) {
+        const x = x0 + bend * t * t, y = N - 1 - t * H, w = w0 * (1 - t * 0.85);
+        for (let s2 = -w; s2 <= w; s2 += 0.5) dot(x + s2, y, v0 * (0.6 + 0.55 * t));
+      }
+    }
+  });
+}
