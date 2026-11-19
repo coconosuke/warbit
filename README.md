@@ -7,7 +7,7 @@
 - 見た目と動き: BattleBit Remastered のようなローポリと実際の体の比率。銃は実銃。
 
 - 遊ぶ: https://coconosuke.github.io/warbit/
-- 版: v0.1.27
+- 版: v0.1.28
 - 横持ち・ヘッドホン推奨
 
 ## ホーム画面に入れる
