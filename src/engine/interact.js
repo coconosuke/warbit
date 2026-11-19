@@ -68,7 +68,8 @@ export function bodyClear(S, w, a, tx, tz, L, o = {}) {
   const i0 = Math.max(0, Math.floor((Math.min(x0, tx) - 1.0) / CS)), i1 = Math.min(w.W - 1, Math.floor((Math.max(x0, tx) + 1.0) / CS));
   const j0 = Math.max(0, Math.floor((Math.min(z0, tz) - 1.0) / CS)), j1 = Math.min(w.D - 1, Math.floor((Math.max(z0, tz) + 1.0) / CS));
   _bcSeen.clear();
-  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+  // 大規模戦の世界には家具の表（propNear）がない: 人の体だけ見る
+  if (w.propNear) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
     const near = w.propNear.get(w.idx(L, i, j));
     if (!near) continue;
     for (const pid of near) {
@@ -336,10 +337,13 @@ function standPoint(S, w, a, k, id, op, tgt) {
   if (mv < 0.04) return null;
   if (mv > (op === 'kick' || op === 'bash' ? 0.4 : 0.85)) return null;
   // 立てる床か（壁・家具に重ならない）
-  const i = Math.floor(sx / CS), j = Math.floor(sz / CS);
-  if (i < 0 || j < 0 || i >= w.W || j >= w.D) return null;
-  const t = w.cell[w.idx(L, i, j)];
-  if (t !== C.FLOOR && t !== C.OUT && t !== C.OPEN && t !== C.DOOR) return null;
+  // 大規模戦の世界にはマスの表がない（押し出しだけで見る）
+  if (w.cell && w.idx) {
+    const i = Math.floor(sx / CS), j = Math.floor(sz / CS);
+    if (i < 0 || j < 0 || i >= w.W || j >= w.D) return null;
+    const t = w.cell[w.idx(L, i, j)];
+    if (t !== C.FLOOR && t !== C.OUT && t !== C.OPEN && t !== C.DOOR) return null;
+  }
   const po = pushOut(w, sx, sz, a.y + 0.4, a.y + 1.5, 0.25, S.doors, -1, _po);
   if (po[2] && Math.hypot(po[0], po[1]) > 0.06) return null;
   if (!bodyClear(S, w, a, sx, sz, L, { skipId: k === 'person' ? id : -1 })) return null;
@@ -453,7 +457,8 @@ function useGear(a, id) { const g = a.inv.gear.find(x => x.id === id); if (g && 
 export function personOps(S, a, b) {
   const ops = [];
   if (S.pvp) {
-    if (b.alive && b.down && b.team === a.team) ops.push({ op: 'revive', t: ACT_T.revive });
+    // 起こす: 大規模戦は包帯が要る（BattleBit と同じく包帯で起こす。誰でも）
+    if (b.alive && b.down && b.team === a.team && (!S.war || (a.inv && a.inv.gear.some(g => g.id === 'bandage' && g.n > 0)))) ops.push({ op: 'revive', t: ACT_T.revive });
     return ops;
   }
   if (b.alive && !b.cuffed && (b.comply >= 1 || b.down || b.tased > 0 || b.stun > 1.0 || b.flash > 1.0) && b.kind !== 'swat') ops.push({ op: 'restrain', t: ACT_T.restrain });
@@ -753,7 +758,14 @@ function finishOp(S, w, a, x, ev) {
       return;
     }
     if (k === 'report') { b.reported = true; ev.push({ e: 'report', id: b.id, by: a.id, kind: b.kind, st: b.dead ? 'dead' : b.down ? 'down' : 'cuffed' }); return; }
-    if (k === 'revive') { if (b.down && b.alive) { b.down = false; b.dbno = 0; b.hp = 20; b.stateT = 0; b.revivedT = S.t; ev.push({ e: 'revive', id: b.id, by: a.id }); } return; }
+    if (k === 'revive') {
+      if (b.down && b.alive) {
+        // 大規模戦: 包帯を1つ使い、体力の半分で起きる（出血も止まる）
+        if (S.war) { const g = a.inv && a.inv.gear.find(q => q.id === 'bandage' && q.n > 0); if (!g) return; g.n--; }
+        b.down = false; b.dbno = 0; b.hp = S.war ? Math.round(b.maxHp * 0.5) : 20; b.bleed = 0; b.stateT = 0; b.revivedT = S.t; ev.push({ e: 'revive', id: b.id, by: a.id });
+      }
+      return;
+    }
   }
   if (x.kind === 'item') {
     const it = S.items.find(q => q.id === x.id);
@@ -837,7 +849,8 @@ function gearInHand(S, w, a, dt, ev) {
     g.n--;
     throwNade(S, a, id, inp.power ?? 0.75, ev);
     // 残りがあれば持ったまま（大規模戦。11-19 18:16）: 次を取り出す間（0.75 秒）を置いて、また投げられる。なくなったら前の銃へ
-    if (g.n > 0 && (inp.keepGear || S.war)) { ws.st = 'draw'; ws.t = 0.75; ws.gearTrig = true; }
+    //  ボット（pid なし）は今までどおり銃へ戻る（持ったままだと撃つつもりで投げ続ける）
+    if (g.n > 0 && (inp.keepGear || (S.war && a.pid != null))) { ws.st = 'draw'; ws.t = 0.75; ws.gearTrig = true; }
     else { ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.35; }
   } else if (GEAR[id].kind === 'deploy') {
     startDeploy(S, w, a, id, ev);

@@ -104,3 +104,29 @@ test('倍率のボタン（zoom）は倍率だけ、射撃モードのボタン�
   const ev2 = step(G, inp(a, { ads: true, act: [{ a: 'zoom' }] }));
   ok(ev2.some(e => e.e === 'zoom') && wi.zi === 1, 'zoom は倍率');
 });
+
+test('起こす（大規模戦）: 包帯を1つ使い、体力の半分で起きる', async () => {
+  const G = game({ bots: true, per: 2 }), S = G.S, me = S.actors[0];
+  const mate = S.actors.find(b => b !== me && b.team === me.team);
+  for (const b of S.actors) if (b !== me && b !== mate) { b.alive = false; b.dead = true; }
+  mate.ai = null;
+  const cx = 790, cz = 705;
+  put(G, me, cx, cz); put(G, mate, cx + 1.0, cz);
+  for (let i = 0; i < 20; i++) step(G, inp(me));
+  mate.down = true; mate.dbno = 20; mate.hp = 0; mate.dbnoCount = 1;
+  // 倒れきるまで待ち、胸のそばへ寄る
+  for (let i = 0; i < 90; i++) { step(G, inp(me)); mate.dbno = 20; }
+  const { personPoint } = await import('../../src/engine/interact.js');
+  const tp = personPoint(S, mate); put(G, me, tp[0] - 0.55, tp[2]);
+  for (let i = 0; i < 5; i++) { step(G, inp(me)); mate.dbno = 20; }
+  const g = me.inv.gear.find(q => q.id === 'bandage'); const n0 = g.n;
+  // ボットと同じ道で始める（見ていなくても近ければ起こせる）。続きは毎ステップの動作の進みで
+  const { doAction } = await import('../../src/engine/interact.js');
+  const pid = me.pid; me.pid = null; const ev = []; doAction(S, G.w, me, { a: 'op', k: 'person', id: mate.id, op: 'revive' }, ev); me.pid = pid;
+  ok(me.act && me.act.k === 'revive', '起こし始める');
+  // 人の操作は手元から目をそらすと止まる: 動作が向けた向きのまま（入力の向きは今の向き）
+  for (let i = 0; i < 60 * 6 && mate.down; i++) { ev.push(...step(G, inp(me, { yaw: me.yaw, pitch: me.pitch }))); mate.dbno = 20; }
+  ok(!mate.down && mate.alive, '起きた');
+  ok(mate.hp === Math.round(mate.maxHp * 0.5), `体力の半分 ${mate.hp}/${mate.maxHp}`);
+  ok(g.n === n0 - 1, `包帯を1つ使う ${n0}→${g.n}`);
+});

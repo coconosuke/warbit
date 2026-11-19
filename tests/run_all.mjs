@@ -646,7 +646,8 @@ try {
   }
   // ダウン中にあきらめる（11-19 18:16）: GIVE UP を2回押すとすぐ出撃の画面へ
   {
-    await page.evaluate(() => { const p = window.__app.game.p; p.down = true; p.dbno = 20; p.hp = 0; });
+    // 流れ弾や手榴弾で途中で倒れきらないよう、ダウンの残りを大きくしておく（テストの間だけ）
+    await page.evaluate(() => { const p = window.__app.game.p; p.down = true; p.dbno = 9999; p.hp = 0; });
     await page.waitForFunction(() => document.querySelector('#hud .hud-giveup.on'), null, { timeout: 10000 }).catch(() => {});
     const on = await page.evaluate(() => !!document.querySelector('#hud .hud-giveup.on'));
     const c = await center('#hud .hud-giveup');
