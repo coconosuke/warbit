@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-19T16:48:00.425Z）
+HARD ENTRY ソース一式（2026-11-19T19:22:57.817Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 137502
+@@@@ FILE DESIGN.md text 137964
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -377,6 +377,7 @@ HARD ENTRY ソース一式（2026-11-19T16:48:00.425Z）
 - 11-20 WAR BIT 0.1.33（ボットの衛生・援護）: ボットの衛生は近く（2.5m）の傷ついた人（体力 85% 未満）を治し、ボットの援護・突撃は近く（8m）の人の予備の弾倉が2本以下だと弾薬箱を置く（近くに味方の箱がなければ）。ジャイロもタッチと同じく、時刻で直線に求めて取り出す。突撃は構える・リロードが 0.85 倍の時間（BattleBit の 2024 の手直しで速くなった。倍率は推測）。設定にコントラスト（BattleBit の Contrast Intensity）。
 - 11-20 WAR BIT 0.1.34（弾薬箱で包帯・投げ物も）: 大きい弾薬箱は包帯と投げ物（破片・衝撃・発煙）も補給する（4 秒に1つ・出撃した時の数まで。中身は救急 100・投げ物 50 で1つ 25）。小さい箱は弾だけ。
 - 11-20 WAR BIT 0.1.35（双眼鏡・リロードの見え方）: 偵察と分隊長は双眼鏡を持つ。手に持って構えると 6 倍（横長ののぞき窓。この作品の形。双眼鏡を持っている時も構えられるようにした）、引き金で狙っている向きの敵に印（800m まで・左右 2.5°。印のボタンは 450m・5°）。リロードの間、銃を画面の中ほどへ寄せて少し下げる（前は右へ大きく持ち上がって手が見えなかった）。research の 35。
+- 11-20 WAR BIT 0.1.36（付属品）: 出撃の画面の LOADOUT に「銃／付属品」の切り替え。付属品は主の銃ごとに 照準器・銃口・グリップ・ライト類 を「◀ 名前 ▶」で選べる（下に効き目: 反動・構えの時間・音など）（付けられる物だけ。効き目はエンジンの付属品のとおり: 反動・構えの速さ・音・炎・腰だめなど）。選んだ物は銃ごとに覚える。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -532,11 +533,11 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 133876
+@@@@ FILE src/app/game.js text 136054
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
-import { curWeapon, curW, ammoCount } from '../engine/actor.js';
+import { curWeapon, curW, ammoCount, makeWeapon } from '../engine/actor.js';
 import { contextOf, OP_NAME, doorOps, personOps } from '../engine/interact.js';
 import { spreadDeg } from '../engine/weapon.js';
 import { vaultPlan } from '../engine/move.js';
@@ -551,7 +552,7 @@ const BINOC_OPTIC = { kind: 'binoc', scope: true, zoom: 6 };
 function binocZoom(p) { const ws = p && p.ws; return ws && ws.slot === 2 && ws.gear === 'binoc' && GEAR.binoc ? (p.ads > 0.5 ? GEAR.binoc.zoom : 1) : 0; }
 const AA_WAR = { off: [1], weak: [0.85], mid: [0.75], strong: [0.65], max: [0.55] };
 import { sideOf, isOpen } from '../engine/doors.js';
-import { WEAPONS, zoomOf, opticOf, zoomsOf, swayCamK, scopePip } from '../engine/data/weapons.js';
+import { WEAPONS, ATTACH, attachOptions, zoomOf, opticOf, zoomsOf, swayCamK, scopePip } from '../engine/data/weapons.js';
 import { GEAR, LONG } from '../engine/data/equipment.js';
 import { MAPS } from '../engine/maps/index.js';
 import { MISSIONS } from '../engine/data/missions.js';
@@ -567,7 +568,7 @@ import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
 import { los as warLos } from '../war/world.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
-import { CLASSES, CLASS_LIST, classGuns, classSecs } from '../war/classes.js';
+import { CLASSES, CLASS_LIST, classGuns, classSecs, classLoadout } from '../war/classes.js';
 import { WarFlags, FLAG_COL } from '../render/warflags.js';
 import { RALLY, rallyOf } from '../engine/rally.js';
 import { WAR_MAPS } from '../war/maps/index.js';
@@ -911,6 +912,9 @@ export class Match {
         case 'dlo': if (k === 'down' && this.S.war) this.dlo = !this.dlo; break;
         case 'loadout': if (k === 'down' && this.S.war && this.S.m.mode === 'range' && p.alive) { this.acts.push({ a: 'warRedeploy' }); this.au.ui('tap'); } break;
         case 'dgun': case 'dsec': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(); (b === 'dgun' ? W.guns : W.secs)[this.dcls] = e.sub; this._warPickSave(); } break;
+        // 付属品（LOADOUT）: sub = 種類:物（例 grip:vert）。今の主の銃に付ける
+        case 'dlotab': if (k === 'down' && this.S.war && !p.alive) { this.dloTab = e.sub; this.au.ui('tap'); } break;
+        case 'datt': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(), d = this._warDeployData(), [kk, v] = String(e.sub).split(':'); const A = W.att[d.gun] || (W.att[d.gun] = {}); A[kk] = v; this._warPickSave(); this.au.ui('tap'); } break;
         case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
         case 'pause': if (k === 'tap' || (k === 'down' && e.key)) this.app.pauseGame(); break;
         case 'drone': if (k === 'down') this._droneToggle(); break;
@@ -1959,10 +1963,10 @@ export class Match {
   _warPrefs() {
     const P = this.app.profile;
     if (!P.war || typeof P.war !== 'object') P.war = {};
-    const W = P.war; if (!W.guns) W.guns = {}; if (!W.secs) W.secs = {};
+    const W = P.war; if (!W.guns) W.guns = {}; if (!W.secs) W.secs = {}; if (!W.att) W.att = {};
     return W;
   }
-  _warPick() { const W = this._warPrefs(), c = this.dcls || 'assault'; return { cls: c, gun: W.guns[c], sec: W.secs[c] }; }
+  _warPick() { const W = this._warPrefs(), c = this.dcls || 'assault'; return { cls: c, gun: W.guns[c], sec: W.secs[c], att: W.att }; }
   _warPickSave() {
     const W = this._warPrefs(); W.cls = this.dcls;
     this.app.saveProfile();
@@ -1988,6 +1992,19 @@ export class Match {
     if (!S.war || !m || m.mode === 'range' || m.mode === 'tdm' || p.sqIdx !== 0 || !p.alive || p.down) return null;
     const key = p.team + ':' + p.squad, pts = (m.sqp || {})[key] || 0, cd = m.rallyCd && m.rallyCd[key] > S.t ? Math.ceil((m.rallyCd[key] - S.t) * S.dt) : 0;
     return { ok: pts >= RALLY.cost && !cd, lb: cd ? cd + 's' : rallyOf(S, p.team, p.squad) ? '置き直す' : '集合' };
+  }
+  // LOADOUT の付属品の行: 照準器・銃口・下・横。付けられる物だけ（attachOptions）。選んでいなければ makeWeapon の既定
+  _attRows(gun, A) {
+    const ao = attachOptions(gun), lo = classLoadout(this.dcls || 'assault', gun, null, { [gun]: A }), w = makeWeapon(lo.primary) || { att: {} };
+    const L = [['sight', '照準器'], ['muzzle', '銃口'], ['grip', 'グリップ'], ['side', 'ライト類']];
+    // 効き目の短い説明（縦・横の反動、初弾、構えの時間、音、腰だめ、倍率）
+    const fx = (x) => { if (!x) return ''; const o = [], pc = (v) => (v < 1 ? '-' : '+') + Math.round(Math.abs(1 - v) * 100) + '%';
+      if (x.zoom && x.zoom > 1.2) o.push(x.zooms ? x.zooms.join('/') + '倍' : x.zoom + '倍');
+      if (x.rcv && x.rcv !== 1) o.push('縦の反動 ' + pc(x.rcv)); if (x.rch && x.rch !== 1) o.push('横の反動 ' + pc(x.rch)); if (x.rcfirst && x.rcfirst !== 1) o.push('初弾 ' + pc(x.rcfirst));
+      if (x.ads) o.push('構え ' + (x.ads > 0 ? '+' : '-') + Math.round(Math.abs(x.ads) * 1000) + 'ms'); if (x.noise && x.noise !== 1) o.push('音 ' + pc(x.noise)); if (x.hip && x.hip !== 1) o.push('腰だめ ' + pc(x.hip)); if (x.light) o.push('ライト');
+      return o.join('・'); };
+    const short = (nm) => String(nm).replace(/（.*?）/g, '');
+    return L.filter(([k]) => ao[k] && ao[k].length > 1).map(([k, lb]) => ({ k, lb, sel: w.att[k], list: ao[k].map(v => ({ v, name: short((ATTACH[k][v] || {}).name || v), fx: fx(ATTACH[k][v]) })) }));
   }
   _warDeployData() {
     const S = this.S, p = this.p, m = S.m, MD = WAR_MODES[m.mode] || WAR_MODES.conquest;
@@ -2022,7 +2039,7 @@ export class Match {
       img: this.hud.plan && this.hud.plan.img, rect: m.rect, m, myTeam: p.team, mapKey: tick + '|' + m.flags.map(f => f.owner).join(','),
       opts, sel: this.dsel, dots, squad: { name: squadEn(p.squad, p.team), list: squad },
       cls, classes: CLASS_LIST.map(id => ({ id, en: CLASSES[id].en, short: CLASSES[id].short, name: CLASSES[id].name, hp: CLASSES[id].hp, desc: CLASSES[id].desc, tools: CLASSES[id].tools.join('・'), ok: canPick(p, id) })),
-      lo: !!this.dlo, guns, secs, gun, sec, gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
+      lo: !!this.dlo, loTab: this.dloTab || 'gun', guns, secs, gun, sec, att: this._attRows(gun, W.att[gun] || {}), gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
       left, queued: !!p.deployAt, canGo: !(m.mode === 'conquest' && m.tickets[p.team] <= 0),
       msg: m.mode === 'range' ? '射台から' : m.mode === 'conquest' ? (m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
     };
@@ -7293,7 +7310,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.35';
+export const VERSION = '0.1.36';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -12402,7 +12419,7 @@ export function placeActors(S, w, def) {
   for (let i = 0; i < Math.min(2, civ.length); i++) { const [x, z] = civ[(i + S.m.resets) % civ.length]; spawnCivilian(S, w, x, z, 0, i ? 'adult' : 'staff'); }
 }
 
-@@@@ FILE src/engine/modes/war.js text 33188
+@@@@ FILE src/engine/modes/war.js text 33214
 // 大規模戦（WAR BIT）のモード。BattleBit に合わせる（research/WARBIT.md の 1・2・3・7・11）。足りない人数はボット（src/war/ai.js）
 // - CONQUEST: 拠点を奪い合い、相手のチケットを 0 にする。人数で範囲が変わる（16・32・64 対）。チケットは出撃のたびに1減り、
 //   拠点を過半数持つ側が相手を（拠点の差×0.3）/秒 減らす
@@ -12539,10 +12556,10 @@ export function canSpawnAt(S, f, team) { return S.m.mode === 'conquest' && f.own
 export function canPick(a, cls) { return !!CLASSES[cls] && (cls !== 'leader' || a.sqIdx === 0); }
 
 // 兵科と銃を決める（次の出撃から）
-function setClass(a, cls, gun, sec) {
+function setClass(a, cls, gun, sec, att) {
   if (!canPick(a, cls)) cls = 'assault';
   a.warCls = cls;
-  a.warLo = classLoadout(cls, gun, sec);
+  a.warLo = classLoadout(cls, gun, sec, att);
 }
 
 // 出撃し直す（at: 'hq' か拠点の id。ドミネーション・TDM は出撃の場所から）
@@ -12777,7 +12794,7 @@ export default {
   think(S, w, dt, ev) { return S.m.mode === 'range' ? {} : warThink(S, w, dt, ev); },
   // 出撃の画面から（倒れている間）: 兵科・銃を変える、出撃する場所を選ぶ
   act(S, w, a, ac, ev) {
-    if (ac.a === 'warClass') { if (!a.alive) setClass(a, ac.cls, ac.gun, ac.sec); return true; }
+    if (ac.a === 'warClass') { if (!a.alive) setClass(a, ac.cls, ac.gun, ac.sec, ac.att); return true; }
     // 敵に印をつける（BattleBit の中ボタン。分隊に見える。11-19・research の 24）: 狙っている向きから 5° 以内・450m 以内・見えている敵のうち一番まっすぐの1人
     if (ac.a === 'spot') { spotEnemy(S, w, a, ev); return true; }
     if (ac.a === 'rally') { placeRally(S, w, a, ev); return true; }
@@ -12798,7 +12815,7 @@ export default {
     }
     if (ac.a !== 'warDeploy') return false;
     if (a.alive) return true;
-    if (ac.cls) setClass(a, ac.cls, ac.gun, ac.sec);
+    if (ac.cls) setClass(a, ac.cls, ac.gun, ac.sec, ac.att);
     a.deployAt = ac.at || 'hq';
     return true;
   },
@@ -23397,7 +23414,7 @@ export class Book {
 // 爆弾の制限時間（マップで違う）: 「10〜15分」
 function bombMin(M) { const ts = MAP_LIST.filter(id => MAPS[id].missions && MAPS[id].missions.bomb).map(id => MAPS[id].missions.bomb.time || M.time); if (!ts.length) ts.push(M.time); const a = Math.floor(Math.min(...ts) / 60), b = Math.floor(Math.max(...ts) / 60); return a === b ? `${a}分` : `${a}〜${b}分・マップによる`; }
 
-@@@@ FILE src/ui/deployscreen.js text 9146
+@@@@ FILE src/ui/deployscreen.js text 10448
 // 大規模戦の出撃の画面（BattleBit の出撃の画面に合わせる。research/WARBIT.md の 10）
 // 上の帯（マップ・モード・人数・点）、地図（範囲・拠点・本陣・分隊の仲間。出撃の場所を押して選ぶ）、左に分隊の欄、
 // 下に兵科6つ、左下に LOADOUT（銃を選ぶ）、右下に DEPLOY（数秒待つ。先に押すと時間が来たら出る）。
@@ -23444,15 +23461,23 @@ export class DeployScreen {
       this.sq.innerHTML = `<div class="dps-h"><span>SQUAD</span><b>${esc(d.squad.name)}</b><em>${d.squad.list.filter(m => m.st !== 'dead').length}/${d.squad.list.length}</em></div>` +
         d.squad.list.map(m => `<div class="dps-m ${m.st}${m.me ? ' me' : ''}"><i>${clsIcon(m.cls)}</i><span>${esc(m.name)}</span><small>${m.st === 'dead' ? 'KIA' : m.st === 'down' ? 'DOWN' : m.st === 'wait' ? 'READY' : ''}</small></div>`).join('');
     }
-    const k3 = d.cls + '|' + d.lo + '|' + d.gun + '|' + d.sec + '|' + d.classes.map(c => c.ok ? 1 : 0).join('');
+    const k3 = d.cls + '|' + d.lo + '|' + d.gun + '|' + d.sec + '|' + d.classes.map(c => c.ok ? 1 : 0).join('') + '|' + (d.att || []).map(r => r.sel).join(',') + '|' + d.loTab;
     if (C.card !== k3) {
       C.card = k3;
       const c = d.classes.find(q => q.id === d.cls) || d.classes[0];
       if (d.lo) {
         this.card.className = 'dps-card dps-lop';
-        this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(c.en)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>
+        const tabs = `<div class="dps-tabs"><div class="dps-tab${d.loTab !== 'att' ? ' on' : ''}" data-btn="dlotab" data-sub="gun" role="button">銃</div><div class="dps-tab${d.loTab === 'att' ? ' on' : ''}" data-btn="dlotab" data-sub="att" role="button">付属品</div></div>`;
+        if (d.loTab === 'att') {
+          this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(d.gunName)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}` +
+            // 1行ずつ「◀ 名前 ▶」で切り替える（小さい画面でも全部の枠が見える）。下に効き目
+            (d.att || []).map(r => { const i = Math.max(0, r.list.findIndex(o => o.v === r.sel)), n = r.list.length, cur = r.list[i], pv = r.list[(i + n - 1) % n].v, nx = r.list[(i + 1) % n].v;
+              return `<div class="dps-ar"><span>${esc(r.lb)}</span><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${pv}" role="button" aria-label="前">◀</div><div class="dps-an"><b>${esc(cur.name)}</b><small>${esc(cur.fx || '')}</small></div><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${nx}" role="button" aria-label="次">▶</div></div>`; }).join('');
+        } else {
+        this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(c.en)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}
           <div class="dps-sub">PRIMARY　主の銃</div><div class="dps-g">${d.guns.map(g => `<div class="dps-o${g.id === d.gun ? ' on' : ''}" data-btn="dgun" data-sub="${g.id}" role="button"><b>${esc(g.name)}</b><small>${esc(g.info)}</small></div>`).join('')}</div>
           <div class="dps-sub">SECONDARY　拳銃</div><div class="dps-g">${d.secs.map(g => `<div class="dps-o${g.id === d.sec ? ' on' : ''}" data-btn="dsec" data-sub="${g.id}" role="button"><b>${esc(g.name)}</b><small>${esc(g.info)}</small></div>`).join('')}</div>`;
+        }
       } else {
         this.card.className = 'dps-card';
         this.card.innerHTML = `<div class="dps-h"><span>CLASS</span><b>${esc(c.en)}</b><em>${esc(c.name)} · HP ${c.hp}</em></div>
@@ -25695,7 +25720,7 @@ export function sprintZone(dx, dy, spr, armed) {
   return armed ? (dy < -(spr - SPRINT_ZONE.drop) && ang <= SPRINT_ZONE.keep) : (dy < -spr && ang <= SPRINT_ZONE.start);
 }
 
-@@@@ FILE src/ui/style.css text 70327
+@@@@ FILE src/ui/style.css text 71316
 /* HARD ENTRY — 見た目の決まり（色・枠・書体）。雰囲気より読みやすさを優先。自分の側はいつも青、相手は赤 */
 :root {
   --bg: #07090c; --panel: rgba(12, 16, 22, 0.9); --panel2: rgba(22, 28, 36, 0.92); --line: rgba(255, 255, 255, 0.13); --line2: rgba(255, 255, 255, 0.28);
@@ -26253,6 +26278,16 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .dps-kv b { font-weight: 700; font-family: var(--f-body); } .dps-kv.soon b { color: #7f8a94; font-weight: 500; }
 .dps-card.dps-lop { width: min(540px, 62%); }
 .dps-lop .dps-g { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* LOADOUT の 銃／付属品 の切り替え（11-20） */
+.dps-tabs { display: flex; gap: 4px; margin: 4px 0 2px; }
+.dps-tab { flex: 1 1 0; text-align: center; padding: 5px 0; font-size: 12px; font-weight: 800; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
+.dps-tab.on { background: var(--accent); color: #111; }
+.dps-ar { display: grid; grid-template-columns: 7.5em 34px 1fr 34px; align-items: center; gap: 4px; margin-top: 5px; }
+.dps-ar > span { font-size: 11px; color: var(--sub); }
+.dps-ab { height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); font-size: 12px; }
+.dps-an { min-width: 0; text-align: center; }
+.dps-an b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dps-an small { display: block; font-size: 11px; color: #9be37a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dps-x { margin-left: auto; width: 30px; height: 26px; display: flex; align-items: center; justify-content: center; font: 700 18px/1 var(--f-head); background: rgba(255,255,255,.06); }
 .dps-sub { font: 800 11px var(--f-head); letter-spacing: .1em; color: #8d99a4; margin: 6px 0 4px; }
 .dps-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
@@ -27678,7 +27713,7 @@ export function container(ww, x, z, rot = 0, y = 0, col = '#3f6f8f') {
   return addBox(ww, { x0: x - w / 2, z0: z - d / 2, x1: x + w / 2, z1: z + d / 2, y0: y, y1: y + 2.6, mat: M.METAL, kind: 'container', col });
 }
 
-@@@@ FILE src/war/classes.js text 4004
+@@@@ FILE src/war/classes.js text 4229
 // 大規模戦の兵科（BattleBit の6つ。research/WARBIT.md の 3・9・10）
 // 体力: 突撃・衛生・工兵・分隊長 100、援護 125、偵察 90（BattleBit 大型アップデートの日誌の値）。
 // 銃は兵科ごとの種類から選ぶ（陣営で服だけ違う。BattleBit も銃は両陣営で同じ）。投げ物と道具は兵科ごと。
@@ -27744,7 +27779,7 @@ const SIGHT = { at308: null, hk417: 'acog', sks: 'acog', mini14: 'acog', g3: 'ac
 export const classGuns = (cls) => (CLASSES[cls] || CLASSES.assault).guns.filter(id => WEAPONS[id]);
 export const classSecs = (cls) => (CLASSES[cls] || CLASSES.assault).sec.filter(id => WEAPONS[id]);
 // 兵科と銃から装備を作る（engine の makeInventory に渡す形）
-export function classLoadout(cls, gun, sec) {
+export function classLoadout(cls, gun, sec, att) {
   const C = CLASSES[cls] || CLASSES.assault;
   const G = classGuns(cls), Ss = classSecs(cls);
   const g = gun && G.includes(gun) ? gun : G[0];
@@ -27752,6 +27787,9 @@ export function classLoadout(cls, gun, sec) {
   const prim = { id: g, ammo: 'ap' };
   const sight = g in SIGHT ? SIGHT[g] : 'holo';
   if (sight) prim.sight = sight;
+  // 付属品（出撃の画面の LOADOUT で選ぶ。付けられない物は makeWeapon が外す）
+  const A = att && att[g];
+  if (A) for (const k of ['sight', 'muzzle', 'grip', 'side']) if (A[k]) prim[k] = A[k];
   return { war: true, primary: prim, secondary: { id: s, ammo: 'ap' }, long: 'none', gear: C.gear.map(x => x.slice()), vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
 }
 
@@ -33367,6 +33405,37 @@ test('大きい弾薬箱は包帯と投げ物も補給する（出撃した時�
   for (let i = 0; i < Math.round(9 / S.dt); i++) step(G, { [me.id]: idle(me) });
   ok(ban.n >= 2, '包帯 ' + ban.n);
   ok(ban.n <= ban.n0, '出撃した時の数まで');
+});
+
+@@@@ FILE tests/unit/war_attach.test.mjs text 1929
+// 付属品（LOADOUT）: 選んだ照準器・銃口・グリップ・横の物が出撃した銃に付く。付けられない物は外れる
+import { test, ok, eq } from '../lib/t.mjs';
+import { classLoadout } from '../../src/war/classes.js';
+import { makeWeapon } from '../../src/engine/actor.js';
+import { attachOptions } from '../../src/engine/data/weapons.js';
+import { createGame, step } from '../../src/engine/engine.js';
+
+test('付属品: 選んだ物が付く（付けられない物は外れる）', () => {
+  const ao = attachOptions('m4a1');
+  const grip = (ao.grip || []).find(v => v !== 'none'), muz = (ao.muzzle || []).find(v => v !== 'none');
+  ok(grip && muz, '選べる物がある ' + JSON.stringify(ao));
+  const lo = classLoadout('assault', 'm4a1', null, { m4a1: { grip, muzzle: muz, sight: 'acog' } });
+  const w = makeWeapon(lo.primary);
+  eq(w.att.grip, grip, 'グリップ'); eq(w.att.muzzle, muz, '銃口'); eq(w.att.sight, 'acog', '照準器');
+  const w2 = makeWeapon(classLoadout('assault', 'm4a1', null, { m4a1: { grip: 'nonexistent' } }).primary);
+  ok(ao.grip.includes(w2.att.grip), '付けられない物は外れる');
+});
+
+test('付属品: 出撃の操作で渡すと、その銃で出る', () => {
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false }); step(G, {});
+  const S = G.S, me = S.actors[0];
+  const ao = attachOptions('m4a1'), grip = ao.grip.find(v => v !== 'none');
+  me.hp = 0; me.alive = false; me.dead = true; S.m.respawn.push({ id: me.id, at: S.t + 1 });
+  const idle = { mx: 0, mz: 0, yaw: 0, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false };
+  step(G, { [me.id]: { ...idle, act: [{ a: 'warDeploy', at: 'hq', cls: 'assault', gun: 'm4a1', att: { m4a1: { grip } } }] } });
+  for (let i = 0; i < 10 && !me.alive; i++) step(G, {});
+  ok(me.alive, '出撃');
+  eq(me.inv.w[0].att.grip, grip, '付いている');
 });
 
 @@@@ FILE tests/unit/war_binoc.test.mjs text 1885
