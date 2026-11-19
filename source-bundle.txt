@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-19T04:52:41.186Z）
+HARD ENTRY ソース一式（2026-11-19T05:13:12.331Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 125701
+@@@@ FILE DESIGN.md text 126082
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -358,6 +358,7 @@ HARD ENTRY ソース一式（2026-11-19T04:52:41.186Z）
 - 11-19 WAR BIT 0.1.18（エイム）: 12:51 の要望。0.1.17 の応答曲線（指を速く動かすほど大きく回る＝加速）をやめ、指の動きにそのまま比例。届いた量を約 20ms に分けて足すなめらかさは残す。照準の揺れと反動（スコープの像を動かす分）を、エンジンのステップの間で補間して描く（こまとステップがずれて像が小さく跳ね、遠くを狙うとかくついて見えていた）。設定の「応答曲線」は消した。
 - 11-19 WAR BIT 0.1.19（造形の作り込み）: 12:51・12:53 の要望。木（枝と葉のかたまり・星形の針葉樹・白樺）、茂み、車（バンパー・灯り・鏡・丸い車輪など）、建物（窓の枠と桟・扉の板・雨どい・縦どい・棟・室外機・メーター）、電柱と電線、消火栓・郵便受け・標識・ベンチ・ごみ入れ、コンテナの波板。外の壁の白い横線を直した。画質「低」は細かい面を省く。research の 18。
 - 11-19 WAR BIT 0.1.20（葉の板・草の株・地面のむら・濃い影・横断歩道・息止めの切り替え）: 12:51・12:53・13:21・13:31 の要望。木と茂みの葉を「葉の絵を抜いた板」の房に、針葉樹は放射状の枝の板、草は株の板2枚を十字に（抜きは影にも効く）。草の株は暗めの緑に枯れ草・赤みの雑草を混ぜ、地面に土のまだら、影を濃く。町の交差点の手前に横断歩道。息止めのボタンは押すたびに入る・切れる（構えをやめる・息が切れると切れる。設定で長押しにも。PC の Shift は押している間）。research の 20。
+- 11-19 WAR BIT 0.1.21（跳ぶ・反動の押さえ）: 「挙動」の段階の1つめ。乗り越えのボタン（PC は Space）で、越える物がなければ跳ぶ（BattleBit と同じく1つのボタン）。反動で上がっている間に下へ引いた分は反動から引く（2024 の手直しと同じ。戻りで二重に下がらない）。research の 19。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -513,7 +514,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 112795
+@@@@ FILE src/app/game.js text 114075
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -654,6 +655,8 @@ export class Match {
     const ws = this.p.ws, A = this._prevAim, kk = 1 - this._alpha;
     let keep = null;
     if (ws && A && kk > 0.001 && !this.done) { keep = [ws.sx, ws.sy, ws.ry, ws.rp]; ws.sx = (ws.sx || 0) + (A[0] - (ws.sx || 0)) * kk; ws.sy = (ws.sy || 0) + (A[1] - (ws.sy || 0)) * kk; ws.ry = (ws.ry || 0) + (A[2] - (ws.ry || 0)) * kk; ws.rp = (ws.rp || 0) + (A[3] - (ws.rp || 0)) * kk; }
+    // まだエンジンに渡していない反動の押さえも、描く向きには先に入れる（指を引いた分がすぐ映るように）
+    if (ws && this.rcComp > 0 && !this.done) { if (!keep) keep = [ws.sx, ws.sy, ws.ry, ws.rp]; ws.rp = Math.max(0, (ws.rp || 0) - this.rcComp); }
     try { this._render(dt, inp); } finally { if (keep) { ws.sx = keep[0]; ws.sy = keep[1]; ws.ry = keep[2]; ws.rp = keep[3]; } }
     this._hud(dt);
     // 終わり
@@ -707,7 +710,14 @@ export class Match {
     // のぞいている（ミラー・オプティワンド）: 見回すのはカメラだけ。体は動かない
     if (p.peek) { const mx = p.peek.max || 1; this.pkYaw = clamp(this.pkYaw - dx * 0.8, -mx, mx); this.pkPitch = clamp(this.pkPitch - dy * 0.8 * (st.invertY ? -1 : 1), -0.55, 0.7); return; }
     this.yaw -= dx;
-    this.pitch = clamp(this.pitch - dy * (st.invertY ? -1 : 1), -1.4, 1.4);
+    let dP = -dy * (st.invertY ? -1 : 1);
+    // 反動の押さえ（大規模戦。BattleBit の 2024 の手直し・research の 19）: 反動で上がっている間に下へ引いた分は、
+    //  まず反動の分から引く（体の向きは下げない）。あとで反動が戻るときに二重に下がらない。エンジンへは cmd.rc（度）で渡す
+    if (this.S.war && dP < 0 && p.ws && p.alive) {
+      const left = (p.ws.rp || 0) - (this.rcComp || 0);
+      if (left > 0) { const c = Math.min(left * DEG, -dP); this.rcComp = (this.rcComp || 0) + c / DEG; dP += c; }
+    }
+    this.pitch = clamp(this.pitch + dP, -1.4, 1.4);
     if (!p.alive || p.down && !this.S.pvp) return;
     // 手元の動作（拘束・作業・拾う・取りつけ）: 視線を手元へ寄せる（指で見回すのは続けられる）
     const x = p.act;
@@ -763,7 +773,8 @@ export class Match {
         case 'reload': if (k === 'down') this.acts.push({ a: 'reload' }); else if (k === 'long' || (k === 'longup' && e.key)) this.acts.push({ a: 'reload', fast: true }); break;
         case 'crouch': if (k === 'down') { this._stWas = this.stance; this.stance = this.stance === 0 ? 1 : this.stance === 1 ? 0 : 1; } else if (k === 'long' && !e.key) this.stance = this._stWas === 2 ? 0 : 2; break;
         case 'prone': if (k === 'down') this.stance = this.stance === 2 ? 0 : 2; break;
-        case 'vault': if (k === 'down') this.acts.push({ a: 'vault' }); break;
+        // 乗り越え・跳ぶ（大規模戦。BattleBit と同じく1つのボタン。越える物がなければ跳ぶ）
+        case 'vault': if (k === 'down') this.acts.push(this.S && this.S.war ? { a: 'vault', jump: 1 } : { a: 'vault' }); break;
         // 息止め（11-19 13:31: 切り替えで）: 押すたびに入る・切れる。構えをやめる・息が切れると切れる（_command）
         case 'breath': if (k === 'down' && (st.breathMode || 'toggle') === 'toggle') { this.breathOn = !this.breathOn; this._brT = this.time; } break;
         case 'leanL': case 'leanR': {
@@ -831,7 +842,9 @@ export class Match {
       // 息止め: ボタン（構えている間だけ出る。切替か長押し）か、構えているときの Shift（押している間。走りにはならない）
       breath: brBtn || (this.adsOn && !!(this.app.input.keys && this.app.input.keys.has('ShiftLeft'))),
       act: this.acts.length ? this.acts.splice(0) : null, power: 0.75,
+      rc: this.rcComp > 0 ? this.rcComp : 0,
     };
+    this.rcComp = 0;
     if (cmd.breath && this.adsOn) cmd.sprint = false;
     if (this.droneId != null) { cmd.mx = 0; cmd.mz = 0; cmd.fire = false; }
     if (this.camView != null) {
@@ -1214,6 +1227,7 @@ export class Match {
         case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); break;
         case 'exhale': if (e.id === me) au.sfx('exhale', null, { vol: 0.6 }); break;
         case 'inhale': if (e.id === me) au.sfx('inhale', null, { vol: 0.6 }); break;
+        case 'jump': { const a = S.byId[e.id]; if (a) au.sfx('land', a === p ? null : [a.x, a.y + 0.2, a.z], { vol: a === p ? 0.3 : 0.25, rate: 1.5 }); break; }
         // 置いた物（置ける盾・有刺鉄線）
         case 'depset': au.sfx(e.k === 'wire' ? 'impMetal' : 'barricade', [e.x, e.y + 0.3, e.z], { vol: e.id === me ? 0.55 : 0.8, rate: e.k === 'wire' ? 1.4 : 0.8 }); break;
         case 'depbreak': if (e.why !== 'pick') { fx.debris(e.x, e.y, e.z, e.k === 'wire' ? [0.55, 0.56, 0.54] : [0.24, 0.26, 0.25]); au.sfx('impMetal', [e.x, e.y, e.z], { vol: 1, rate: 0.7 }); } else au.sfx('draw', [e.x, e.y, e.z], { vol: 0.5 }); break;
@@ -2505,12 +2519,12 @@ export function netMixin(App) {
   };
 }
 
-@@@@ FILE src/app/netgame.js text 9149
+@@@@ FILE src/app/netgame.js text 9275
 // オンラインの試合の動かし方（Match に混ぜる）。
 //  ホスト: エンジンを動かし、ゲストの入力と動作をエンジンへ渡し、写しを配る。ゲストが切れたら止めて待つ。
 //  ゲスト: エンジンは動かさず、ホストの写しを補間して表示する。自分の移動と銃（反動・弾の見た目）だけは手元で先に動かし、ホストの位置へなめらかに寄せる。
 import { packStatic, packSnap, packEvent, NET_EV } from '../net/snap.js';
-import { moveActor, tryVault } from '../engine/move.js';
+import { moveActor, tryVault, tryJump } from '../engine/move.js';
 import { stepWeapon } from '../engine/weapon.js';
 import { doAction } from '../engine/interact.js';
 import { setSalt } from '../engine/rng.js';
@@ -2623,11 +2637,11 @@ export function netMixin(Match) {
       if (cmd.act) for (const ac of cmd.act) {
         sess.pushAct(ac);
         if (LOCAL_ACTS.has(ac.a)) { try { doAction(S, this.w, me, ac, ev); } catch (e) { /* なし */ } }
-        else if (ac.a === 'vault') { try { tryVault(S, this.w, me); } catch (e) { /* なし */ } } // 乗り越え・飛び降りも手元で先に（ホストと同じ計算）
+        else if (ac.a === 'vault') { try { if (!tryVault(S, this.w, me) && ac.jump && S.war) tryJump(S, this.w, me); } catch (e) { /* なし */ } } // 乗り越え・飛び降りも手元で先に（ホストと同じ計算）
       }
       const dc = this.droneId != null ? this._droneCmd(inp) : null;
       if (dc && this.droneId != null) sess.setInput({ mx: r2(dc.mx), mz: r2(dc.mz), y: r4(dc.yaw), p: r4(dc.pitch), f: dc.fire ? 1 : 0, j: dc.jump ? 1 : 0, s: cmd.stance, dr: 1 });
-      else sess.setInput({ mx: r2(cmd.mx), mz: r2(cmd.mz), y: r4(cmd.yaw), p: r4(cmd.pitch), f: cmd.fire ? 1 : 0, a: cmd.ads ? 1 : 0, s: cmd.stance, ln: cmd.lean, sp: cmd.sprint ? 1 : 0, br: cmd.breath ? 1 : 0, pw: cmd.power });
+      else sess.setInput({ mx: r2(cmd.mx), mz: r2(cmd.mz), y: r4(cmd.yaw), p: r4(cmd.pitch), f: cmd.fire ? 1 : 0, a: cmd.ads ? 1 : 0, s: cmd.stance, ln: cmd.lean, sp: cmd.sprint ? 1 : 0, br: cmd.breath ? 1 : 0, rc: r4(this.rcTot = (this.rcTot || 0) + (cmd.rc > 0 ? cmd.rc : 0)), pw: cmd.power });
       // 描くときの補間用（ステップの前の自分の位置）
       { const P = this._prev || (this._prev = new Map()); let q = P.get(me.id); if (!q) P.set(me.id, q = [0, 0, 0]); q[0] = me.x; q[1] = me.y; q[2] = me.z; }
       if (me.alive && !me.down && !me.cuffed) {
@@ -6939,7 +6953,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.20';
+export const VERSION = '0.1.21';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -7784,13 +7798,13 @@ export function detonateC2(S, w, did, ev) {
   return true;
 }
 
-@@@@ FILE src/engine/engine.js text 8676
+@@@@ FILE src/engine/engine.js text 8854
 // エンジン: 状態（関数を含まないデータ）と1ステップの進め方。命令（入力）→ 出来事（イベント）。
 // 固定ステップ 1/60 秒（シミュレーションでは 1/30 も可）。乱数はシード付き。dump/load で丸ごと保存・復元。
 import { compileMap, CS, LH } from './world.js';
 import { rngNew, rnd, setSalt } from './rng.js';
 import { COMPAT } from './data/version.js';
-import { moveActor, separateActors, tryVault } from './move.js';
+import { moveActor, separateActors, tryVault, tryJump } from './move.js';
 import { stepWeapon } from './weapon.js';
 import { stepBullets, hooks, stepMelee } from './combat.js';
 import { makeDoorStates, stepDoors } from './doors.js';
@@ -7890,7 +7904,8 @@ export function step(G, inputs = {}) {
     else if (a.pid == null && a.act && !a.act.quick && a.act.kind !== 'self' && a.act.k !== 'report') inp = actingInput(a, inp, dt);
     a._inp = inp;
     if (inp.act) for (const ac of inp.act) {
-      if (ac.a === 'vault') tryVault(S, w, a, ev);
+      // 乗り越え（越える物がなければ、大規模戦では跳ぶ。人の操作だけ jump が付く）
+      if (ac.a === 'vault') { if (!tryVault(S, w, a, ev) && ac.jump && S.war) tryJump(S, w, a, ev); }
       else if (mod.act && mod.act(S, w, a, ac, ev)) { /* モードの動作（ドローン・出現地点） */ }
       else doAction(S, w, a, ac, ev);
     }
@@ -12296,7 +12311,7 @@ export default {
   },
 };
 
-@@@@ FILE src/engine/move.js text 27633
+@@@@ FILE src/engine/move.js text 28835
 // 移動: RoN の速さ（歩き2.4・ゆっくり0.96・しゃがみ1.2）、しゃがみ・伏せ・リーン・乗り越え・飛び降り・落下・階段・PvPのダッシュ
 import { groundAt, standAt, ceilAt, pushOut, raycast, STEP, CS, LH, BH, NB, levelOfY, cellType, C, leafEnd, inMap, isWallish } from './world.js';
 import { hurt, pvpDamage, breakGlass } from './combat.js';
@@ -12487,7 +12502,13 @@ export function moveActor(S, w, a, inp, dt, ev) {
   else if (a.y - g > 0.04) {
     if (a.airTop == null) a.airTop = a.y;
     a.vy -= 9.8 * dt; a.y += a.vy * dt;
-    if (a.y <= g) { const v = -a.vy, hh = a.airTop - g; a.y = g; a.vy = 0; a.airTop = null; a.air = false; land(S, w, a, hh, v, ev); }
+    if (a.y <= g) {
+      const v = -a.vy, hh = a.airTop - g; a.y = g; a.vy = 0; a.airTop = null; a.air = false;
+      // 跳んだあとの軽い着地（音だけ）
+      if (a.jumped && hh < 1.2 && ev && !S.predict) ev.push({ e: 'fall', id: a.id, v: Math.round(v * 10) / 10, h: 0.4, d: 0, roll: 0, x: a.x, y: a.y, z: a.z, loud: 0.4 });
+      a.jumped = false;
+      land(S, w, a, hh, v, ev);
+    }
   }
   else { a.y = g; a.vy = 0; a.airTop = null; a.air = false; }
   a.ground = a.y - g < 0.05;
@@ -12649,6 +12670,20 @@ export function tryVault(S, w, a, ev) {
   a.vx = a.vz = 0; a.sprint = false;
   // 窓のガラスを割る（手元の先読みでは割らない。ホストが割って知らせる）
   if (p.gk >= 0 && !S.predict && ev) breakGlass(S, w, { k: p.gk, q: 1, x: p.x1, by: a.id }, ev);
+  return true;
+}
+// 跳ぶ（大規模戦。乗り越えのボタンで、越える物がないとき）: 立っていて足が地面についているときだけ。
+// 上へ 3.6 m/秒（約 0.66m）。頭の上が低いときは低く。宙では向きをほとんど変えられず、照準は広がる（weapon.js の airT）
+export const JUMP_V = 3.6;
+export function tryJump(S, w, a, ev) {
+  if (a.vault || a.air || !a.ground || a.st > 0.5 || a.down || a.dead || !a.alive || a.cuffed || a.comply || a.isDrone || (a.stun || 0) > 0) return false;
+  if ((a.jumpCd || 0) > S.t) return false;
+  const room = ceilAt(w, a.x, a.z, a.y) - (a.y + 1.85);
+  if (room < 0.15) return false;
+  const v = Math.min(JUMP_V, Math.sqrt(2 * 9.8 * Math.max(0.05, room)));
+  a.vy = v; a.y += 0.05; a.air = true; a.ground = false; a.airTop = a.y; a.jumped = true;
+  a.jumpCd = S.t + Math.round(0.35 / S.dt);
+  if (ev) ev.push({ e: 'jump', id: a.id });
   return true;
 }
 function stepVault(S, w, a, dt) {
@@ -13544,7 +13579,7 @@ export function stepStatus(S, w, dt, ev) {
   }
 }
 
-@@@@ FILE src/engine/weapon.js text 18363
+@@@@ FILE src/engine/weapon.js text 18604
 // 銃の動き: 撃つ・弾倉（1本ずつ残弾）・通常/速いリロード・1発ずつ込める・ポンプ・持ち替え・反動（BattleBit式）・散らばり
 import { WEAPONS, AMMO, ATTACH, zoomsOf, swayOf } from './data/weapons.js';
 import { LONG, HAND_LONG } from './data/equipment.js';
@@ -13600,6 +13635,8 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   // 反動の戻り（撃ち続けている間は弱く）
   const W = curW(a), wi = curWeapon(a);
   const since = (S.t - ws.lastShot) * S.dt;
+  // 指で下へ押さえた分（大規模戦の人の操作 inp.rc 度）は反動の分から引く（戻りで二重に下がらない。game.js _look）
+  if (inp.rc > 0 && ws.rp > 0) ws.rp = Math.max(0, ws.rp - Math.min(inp.rc, 30));
   if (W) {
     const ctrl = W.rc.ctrl * (since > 0.12 ? 1 : 0.25);
     const dec = ctrl * dt;
@@ -15372,7 +15409,7 @@ export class Mqtt {
   }
 }
 
-@@@@ FILE src/net/session.js text 18779
+@@@@ FILE src/net/session.js text 19150
 // 通信の取り決め（ロビー・開始・試合中・結果）。通信路（link）とは send/onMsg だけでつながる。
 // ホストが正（ホスト権威）: エンジンはホストだけが動かす。ゲストは入力と動作（番号つき）を送り、ホストの写しを表示する。
 import { VERSION, COMPAT } from '../engine/data/version.js';
@@ -15482,7 +15519,7 @@ export class HostSession {
     G.input = {
       mx: isNum(i.mx) ? clamp(i.mx, -1, 1) : 0, mz: isNum(i.mz) ? clamp(i.mz, -1, 1) : 0,
       yaw: isNum(i.y) ? i.y : 0, pitch: isNum(i.p) ? clamp(i.p, -1.5, 1.5) : 0,
-      fire: !!i.f, ads: !!i.a, low: !!i.l, stance: [0, 1, 2].includes(i.s) ? i.s : 0, lean: isNum(i.ln) ? clamp(Math.round(i.ln), -1, 1) : 0, sprint: !!i.sp, breath: !!i.br, power: isNum(i.pw) ? clamp(i.pw, 0.1, 1) : 0.75,
+      fire: !!i.f, ads: !!i.a, low: !!i.l, stance: [0, 1, 2].includes(i.s) ? i.s : 0, lean: isNum(i.ln) ? clamp(Math.round(i.ln), -1, 1) : 0, sprint: !!i.sp, breath: !!i.br, rcT: isNum(i.rc) && i.rc >= 0 ? i.rc : null, power: isNum(i.pw) ? clamp(i.pw, 0.1, 1) : 0.75,
       jump: !!i.j, dr: !!i.dr,
     };
     G.inAt = nowMs();
@@ -15493,6 +15530,8 @@ export class HostSession {
     const G = r && this.guests.get(r.cid);
     if (!G || !G.input || nowMs() - (G.inAt || 0) > 1500) return { mx: 0, mz: 0, yaw: a ? a.yaw : 0, pitch: a ? a.pitch : 0, fire: false, ads: false, low: false, stance: a ? a.stance : 0, lean: 0, act: G && G.acts.length ? G.acts.splice(0) : null };
     const inp = { ...G.input, act: G.acts.length ? G.acts.splice(0) : null };
+    // 反動の押さえ: ゲストは押さえた量の合計（度）を送る。前のステップからの増えた分だけ渡す（同じ入力が何回使われても1回分）
+    if (inp.rcT != null) { if (G.rcT == null || inp.rcT < G.rcT) G.rcT = inp.rcT; inp.rc = clamp(inp.rcT - G.rcT, 0, 30); G.rcT = inp.rcT; }
     return inp;
   }
   // 試合中に通信の切れた人（ホストは試合を止めて待つ）
@@ -23249,7 +23288,7 @@ export function buildPlan(w, def, s = 4) {
   return { levels, s };
 }
 
-@@@@ FILE src/ui/hudlayout.js text 9270
+@@@@ FILE src/ui/hudlayout.js text 9279
 // HUD のボタンの既定の配置（CODモバイル／PUBGモバイルを参考）。基準は 844×390 の横画面。
 // ax: 'l'|'r'|'c'（左右の基準）、ay: 't'|'b'|'c'。x, y は基準からの距離（中心まで）、s は直径、o は濃さ。
 // 設定の hud[id] = { x, y, s, o, hide } で上書きする（HUD の編集）。
@@ -23260,7 +23299,7 @@ export const BTN = {
   reload: { name: 'リロード', ax: 'r', ay: 'b', x: 36, y: 205, s: 50, icon: 'reload' },
   crouch: { name: 'しゃがむ（長押しで伏せ）', ax: 'r', ay: 'b', x: 36, y: 40, s: 50, icon: 'crouch' },
   breath: { name: '息止め（構えている間）', ax: 'r', ay: 'b', x: 240, y: 126, s: 50, icon: 'breath', warOnly: true, adsOnly: true },
-  vault: { name: '乗り越え', ax: 'r', ay: 'b', x: 160, y: 200, s: 48, icon: 'vault' },
+  vault: { name: '乗り越え・跳ぶ', ax: 'r', ay: 'b', x: 160, y: 200, s: 48, icon: 'vault' },
   melee: { name: '近接（銃床で殴る）', ax: 'r', ay: 'b', x: 160, y: 254, s: 44, icon: 'melee' },
   leanL: { name: '左にリーン', ax: 'l', ay: 'b', x: 36, y: 168, s: 48, icon: 'leanL' },
   leanR: { name: '右にリーン', ax: 'l', ay: 'b', x: 210, y: 168, s: 48, icon: 'leanR' },
@@ -23816,7 +23855,7 @@ export function weaponCard(spec, kind) {
     <p class="desc">${esc(W.desc || '')}</p><p class="note">初速 ${W.vel || '-'} m/s · 重さ ${W.kg || '-'} kg</p>`;
 }
 
-@@@@ FILE src/ui/screens.js text 56727
+@@@@ FILE src/ui/screens.js text 56784
 // 画面: 読み込み・タイトル（WAR BIT）・PLAY（モードと人数）・一時停止・地図（タブレット）・結果・設定。
 // メニューの形と表記は BattleBit に合わせる（英語の大文字に日本語を小さく添える。research/WARBIT.md の 10）。
 // 旧 HARD ENTRY の画面（作戦・対戦・訓練・ロビー・資料室）はメニューから外した（11-13 03:10・03:15 の要望）。中身は後で消す
@@ -24347,7 +24386,7 @@ export class Screens {
       row('射撃ボタン（左）', '', 'leftFire'); ch('leftFire', [[true, '表示'], [false, '非表示']]);
       row('射撃ボタンで視点移動', '押したままドラッグ', 'fireLook'); ch('fireLook', [[true, 'オン'], [false, 'オフ']]);
       row('利き手', 'ボタンの左右を反転', 'handed'); ch('handed', [['right', '右'], ['left', '左']]);
-      note('キーボード: WASD 移動／Shift 走る（構えている間は押している間だけ息止め）／マウス 視点（画面をクリック）／左クリック 射撃／右クリック ADS／Q・E リーン／C しゃがみ／Z 伏せ／Space 乗り越え／R リロード（長押しで高速）／G 投げ物／1・2 武器／X 射撃モード／T ライト／Y 近接（銃床）／Tab スコア表／M 地図／Esc 一時停止');
+      note('キーボード: WASD 移動／Shift 走る（構えている間は押している間だけ息止め）／マウス 視点（画面をクリック）／左クリック 射撃／右クリック ADS／Q・E リーン／C しゃがみ／Z 伏せ／Space 乗り越え（大規模戦では越える物がなければ跳ぶ）／R リロード（長押しで高速）／G 投げ物／1・2 武器／X 射撃モード／T ライト／Y 近接（銃床）／Tab スコア表／M 地図／Esc 一時停止');
     } else if (tab === 'sens') {
       row('視点', '', 'sens'); sl('sens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ADS', '等倍', 'sensAds'); sl('sensAds', 0.2, 1.5, 0.05, pct);
@@ -29027,7 +29066,7 @@ export async function runTests(filter) {
   return res;
 }
 
-@@@@ FILE tests/run_all.mjs text 65376
+@@@@ FILE tests/run_all.mjs text 67756
 // テスト一式: node tests/run_all.mjs [--quick] [--no-sizes] → test-results/summary.md
 //  1 ビルド  2 単体  3 マップ（WAR BIT: 本陣・拠点・出撃の場所が範囲の中・本陣から拠点まで歩ける）  4 音
 //  5 自動の試合（コンクエスト・ドミネーション・TDM をボットだけで最後まで・同じシードで同じ結果・人数ごとの速さ）
@@ -29498,6 +29537,37 @@ try {
       await page.waitForFunction(() => !window.__app.game.p.ws.holding, null, { timeout: 10000 }).catch(() => {});
       const b4 = await page.evaluate(() => !window.__app.game.p.ws.holding && !window.__app.game.breathOn);
       rec('操作', '息止めは切り替え: 押して離しても止めたまま・もう1回で戻す・構えをやめると切れる', b1 && b2 && b3 && b4, JSON.stringify({ b1, b2, b3, b4 }));
+    }
+    // 反動の押さえ（research の 19）: 反動で上がっている間に下へ引いた分は反動から引き、体の向きは下げない。上がっていなければ向きが下がる
+    {
+      const rc = await page.evaluate(() => {
+        const g = window.__app.game, p = g.p, inp = { lookDX: 0, lookDY: 40, mouse: true, fire: false, gyroX: 0, gyroY: 0, hold: new Set() };
+        g.adsOn = false; p.ws.rp = 8; g.rcComp = 0; const p0 = g.pitch;
+        g._look(inp, 0.016);
+        const r1 = { dPitch: +(g.pitch - p0).toFixed(4), comp: +(g.rcComp || 0).toFixed(3) };
+        p.ws.rp = 0; g.rcComp = 0; const p1 = g.pitch;
+        g._look(inp, 0.016);
+        return { ...r1, dPitch2: +(g.pitch - p1).toFixed(4) };
+      });
+      rec('操作', '反動の押さえ: 反動で上がっている間に下へ引いた分は反動から引く（体の向きは下げない）', rc.dPitch === 0 && rc.comp > 0 && rc.dPitch2 < 0, JSON.stringify(rc));
+    }
+    // 跳ぶ（乗り越えのボタン。越える物がない射台の上）
+    {
+      // 射台の机などを越えないよう、越える物のない向きを探す（越えたら向きを変えてやり直す）
+      let y0 = 0, top = 0, y1 = 0, vaulted = 0;
+      for (let k = 0; k < 4; k++) {
+        await page.waitForFunction(() => window.__app.game.p.ground && !window.__app.game.p.vault, null, { timeout: 10000 }).catch(() => {});
+        y0 = await page.evaluate((k) => { const g = window.__app.game; g.yaw += k ? Math.PI / 2 : 0; return g.p.y; }, k);
+        await page.waitForTimeout(300);
+        await tapAt(await btn('vault'), 73 + k);
+        const r = await page.evaluate(async () => { const p = window.__app.game.p; let t = p.y, v = false; for (let i = 0; i < 40; i++) { await new Promise(r => setTimeout(r, 25)); t = Math.max(t, p.y); v = v || !!p.vault; } return { t, v }; });
+        top = r.t;
+        if (r.v) { vaulted++; continue; }
+        await page.waitForFunction(() => window.__app.game.p.ground, null, { timeout: 10000 }).catch(() => {});
+        y1 = await page.evaluate(() => window.__app.game.p.y);
+        break;
+      }
+      rec('操作', '乗り越えのボタン: 越える物がなければ跳ぶ（大規模戦）', top - y0 > 0.3 && Math.abs(y1 - y0) < 0.1, `高さ ${(top - y0).toFixed(2)}m・降りて ${(y1 - y0).toFixed(2)}・越えた ${vaulted}`);
     }
     await page.evaluate(() => { window.__app.game.adsOn = false; });
     const bar = await page.evaluate(() => (document.querySelector('#hud .hud-obj .wb.rg') || {}).textContent || '');
@@ -31646,6 +31716,77 @@ test('war engine: 破片手榴弾（4秒・5mでほぼ致命・15mまで）と�
   let t2 = -1;
   for (let i = 0; i < 120 && t2 < 0; i++) { const e = step(G2, inp(b, { pitch: -0.6 })); if (e.some(x => x.e === 'boom')) t2 = i; }
   ok(t2 >= 0 && t2 < 60, `当たってすぐ爆発 ${t2}`);
+});
+
+@@@@ FILE tests/unit/war_jump.test.mjs text 3643
+import { test, ok, near } from '../lib/t.mjs';
+import { createGame, step } from '../../src/engine/engine.js';
+
+function game(o = {}) { return createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false, ...o }); }
+const inp = (a, o = {}) => ({ [a.id]: Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o) });
+
+test('跳ぶ: 越える物がない所で乗り越えのボタン（jump 付き）→ 約 0.66m 跳んで同じ高さに降りる', () => {
+  const G = game(), a = G.S.actors[0];
+  for (let i = 0; i < 30; i++) step(G, inp(a));
+  const y0 = a.y;
+  const ev = step(G, inp(a, { act: [{ a: 'vault', jump: 1 }] }));
+  ok(ev.some(e => e.e === 'jump' && e.id === a.id), '跳んだ合図');
+  let top = a.y, n = 0, landed = false, air = false;
+  for (; n < 120; n++) {
+    const e = step(G, inp(a));
+    top = Math.max(top, a.y);
+    if (!a.ground) air = true;
+    if (e.some(x => x.e === 'fall' && x.id === a.id && x.d === 0)) landed = true;
+    if (air && a.ground) break;
+  }
+  ok(air, '宙に出る');
+  ok(top - y0 > 0.55 && top - y0 < 0.8, `高さ ${(top - y0).toFixed(2)}m`);
+  ok(n / 60 > 0.55 && n / 60 < 0.9, `宙にいる時間 ${(n / 60).toFixed(2)} 秒`);
+  near(a.y, y0, 0.05, '同じ高さに降りる');
+  ok(landed, '軽い着地の音');
+  ok(a.hp === a.maxHp, '傷つかない');
+});
+
+test('跳ぶ: jump の付かない乗り越え（ボット）や、しゃがみ・宙では跳ばない', () => {
+  const G = game(), a = G.S.actors[0];
+  for (let i = 0; i < 30; i++) step(G, inp(a));
+  const y0 = a.y;
+  step(G, inp(a, { act: [{ a: 'vault' }] }));
+  for (let i = 0; i < 10; i++) step(G, inp(a));
+  near(a.y, y0, 0.01, 'jump なしは跳ばない');
+  for (let i = 0; i < 40; i++) step(G, inp(a, { stance: 1 }));
+  step(G, inp(a, { stance: 1, act: [{ a: 'vault', jump: 1 }] }));
+  for (let i = 0; i < 10; i++) step(G, inp(a, { stance: 1 }));
+  near(a.y, y0, 0.01, 'しゃがんでいると跳ばない');
+  for (let i = 0; i < 40; i++) step(G, inp(a));
+  step(G, inp(a, { act: [{ a: 'vault', jump: 1 }] }));
+  for (let i = 0; i < 6; i++) step(G, inp(a));
+  const y1 = a.y;
+  step(G, inp(a, { act: [{ a: 'vault', jump: 1 }] }));
+  step(G, inp(a));
+  ok(a.y < y1 + 0.2 && !(a.vy > 3), '宙ではもう一度跳ばない');
+});
+
+test('跳ぶ: 走って跳ぶと勢いのまま前へ進み、宙では照準が広がる', () => {
+  const G = game(), a = G.S.actors[0];
+  for (let i = 0; i < 90; i++) step(G, inp(a, { mz: 1, sprint: true }));
+  const sp = Math.hypot(a.vx, a.vz);
+  step(G, inp(a, { mz: 1, sprint: true, act: [{ a: 'vault', jump: 1 }] }));
+  for (let i = 0; i < 15; i++) step(G, inp(a, { mz: 1, sprint: true }));
+  ok(!a.ground && Math.hypot(a.vx, a.vz) > sp * 0.8, `宙でも速さを保つ ${Math.hypot(a.vx, a.vz).toFixed(2)} / ${sp.toFixed(2)}`);
+  ok((a.airT || 0) > 0.12, '宙にいる時間が数えられる（照準が広がる）');
+});
+
+test('反動の押さえ: 下へ引いた分（inp.rc 度）は反動の分から引き、0 より下にはしない', () => {
+  const G = game(), a = G.S.actors[0];
+  for (let i = 0; i < 30; i++) step(G, inp(a, { ads: true }));
+  for (let i = 0; i < 6; i++) step(G, inp(a, { ads: true, fire: true }));
+  const rp = a.ws.rp;
+  ok(rp > 0.3, `撃つと反動で上がる ${rp.toFixed(2)}°`);
+  step(G, inp(a, { ads: true, fire: false, rc: rp * 0.5 }));
+  ok(a.ws.rp < rp * 0.55, `押さえた分だけ下がる ${a.ws.rp.toFixed(2)}° < ${(rp * 0.55).toFixed(2)}°`);
+  step(G, inp(a, { ads: true, rc: 50 }));
+  ok(a.ws.rp === 0, '0 より下にはならない');
 });
 
 @@@@ FILE tests/unit/war_modes.test.mjs text 7103
