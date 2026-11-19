@@ -1,6 +1,7 @@
 // 入力: タッチ（スティック・視点・ボタン、2本指以上の同時操作）、長押し、円形メニュー、ジャイロ、キーボードとマウス
 // タップは pointerup で判定し、続く click は捨てる（iPhoneは2本目の指に click が来ない）
 import { sprintZone } from './stick.js';
+import { LookResampler } from './lookres.js';
 let lastTapUp = 0;
 export const tapHooks = [];
 export const tapGuard = { drag: false };
@@ -42,7 +43,7 @@ export class Input {
     this.stage = stage; this.area = area; this.audio = audio;
     this.enabled = false;
     this.S = {}; // 設定
-    this.mx = 0; this.mz = 0; this.lookDX = 0; this.lookDY = 0;
+    this.mx = 0; this.mz = 0; this.lookDX = 0; this.lookDY = 0; this.lk = new LookResampler();
     this.ptr = new Map(); // pointerId → {kind: 'stick'|'look'|'btn', btn, x, y, t0, moved, long}
     this.stick = null;
     this.hold = new Set(); // 押している最中のボタン
@@ -61,7 +62,7 @@ export class Input {
   }
   setSettings(s) { this.S = s; this._gyroSetup(); }
   reset() {
-    this.mx = this.mz = this.lookDX = this.lookDY = 0;
+    this.mx = this.mz = this.lookDX = this.lookDY = 0; this.lk = new LookResampler();
     this.ptr.clear(); this.stick = null; this.hold.clear(); this.edges.length = 0; this.keys.clear();
     this.sprintArm = false; this.sprintLock = false; this.sprPress = 0;
     this.mouseBtn = { l: false, r: false };
@@ -119,12 +120,12 @@ export class Input {
       if (!p) return;
       const [sx, sy] = this.stage.toStage(e.clientX, e.clientY);
       if (p.kind === 'stick') this._stickMove(sx, sy);
-      else if (p.kind === 'look') { this.lookDX += sx - p.x; this.lookDY += sy - p.y; p.x = sx; p.y = sy; }
+      else if (p.kind === 'look') { this.lk.add(sx - p.x, sy - p.y, evT(e)); p.x = sx; p.y = sy; }
       else if (p.kind === 'radialTap') this._radialMove(sx, sy);
       else if (p.kind === 'btn') {
         p.moved = Math.max(p.moved, Math.hypot(sx - p.x0, sy - p.y0));
         if (this.radial && this.radial.pid === e.pointerId) { this._radialMove(sx, sy); }
-        else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) { this.lookDX += sx - p.x; this.lookDY += sy - p.y; } }
+        else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) this.lk.add(sx - p.x, sy - p.y, evT(e)); }
         p.x = sx; p.y = sy;
       }
     }, { passive: false });
@@ -264,8 +265,10 @@ export class Input {
       const kz = (K.has('KeyW') || K.has('ArrowUp') ? 1 : 0) - (K.has('KeyS') || K.has('ArrowDown') ? 1 : 0);
       if (kx || kz) { mx = kx; mz = kz; const l = Math.hypot(mx, mz); mx /= l; mz /= l; }
     }
+    // タッチの見回しは時刻で直線に求めて取り出す（lookres.js）。マウスはそのまま
+    const [tlx, tly] = this.lk.take(performance.now());
     const out = {
-      mx, mz, lookDX: this.lookDX, lookDY: this.lookDY, gyroX: this.gyro.x, gyroY: this.gyro.y,
+      mx, mz, lookDX: this.lookDX + tlx, lookDY: this.lookDY + tly, gyroX: this.gyro.x, gyroY: this.gyro.y,
       fire: this.hold.has('fire') || this.hold.has('fireL') || this.mouseBtn.l,
       sprint: this.sprintArm || this.sprintLock || K.has('ShiftLeft') || this.hold.has('sprint'), sprPress: this.sprPress,
       hold: this.hold, edges: this.edges.slice(),

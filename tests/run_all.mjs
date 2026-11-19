@@ -423,6 +423,20 @@ try {
     await page.evaluate(() => { const a = window.__app; a.settings.hud = a.settings.hud || {}; a.settings.hud.fire = { x: 300, y: 160, s: 100 }; a.settings.hud.reload = { x: 80, y: 260 }; a.applySettings(); a.pauseGame(); a.editHud(() => a.screens.reset('pause')); });
     await page.waitForTimeout(500);
     await shot('HUDの編集');
+    // 11-19 23:27: 作り直す前の物（監視カメラ・命令・警告など）は編集にも出さない。設定の欄はつかんで動かせる
+    {
+      const old = await page.evaluate(() => ['cams', 'cmd', 'team', 'shout', 'use', 'nvg', 'drone', 'zone'].filter(id => { const e = document.querySelector(`#hud [data-btn="${id}"]`); return e && !e.classList.contains('hidden') && getComputedStyle(e).display !== 'none'; }));
+      const g = await page.evaluate(() => { const e = document.querySelector('#hud .hud-editbar .grip'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      let moved = null;
+      if (g) {
+        await touch('touchStart', [{ x: g.x, y: g.y, id: 39 }]);
+        for (let i = 1; i <= 6; i++) { await touch('touchMove', [{ x: g.x - 30 * i, y: g.y + 8 * i, id: 39 }]); await page.waitForTimeout(16); }
+        await touch('touchEnd', []);
+        await page.waitForTimeout(200);
+        moved = await page.evaluate(() => { const P = window.__app.settings.hudBarPos; delete window.__app.settings.hudBarPos; return P || null; });
+      }
+      rec('操作', 'HUDの編集: 作り直す前のボタンは出ない・設定の欄はつかんで動かせる', !old.length && !!moved, JSON.stringify({ old, moved }));
+    }
     const bar = await page.evaluate(() => { const b = document.querySelector('#hud .hud-editbar') || document.querySelector('.hud-editbar'); if (!b) return { miss: 'bar' }; const r = b.getBoundingClientRect(); const c = (s) => { const e = b.querySelector(s); if (!e) return null; const q = e.getBoundingClientRect(); return { x: q.left + q.width / 2, y: q.top + q.height / 2 }; }; const o = { all: c('[data-a="resetAll"]'), done: c('[data-a="done"]'), r: [r.left, r.top, r.width, r.height] }; if (!o.all || !o.done) o.miss = b.outerHTML.slice(0, 160); return o; });
     let once = false, twice = false;
     if (bar.miss) console.log('HUD edit bar:', bar.miss);
@@ -505,7 +519,7 @@ try {
       const r = await page.evaluate(async () => { const c = document.querySelector('#hud .hud-cross'); let hid = 0, n = 0; for (let i = 0; i < 40; i++) { await new Promise(r => requestAnimationFrame(r)); n++; if (c.classList.contains('hidden')) hid++; } return { hid, n, ads: window.__app.game.p.ads }; });
       rec('画面', '照準の十字が点滅しない（構えていない間はずっと出ている）', r.hid === 0 && r.ads < 0.1, JSON.stringify(r));
     }
-    // スコープの中の像（6倍未満）: 銃とスコープの筒が見えたまま、レンズの丸の中だけ拡大して描く。6倍は画面いっぱいの黒い輪
+    // スコープ（11-19 23:27）: どの倍率も画面ぜんたいを寄せ、筒の輪を重ねる（輪の外も同じ倍率で見える）
     {
       const res = {};
       await page.evaluate(() => { const p = window.__app.game.p, wi = p.inv.w[p.ws.slot]; window.__sg0 = [wi.att.sight, wi.zi]; });
@@ -513,13 +527,13 @@ try {
         await page.evaluate((sg) => { const g = window.__app.game, p = g.p, wi = p.inv.w[p.ws.slot]; wi.att.sight = sg; wi.zi = 0; g.adsOn = true; }, sg);
         await page.waitForFunction(() => window.__app.game.p.ads > 0.98, null, { timeout: 20000 }).catch(() => {});
         await page.waitForTimeout(600);
-        res[sg] = await page.evaluate(() => { const g = window.__app.game, r = window.__app.renderer; return { pip: r.pipOn, lensR: g._pip ? Math.round(g._pip.r) : 0, cls: document.querySelector('#hud .hud-scope').className, vm: g.vm.on && !g.vm.scoped }; });
+        res[sg] = await page.evaluate(() => { const g = window.__app.game, r = window.__app.renderer; return { pip: r.pipOn, cls: document.querySelector('#hud .hud-scope').className, vm: g.vm.on && !g.vm.scoped, fz: g.cam ? +(Math.tan(g._fov0 / 2) / Math.tan(g.cam.fov / 2)).toFixed(2) : 0 }; });
         await page.evaluate(() => { window.__app.game.adsOn = false; });
         await page.waitForTimeout(400);
       }
       await page.evaluate(() => { const g = window.__app.game, p = g.p, wi = p.inv.w[p.ws.slot]; wi.att.sight = window.__sg0[0]; wi.zi = window.__sg0[1]; });
-      const okP = res.acog.pip && res.acog.lensR > 40 && /pip/.test(res.acog.cls) && res.acog.vm && !res.scope6.pip && /scope6/.test(res.scope6.cls) && !/pip/.test(res.scope6.cls);
-      rec('画面', 'スコープ: 4倍はレンズの中だけ拡大（銃が見える）・6倍は画面いっぱい', okP, JSON.stringify(res));
+      const okP = !res.acog.pip && !res.scope6.pip && /acog/.test(res.acog.cls) && /scope6/.test(res.scope6.cls) && !/pip/.test(res.acog.cls + res.scope6.cls) && !res.acog.vm && !res.scope6.vm && Math.abs(res.acog.fz - 4) < 0.3 && Math.abs(res.scope6.fz - 6) < 0.4;
+      rec('画面', 'スコープ: どの倍率も画面ぜんたいを倍率どおりに寄せ、筒の輪を重ねる（輪の外も見える・BattleBit に合わせる）', okP, JSON.stringify(res));
     }
     // 敵に印（11-19）: 標的を狙って印のボタン → 分隊に見える印がつく
     {

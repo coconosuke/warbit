@@ -8,6 +8,8 @@ import { vaultPlan } from '../engine/move.js';
 import { depSpot, DEP_WHY } from '../engine/deploy.js';
 import { raycast, CS, LH, levelOfY, los } from '../engine/world.js';
 import { smokeBetween } from '../engine/nades.js';
+// 大規模戦のエイムアシストの強さ: [体の上での見回しの速さ]（敵の見かけの動きには 1 - これ だけついていく）
+const AA_WAR = { off: [1], weak: [0.85], mid: [0.75], strong: [0.65], max: [0.55] };
 import { sideOf, isOpen } from '../engine/doors.js';
 import { WEAPONS, zoomOf, opticOf, zoomsOf, swayCamK, scopePip } from '../engine/data/weapons.js';
 import { GEAR, LONG } from '../engine/data/equipment.js';
@@ -161,30 +163,36 @@ export class Match {
     // 倍率の照準器は「スコープ」の感度（4倍が基準）を倍率に合わせて変える（画面の上で同じ速さ。2倍は0.72・8倍は0.23）
     if (ads > 0.5) k *= zoom >= 1.5 ? (st.sensScope || 0.45) * Math.min(1.6, 4 / zoom) : (st.sensAds || 0.75);
     if (inp.fire && !inp.mouse) k *= st.sensFire || 1;
-    // エイムアシスト（タッチ）: 敵の近くでは少しゆっくりに。対戦は部屋の設定（0なし・1弱い・2ふつう）
-    let want = 1;
-    const aa = this.S.war ? 'off' : this.S.pvp ? ['off', 'weak', 'strong'][this.S.rules.aimAssist ?? 1] : st.aimAssist;
-    if (!inp.mouse && aa && aa !== 'off') {
+    // エイムアシスト（タッチ）。対戦は部屋の設定（0なし・1弱い・2ふつう）
+    let want = 1, track = null;
+    const aa = this.S.war ? (st.aimAssist || 'mid') : this.S.pvp ? ['off', 'weak', 'strong'][this.S.rules.aimAssist ?? 1] : st.aimAssist;
+    if (this.S.war) {
+      // 大規模戦（11-19 23:27 の要望: オフ〜最大を選べる。最大でも撃ち合いが崩れない強さ）。照準を敵へ引き寄せることはしない
+      //  ① 減速: 照準が敵の体の近くにある間、見回しをゆっくりに（体の見かけの大きさに合わせる。遠い敵ほど狭い）
+      //  ② 追従: 照準が敵の体の上にあり、指で見回している・歩いている・構えている・撃っている時だけ、敵の見かけの動きの一部についていく
+      const L = AA_WAR[aa] || AA_WAR.off;
+      if (!inp.mouse && L[0] < 1) {
+        const t = this._aaWar(ads > 0.5, zoom, dt);
+        if (t) {
+          if (t.k < 1.6) want = 1 - (1 - L[0]) * Math.min(1, (1.6 - t.k) / 0.6);
+          // 追従は「敵に対しての動き」に減速をかけるのと同じ: 指の動きは遅く、敵の見かけの動きは (1 - 遅さ) だけ足す。
+          //  指で正しく追えていれば速さは変わらず、追い足りない・追いすぎた分だけ助ける
+          const busy = Math.hypot(inp.lookDX, inp.lookDY) > 0 || Math.hypot(p.vx || 0, p.vz || 0) > 0.6 || ads > 0.5 || inp.fire;
+          if (busy && t.dy != null) track = { dy: t.dy, dp: t.dp };
+        }
+      }
+    } else if (!inp.mouse && aa && aa !== 'off') {
       // 倍率が高いスコープでは、画面の上で同じくらいの範囲になるよう角度を狭める
       const near = this._nearTarget(0.06 / Math.max(1, (ads > 0.5 ? zoom : 1) / 2));
       if (near) want = aa === 'strong' ? 0.55 : 0.72;
     }
     // 急に遅く・速くならないように、0.12秒かけて寄せる（11-12: エイムがなめらかに動かない）
     this.aaK = this.aaK == null ? want : this.aaK + (want - this.aaK) * (1 - Math.exp(-dt / 0.12));
+    if (track) { const f = 1 - this.aaK; track.dy *= f; track.dp *= f; }
     const slow = inp.mouse ? 1 : this.aaK;
-    let rdx = inp.lookDX, rdy = inp.lookDY;
-    if (!inp.mouse) {
-      // タッチの見回し（11-19 の要望: 遠くを狙うとかくつく）: 指の動きにそのまま比例（加速はしない。12:51）。
-      //  届いた量を一度にではなく 約20ms かけて足す（指の動きの届く間隔と、こまの間隔がずれても、細かい動きまで一定の速さで映る）
-      this.lkBX = (this.lkBX || 0) + rdx; this.lkBY = (this.lkBY || 0) + rdy;
-      // 指の速さ（画素/秒）をならす。遅いほど足す時間を長く（20〜50ms）: 1画素ずつ届くゆっくりした動きも段にならない
-      const sp0 = Math.hypot(rdx, rdy) / Math.max(dt, 1 / 240);
-      this.lkSp = this.lkSp == null ? sp0 : this.lkSp + (sp0 - this.lkSp) * (1 - Math.exp(-dt / 0.08));
-      const tau = 0.02 + 0.03 * Math.max(0, Math.min(1, 1 - this.lkSp / 160));
-      const f = 1 - Math.exp(-dt / tau);
-      rdx = this.lkBX * f; rdy = this.lkBY * f; this.lkBX -= rdx; this.lkBY -= rdy;
-      if (Math.abs(this.lkBX) < 1e-4) this.lkBX = 0; if (Math.abs(this.lkBY) < 1e-4) this.lkBY = 0;
-    }
+    // タッチの見回し: 指の動きにそのまま比例（加速はしない）。なめらかさは入力の側で、指の位置を時刻で直線に求めて出す
+    //  （11-19 23:27: 前の「20〜50ms のならし」は遅れ 7〜36ms・止めた後に尾。今は遅れ 2〜9ms・ぴたりと止まる。lookres.js）
+    const rdx = inp.lookDX, rdy = inp.lookDY;
     let dx = rdx * k * slow, dy = rdy * k * slow * 0.9;
     // ジャイロ
     const gy = st.gyro || 'off';
@@ -200,6 +208,7 @@ export class Match {
     if (p.peek) { const mx = p.peek.max || 1; this.pkYaw = clamp(this.pkYaw - dx * 0.8, -mx, mx); this.pkPitch = clamp(this.pkPitch - dy * 0.8 * (st.invertY ? -1 : 1), -0.55, 0.7); return; }
     this.yaw -= dx;
     let dP = -dy * (st.invertY ? -1 : 1);
+    if (track) { this.yaw += track.dy; dP += track.dp; }
     // 反動の押さえ（大規模戦。BattleBit の 2024 の手直し・research の 19）: 反動で上がっている間に下へ引いた分は、
     //  まず反動の分から引く（体の向きは下げない）。あとで反動が戻るときに二重に下がらない。エンジンへは cmd.rc（度）で渡す
     if (this.S.war && dP < 0 && p.ws && p.alive) {
@@ -221,6 +230,40 @@ export class Match {
       if (hd > 0.12) { let dyaw = Math.atan2(tx, tz) - this.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); this.yaw += dyaw * kk; }
       this.pitch += (wantP - this.pitch) * kk;
     }
+  }
+  // 大規模戦のエイムアシストの相手: 見えている敵のうち、照準に一番近いもの（体の見かけの大きさで割った角度 k。1 で体の端）。
+  //  見えるかどうか（壁・煙）は 0.2 秒ごとに調べ直す。前のこまからの敵の見かけの動き（dy・dp）も返す
+  _aaWar(adsOn, zoom, dt) {
+    const S = this.S, p = this.p; if (!p.alive || p.down) { this._aaPrev = null; return null; }
+    const e = eyeOf(S, p), R = adsOn ? Math.min(400, 70 * Math.max(1, zoom)) : 45;
+    const vis = this._aaVis || (this._aaVis = new Map());
+    let best = null;
+    for (const b of S.actors) {
+      if (b === p || !b.alive || b.down || b.isDrone || b.team === p.team || b.staged) continue;
+      const hh = b.stance === 2 ? 0.3 : b.stance === 1 ? 0.85 : 1.2;
+      const dx = b.x - e[0], dy = b.y + hh - e[1], dz = b.z - e[2], hd = Math.hypot(dx, dz), d = Math.hypot(hd, dy);
+      if (d > R || d < 0.5) continue;
+      const yw = Math.atan2(dx, dz), pt = Math.atan2(dy, hd);
+      const ay = Math.atan2(Math.sin(yw - this.yaw), Math.cos(yw - this.yaw)) * Math.cos(pt), ap = pt - this.pitch;
+      // 体の見かけの半分の幅（伏せは低く横に長いので縦を狭める）+ 少しの余裕
+      const half = Math.atan2(b.stance === 2 ? 0.45 : 0.32, d) + 0.004, halfV = Math.atan2(b.stance === 2 ? 0.25 : b.stance === 1 ? 0.5 : 0.75, d) + 0.004;
+      const k = Math.hypot(ay / half, ap / halfV);
+      if (k > 2.2 || (best && k >= best.k)) continue;
+      let v = vis.get(b.id);
+      if (!v || this.time - v.t > 0.2) { v = { t: this.time, ok: warLos(this.w, e[0], e[1], e[2], b.x, b.y + hh, b.z) && smokeBetween(S, e[0], e[1], e[2], b.x, b.y + hh, b.z) < 0.6 }; vis.set(b.id, v); }
+      if (!v.ok) continue;
+      best = { k, id: b.id, yw, pt };
+    }
+    if (vis.size > 64) vis.clear();
+    const pv = this._aaPrev;
+    this._aaPrev = best ? { id: best.id, yw: best.yw, pt: best.pt } : null;
+    if (!best) return null;
+    if (pv && pv.id === best.id) {
+      // 1こまの見かけの動き（大きすぎるのは相手が入れ替わった・飛んだとみなして使わない）
+      const dyw = Math.atan2(Math.sin(best.yw - pv.yw), Math.cos(best.yw - pv.yw)), dpt = best.pt - pv.pt;
+      if (Math.abs(dyw) < 0.05 && Math.abs(dpt) < 0.05) { best.dy = dyw; best.dp = dpt; }
+    }
+    return best;
   }
   // 照準の近くの敵（エイムアシスト用）
   _nearTarget(cone) {
@@ -894,8 +937,9 @@ export class Match {
       const W = curW(p), wi = curWeapon(p);
       const zoom = zoomOf(wi);
       const fov0 = vfovOf(st.hfov);
-      // スコープの中の像（大規模戦・倍率 6 未満）: 画面全体は少しだけ寄せ（1.2倍）、レンズの中だけ倍率どおりに拡大して描く
-      const pip = !!(S.war && st.scopePip !== 'off' && scopePip(wi));
+      // スコープ（11-19 23:27: BattleBit に合わせる）: どの倍率も画面ぜんたいを倍率どおりに寄せ、筒の黒い輪を重ねる。輪の外も同じ倍率で見える。
+      //  前は 6倍未満だけ「レンズの中だけ拡大（外は寄せない）」で、倍率を変えると周りの見え方が変わっていた
+      const pip = false;
       this._pipMode = pip; this._fov0 = fov0;
       const z = pip ? 1 + 0.2 * p.ads : 1 + (zoom - 1) * p.ads;
       // 被弾のぶれ（エイムパンチ）と揺れ

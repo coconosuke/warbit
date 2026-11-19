@@ -6,7 +6,7 @@ export const DEFAULTS = {
   sv: 2,
   // 視点と照準
   sens: 1.0, sensAds: 0.75, sensScope: 0.45, sensFire: 1.0, invertY: false, fireLook: true,
-  aimAssist: 'weak', // off | weak | strong（対戦は部屋の設定が優先）
+  aimAssist: 'mid', // off | weak | mid | strong | max（大規模戦。タッチだけ。11-19 23:27）
   gyro: 'off', gyroSens: 1.0, gyroInvX: false, gyroInvY: false,
   // 操作
   adsMode: 'tap', // tap（押すたび切替）| hold（押している間）| mixed（短く押すと切替・長く押すと押している間）

@@ -11,7 +11,8 @@ import { CS, LH, CEIL, NB, DSHIELD } from '../engine/world.js';
 import { buildWarFar, buildWarNear, buildWarGrass } from '../war/render.js';
 
 // 大規模戦の空（もやを薄く、遠くまで見える。日は少し低めで影が長い）
-export const WAR_SKY = { sky: [0.54, 0.66, 0.88], ground: [0.3, 0.29, 0.24], sun: [2.75, 2.52, 2.15], sunDir: (() => { const v = [0.5, 0.64, 0.36], l = Math.hypot(...v); return v.map(x => x / l); })(), fog: [0.7, 0.77, 0.86], fogD: 0.00105, amb: 0.03, exposure: 0.8, zenith: [0.23, 0.44, 0.86], horizon: [0.73, 0.8, 0.9], night: 0 };
+export const WAR_SKY = { sky: [0.54, 0.66, 0.88], ground: [0.3, 0.29, 0.24], sun: [2.75, 2.52, 2.15], sunDir: (() => { const v = [0.5, 0.64, 0.36], l = Math.hypot(...v); return v.map(x => x / l); })(), fog: [0.64, 0.74, 0.87], fogD: 0.00072, amb: 0.03, exposure: 0.8, zenith: [0.17, 0.39, 0.84], horizon: [0.58, 0.71, 0.9], night: 0 };
+// 11-19 23:27: 空が白っぽく霞んでいる → 地平線の白い帯を細く、空と遠くのもやを青く薄く（色はこの作品で決めた値）
 // 大規模戦の色の調整（11-19。BattleBit の落ち着いた色。research/WARBIT.md の 17）: 彩度を抑え、日の当たった緑と黄の色を少し抜く。
 //  白っぽく持ち上げるのはやめ（12:28: フェード感と白っぽさで見えにくい）、コントラストは少し締めて見やすく
 export const WAR_GRADE = { contrast: 1.05, lift: 0.0, liftCol: [0.6, 0.65, 0.72], hiDesat: 0.2, gain: [1.0, 1.0, 0.98], sat: 0.88 };

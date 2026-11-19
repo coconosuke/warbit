@@ -81,11 +81,11 @@ export class Hud {
     }
     this.btn.team.querySelector('.lb').textContent = '全員';
     // 編集の道具
-    this.editBar = el('div', 'hud-editbar', `<div class="nm">項目を選択</div>
-      <label>大きさ <input type="range" min="0.6" max="1.8" step="0.05" data-k="s"></label>
-      <label>濃さ <input type="range" min="0.15" max="1" step="0.05" data-k="o"></label>
+    this.editBar = el('div', 'hud-editbar', `<div class="r1"><div class="grip" role="button" aria-label="この欄を動かす"><i></i><i></i><i></i></div><div class="nm">項目を選択</div><button data-a="hide">隠す</button></div>
+      <div class="r2"><label>大きさ <input type="range" min="0.6" max="1.8" step="0.05" data-k="s"></label>
+      <label>濃さ <input type="range" min="0.15" max="1" step="0.05" data-k="o"></label></div>
       <label class="sprl" hidden>ダッシュの位置 <input type="range" min="1" max="2.4" step="0.05" data-k="spr"></label>
-      <button data-a="hide">隠す</button><button data-a="reset1">元に戻す</button><button data-a="resetAll">すべて初期化</button><button data-a="done" class="pri">保存</button>`);
+      <div class="r3"><button data-a="reset1">元に戻す</button><button data-a="resetAll">すべて初期化</button><button data-a="done" class="pri">保存</button></div>`);
     r.appendChild(this.editBar);
   }
   setSettings(s) { this.S = s; this.root.style.setProperty('--subbg', String(s.subBg ?? 0.42)); this.layout(); }
@@ -125,8 +125,10 @@ export class Hud {
       const offBySetting = def.opt === 'leftFire' && this.S.leftFire === false;
       if (offBySetting) hide = true;
       // 編集のときも、このモードで使わないボタン（大規模戦の 警告・調べる・暗視 など）は出さない（11-19 14:03）
-      if (this.editing) hide = (def.pve && !this.mode.pve) || (def.rangeOnly && !this.mode.range) || (def.warOnly && !this.mode.war) || (def.noWar && this.mode.war) || (def.pvp && !this.mode.drone) || (def.pvpOnly && !this.mode.pvp) ? true : false;
-      e.classList.toggle('hidden', hide && !this.editing);
+      // 11-19 23:27: 編集の時もここで隠す（前は薄くなるだけで、監視カメラ・命令・警告などが出ていた）。
+      // 編集は大規模戦の配置: 作り直す前の物（命令・警告・調べる・暗視・ドローン・監視カメラ・出現地点）は出さない。射撃場だけの物は置けるように出す
+      if (this.editing) hide = !!(def.pve || def.pvp || def.pvpOnly || def.noWar);
+      e.classList.toggle('hidden', hide);
       const [x, y] = this.posOf(def, ov);
       const s = (ov.s || 1) * def.s * k;
       const wdt = def.w ? def.w * (ov.s || 1) * k : s;
@@ -140,7 +142,7 @@ export class Hud {
       const sc = (ov.s || 1) * k;
       e.style.left = x + 'px'; e.style.top = y + 'px';
       e.style.transform = `translate(-50%,-50%) scale(${sc})`;
-      e.classList.toggle('hidden', (!!ov.hide && !this.editing) || (id === 'squad' && !this.mode.pve) || (id === 'minimap' && this.S.minimap === false) || (id === 'subs' && (this.mode.war || (this.S.subtitles === false && !this.editing))));
+      e.classList.toggle('hidden', (!!ov.hide && !this.editing) || (id === 'squad' && (!this.mode.pve || this.editing)) || (id === 'minimap' && this.S.minimap === false) || (id === 'subs' && (this.mode.war || (this.S.subtitles === false && !this.editing))));
       if (this.editing) e.style.opacity = ov.hide ? 0.25 : 1; else e.style.opacity = '';
     }
     // 移動スティック: 位置（固定のとき・待っているときの場所）・大きさ・濃さ・ダッシュの判定位置は HUD の設定（H.stick）
@@ -603,6 +605,8 @@ export class Hud {
   // ---- HUD の編集
   edit(settings, onSave, onDone) {
     this.editing = true; this.sel = null;
+    // 編集は大規模戦の配置で見せる（タイトルの設定から開いても、作り直す前のモードのボタンを出さない）
+    this._modeBak = this.mode; if (!this.mode || !this.mode.war) this.mode = { war: true, edit: true };
     this.root.classList.add('editing');
     this.layout();
     const H = settings.hud || (settings.hud = {});
@@ -622,7 +626,61 @@ export class Hud {
       bar.querySelector('.sprl').hidden = id !== 'stick';
       bar.querySelector('[data-a="hide"]').hidden = id === 'stick';
       bar.querySelector('[data-a="hide"]').textContent = ov.hide ? '表示' : '隠す';
+      placeBar();
     };
+    // 設定の欄の場所: 自分で動かした時はそこ。動かしていなければ、選んだ項目が上半分なら下・下半分なら上に出す（上の方の HUD が欄に隠れて設定しにくかった。11-19 23:27）
+    const placeBar = () => {
+      const P = settings.hudBarPos;
+      bar.classList.toggle('free', !!P);
+      if (P) {
+        const W = this.stage.w, Hh = this.stage.h, bw = bar.offsetWidth, bh = bar.offsetHeight;
+        const x = Math.max(4, Math.min(W - bw - 4, P.x * W)), y = Math.max(4, Math.min(Hh - bh - 4, P.y * Hh));
+        bar.classList.remove('bot', 'top', 'mid');
+        bar.style.left = x + 'px'; bar.style.top = y + 'px';
+        return;
+      }
+      // 自動: 上から下まで何段か試し、見えている HUD の項目に重ならない（重なりが一番小さい）所に置く。選んでいる項目には重ねない
+      bar.classList.remove('bot', 'top', 'mid'); bar.classList.add('free');
+      const W = this.stage.w, Hh = this.stage.h, bw = bar.offsetWidth, bh = bar.offsetHeight;
+      const k0 = this.stage.toStage(0, 0), sc = this.stage.toStage(1, 1);
+      const sx = sc[0] - k0[0] || 1, sy = sc[1] - k0[1] || 1;
+      const rects = [];
+      const selEl = !this.sel ? null : this.sel === 'stick' ? this.stickEl : this.sel.startsWith('i_') ? this.info[this.sel.slice(2)] : this.btn[this.sel];
+      for (const e of this.root.querySelectorAll('[data-btn], [data-info], .hud-stick')) {
+        if (e.closest('.hud-editbar') || e.classList.contains('hidden') || getComputedStyle(e).display === 'none') continue;
+        const r = e.getBoundingClientRect(); if (!r.width || !r.height) continue;
+        const [x0, y0] = this.stage.toStage(r.left, r.top);
+        rects.push({ x0, y0, x1: x0 + r.width * sx, y1: y0 + r.height * sy, w: e === selEl ? 50 : 1 });
+      }
+      const x = Math.max(4, (W - bw) / 2);
+      let best = null;
+      for (let t = 0; t <= 20; t++) {
+        const y = 4 + (Hh - bh - 8) * t / 20;
+        let cost = Math.abs(y + bh / 2 - Hh / 2) * 0.02;
+        for (const q of rects) { const ox = Math.min(x + bw, q.x1) - Math.max(x, q.x0), oy = Math.min(y + bh, q.y1) - Math.max(y, q.y0); if (ox > 0 && oy > 0) cost += ox * oy * q.w; }
+        if (!best || cost < best.cost) best = { y, cost };
+      }
+      bar.style.left = x + 'px'; bar.style.top = best.y + 'px';
+    };
+    const grip = bar.querySelector('.grip');
+    let gd = null;
+    grip.onpointerdown = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const r = bar.getBoundingClientRect(), [bx, by] = this.stage.toStage(r.left, r.top), [sx, sy] = this.stage.toStage(e.clientX, e.clientY);
+      gd = { pid: e.pointerId, dx: sx - bx, dy: sy - by };
+      try { grip.setPointerCapture(e.pointerId); } catch (er) { /* なし */ }
+    };
+    grip.onpointermove = (e) => {
+      if (!gd || e.pointerId !== gd.pid) return;
+      e.preventDefault(); e.stopPropagation();
+      const [sx, sy] = this.stage.toStage(e.clientX, e.clientY);
+      settings.hudBarPos = { x: (sx - gd.dx) / this.stage.w, y: (sy - gd.dy) / this.stage.h };
+      placeBar();
+    };
+    grip.onpointerup = grip.onpointercancel = (e) => { if (gd && e.pointerId === gd.pid) { gd = null; onSave(settings); } };
+    // 2回続けて押すと、自動の場所に戻す
+    grip.ondblclick = () => { delete settings.hudBarPos; placeBar(); onSave(settings); };
+    placeBar();
     let drag = null;
     this._editDown = (e) => {
       let t = e.target, id = null;
@@ -659,9 +717,10 @@ export class Hud {
     onTap(btns.hide, () => { if (!this.sel) return; const ov = H[this.sel] || (H[this.sel] = {}); ov.hide = !ov.hide; pick(this.sel); this.layout(); onSave(settings); });
     onTap(btns.reset1, () => { if (!this.sel) return; delete H[this.sel]; pick(this.sel); this.layout(); onSave(settings); });
     let armed = false;
-    onTap(btns.resetAll, () => { if (!armed) { armed = true; btns.resetAll.textContent = 'もう一度押して初期化'; setTimeout(() => { armed = false; btns.resetAll.textContent = 'すべて初期化'; }, 2500); return; } armed = false; btns.resetAll.textContent = 'すべて初期化'; for (const k of Object.keys(H)) delete H[k]; this.layout(); onSave(settings); });
+    onTap(btns.resetAll, () => { if (!armed) { armed = true; btns.resetAll.textContent = 'もう一度押して初期化'; setTimeout(() => { armed = false; btns.resetAll.textContent = 'すべて初期化'; }, 2500); return; } armed = false; btns.resetAll.textContent = 'すべて初期化'; for (const k of Object.keys(H)) delete H[k]; delete settings.hudBarPos; this.layout(); onSave(settings); });
     onTap(btns.done, () => {
       this.editing = false;
+      if (this._modeBak) { this.mode = this._modeBak; this._modeBak = null; }
       this.root.classList.remove('editing');
       for (const e of this.root.querySelectorAll('.sel')) e.classList.remove('sel');
       this.root.removeEventListener('pointerdown', this._editDown, true);

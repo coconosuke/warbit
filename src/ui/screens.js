@@ -538,6 +538,7 @@ export class Screens {
       row('スコープ', '倍率あり（4倍が基準。倍率に合わせて変わる）', 'sensScope'); sl('sensScope', 0.1, 1.2, 0.05, pct);
       row('射撃中', '射撃ボタンで視点移動', 'sensFire'); sl('sensFire', 0.3, 1.5, 0.05, pct);
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);
+      row('エイムアシスト', '照準が敵の体の近くでゆっくりに・敵の動きに少しついていく（タッチだけ。引き寄せはしない）', 'aimAssist'); ch('aimAssist', [['off', 'オフ'], ['weak', '弱'], ['mid', '中'], ['strong', '強'], ['max', '最大']]);
       row('ジャイロ', '端末の傾きで照準', 'gyro'); ch('gyro', [['off', 'オフ'], ['ads', 'ADS時'], ['always', '常時']]);
       row('ジャイロ感度', '', 'gyroSens'); sl('gyroSens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ジャイロ 左右', '', 'gyroInvX'); ch('gyroInvX', [[false, '標準'], [true, '反転']]);
@@ -575,7 +576,6 @@ export class Screens {
       gc('shells', '薬莢', '飛び出す薬莢', [[true, '表示'], [false, '非表示']]);
       row('視野角', '横の角度（16:9の画面で）。横長の画面ではもっと広く見える', 'hfov'); sl('hfov', 70, 110, 1, (v) => v + '°');
       row('武器の視野角', '手と銃の見え方。小さいほど大きく見える', 'vmFov'); sl('vmFov', 45, 70, 1, (v) => v + '°');
-      row('スコープ（6倍未満）', '大規模戦。レンズの中だけ拡大は少し重い', 'scopePip'); ch('scopePip', [['on', 'レンズの中だけ拡大'], ['off', '画面いっぱい']]);
       row('明るさ', '', 'bright'); sl('bright', 0.6, 1.6, 0.05, pct);
       row('色の鮮やかさ', '', 'sat'); sl('sat', 0.6, 1.5, 0.02, pct);
       row('周辺減光', '画面のふちを暗く', 'vignette'); ch('vignette', [[true, 'オン'], [false, 'オフ']]);

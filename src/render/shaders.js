@@ -281,13 +281,13 @@ void main(){
     // 雲（平面に投げた値ノイズ）
     vec2 cp = d.xz / (h + 0.12) * 1.6 + vec2(uTime * 0.004, 0.0);
     float c = vnoise(cp) * 0.55 + vnoise(cp * 2.3) * 0.3 + vnoise(cp * 5.1) * 0.15;
-    float cl = smoothstep(0.52, 0.8, c) * smoothstep(0.0, 0.18, h);
+    float cl = smoothstep(0.55, 0.76, c) * smoothstep(0.0, 0.18, h);
     vec3 ccol = mix(uHorizon * 1.15, vec3(1.0), 0.6) * (1.0 - uNight * 0.92);
     col = mix(col, ccol, cl * 0.75);
     if (uNight > 0.5) { float s = hash12(floor(d.xz / (h + 0.3) * 260.0)); col += vec3(step(0.9975, s) * 0.8 * smoothstep(0.05, 0.3, h)); }
   }
   // もやと同じ色へ寄せる（地平線）
-  col = mix(col, uFogCol, uFogFar > 0.0 ? max(smoothstep(0.3, 0.0, h) * 0.97, smoothstep(0.0, -0.05, h)) : smoothstep(0.25, 0.0, abs(h)) * 0.6);
+  col = mix(col, uFogCol, uFogFar > 0.0 ? max(smoothstep(0.12, 0.0, h) * 0.9, smoothstep(0.0, -0.05, h)) : smoothstep(0.25, 0.0, abs(h)) * 0.6);
   oCol = vec4(col, 1.0);
 }`;
 

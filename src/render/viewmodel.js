@@ -247,10 +247,14 @@ export class ViewModel {
     let hR, hL;
     if (nade) {
       const th = clamp(a.throwT || 0, 0, 1);
-      hR = camP(0.12 + th * 0.05, -0.13 + th * 0.12, 0.28 + th * 0.18);
-      hL = camP(-0.06, -0.16, 0.3);
+      // 11-19 23:27: 投げ物を持っている時も、銃と同じ歩き・走り・呼吸・見回しの揺れを手に（前は手が画面に貼りついて動かず、安っぽかった）。
+      //  走ると少し下げ、持ち替えの間は下から上がる。向きも揺れで傾ける（gR・gU・gF）
+      const bx = Math.sin(ph) * 0.007 * amp - this.sway[0] * 0.05;
+      const by = -Math.abs(Math.cos(ph)) * 0.011 * amp + Math.sin(this.t * 1.7) * 0.0022 - this.sway[1] * 0.04 - 0.05 * this.sprK - 0.25 * this.drawK;
+      hR = camP(0.12 + th * 0.05 + bx, -0.13 + th * 0.12 + by, 0.28 + th * 0.18);
+      hL = camP(-0.06 + bx * 0.8, -0.16 + by * 0.9, 0.3);
       this.nadeM = this.Mm;
-      const n = this.Mm; n.set([-R[0], -R[1], -R[2], 0, U[0], U[1], U[2], 0, F[0], F[1], F[2], 0, hR[0] + U[0] * 0.03, hR[1] + U[1] * 0.03, hR[2] + U[2] * 0.03, 1]);
+      const n = this.Mm; n.set([-gR[0], -gR[1], -gR[2], 0, gU[0], gU[1], gU[2], 0, gF[0], gF[1], gF[2], 0, hR[0] + gU[0] * 0.03, hR[1] + gU[1] * 0.03, hR[2] + gU[2] * 0.03, 1]);
     } else {
       hR = toW(P.gripR);
       hL = toW(P.gripL);

@@ -369,7 +369,8 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 /* スコープの像: 接眼レンズの丸い視界（半径 --sr）。目と筒の軸のずれ（--scx・--scy）で丸がずれ、縁がぼやけて暗くなる（--se。スコープの影）。
    内側の縁ほど少し暗い（筒の中）。ずれても照準の模様は画面の真ん中（弾が飛ぶ所）のまま。値は game.js _aimFx → hud.js */
 .hud-scope { position: absolute; inset: 0; display: none; pointer-events: none; --sr: calc(min(var(--sh), var(--sw)) * 0.43); --scx: 0px; --scy: 0px; --se: 6px;
-  background: radial-gradient(circle at calc(50% + var(--scx)) calc(50% + var(--scy)), transparent 0, transparent calc(var(--sr) * 0.72), rgba(0,0,0,.2) calc(var(--sr) - var(--se) * 1.6), rgba(0,0,0,.8) calc(var(--sr) - var(--se) * 0.4), #000 calc(var(--sr) + var(--se) * 0.3)); }
+  /* 11-19 23:27: 筒の輪だけ黒く、輪の外は少し暗いだけで見える（BattleBit の見え方に合わせる。輪と模様の形はこの作品の物） */
+  background: radial-gradient(circle at calc(50% + var(--scx)) calc(50% + var(--scy)), transparent 0, transparent calc(var(--sr) * 0.8), rgba(0,0,0,.25) calc(var(--sr) - var(--se) * 1.6), rgba(0,0,0,.92) calc(var(--sr) - var(--se) * 0.3), #000 calc(var(--sr) + var(--se) * 0.4), #000 calc(var(--sr) * 1.1), rgba(0,0,0,.55) calc(var(--sr) * 1.1 + var(--se) * 2), rgba(0,0,0,.3) calc(var(--sr) * 1.5), rgba(0,0,0,.24) 100%); }
 .hud-scope.on { display: block; }
 /* スコープの中の像（大規模戦）: 外は暗くしない。照準の模様はレンズの丸の位置と大きさに */
 .hud-scope.pip { background: none; }
@@ -475,6 +476,19 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-radial .ri.dis { opacity: .35; }
 .hud-editbar { position: absolute; left: 50%; top: calc(var(--st) + 6px); transform: translateX(-50%); display: none; align-items: center; gap: 8px; background: rgba(8,12,18,.95); border: 1px solid var(--line2); border-radius: 8px; padding: 6px 10px; pointer-events: auto; font-family: var(--f-body); font-size: 11px; z-index: 5; white-space: nowrap; }
 #hud.editing .hud-editbar { display: flex; }
+/* 11-19 23:27: 細くして（3段）、上下の HUD のすき間に置けるように。段ごとに並べる（文字が変わってもボタンが動かない） */
+.hud-editbar { flex-direction: column; align-items: stretch; width: min(292px, calc(100% - 16px)); gap: 6px; padding: 6px 8px; white-space: normal; }
+.hud-editbar .r1, .hud-editbar .r2, .hud-editbar .r3 { display: flex; align-items: center; gap: 6px; }
+.hud-editbar .nm { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-editbar label { flex: 1 1 0; min-width: 0; }
+.hud-editbar label input { flex: 1 1 auto; width: 0; min-width: 40px; }
+.hud-editbar .r3 button { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-editbar button { padding: 0 6px; font-size: 11px; }
+.hud-editbar.mid { top: 50%; transform: translate(-50%, -50%); }
+.hud-editbar.bot { top: auto; bottom: calc(var(--sb, 0px) + 6px); }
+.hud-editbar.free { transform: none; bottom: auto; }
+.hud-editbar .grip { width: 22px; height: 30px; margin: -2px 0 -2px -4px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px; cursor: grab; touch-action: none; border-radius: 4px; background: rgba(255,255,255,.06); }
+.hud-editbar .grip i { width: 12px; height: 2px; border-radius: 1px; background: var(--sub); }
 .hud-editbar .nm { font-weight: 800; min-width: 8em; } .hud-editbar label { display: flex; align-items: center; gap: 4px; } .hud-editbar input { width: 70px; }
 .hud-editbar button { height: 28px; padding: 0 8px; border-radius: 5px; background: rgba(255,255,255,.08); border: 1px solid var(--line); font-weight: 700; }
 .hud-editbar button.pri { background: var(--accent); color: #111; }
