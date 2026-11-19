@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-19T19:22:57.817Z）
+HARD ENTRY ソース一式（2026-11-19T20:10:51.214Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 137964
+@@@@ FILE DESIGN.md text 138922
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -378,6 +378,7 @@ HARD ENTRY ソース一式（2026-11-19T19:22:57.817Z）
 - 11-20 WAR BIT 0.1.34（弾薬箱で包帯・投げ物も）: 大きい弾薬箱は包帯と投げ物（破片・衝撃・発煙）も補給する（4 秒に1つ・出撃した時の数まで。中身は救急 100・投げ物 50 で1つ 25）。小さい箱は弾だけ。
 - 11-20 WAR BIT 0.1.35（双眼鏡・リロードの見え方）: 偵察と分隊長は双眼鏡を持つ。手に持って構えると 6 倍（横長ののぞき窓。この作品の形。双眼鏡を持っている時も構えられるようにした）、引き金で狙っている向きの敵に印（800m まで・左右 2.5°。印のボタンは 450m・5°）。リロードの間、銃を画面の中ほどへ寄せて少し下げる（前は右へ大きく持ち上がって手が見えなかった）。research の 35。
 - 11-20 WAR BIT 0.1.36（付属品）: 出撃の画面の LOADOUT に「銃／付属品」の切り替え。付属品は主の銃ごとに 照準器・銃口・グリップ・ライト類 を「◀ 名前 ▶」で選べる（下に効き目: 反動・構えの時間・音など）（付けられる物だけ。効き目はエンジンの付属品のとおり: 反動・構えの速さ・音・炎・腰だめなど）。選んだ物は銃ごとに覚える。
+- 11-20 WAR BIT 0.1.37（手に持つ物の持ち方）: 投げ物・弾薬箱・医療キット・双眼鏡の持ち方を物ごとに分けた（前は全部、投げ物と同じ右手の上に載せていた）。弾薬箱は両手の手のひらを上へ向けて底の左右を持つ（大きく 0.8・小さく 0.62 倍の形に）。医療キットは左右から手のひらで挟み、前の札が見える。使っている間は仲間へは前へ差し出して小さく押し、自分へは胸へ引き寄せる（engine の ws.healSelf）。双眼鏡は両手で2本の筒を外から持ち、構えると目の前へ上げ、その間は手を下の外へ逃がす（手が画面をふさがない）。投げ物は右手を投げ物の右から回して握る（前は手のひらが下を向いて隠れていた）。持つ物の向きは銃の向き（走ると 55° 横を向く）を使わず、カメラの向きに揺れだけ足す。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -7310,7 +7311,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.36';
+export const VERSION = '0.1.37';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -8336,7 +8337,7 @@ export function load(o) {
 }
 export { CS, LH };
 
-@@@@ FILE src/engine/interact.js text 60048
+@@@@ FILE src/engine/interact.js text 60073
 // 調べる・使う: 見ている物（扉・人・落ちている物・爆弾・壁）と、そのときできる操作。時間のかかる動作の進み。
 import { placeAmmo } from './ammobox.js';
 import { raycast, los, CS, LH, levelOfY, NB, isWallish, C, leafEnd, pushOut, rayBox } from './world.js';
@@ -9230,7 +9231,7 @@ function medkitTick(S, a, dt, ev) {
   if (!tgt) { ws.healT = 0; return; }
   const add = Math.min(tgt.maxHp - tgt.hp, MEDKIT.rate * dt);
   tgt.hp += add; tgt.bleed = 0;
-  ws.healT = (ws.healT || 0) + dt;
+  ws.healT = (ws.healT || 0) + dt; ws.healSelf = tgt === a;
   if (tgt !== a) {
     tgt._healGot = (tgt._healGot || 0) + add;
     if (tgt._healGot >= 10) { tgt._healGot -= 10; ev.push({ e: 'healPts', id: a.id, v: tgt.id }); }
@@ -22629,7 +22630,7 @@ function cutCards(out, N) {
   });
 }
 
-@@@@ FILE src/render/viewmodel.js text 38885
+@@@@ FILE src/render/viewmodel.js text 42394
 // 一人称の腕と銃: 腰だめ↔ADS（照準の線を目に合わせる）、揺れ（向きの慣性・歩き・呼吸）、撃った跳ね、リロード・ポンプ・持ち替え・ローレディ・ダッシュ・投げ物
 import { MeshBuilder, hex, mulc } from './build.js';
 import { LAYER } from './textures.js';
@@ -22685,7 +22686,7 @@ export class ViewModel {
     }
     if (id === 'ammobig' || id === 'ammosmall') {
       // 弾薬箱（手に持つ。この作品の形: 暗い緑の小箱と取っ手）
-      const k = id === 'ammobig' ? 0.55 : 0.45;
+      const k = id === 'ammobig' ? 0.8 : 0.62;
       B.box(-0.09 * k, -0.06 * k, -0.06 * k, 0.09 * k, 0.05 * k, 0.06 * k, LAYER.metal, hex('#2f3822'));
       B.box(-0.03 * k, 0.05 * k, -0.008, 0.03 * k, 0.07 * k, 0.008, LAYER.rubber, hex('#15170f'));
       const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
@@ -22906,18 +22907,58 @@ export class ViewModel {
     }
     // 腕: 肩（カメラ空間）→ 手
     const shR = camP(0.17, -0.25, -0.08), shL = camP(-0.17, -0.24, -0.05);
-    let hR, hL;
+    let hR, hL, handUp = null;
     if (nade) {
       const th = clamp(a.throwT || 0, 0, 1);
       // 11-19 23:27: 投げ物を持っている時も、銃と同じ歩き・走り・呼吸・見回しの揺れを手に（前は手が画面に貼りついて動かず、安っぽかった）。
       //  走ると少し下げ、持ち替えの間は下から上がる。向きも揺れで傾ける（gR・gU・gF）
       const bx = Math.sin(ph) * 0.007 * amp - this.sway[0] * 0.05;
       const by = -Math.abs(Math.cos(ph)) * 0.011 * amp + Math.sin(this.t * 1.7) * 0.0022 - this.sway[1] * 0.04 - 0.05 * this.sprK - 0.25 * this.drawK;
-      // 持ち方（11-20）: 右手で胸の高さ・体の右前に持ち、左手はピンの輪へ指を掛ける位置（前は顔の近くで大きく見えすぎた）
-      hR = camP(0.135 + th * 0.05 + bx, -0.155 + th * 0.14 + by, 0.34 + th * 0.16);
-      hL = camP(0.03 + bx * 0.8, -0.2 + by * 0.9, 0.33);
+      // 11-20: 手に持つ物の向きは、銃の向き（腰だめのひねり・走りで銃を大きく横へ倒す）を使わず、カメラの向きに揺れだけ足す
+      //  （前は箱や双眼鏡も、走ると銃と同じに 55° 横を向いた）
+      let qR = R, qU = U, qF = F;
+      const rq = (ax, ang) => { qR = rot(qR, ax, ang); qU = rot(qU, ax, ang); qF = rot(qF, ax, ang); };
+      rq(U, this.sway[0] * 0.6 + 0.3 * this.sprK);
+      rq(qR, this.sway[1] * 0.6 + Math.sin(this.t * 1.25) * 0.004 - 0.35 * this.sprK - 0.9 * this.drawK);
+      rq(qF, -(Math.sin(ph) * 0.014 * amp + 0.12 * this.sprK));
+      gR = qR; gU = qU; gF = qF;
+      const kind = GEAR[ws.gear].kind;
+      const side = (c, s, d, dn, bk) => [c[0] + qR[0] * s * d - qU[0] * dn - qF[0] * bk, c[1] + qR[1] * s * d - qU[1] * dn - qF[1] * bk, c[2] + qR[2] * s * d - qU[2] * dn - qF[2] * bk];
+      let mAt;
+      if (kind === 'ammo' || kind === 'medkit') {
+        // 弾薬箱・医療キット: 両手で体の前に抱える。弾薬箱は手のひらを上へ向けて底の左右を持つ（指は前の縁）、医療キットは小さいので
+        //  左右から手のひらで挟む（前の札が見えるように）。医療キットは使っている間（引き金）、仲間へは
+        //  前へ差し出して小さく押し、自分へは胸へ引き寄せる。置いた直後（持ち替え）は下から上がる
+        const hw = kind === 'medkit' ? 0.05 : (ws.gear === 'ammobig' ? 0.8 : 0.62) * 0.09;
+        this.healK = lerp(this.healK || 0, kind === 'medkit' && (ws.healT || 0) > 0 ? 1 : 0, 1 - Math.exp(-dt * 10));
+        const pump = this.healK * Math.sin(this.t * 9) * 0.008;
+        const fwd = ws.healSelf ? -0.05 : 0.07;
+        mAt = camP(0.04 + bx, (kind === 'medkit' ? -0.118 : -0.13) + by + (ws.healSelf ? -0.03 : 0.03) * this.healK, (kind === 'medkit' ? 0.36 : 0.38) + fwd * this.healK + pump);
+        if (kind === 'medkit') {
+          hR = side(mAt, 1, hw + 0.008, 0.045, -0.005); hL = side(mAt, -1, hw + 0.008, 0.045, -0.005);
+          handUp = [qR, [-qR[0], -qR[1], -qR[2]]];
+        } else {
+          const bot = (ws.gear === 'ammobig' ? 0.8 : 0.62) * 0.06 + 0.014;
+          hR = side(mAt, 1, hw * 0.6, bot, 0.035); hL = side(mAt, -1, hw * 0.6, bot, 0.035);
+          const dn = [-qU[0], -qU[1], -qU[2]];
+          handUp = [dn, dn];
+        }
+      } else if (kind === 'binoc') {
+        // 双眼鏡: 両手で2本の筒を外から持ち、胸の高さ。構えると目の前へ上げる（0.9 で手と双眼鏡は消え、のぞき窓だけ）
+        const k = sm(clamp(a.ads / 0.9, 0, 1));
+        mAt = camP(lerp(0.03 + bx, 0, k), lerp(-0.115 + by, -0.006, k), lerp(0.32, 0.12, k));
+        //  上げる途中は手を下の外へ逃がす（目の前で手が画面をふさがないように）
+        hR = side(mAt, 1, 0.06 + 0.04 * k, 0.055 + 0.11 * k, 0.04); hL = side(mAt, -1, 0.06 + 0.04 * k, 0.055 + 0.11 * k, 0.04);
+        handUp = [qR, [-qR[0], -qR[1], -qR[2]]];
+      } else {
+        // 投げ物（11-20）: 右手で胸の高さ・体の右前に持ち、左手はピンの輪へ指を掛ける位置（前は顔の近くで大きく見えすぎた）
+        //  右手は投げ物の右から指を回して握る（手のひらを内へ。前は手のひらが下を向いて投げ物の下に隠れていた）
+        mAt = camP(0.13 + th * 0.05 + bx, -0.122 + th * 0.14 + by, 0.35 + th * 0.16);
+        hR = side(mAt, 1, 0.045, 0.024, 0.006); hL = camP(0.03 + bx * 0.8, -0.197 + by * 0.9, 0.335);
+        handUp = [qR, null];
+      }
       this.nadeM = this.Mm;
-      const n = this.Mm; n.set([-gR[0], -gR[1], -gR[2], 0, gU[0], gU[1], gU[2], 0, gF[0], gF[1], gF[2], 0, hR[0] + gU[0] * 0.03, hR[1] + gU[1] * 0.03, hR[2] + gU[2] * 0.03, 1]);
+      const n = this.Mm; n.set([-qR[0], -qR[1], -qR[2], 0, qU[0], qU[1], qU[2], 0, qF[0], qF[1], qF[2], 0, mAt[0], mAt[1], mAt[2], 1]);
     } else {
       hR = toW(P.gripR);
       hL = toW(P.gripL);
@@ -23000,10 +23041,11 @@ export class ViewModel {
     const armMax = ap === 'kneel' || ap === 'grab' || ap === 'place' ? 0.68 : 0.585;
     const clampArm = (sh, h) => { const d = [h[0] - sh[0], h[1] - sh[1], h[2] - sh[2]], l = Math.hypot(d[0], d[1], d[2]), mx = armMax; return l > mx ? [sh[0] + d[0] * mx / l, sh[1] + d[1] * mx / l, sh[2] + d[2] * mx / l] : h; };
     hL = clampArm(shL, hL); if (!this.gm || this.freeK > 0.5) hR = clampArm(shR, hR);
-    this._arms(shR, hR, shL, hL, gF, gU, R, U, tool);
+    this._arms(shR, hR, shL, hL, gF, gU, R, U, tool, this.freeK > 0.5 ? null : handUp);
   }
 
-  _arms(shR, hR, shL, hL, gF, gU, R, U, tool) {
+  // handUp: 手の甲の向き（右・左）。箱や双眼鏡を横から持つ時は、手のひらを内へ向ける
+  _arms(shR, hR, shL, hL, gF, gU, R, U, tool, handUp) {
     const B = new MeshBuilder();
     // 動作の道具（結束バンド・ピック・ウェッジ・C2・包帯・ブーツ…）
     if (tool) {
@@ -23056,7 +23098,7 @@ export class ViewModel {
     // 手の向きの箱（中心 c、軸 r u f、半分の長さ）
     const hbox = (c, r, u, f, hx, hy, hz, col, rad) => { B.xf = [r[0], r[1], r[2], u[0], u[1], u[2], f[0], f[1], f[2], c[0], c[1], c[2]]; B.bbox(-hx, -hy, -hz, hx, hy, hz, rad, LAYER.rubber, col); B.xf = null; };
     let side = 1;
-    for (const [sh, el, hd] of [[shR, eR, hR], [shL, eL, hL]]) {
+    for (const [sh, el, hd, hu] of [[shR, eR, hR, handUp && handUp[0]], [shL, eL, hL, handUp && handUp[1]]]) {
       B.tube(sh, el, 0.052, 0.046, 9, LAYER.cloth, this.sleeve);
       // 肘のしわ（少し太い輪）
       B.tube(lerpV(sh, el, 0.9), lerpV(el, hd, 0.06), 0.05, 0.049, 9, LAYER.cloth, sleeveD);
@@ -23067,7 +23109,8 @@ export class ViewModel {
       B.tube(wr, hd, 0.032, 0.03, 8, LAYER.rubber, this.glove);
       // 手: 手のひら（平たい箱）・握った指（下へ巻く）・親指（銃の横へ）。手袋の縫い目の濃い帯
       const f = norm3([hd[0] - el[0], hd[1] - el[1], hd[2] - el[2]]);
-      let r = norm3([gU[1] * f[2] - gU[2] * f[1], gU[2] * f[0] - gU[0] * f[2], gU[0] * f[1] - gU[1] * f[0]]);
+      const uu = hu || gU;
+      let r = norm3([uu[1] * f[2] - uu[2] * f[1], uu[2] * f[0] - uu[0] * f[2], uu[0] * f[1] - uu[1] * f[0]]);
       const u = norm3([f[1] * r[2] - f[2] * r[1], f[2] * r[0] - f[0] * r[2], f[0] * r[1] - f[1] * r[0]]);
       const at = (a, b, c) => [hd[0] + f[0] * a + u[0] * b + r[0] * c, hd[1] + f[1] * a + u[1] * b + r[1] * c, hd[2] + f[2] * a + u[2] * b + r[2] * c];
       hbox(at(0.035, 0, 0), r, u, f, 0.04, 0.022, 0.042, this.glove, 0.012);
@@ -33899,7 +33942,7 @@ test('反動の押さえ: 下へ引いた分（inp.rc 度）は反動の分か�
   ok(a.ws.rp === 0, '0 より下にはならない');
 });
 
-@@@@ FILE tests/unit/war_medkit.test.mjs text 2848
+@@@@ FILE tests/unit/war_medkit.test.mjs text 3009
 // 医療キット（衛生）: 押している間、前の傷ついた仲間（いなければ自分）の体力を戻し、血を止める。仲間を治すと点
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
@@ -33926,10 +33969,12 @@ test('前の傷ついた仲間を治す（1秒に 20・血が止まる）・仲�
   ok(mate.hp > 45 && mate.hp < 55, '1秒で約 20 ' + mate.hp.toFixed(1));
   eq(mate.bleed, 0, '血が止まる');
   ok((me.stats.sc || 0) > sc0, '点 ' + me.stats.sc);
+  eq(me.ws.healSelf, false, '仲間を治している（手は前へ差し出す）');
   // 仲間が満タンなら自分
   mate.hp = mate.maxHp; me.hp = 50;
   for (let i = 0; i < 30; i++) { put(); step(G, { [me.id]: idle(me, { fire: true }), [mate.id]: idle(mate) }); }
   ok(me.hp > 55, '自分 ' + me.hp.toFixed(1));
+  eq(me.ws.healSelf, true, '自分を治している（手は胸へ）');
   eq(me.inv.gear.find(g => g.id === 'medkit').n, 1, 'なくならない');
 });
 
