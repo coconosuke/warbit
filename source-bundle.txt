@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-19T03:43:10.152Z）
+HARD ENTRY ソース一式（2026-11-19T03:59:54.520Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 123163
+@@@@ FILE DESIGN.md text 124032
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -91,6 +91,7 @@ HARD ENTRY ソース一式（2026-11-19T03:43:10.152Z）
 - 2026-11-13 20:50 息止め（スコープ安定）の仕様を確かめて実装。カメラ操作（エイム）の反応をもっと繊細・緻密・なめらかに（遠くを狙うと微妙にかくつく）。タイトルの下とモードの下の日本語の文はいらない。レティクル（中央の十字）が点滅している。体力が最大でも包帯が使える（回復の道具が変わっても満タンでは使えないように）。
 - 2026-11-19 12:01 続けて。グラフィックをさらに BattleBit に（特に彩度・コントラスト・色味）。植物が BattleBit より明らかにカラフルでパキッとした高彩度なので直す。
 - 2026-11-19 12:28 色味は多少近づいたが、フェード感や白っぽさが出すぎて視認性が微妙。BattleBit に近づけて。
+- 2026-11-19 12:51 エイムの動きは加速ではなく、純粋に滑らかに細かい動きまで反映してほしかった。植物・物・建物の描写と造形をもっと細かく作り込んで BattleBit に寄せる。続きの作業も進める（→ ① エイム ② 造形 ③ 挙動 ④ AI の順と伝えた）。
 
 ## 約束（仕様・数値）— 必ず守る。守れなくなったら先に言う
 - 仮に決めて伝えたこと（15:20 送信）: ゲーム名「HARD ENTRY」（仮）。PvP は「SWAT 対 立てこもり犯」の攻守（シージの攻撃／防衛に相当）。掛け声・無線は英語の音声＋日本語字幕。血の表現あり（設定で消せる）。アプリ版のリポジトリはユーザーに作ってもらう（`hardentry`、Settings → Pages で main / root）。
@@ -351,6 +352,7 @@ HARD ENTRY ソース一式（2026-11-19T03:43:10.152Z）
 - 11-13 WAR BIT 0.1.15（メニューとモードの入れ替え）: タイトルを WAR BIT だけに（独自のブロック文字のロゴ・PLAY／SHOOTING RANGE／SETTINGS・右上に名前・背景は射撃場の谷に立つ分隊5人）。PLAY はモードの札（CONQUEST 16・32・64 vs／DOMINATION 16・32 vs／TEAM DEATHMATCH 8・16 vs）と人数のボタンで、押すとすぐ始まる。試合は出撃の画面から（上の帯にマップ・モード・人数・点、地図の上の出撃の場所（本陣・持っている拠点）、左に分隊の欄、下に兵科6つ（分隊長は分隊の1人目だけ）、左下 LOADOUT で主の銃と拳銃、右下 DEPLOY。倒れると1.8秒あとに開き、待ちの秒数が出る。先に押すと時間が来たら出る）。開いている間は 3D を描かない。兵科（src/war/classes.js）: 体力 援護125・偵察90（ヘルメットなし）・ほか100、銃は兵科ごと、投げ物と包帯の数も兵科ごと（衛生の包帯16）。道具（弾薬箱・医療キット・RPG・双眼鏡）は M3 で、画面には「準備中」。ボットも兵科を持つ（分隊の1人目は分隊長・ほかは重みつき）。モード（engine/modes/war.js）: ドミネーション（工場・橋・町の広場の拠点3つ）・TDM（町の中 200m 四方。4人ずつの組で敵の近くへ）。旗と印の色は見る人から見て 味方 青・敵 赤・中立 白。上の帯の拠点は A から順、ドミネーション・TDM は残り時間と目標。上の帯を押すとスコア表（上位10人）。結果は VICTORY／DEFEAT・理由・両チームの表・PLAY AGAIN。一時停止は RESUME／MAP／SETTINGS／QUIT。射撃場（src/war/maps/range.js）: 420×1400m の谷。屋根つきの射台、10・25・50・75・100・150・200・300・400・500・650・800・1000m の人形（敵の服。倒れて3秒で同じ所に起き上がる）と距離の札（世界の上の印。重なる物は出さない）、50m より先の人形の後ろに土の山、横に動きの練習場（家・塔・コンテナ・高さ 1・1.4・2.2m の塀・土のう）。弾と投げ物は減らない。当てると上の帯と出来事に部位・ダメージ・距離。右上の兵科のボタンか一時停止の LOADOUT で出撃の画面へ戻って兵科・銃を変える（倒されたことにはしない）。遠くまで描く（1180m・もやを薄く）。分隊の名前はチーム 0 が A〜H、1 が O〜V（結果の表で見分ける）。HUD の弾は「残り／×予備の弾倉の数」と弾倉ごとの残り（BattleBit も弾倉で見せる。前は対戦と同じ ∞ だった）、射撃モードは AUTO・SEMI・BOLT。エイムアシストは設定の値が大規模戦にも効く（前は対戦の部屋の設定を見ていた）。アイコンを WAR BIT のブロック文字に（tools/mkicon.py）。単体テスト 5 件（war modes）。テスト一式を WAR BIT に合わせた（旧モードのブラウザと自動の試合の項目は外した）。版 0.1.15（互換9のまま）。
 - 11-13 WAR BIT 0.1.16（リバーベンドの作り直し・地形と植生・設定とリロードのアイコン）: 10:19・11:07・14:35 の要望。建物は 23 → 約 350（家・平屋・店・アパート・事務所・倉庫・納屋・小屋・礼拝堂・ガソリンスタンド・掩体壕・見張り塔・壊れた家。src/war/buildings.js）。町は道の格子にそって並べ（大通りは店とアパートをつめて並べる・裏庭の塀と生け垣・車道の車・小屋）、広場（D）は石畳・噴水・屋台・植え込み・土のう、南に礼拝堂。歩道（縁石）。工場はコンクリートの構内・倉庫4・事務所・サイロ・煙突・給水塔・コンテナの囲い・塀と門。丘は塔2・掩体壕2・兵舎・壕と縁の土のう・ヘスコ・対戦車の障害物。農場は納屋・サイロ・給水塔・干し草・柵、果樹園。村は礼拝堂と家・平屋・石垣・生け垣・給水塔、ぶどう畑。十字路はガソリンスタンド・食堂・家。本陣にテント。拠点の間に前哨・農家・壊れた家・掩体・焼けた車・電柱（src/war/props.js）。地形は3段の起伏と端の丘・尾根・段々の石切り場・乾いた小川3本・道の切り通しと盛り土。植生は森（芯が濃い）・茂み（通り抜けられる。約3000）・畑（麦・耕した土・牧草）・木の列・草の株（近くだけ。画質で距離）。岩は低ポリの塊。床の縁が壁の外に帯で見えるのを直した。設定の「確認が必要な操作」を消した（動きは今までの既定のまま）。リロードのアイコンを弾丸と円の矢印に。research/WARBIT.md の 13・14。版 0.1.16（互換9のまま）。
 - 11-19 WAR BIT 0.1.17（息止め・エイムのなめらかさ・色・小さな直し）: 11-13 20:50・11-19 12:01 の要望。息止め（構えている間だけ出るボタン・PC は構えて Shift。揺れが 1 割・息は約 5 秒・切れると息が上がる・照準の下に息の棒・音。research の 16）。タッチの見回しに応答曲線（ゆっくりは細かく・速く振ると速く。設定でオフにできる）と、届いた量を約 20ms に分けて足すなめらかさ。中央の十字の点滅を直す（下り坂や縁石で一瞬だけ宙に浮いた扱いになり、照準が大きく開いていた → 0.42m までの段は足を地面につけたまま・宙は 0.12 秒たってから広げる・開きはなめらかに 1px 単位・構えの出し消しに幅）。包帯などの回復の道具は体力が満タンでは使えない（「体力が満タン」）。タイトル・PLAY の日本語の説明を消し、人数のボタンの下は TICKETS・POINTS・KILLS。色: 草と葉をオリーブへ・仕上げで彩度を抑え、日の当たった緑の色を少し抜く。白っぽく持ち上げる調整ともやの追加は 12:28 の声で取りやめ、コントラストは少し締めた（research の 17）。版 0.1.17（互換9のまま）。
+- 11-19 WAR BIT 0.1.18（エイム）: 12:51 の要望。0.1.17 の応答曲線（指を速く動かすほど大きく回る＝加速）をやめ、指の動きにそのまま比例。届いた量を約 20ms に分けて足すなめらかさは残す。照準の揺れと反動（スコープの像を動かす分）を、エンジンのステップの間で補間して描く（こまとステップがずれて像が小さく跳ね、遠くを狙うとかくついて見えていた）。設定の「応答曲線」は消した。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -506,7 +508,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 111420
+@@@@ FILE src/app/game.js text 111913
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -643,7 +645,11 @@ export class Match {
     this._alpha = Math.max(0, Math.min(1, this.acc / step0));
     if (hostNet) this.netAfterSteps(ev);
     this._events(ev);
-    this._render(dt, inp);
+    // 描く間だけ、照準の揺れと反動をステップの間の値にする（エンジンの値は描いたあと元に戻す）
+    const ws = this.p.ws, A = this._prevAim, kk = 1 - this._alpha;
+    let keep = null;
+    if (ws && A && kk > 0.001 && !this.done) { keep = [ws.sx, ws.sy, ws.ry, ws.rp]; ws.sx = (ws.sx || 0) + (A[0] - (ws.sx || 0)) * kk; ws.sy = (ws.sy || 0) + (A[1] - (ws.sy || 0)) * kk; ws.ry = (ws.ry || 0) + (A[2] - (ws.ry || 0)) * kk; ws.rp = (ws.rp || 0) + (A[3] - (ws.rp || 0)) * kk; }
+    try { this._render(dt, inp); } finally { if (keep) { ws.sx = keep[0]; ws.sy = keep[1]; ws.ry = keep[2]; ws.rp = keep[3]; } }
     this._hud(dt);
     // 終わり
     const m = this.S.m;
@@ -675,14 +681,9 @@ export class Match {
     const slow = inp.mouse ? 1 : this.aaK;
     let rdx = inp.lookDX, rdy = inp.lookDY;
     if (!inp.mouse) {
-      // タッチの見回し（11-19 の要望: 遠くを狙うとかくつく）
-      //  1) 応答曲線: 指の速さ（なめらかにした値）で倍率を変える。ゆっくり＝細かく（約0.45倍）、ふつう＝ほぼ等倍、速く振る＝少し速く（1.2倍）
-      //  2) 届いた量を一度にではなく 約20ms かけて足す（指の動きの届く間隔と、こまの間隔がずれても動きが一定になる）
-      const raw = Math.hypot(rdx, rdy), v = raw / Math.max(dt, 1 / 240);
-      this.lkV = this.lkV == null ? v : this.lkV + (v - this.lkV) * (1 - Math.exp(-dt / (v > this.lkV ? 0.05 : 0.09)));
-      const t = Math.max(0, Math.min(1, (this.lkV - 25) / 700)), sm = t * t * (3 - 2 * t);
-      const curve = st.aimCurve === false ? 1 : 0.45 + 0.75 * Math.pow(sm, 0.6);
-      this.lkBX = (this.lkBX || 0) + rdx * curve; this.lkBY = (this.lkBY || 0) + rdy * curve;
+      // タッチの見回し（11-19 の要望: 遠くを狙うとかくつく）: 指の動きにそのまま比例（加速はしない。12:51）。
+      //  届いた量を一度にではなく 約20ms かけて足す（指の動きの届く間隔と、こまの間隔がずれても、細かい動きまで一定の速さで映る）
+      this.lkBX = (this.lkBX || 0) + rdx; this.lkBY = (this.lkBY || 0) + rdy;
       const f = 1 - Math.exp(-dt / 0.02);
       rdx = this.lkBX * f; rdy = this.lkBY * f; this.lkBX -= rdx; this.lkBY -= rdy;
       if (Math.abs(this.lkBX) < 1e-4) this.lkBX = 0; if (Math.abs(this.lkBY) < 1e-4) this.lkBY = 0;
@@ -1267,6 +1268,9 @@ export class Match {
   _savePrev() {
     const P = this._prev || (this._prev = new Map());
     for (const a of this.S.actors) { let q = P.get(a.id); if (!q) P.set(a.id, q = [0, 0, 0]); q[0] = a.x; q[1] = a.y; q[2] = a.z; }
+    // 自分の照準の揺れと反動も、ステップの間を補間して描く（こまとステップのずれで、スコープの像が小さく跳ねないように）
+    const ws = this.p && this.p.ws;
+    if (ws) { const A = this._prevAim || (this._prevAim = [0, 0, 0, 0]); A[0] = ws.sx || 0; A[1] = ws.sy || 0; A[2] = ws.ry || 0; A[3] = ws.rp || 0; }
   }
   // 補間した位置へ一時的に動かす（戻すのは _unlerp）
   _lerpActors() {
@@ -2757,7 +2761,7 @@ export class TitleScene {
   }
 }
 
-@@@@ FILE src/app/settings.js text 3264
+@@@@ FILE src/app/settings.js text 3248
 // 設定の既定値と保存。sv: 設定の形の版（形を変えたら上げて、古い値を直す）
 import { load, save } from './save.js';
 import { LOADOUTS, PVP_LOADOUTS } from '../engine/data/npc.js';
@@ -2765,7 +2769,7 @@ import { LOADOUTS, PVP_LOADOUTS } from '../engine/data/npc.js';
 export const DEFAULTS = {
   sv: 2,
   // 視点と照準
-  sens: 1.0, sensAds: 0.75, sensScope: 0.45, sensFire: 1.0, aimCurve: true, invertY: false, fireLook: true,
+  sens: 1.0, sensAds: 0.75, sensScope: 0.45, sensFire: 1.0, invertY: false, fireLook: true,
   aimAssist: 'weak', // off | weak | strong（対戦は部屋の設定が優先）
   gyro: 'off', gyroSens: 1.0, gyroInvX: false, gyroInvY: false,
   // 操作
@@ -6922,7 +6926,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.17';
+export const VERSION = '0.1.18';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -23727,7 +23731,7 @@ export function weaponCard(spec, kind) {
     <p class="desc">${esc(W.desc || '')}</p><p class="note">初速 ${W.vel || '-'} m/s · 重さ ${W.kg || '-'} kg</p>`;
 }
 
-@@@@ FILE src/ui/screens.js text 56718
+@@@@ FILE src/ui/screens.js text 56563
 // 画面: 読み込み・タイトル（WAR BIT）・PLAY（モードと人数）・一時停止・地図（タブレット）・結果・設定。
 // メニューの形と表記は BattleBit に合わせる（英語の大文字に日本語を小さく添える。research/WARBIT.md の 10）。
 // 旧 HARD ENTRY の画面（作戦・対戦・訓練・ロビー・資料室）はメニューから外した（11-13 03:10・03:15 の要望）。中身は後で消す
@@ -24263,7 +24267,6 @@ export class Screens {
       row('ADS', '等倍', 'sensAds'); sl('sensAds', 0.2, 1.5, 0.05, pct);
       row('スコープ', '倍率あり（4倍が基準。倍率に合わせて変わる）', 'sensScope'); sl('sensScope', 0.1, 1.2, 0.05, pct);
       row('射撃中', '射撃ボタンで視点移動', 'sensFire'); sl('sensFire', 0.3, 1.5, 0.05, pct);
-      row('応答曲線', 'ゆっくり動かすと細かく、速く振ると速く', 'aimCurve'); ch('aimCurve', [[true, 'オン'], [false, 'オフ']]);
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);
       row('エイムアシスト', '照準が敵へ少し寄る', 'aimAssist'); ch('aimAssist', [['off', 'オフ'], ['weak', '弱'], ['strong', '標準']]);
       row('ジャイロ', '端末の傾きで照準', 'gyro'); ch('gyro', [['off', 'オフ'], ['ads', 'ADS時'], ['always', '常時']]);
