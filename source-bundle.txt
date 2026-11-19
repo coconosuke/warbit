@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-19T11:21:36.451Z）
+HARD ENTRY ソース一式（2026-11-19T11:34:02.112Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 131165
+@@@@ FILE DESIGN.md text 131528
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -366,6 +366,7 @@ HARD ENTRY ソース一式（2026-11-19T11:21:36.451Z）
 - 11-19 WAR BIT 0.1.22（18:16 の直し・スコープの中の像）: 十字の点滅の本当の原因（classList.toggle に undefined が渡ると「切り替え」になり毎こま出たり消えたり）を直した。当たりの印は真ん中を空けた4本の線で色分け（体 白・頭 黄・防具 青・倒した 赤。ダウンさせた時に赤）。向きを変えるとき横へずれた速さはすぐ消す（30 m/秒²）・止まるのも速く。銃の揺れはなめらかな位相で（ステップごとに飛ばない）。投げ物は残りがあれば持ったまま。爆発音は近い音と遠いとどろきを距離で混ぜて約 900m まで（70m より遠いと鳴っていなかった）、音の速さで遅れ、30m まで HRTF。ボットは煙・茂みの向こうを見つけにくい（煙は見えない・茂み2つで見えない）。大規模戦の煙は半径 6.5m・30 秒。ダウン中の GIVE UP（2回押す）とメニューの REDEPLOY。ジャンプのボタンの絵。6倍未満のスコープはレンズの中だけ拡大（銃とスコープの筒が見える）。research の 21。 あわせて 14:03・14:04 の分: 射撃モードを BattleBit の同じ系統の銃に合わせた（M4A1・HK416・Scorpion EVO は単発・3点バースト・フル、HK417 は単発、RPK は単発・フル）。3点バーストは1回引くと3発。倍率の切り替えは射撃モードと別のボタン（倍率を変えられる照準器の時だけ出る。PC は B）。弾の速さを BattleBit の値に（SMG 350〜400・M4A1 700・AUG/G3 900・HK417 1000・AT308 1100 m/秒。弾は重力で落ち、届くまで時間がかかる）。大規模戦ではエイムアシストを使わない（指の動きにそのまま比例）・ゆっくり細かく動かすときほど長め（最大 50ms）にならして1画素ずつの段をなくす。HUD の編集でも大規模戦で使わないボタン（警告・調べる・暗視）は出さない。設定から字幕とエイムアシストの項目を消した（大規模戦で使わない）。とても遅いこまで、短く押したのが長押しにならないように。小さい横画面の一時停止は2列。research の 22。
 - 11-19 WAR BIT 0.1.23（ボットの作り直し・段階④）: 11-13 に下書きしたボットに入れ替えた。分隊は2人組ごとに少し違う道で進み、仲間と 3m より近づかない。撃ち合いでは近くの遮蔽物の後ろへ移り、低い物は立って撃ちしゃがんで隠れ、高い物は横へ身を出して撃つ。撃たれたら遮蔽物へ・隠れている間に弾を込める。見失ったら見張る・手榴弾・組の片方が回り込む。分隊で見つけた敵を分け合う。倒れた仲間を起こす・体力が減ったら包帯。茂み・麦畑の伏せは見つけにくく、煙の向こうは見えない。遠い敵（ちょうどよい距離の2倍より先）には足を止め続けず目標へ進む。点検（中・180秒）: 固まり（3m 以内の味方）1.3→0.4〜0.6 人・撃ち合い中に遮蔽物の後ろ 18→44〜48%・開けた所で棒立ち 42→12〜16%。ボットは投げたあと銃へ戻る（0.1.22 の「持ったまま」は人だけ）。大規模戦の世界で起こす動作が家具の表を見て止まっていたのを直した。あわせて BattleBit 2.0 に合わせ、大規模戦で起こすと包帯を1つ使い体力の半分で起きる（research の 23）。ボットは開けた所で撃たれ近くに遮蔽物がないと、敵との間に発煙弾を投げる。
 - 11-19 WAR BIT 0.1.24（敵に印・狙撃のスコープのきらめき）: 敵に印のボタン（PC は中ボタン）。狙っている向きから 5° 以内・450m 以内の見えている敵に印がつき、分隊に 10 秒見える（頭の上の赤い菱形と距離）。分隊のボットも場所を知る。6倍以上のスコープをのぞいている敵がこちらを向いていると、スコープが光って見える（向きが近いほど強く、遠くても点にならない大きさ。壁の向こうは光らない）。research の 24。
+- 11-19 WAR BIT 0.1.25（点）: 倒す 200（ダウンさせた時。止めでは増えない）、頭への一発は距離で上乗せ（100〜500）、支援 100・起こす 100・拠点を奪う 200・中立に戻す 100（この4つは仮）。照準の下に合計と内訳（3 秒の間は足していく）。スコア表に点の列。research の 25。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -521,7 +522,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 120517
+@@@@ FILE src/app/game.js text 121490
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -1245,6 +1246,7 @@ export class Match {
         case 'respawn': if (e.id === me) { this.dlo = false; hud.deploy(null); if (S.war) this.r.warmWar(p.x, p.z); this.dead = false; this.spec = null; this.yaw = p.yaw; this.pitch = 0; this._resetControls(); this.av.hidden.add(me); if (e.zone == null) hud.hideBanner(); } break;
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
+        case 'score': if (e.id === me && S.war) this._score(e); break;
         case 'revive': if (this._downBy) this._downBy.delete(e.id); hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
         case 'bandaged': if (e.id === me) au.sfx('bandage', null); break;
         case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); break;
@@ -1899,19 +1901,32 @@ export class Match {
     return v;
   }
   // スコア表の中身: 自分のチームが先。キル×2＋アシストの順。爆弾・殲滅戦は倒れている人を薄く
+  // 点の表示（照準の下）。倒した時は頭への上乗せを別の行に分ける
+  _score(e) {
+    const S = this.S, hud = this.hud, v = S.byId[e.v];
+    const LB = { assist: '倒すのを支援', revive: '仲間を起こした', cap: '拠点を奪った', neut: '拠点を中立に戻した' };
+    if (e.why === 'kill') {
+      const W = WEAPONS[e.w];
+      const line = `${v ? (v.name || '敵') : '敵'} を倒した${W ? '　' + W.name : ''}${e.d ? '　' + e.d + 'm' : ''}`;
+      hud.points({ pts: e.pts - (e.hs || 0), label: '敵を倒した', line });
+      if (e.hs) hud.points({ pts: e.hs, label: 'ヘッドショット' });
+      return;
+    }
+    hud.points({ pts: e.pts, label: LB[e.why] || '点', line: e.why === 'cap' || e.why === 'neut' ? `拠点 ${e.f}` : '' });
+  }
   _boardData() {
     const S = this.S, m = S.m || {}, p = this.p;
     const MODE = { tdm: 'チームデスマッチ', elim: '殲滅戦', bomb: '爆弾', war: S.war ? (WAR_MODES[m.mode] || WAR_MODES.conquest).en : '大規模戦' };
     const sideName = (t) => { const a = S.actors.find(x => x.team === t && !x.isDrone); return a && a.pvpSide === 'swat' ? 'SWAT' : a && a.pvpSide === 'sus' ? '立てこもり犯' : 'チーム' + (t + 1); };
     const score = (t) => m.kind === 'war' ? S.actors.filter(a => a.team === t).reduce((s, a) => s + a.stats.k, 0) : m.kind === 'tdm' ? (m.score || [0, 0])[t] : (m.wins || [0, 0])[t];
-    const rows = (t) => S.actors.filter(a => !a.isDrone && a.team === t).map(a => ({ name: a.name || '?', k: a.stats.k, d: a.stats.d, a: a.stats.a, me: a === p, bot: a.pid == null, out: m.kind !== 'tdm' && !a.staged && (!a.alive || a.down) })).sort((x, y) => (y.k * 2 + y.a) - (x.k * 2 + x.a) || x.d - y.d);
+    const rows = (t) => S.actors.filter(a => !a.isDrone && a.team === t).map(a => ({ name: a.name || '?', k: a.stats.k, d: a.stats.d, a: a.stats.a, sc: a.stats.sc || 0, me: a === p, bot: a.pid == null, out: m.kind !== 'tdm' && !a.staged && (!a.alive || a.down) })).sort(m.kind === 'war' ? ((x, y) => y.sc - x.sc || y.k - x.k || x.d - y.d) : ((x, y) => (y.k * 2 + y.a) - (x.k * 2 + x.a) || x.d - y.d));
     const mine = p.team, foe = 1 - p.team;
     const sub = m.kind === 'war' ? sizeLabel(m.per) : m.kind === 'tdm' ? `目標 ${m.limit} キル` : `ラウンド ${m.round || 1}・先に ${m.winsNeeded} 勝`;
     if (m.kind === 'war') {
       // 大規模戦: 上位 10 人（自分が入っていなければ足す）。数字はチケット・点・キル
       const top = (t) => { const r = rows(t), k = r.slice(0, 10); const me = r.find(x => x.me); if (me && !k.includes(me)) k.push(me); return k; };
       const sc = (t) => Math.ceil((m.mode === 'conquest' ? m.tickets : m.score)[t]);
-      return { title: `${MODE.war}　${sub}`, teams: [{ name: 'ALLY', score: sc(mine), cls: 'mine', rows: top(mine) }, { name: 'ENEMY', score: sc(foe), cls: 'foe', rows: top(foe) }] };
+      return { sc: true, title: `${MODE.war}　${sub}`, teams: [{ name: 'ALLY', score: sc(mine), cls: 'mine', rows: top(mine) }, { name: 'ENEMY', score: sc(foe), cls: 'foe', rows: top(foe) }] };
     }
     return { title: `${MODE[m.kind] || '対戦'}　${sub}`, teams: [{ name: sideName(mine) + '（味方）', score: score(mine), cls: 'mine', rows: rows(mine) }, { name: sideName(foe), score: score(foe), cls: 'foe', rows: rows(foe) }] };
   }
@@ -6168,7 +6183,7 @@ export function applyBarsNet(S, w, BR) {
   return changed;
 }
 
-@@@@ FILE src/engine/combat.js text 30903
+@@@@ FILE src/engine/combat.js text 30909
 // 弾と当たり: 弾丸は速さと重力を持ち、1ステップごとの線分で当たりを調べる。材質を貫通して弱まる（RoNの式）。
 // ダメージは PvE（RoN換算・防具・負傷・出血）と PvP（R6寄り・頭は即死・手足75%・ダウン）の2系統。
 import { raycast, CS, LH, levelOfY, glassPane } from './world.js';
@@ -6729,7 +6744,7 @@ export function pvpDamage(S, a, d, shooter, part, dx, dz, ev, kind) {
   if (canDown) {
     a.hp = 0; a.down = true; a.dbno = 20; a.dbnoCount++; a.downT = 0; a.stateT = 0; a.ads = 0; a.adsOn = false; a.sprint = false;
     a.bleedOut = 0;
-    ev.push({ e: 'down', id: a.id, by: shooter ? shooter.id : -1, dbno: 1 });
+    ev.push({ e: 'down', id: a.id, by: shooter ? shooter.id : -1, dbno: 1, part });
     return;
   }
   killActor(S, a, shooter, ev, kind, part);
@@ -7050,7 +7065,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.24';
+export const VERSION = '0.1.25';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -12122,7 +12137,7 @@ export function placeActors(S, w, def) {
   for (let i = 0; i < Math.min(2, civ.length); i++) { const [x, z] = civ[(i + S.m.resets) % civ.length]; spawnCivilian(S, w, x, z, 0, i ? 'adult' : 'staff'); }
 }
 
-@@@@ FILE src/engine/modes/war.js text 22248
+@@@@ FILE src/engine/modes/war.js text 24911
 // 大規模戦（WAR BIT）のモード。BattleBit に合わせる（research/WARBIT.md の 1・2・3・7・11）。足りない人数はボット（src/war/ai.js）
 // - CONQUEST: 拠点を奪い合い、相手のチケットを 0 にする。人数で範囲が変わる（16・32・64 対）。チケットは出撃のたびに1減り、
 //   拠点を過半数持つ側が相手を（拠点の差×0.3）/秒 減らす
@@ -12143,6 +12158,32 @@ import { hrand } from '../rng.js';
 import { WEAPONS } from '../data/weapons.js';
 
 export const OUT_LIMIT = 10;
+// 点（自分の点。BattleBit に合わせる: 敵を倒すと 200。頭への一発は上乗せ（長距離の狙撃で 400 の例。距離で増える形は推測）。
+// 支援・起こす・拠点は BattleBit の数字が見つからないので仮。research/WARBIT.md §25）
+export const PTS = { kill: 200, assist: 100, revive: 100, cap: 200, neut: 100 };
+export function hsBonus(d) { return Math.max(100, Math.min(500, Math.round(d / 10) * 10)); }
+function award(S, a, pts, why, ev, extra) {
+  if (!a || !a.stats || pts <= 0) return;
+  a.stats.sc = (a.stats.sc || 0) + pts;
+  if (a.pid != null) ev.push({ e: 'score', id: a.id, pts, why, ...(extra || {}) });
+}
+// 倒した点: ダウンさせた時に入る（起こされても取り消さない）。ダウンを経ずに死んだ時は死んだ時に入る
+function creditKill(S, v, k, part, ev) {
+  const m = S.m, cr = m.scd || (m.scd = {});
+  if (cr[v.id]) return;
+  cr[v.id] = 1;
+  if (k && k.team !== v.team) {
+    const d = Math.round(Math.hypot(k.x - v.x, (k.y || 0) - (v.y || 0), k.z - v.z));
+    const wi = k.ws && k.ws.slot >= 0 && k.inv && k.inv.w ? k.inv.w[k.ws.slot] : null;
+    const hs = part === 'head' ? hsBonus(d) : 0;
+    award(S, k, PTS.kill + hs, 'kill', ev, { v: v.id, d, hs, w: wi ? wi.id : '' });
+  }
+  for (const [id, dmg] of Object.entries(v.dmgBy || {})) {
+    const x = S.byId[id];
+    if (!x || x === k || x.team === v.team || dmg < 30) continue;
+    award(S, x, PTS.assist, 'assist', ev, { v: v.id });
+  }
+}
 export const TICKETS = { small: 300, medium: 500, large: 800 };
 export const CAP_T = 10;        // 1人で中立→自軍（敵の拠点はこれを2回）。ドミネーションは半分
 export const BLEED = 0.3;       // 拠点の差1つあたり、毎秒
@@ -12303,7 +12344,13 @@ function stepFlags(S, w, dt, ev) {
     // 持ち主: 端まで行けばその側、0 を越えたら中立
     if (f.prog >= 1) f.owner = 0; else if (f.prog <= -1) f.owner = 1;
     else if ((f.owner === 0 && f.prog <= 0) || (f.owner === 1 && f.prog >= 0)) f.owner = -1;
-    if (f.owner !== before) ev.push({ e: 'flag', id: f.id, owner: f.owner, prev: before });
+    if (f.owner !== before) {
+      ev.push({ e: 'flag', id: f.id, owner: f.owner, prev: before });
+      // 拠点の点: 奪った（自軍になった）・中立に戻した 時に、範囲にいた側の全員へ
+      const t = f.owner >= 0 ? f.owner : (before === 0 ? 1 : 0);
+      const pts = f.owner >= 0 ? PTS.cap : PTS.neut, why = f.owner >= 0 ? 'cap' : 'neut';
+      if (m.mode !== 'range') for (const a of S.actors) { if (a.team !== t || !a.alive || a.down || a.isDrone) continue; if (Math.hypot(a.x - f.x, a.z - f.z) > f.r || Math.abs(a.y - f.y) > 12) continue; award(S, a, pts, why, ev, { f: f.id }); }
+    }
   }
   const c = [0, 0]; for (const f of m.flags) if (f.owner >= 0) c[f.owner]++;
   if (m.mode === 'conquest') {
@@ -12453,9 +12500,17 @@ export default {
   },
   onEvents(S, w, evs) {
     const m = S.m;
-    for (const e of evs) if (e.e === 'kill') {
+    const n0 = evs.length;
+    for (let i = 0; i < n0; i++) {
+      const e = evs[i];
+      if (m.mode === 'range' || m.over) { if (e.e === 'kill' && m.scd) delete m.scd[e.id]; if (e.e !== 'kill') continue; }
+      else if (e.e === 'down') { const v = S.byId[e.id]; if (v) creditKill(S, v, S.byId[e.by], e.part, evs); continue; }
+      else if (e.e === 'revive') { const v = S.byId[e.id], b = S.byId[e.by]; if (m.scd) delete m.scd[e.id]; if (b && v && b !== v) award(S, b, PTS.revive, 'revive', evs, { v: v.id }); continue; }
+      if (e.e !== 'kill') continue;
       const v = S.byId[e.id], k = S.byId[e.by];
       if (!v) continue;
+      if (m.mode !== 'range' && !m.over) creditKill(S, v, k, e.part, evs);
+      if (m.scd) delete m.scd[v.id];
       v.stats.d++;
       if (k && k.team !== v.team) { k.stats.k++; if (m.mode === 'tdm' && !m.over) m.score[k.team]++; }
       for (const as of e.as || []) { const x = S.byId[as]; if (x && x.team !== v.team) x.stats.a++; }
@@ -22869,7 +22924,7 @@ export class DeployScreen {
   }
 }
 
-@@@@ FILE src/ui/hud.js text 46223
+@@@@ FILE src/ui/hud.js text 47620
 // HUD（CODモバイル／PUBGモバイル風）: ボタン、ミニマップ、方位、目的、出来事、隊員、体力、弾、字幕、照準、命中、被弾の向き、円形メニュー、HUDの編集
 import { BTN, INFO, ICONS } from './hudlayout.js';
 import { onTap } from './input.js';
@@ -22928,6 +22983,8 @@ export class Hud {
     // 息の残り（息止めの間と、戻るまで。構えているときだけ）
     this.breathEl = el('div', 'hud-breath', '<i></i>'); r.appendChild(this.breathEl);
     this.hitm = el('div', 'hud-hit', '<i></i><i></i><i></i><i></i>'); r.appendChild(this.hitm);
+    // 点（大規模戦）: 照準の下に合計と内訳。続けて入ると足していく
+    this.ptsEl = el('div', 'hud-pts', '<div class="kl"></div><div class="tot"></div><div class="rs"></div>'); r.appendChild(this.ptsEl);
     // ダウン中にあきらめて出撃の画面へ（大規模戦。指だと2回押す。11-19 18:16）
     this.giveup = el('div', 'hud-giveup', '<b>GIVE UP</b><span>出撃の画面へ</span>'); this.giveup.dataset.btn = 'giveup'; this.giveup.setAttribute('role', 'button'); r.appendChild(this.giveup);
     this.dmg = el('div', 'hud-dmg'); r.appendChild(this.dmg);
@@ -23062,8 +23119,8 @@ export class Hud {
     const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     let h = `<div class="bd"><div class="bh">${esc(d.title)}<small>タップで閉じる</small></div><div class="bt">`;
     for (const t of d.teams) {
-      h += `<div class="tm ${t.cls}"><div class="tn"><b>${esc(t.name)}</b><em>${t.score}</em></div><table><tr><th class="nm">名前</th><th>キル</th><th>デス</th><th>アシスト</th><th>K/D</th></tr>`;
-      for (const r of t.rows) h += `<tr class="${r.me ? 'me' : ''}${r.out ? ' out' : ''}"><td class="nm">${esc(r.name)}${r.bot ? '<i>BOT</i>' : ''}</td><td>${r.k}</td><td>${r.d}</td><td>${r.a}</td><td>${r.d ? (r.k / r.d).toFixed(2) : r.k.toFixed(2)}</td></tr>`;
+      h += `<div class="tm ${t.cls}"><div class="tn"><b>${esc(t.name)}</b><em>${t.score}</em></div><table><tr><th class="nm">名前</th>${d.sc ? '<th>スコア</th>' : ''}<th>キル</th><th>デス</th><th>アシスト</th><th>K/D</th></tr>`;
+      for (const r of t.rows) h += `<tr class="${r.me ? 'me' : ''}${r.out ? ' out' : ''}"><td class="nm">${esc(r.name)}${r.bot ? '<i>BOT</i>' : ''}</td>${d.sc ? `<td class="sc">${r.sc || 0}</td>` : ''}<td>${r.k}</td><td>${r.d}</td><td>${r.a}</td><td>${r.d ? (r.k / r.d).toFixed(2) : r.k.toFixed(2)}</td></tr>`;
       h += '</table></div>';
     }
     h += '</div></div>';
@@ -23326,6 +23383,21 @@ export class Hud {
     this._hitKind = kind || '';
     this.hitm.className = 'hud-hit ' + (kind || ''); void this.hitm.offsetWidth; this.hitm.className = 'hud-hit on ' + (kind || '');
     clearTimeout(this._hitT); this._hitT = setTimeout(() => { this.hitm.className = 'hud-hit fade ' + (kind || ''); this._hitKind = ''; }, kind === 'kill' ? 420 : 150);
+  }
+  // 点: o = { pts, label, line }。3 秒の間に続けて入ると合計を足し、同じ内訳はまとめる
+  points(o) {
+    const e = this.ptsEl, now = performance.now();
+    const P = this._pts && now - this._pts.t < 3000 ? this._pts : (this._pts = { tot: 0, rows: [], line: '' });
+    P.t = now; P.tot += o.pts;
+    if (o.line) P.line = o.line;
+    const r = P.rows.find(x => x[0] === o.label);
+    if (r) { r[1] += o.pts; r[2]++; } else { P.rows.push([o.label, o.pts, 1]); if (P.rows.length > 4) P.rows.shift(); }
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    e.children[0].innerHTML = P.line ? esc(P.line) : '';
+    e.children[1].textContent = '+' + P.tot;
+    e.children[2].innerHTML = P.rows.map(x => `<div><span>${esc(x[0])}${x[2] > 1 ? ' ×' + x[2] : ''}</span><b>${x[1]}</b></div>`).join('');
+    e.className = 'hud-pts'; void e.offsetWidth; e.className = 'hud-pts on';
+    clearTimeout(this._ptsT); this._ptsT = setTimeout(() => { e.className = 'hud-pts on fade'; }, 2600);
   }
   damageFrom(ang) { this.dmgArcs.push({ ang, t: performance.now() }); }
   showBanner(html, ms = 2600, cls = '') { this.banner.innerHTML = html; this.banner.className = 'hud-banner on ' + cls; clearTimeout(this._banT); if (ms > 0) this._banT = setTimeout(() => { this.banner.className = 'hud-banner'; }, ms); }
@@ -24860,7 +24932,7 @@ export function sprintZone(dx, dy, spr, armed) {
   return armed ? (dy < -(spr - SPRINT_ZONE.drop) && ang <= SPRINT_ZONE.keep) : (dy < -spr && ang <= SPRINT_ZONE.start);
 }
 
-@@@@ FILE src/ui/style.css text 66212
+@@@@ FILE src/ui/style.css text 67427
 /* HARD ENTRY — 見た目の決まり（色・枠・書体）。雰囲気より読みやすさを優先。自分の側はいつも青、相手は赤 */
 :root {
   --bg: #07090c; --panel: rgba(12, 16, 22, 0.9); --panel2: rgba(22, 28, 36, 0.92); --line: rgba(255, 255, 255, 0.13); --line2: rgba(255, 255, 255, 0.28);
@@ -25268,6 +25340,17 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-prog .lb { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); font-size: 11px; font-family: var(--f-body); font-weight: 700; white-space: nowrap; text-shadow: 0 1px 2px #000; }
 .hud-giveup { position: absolute; left: 50%; bottom: calc(var(--sb) + 132px); transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 2px; padding: 8px 20px; min-width: 150px; background: rgba(8,12,18,.72); border: 1px solid rgba(255,255,255,.28); border-radius: 6px; font-family: var(--f-body); pointer-events: auto; z-index: 3; }
 .hud-giveup.on { display: flex; }
+/* 点: 照準の少し下。合計を大きく、内訳を小さく。3 秒ほどで消える */
+.hud-pts { position: absolute; left: 50%; top: calc(50% + 46px); transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 1px; pointer-events: none; font-family: var(--f-body); text-shadow: 0 1px 2px rgba(0,0,0,.95), 0 0 6px rgba(0,0,0,.6); z-index: 2; }
+.hud-pts.on { display: flex; animation: ptsIn .16s ease-out; }
+.hud-pts.fade { opacity: 0; transition: opacity .45s ease-in; }
+.hud-pts .kl { font-size: 12px; color: #e8ecf2; white-space: nowrap; }
+.hud-pts .kl:empty { display: none; }
+.hud-pts .tot { font-family: var(--f-head); font-weight: 900; font-size: 22px; line-height: 1.05; color: #ffd84a; letter-spacing: .02em; }
+.hud-pts .rs { display: flex; flex-direction: column; align-items: stretch; min-width: 150px; }
+.hud-pts .rs div { display: flex; justify-content: space-between; gap: 14px; font-size: 11px; color: #cfd6df; }
+.hud-pts .rs b { font-weight: 700; color: #fff; }
+@keyframes ptsIn { from { transform: translateX(-50%) scale(1.18); } to { transform: translateX(-50%) scale(1); } }
 .hud-giveup b { font-size: 15px; letter-spacing: .08em; }
 .hud-giveup span { font-size: 11px; opacity: .8; }
 .hud-giveup.arm { border-color: #ff5a4a; background: rgba(90,16,12,.78); }
@@ -25303,7 +25386,8 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-board .tm.mine .tn { background: rgba(70,140,255,.28); } .hud-board .tm.foe .tn { background: rgba(255,80,70,.26); }
 .hud-board .tn em { font-style: normal; font-weight: 900; font-size: 16px; font-family: var(--f-head); }
 .hud-board table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.hud-board th { font-size: 11px; color: var(--sub); font-weight: 600; padding: 3px 4px; text-align: right; }
+.hud-board td.sc { color: #ffd84a; font-weight: 700; }
+.hud-board th { white-space: nowrap; font-size: 11px; color: var(--sub); font-weight: 600; padding: 3px 4px; text-align: right; }
 .hud-board td { padding: 4px; text-align: right; border-top: 1px solid rgba(255,255,255,.08); font-variant-numeric: tabular-nums; }
 .hud-board .nm { text-align: left; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-board td.nm i { font-style: normal; font-size: 11px; color: var(--sub); margin-left: 5px; }
@@ -29745,7 +29829,7 @@ export async function runTests(filter) {
   return res;
 }
 
-@@@@ FILE tests/run_all.mjs text 73700
+@@@@ FILE tests/run_all.mjs text 74863
 // テスト一式: node tests/run_all.mjs [--quick] [--no-sizes] → test-results/summary.md
 //  1 ビルド  2 単体  3 マップ（WAR BIT: 本陣・拠点・出撃の場所が範囲の中・本陣から拠点まで歩ける）  4 音
 //  5 自動の試合（コンクエスト・ドミネーション・TDM をボットだけで最後まで・同じシードで同じ結果・人数ごとの速さ）
@@ -30349,6 +30433,19 @@ try {
     const bar = await page.evaluate(() => ({ fl: [...document.querySelectorAll('#hud .hud-obj .wb .fl')].map(e => e.textContent).join(''), tk: document.querySelectorAll('#hud .hud-obj .wb .tk').length, hidden: ['use', 'shout', 'cmd', 'team', 'nvg', 'loadout'].filter(b => { const e = document.querySelector('#hud .hb[data-btn="' + b + '"]'); return !e || e.classList.contains('hidden'); }).length }));
     rec('WAR BIT', '上の帯に拠点（A から順）と両チームのチケット・旧モードのボタン（調べる・警告・命令・暗視）と射撃場のボタンは出さない', bar.fl === 'BCDE' && bar.tk === 2 && bar.hidden === 6, JSON.stringify(bar));
     await shot('WAR-HUD');
+    // 点（11-19）: 倒した点が照準の下に出る（合計と内訳。続けて入ると足す）。スコア表に点の列
+    {
+      const pt = await page.evaluate(async () => {
+        const g = window.__app.game, p = g.p, foe = g.S.actors.find(a => a.team !== p.team);
+        g._score({ e: 'score', id: p.id, pts: 600, why: 'kill', v: foe.id, d: 380, hs: 400, w: 'm4a1' });
+        g._score({ e: 'score', id: p.id, pts: 100, why: 'assist', v: foe.id });
+        await new Promise(r => setTimeout(r, 200));
+        const e = document.querySelector('#hud .hud-pts.on');
+        return { on: !!e, tot: e ? e.querySelector('.tot').textContent : '', rows: e ? e.querySelectorAll('.rs div').length : 0, line: e ? e.querySelector('.kl').textContent : '' };
+      });
+      await shot('WAR-点');
+      rec('WAR BIT', '点: 倒すと照準の下に合計と内訳（頭の上乗せ・支援を足していく）', pt.on && pt.tot === '+700' && pt.rows === 3 && /M4A1/.test(pt.line) && /380m/.test(pt.line), JSON.stringify(pt));
+    }
     // 範囲の外で倒れる → KIA → 出撃の画面（数秒待つ）→ 本陣 → 出撃し直す（チケットが減る）
     const tk0 = await page.evaluate(() => window.__app.game.S.m.tickets[window.__app.game.p.team]);
     await page.evaluate(() => { const g = window.__app.game, p = g.p, r = g.S.m.rect; p.x = r[0] - 25; p.oob = 9.95; });
@@ -30362,10 +30459,10 @@ try {
     // スコア表（上の帯を押す）
     await tapAt(await center('#hud .hud-obj'), 78);
     await page.waitForFunction(() => document.querySelector('#hud .hud-board.on'), null, { timeout: 15000 }).catch(() => {});
-    const bd = await page.evaluate(() => ({ on: !!document.querySelector('#hud .hud-board.on'), rows: document.querySelectorAll('#hud .hud-board tr').length }));
+    const bd = await page.evaluate(() => ({ on: !!document.querySelector('#hud .hud-board.on'), rows: document.querySelectorAll('#hud .hud-board tr').length, sc: [...document.querySelectorAll('#hud .hud-board th')].some(e => e.textContent === 'スコア') }));
     await shot('WAR-スコア表');
     await tapAt(await center('#hud .hud-board'), 79);
-    rec('WAR BIT', '上の帯を押すとスコア表（両チームの上位）', bd.on && bd.rows >= 12, JSON.stringify(bd));
+    rec('WAR BIT', '上の帯を押すとスコア表（両チームの上位・点の列）', bd.on && bd.rows >= 12 && bd.sc, JSON.stringify(bd));
     // 決着 → 結果 → もう一度
     await page.evaluate(() => { window.__app.game.S.m.tickets[1] = 0; });
     await page.waitForFunction(() => window.__app.screens.cur === 'result', null, { timeout: 90000 }).catch(() => {});
@@ -32805,6 +32902,84 @@ test('war modes: 射撃場（人形13体・弾は減らない・倒した人形�
   step(G, { [p.id]: { act: [{ a: 'warDeploy', at: 'auto', cls: 'medic', gun: 'mp5' }] } });
   for (let i = 0; i < 3; i++) step(G, {});
   ok(p.alive && p.warCls === 'medic' && p.inv.w[0].id === 'mp5', `衛生の MP5 で出る ${p.warCls} ${p.inv.w[0] && p.inv.w[0].id}`);
+});
+
+@@@@ FILE tests/unit/war_score.test.mjs text 4408
+// 大規模戦の点: 倒す 200（ダウンさせた時に入る・起こされても取り消さない・二重に入らない）、頭は距離で上乗せ、支援・起こす・拠点
+import { test, ok, eq } from '../lib/t.mjs';
+import { createGame, step } from '../../src/engine/engine.js';
+import { pvpDamage } from '../../src/engine/combat.js';
+import WAR, { PTS, hsBonus } from '../../src/engine/modes/war.js';
+import { heightAt } from '../../src/war/world.js';
+
+// 1歩進めておく（ダウンの規則などのフックが入る）
+function game(o = {}) { const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false, ...o }); step(G, {}); return G; }
+const put = (G, b, x, z) => { b.x = x; b.z = z; b.y = heightAt(G.w, x, z); b.vx = b.vz = 0; };
+// 撃った結果の出来事を、戦のモードの onEvents に通す（step の中と同じ）
+function hit(G, v, d, by, part = 'chest') { const ev = []; pvpDamage(G.S, v, d, by, part, 0, 1, ev, 'bullet'); WAR.onEvents(G.S, G.w, ev); return ev; }
+
+test('倒す: ダウンさせた時に 200 が入り、出血で死んでも二重には入らない', () => {
+  const G = game({ bots: true, per: 2 }), S = G.S, me = S.actors[0];
+  const foe = S.actors.find(b => b.team === 1);
+  put(G, me, 790, 690); put(G, foe, 790, 720);
+  const ev = hit(G, foe, 500, me);
+  ok(foe.down, 'ダウンした');
+  const sc = ev.filter(e => e.e === 'score' && e.id === me.id);
+  eq(sc.length, 1, '点の出来事は1つ');
+  eq(sc[0].pts, PTS.kill, '200'); eq(sc[0].why, 'kill', '倒した'); eq(sc[0].d, 30, '距離 30m');
+  eq(me.stats.sc, 200, '自分の点');
+  hit(G, foe, 500, me);
+  ok(foe.dead, '止め');
+  eq(me.stats.sc, 200, '止めでは増えない');
+});
+
+test('頭への一発: 距離で上乗せ（近くは 100、400m で 400）', () => {
+  eq(hsBonus(20), 100, '近い'); eq(hsBonus(400), 400, '400m'); eq(hsBonus(2000), 500, '上限');
+  const G = game({ bots: true, per: 2 }), S = G.S, me = S.actors[0];
+  const foe = S.actors.find(b => b.team === 1);
+  put(G, me, 790, 600); put(G, foe, 790, 800);
+  const ev = hit(G, foe, 500, me, 'head');
+  const s = ev.find(e => e.e === 'score' && e.id === me.id);
+  ok(s, '点が入る');
+  eq(s.hs, hsBonus(s.d), '上乗せ'); eq(s.pts, 200 + s.hs, '合計');
+});
+
+test('支援と起こす: 30 以上撃った味方に 100、ダウンした味方を起こすと 100（起きた敵をまた倒すとまた入る）', () => {
+  const G = game({ bots: true, per: 3 }), S = G.S, me = S.actors[0];
+  const mate = S.actors.find(b => b.team === 0 && b !== me), foe = S.actors.find(b => b.team === 1);
+  const foe2 = S.actors.find(b => b.team === 1 && b !== foe);
+  put(G, me, 790, 690); put(G, mate, 792, 690); put(G, foe, 790, 720);
+  hit(G, foe, 40, me);
+  hit(G, foe, 500, mate);
+  ok(foe.down, 'ダウン');
+  eq(mate.stats.sc, 200, '倒した味方');
+  eq(me.stats.sc, 100, '支援');
+  // 敵が起こされる（起こした敵に 100）→ もう一度倒すと、また入る
+  foe2.pid = 99;
+  const ev = [{ e: 'revive', id: foe.id, by: foe2.id }];
+  foe.down = false; foe.dbno = 0; foe.hp = 50;
+  WAR.onEvents(S, G.w, ev);
+  eq(foe2.stats.sc, 100, '起こした');
+  ok(ev.some(e => e.e === 'score' && e.id === foe2.id && e.why === 'revive'), '人には点の出来事');
+  foe.dmgBy = {};
+  hit(G, foe, 500, me);
+  eq(me.stats.sc, 300, 'もう一度倒すと入る');
+});
+
+test('拠点: 奪った時に範囲にいた側の全員へ 200（範囲の外はなし）', () => {
+  const G = game({ bots: true, per: 3 }), S = G.S;
+  const f = S.m.flags[0];
+  const mine = S.actors.filter(b => b.team === 0);
+  for (const b of S.actors) if (b.team === 1) { b.alive = false; b.dead = true; }
+  put(G, mine[0], f.x, f.z); put(G, mine[1], f.x + 1, f.z); put(G, mine[2], f.x + f.r + 30, f.z);
+  for (const b of mine) b.ai = null;
+  f.owner = -1; f.prog = 0.98;
+  const inp = {}; for (const b of mine) inp[b.id] = { mx: 0, mz: 0, yaw: b.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null };
+  let got = false;
+  for (let i = 0; i < 60 && !got; i++) { for (const b of mine.slice(0, 2)) put(G, b, b === mine[0] ? f.x : f.x + 1, f.z); step(G, inp); got = f.owner === 0; }
+  ok(got, '奪った');
+  eq(mine[0].stats.sc, PTS.cap, '範囲の中'); eq(mine[1].stats.sc, PTS.cap, '範囲の中');
+  ok(!mine[2].stats.sc, '範囲の外はなし');
 });
 
 @@@@ FILE tests/unit/war_world.test.mjs text 3449
