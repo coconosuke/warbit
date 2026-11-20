@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-20T02:11:28.486Z）
+HARD ENTRY ソース一式（2026-11-20T02:42:14.229Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 146191
+@@@@ FILE DESIGN.md text 148004
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -386,6 +386,7 @@ HARD ENTRY ソース一式（2026-11-20T02:11:28.486Z）
 - 11-20 WAR BIT 0.1.42（C4・副の道具）: 出撃の画面の LOADOUT に「道具」のタブ（銃・付属品・道具）。副の道具を「◀ C4 ×4／なし ▶」で兵科ごとに選ぶ（既定 C4。衛生は医療キットで決まり）。兵科の道具（弾薬箱・医療キット・双眼鏡・大ハンマー・RPG）は下に並べる。C4: 手に持って引き金で投げると物に貼りつく（面の向きにそろえて描く・赤い灯）。射撃モードのボタンが「投げる／起爆」になり、投げると起爆へ、起爆すると投げるへ戻る。起爆で自分の置いた C4 をまとめて爆発（半径 6m・300・2.5m まで倒れる）。壁と床に 2m の穴（コンクリートも 1 回）。起爆の間は手に起爆の装置。弾の欄・案内に残りと置いた数。大きい弾薬箱で補給（1 個 20）。ボットはまだ使わない。research の 42。
 - 11-20 WAR BIT 0.1.43（対人地雷・クレイモア）: 副の道具に クレイモア ×2・対人地雷 ×2 を足した（C4・クレイモア・対人地雷・なし）。手に持って引き金で足もとの前に置く（engine/mines.js）。置いて 1.5 秒後から作動し、味方では作動しない。対人地雷は敵が 1m 以内で爆発（半径 4m・400）。クレイモアは前の 3m・左右 35° に敵が入ると、前へ向けて爆発（前の 70° の扇の中だけ。爆発に向きを持たせた）。近くの爆発で誘爆。10 分で消える。大きい弾薬箱で補給。地面の上に描く（平たい丸と、脚つきの反った箱）。ボットの副の道具はクレイモア 4 割・対人地雷 3 割・C4 3 割で、守る拠点の場所に着くと敵の来る方へ1つ置いてから銃に戻す（C4 はまだ使わない）。research の 43。
 - 11-20 WAR BIT 0.1.44（スティックが切れる・ほかの人が持つ物）: スティック（と見回し）の指の「動かす・離す」を、画面の area ではなく window で受ける（指がボタンの上へ出ると動かす出来事が area に届かず、スティックが前の向きのまま止まっていた。確かめると、前の版は射撃のボタンの上まで動かした指の向きを受け取れていなかった）。つかみ（capture）が外れたらつかみ直す。「離した」が届かずスティックが残っていても、ほかに指が触れていなければ次の指がスティックになり、全部の指が離れて 0.12 秒たてば残った指の記録を捨てる（前は残ったスティックのせいで、スティックの所に触れても見回しになり、復活するまで動けなかった）。ほかの人（ボット・仲間）が手に持った投げ物・弾薬箱・医療キット・双眼鏡・大ハンマー・C4（起爆の装置）・クレイモア・対人地雷が、右の手首に見える（前は手が空のまま）。大規模戦で物を持っている間は、両手を胸の前に出す構え（前は腕を下ろしていた）。
+- 11-20 WAR BIT 0.1.45（建物の階段・屋上）: 全部の建物の階段を、プログラムで実際に1階から最上階・屋上まで上り下りさせて確かめ（tests/unit/war_stairs.test.mjs）、作り直した。原因: アパートと事務所はいちばん上の階段が屋上の高さまで続くのに屋根の板に穴がなく、頭が板に入ると いちばん近い板の端＝建物の外へ押し出されていた。見張り塔は2本の階段が同じ場所で交差して頭がつかえた。家・倉庫・礼拝堂の塔は階段の下か上の端が壁に突き当たり横からしか乗り降りできず、納屋は階段の上に干し草。平らな屋根の笠木が屋根の全面をふさぐ箱で、屋上では立てなかった。直し: アパート・事務所・見張り塔（5×5m に広げ、四方の壁と細い窓）・礼拝堂の塔は、階の間に踊り場のある折り返し階段（2本の間は仕切りの壁。いちばん上は穴の縁に手すり）。アパートと事務所は屋上の階段小屋の扉から屋上へ出る。家は階段を玄関の左へ移し、玄関の前から奥へ上がって2階の奥の部屋へ出る（穴の縁に手すり）。店・倉庫・納屋は上り口の前を空け、段の下を埋めた（横からもぐり込んで動けなくならない）。笠木は縁の上だけ。動きの守り（大規模戦）: 上る段・坂の先で頭が天井につかえるならそこへは進まない／一度に 0.45m より大きく押し出されるなら動く前の所へ戻す（どの建物でも外へ放り出されない）。壁の開口が上下に重なる所（扉の上の窓・鐘の部屋）を正しく抜くようにした（前は鐘の部屋の開口がふさがっていた）
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -7406,7 +7407,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.44';
+export const VERSION = '0.1.45';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -13167,7 +13168,7 @@ export default {
   },
 };
 
-@@@@ FILE src/engine/move.js text 29706
+@@@@ FILE src/engine/move.js text 30666
 // 移動: RoN の速さ（歩き2.4・ゆっくり0.96・しゃがみ1.2）、しゃがみ・伏せ・リーン・乗り越え・飛び降り・落下・階段・PvPのダッシュ
 import { groundAt, standAt, ceilAt, pushOut, raycast, STEP, CS, LH, BH, NB, levelOfY, cellType, C, leafEnd, inMap, isWallish } from './world.js';
 import { hurt, pvpDamage, breakGlass } from './combat.js';
@@ -13188,7 +13189,7 @@ export const SPEED = { walk: 2.4, crouch: 1.2, prone: 0.45, low: 1.2, ads: 0.7, 
 // BattleBit のように、まっすぐ走り続けると数秒で少し速くなる（sprintUp 秒で sprint → sprint2）
 export const WAR_SPEED = { walk: 3.3, crouch: 2.0, prone: 0.8, ads: 0.52, sprint: 5.9, sprint2: 6.6, sprintUp: 3.0, back: 0.75, side: 0.9 };
 export const RADIUS = 0.28;
-const _po = [0, 0, 0];
+const _po = [0, 0, 0], _pb = [0, 0, 0];
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
 const _pv = [0, 0, 0, 0];
 
@@ -13346,15 +13347,26 @@ export function moveActor(S, w, a, inp, dt, ev) {
   const n = Math.hypot(a.vx, a.vz) * dt > 0.12 ? 2 : 1;
   const ox = a.x, oz = a.z;
   for (let k = 0; k < n; k++) {
+    const px = a.x, pz = a.z;
     a.x += a.vx * dt / n; a.z += a.vz * dt / n;
     for (let it = 0; it < 2; it++) {
       pushOut(w, a.x, a.z, a.y + STEP, a.y + h, RADIUS, S.doors, -1, _po, air);
       if (!_po[2]) break;
+      // 大規模戦: 一度に大きく押し出される（頭が上の階の床・屋根の板に入った など。いちばん近い端＝建物の外へ飛ばされる）なら、
+      // 動く前の所が空いていればそこへ戻して止める
+      if (w.war && _po[0] * _po[0] + _po[1] * _po[1] > 0.45 * 0.45) {
+        pushOut(w, px, pz, a.y + STEP, a.y + h, RADIUS, S.doors, -1, _pb, air);
+        if (!_pb[2]) { a.x = px; a.z = pz; a.vx = 0; a.vz = 0; break; }
+      }
       a.x += _po[0]; a.z += _po[1];
     }
   }
   // 開いている扉の板に体で当たって進もうとしたら、板は押されて回る（RoN と同じく、半開きの扉は体で押し開けられる）
   if (mag > 0.01) pushLeaves(S, w, a, dvx, dvz, dt);
+  // 足元（家具の上にも立てる）。大規模戦: 上る段・坂の先で頭が天井（上の階の床・屋根の板）につかえるなら、そこへは進まない
+  // （体が板にめり込むと、いちばん近い板の端＝建物の外へ押し出されるので）
+  let g = standAt(w, a.x, a.z, a.y);
+  if (w.war && g > a.y + 1e-4 && (a.x !== ox || a.z !== oz) && ceilAt(w, a.x, a.z, g) - g < h + 0.02) { a.x = ox; a.z = oz; a.vx = 0; a.vz = 0; g = standAt(w, a.x, a.z, a.y); }
   // 実際に動いた分で速さを直す（壁に沿って滑る）
   // 押し出された分で速くはならない（重なりを直した分が勢いにならないように）
   const mvx = (a.x - ox) / dt, mvz = (a.z - oz) / dt, sp0 = Math.hypot(a.vx, a.vz);
@@ -13362,8 +13374,6 @@ export function moveActor(S, w, a, inp, dt, ev) {
   const sp1 = Math.hypot(nvx, nvz);
   if (sp1 > sp0 && sp1 > 1e-6) { nvx *= sp0 / sp1; nvz *= sp0 / sp1; }
   a.vx = nvx; a.vz = nvz;
-  // 足元（家具の上にも立てる）
-  const g = standAt(w, a.x, a.z, a.y);
   if (g < -50) { a.y -= 9.8 * dt; if (a.y < -20) { a.y = 0; } }
   // 下り坂・縁石・低い段を下りるとき: 足は地面につけたまま（宙に浮いた扱いで照準が広がったり点滅したりしないように。11-13 20:50）
   else if (a.y - g > 0.04 && a.ground && !a.air && (a.vy || 0) > -0.6 && a.y - g <= 0.42) { a.y = g; a.vy = 0; a.airTop = null; }
@@ -27886,7 +27896,7 @@ export function bushesBetween(w, ax, ay, az, bx, by, bz) {
   return k >= 0.99 ? 0 : k > 0.2 ? 1 : 2;
 }
 
-@@@@ FILE src/war/buildings.js text 40212
+@@@@ FILE src/war/buildings.js text 48576
 // WAR BIT の建物: 箱を組み立てて作る（独自の形。低ポリ・四角い。research/WARBIT.md の 4・13）。
 // 建物は「ローカル座標（幅 bw × 奥 bd、玄関は手前 z=0 の側）」で作り、置く向き rot（0〜3 = 90°ずつ）で世界へ写す。
 // 壁の厚さ T、階の高さ FH、床の板 SL。開口: 扉（幅1.2・高さ2.2）、窓（幅1.2・腰1.0〜2.2）。窓はガラスなし（撃てる・見える）。
@@ -27972,16 +27982,17 @@ function trim(B, put, a, b, y0, p) {
   if (p.y0 > 0.05) put(a - 0.1, b + 0.1, y0 + p.y0 - 0.1, y0 + p.y0 + 0.02, -0.02, 0.12); // 窓の下枠
   put(a - 0.08, b + 0.08, y0 + p.y1, y0 + p.y1 + 0.14, -0.02, 0.07);                 // 上枠
 }
+// 線を開口の端で区切り、区切りごとに、そこにかかる開口（上下に重なってもよい。扉の上の窓・鐘の部屋の開口）を除いた高さだけ壁を置く
 function wallLine(B, s0, s1, put, y0, y1, ops) {
-  const os = ops.map(p => ({ a: s0 + p.at - p.w / 2, b: s0 + p.at + p.w / 2, y0: y0 + p.y0, y1: Math.min(y1, y0 + p.y1) })).filter(p => p.a > s0 + 0.05 && p.b < s1 - 0.05).sort((p, q) => p.a - q.a);
-  let s = s0;
-  for (const p of os) {
-    if (p.a > s + 0.01) put(s, p.a, y0, y1);
-    if (p.y0 > y0 + 0.01) put(p.a, p.b, y0, p.y0);
-    if (p.y1 < y1 - 0.01) put(p.a, p.b, p.y1, y1);
-    s = p.b;
+  const os = ops.map(p => ({ a: s0 + p.at - p.w / 2, b: s0 + p.at + p.w / 2, y0: y0 + p.y0, y1: Math.min(y1, y0 + p.y1) })).filter(p => p.a > s0 + 0.05 && p.b < s1 - 0.05);
+  const cuts = [...new Set([s0, s1, ...os.flatMap(p => [p.a, p.b])])].sort((p, q) => p - q);
+  for (let i = 0; i + 1 < cuts.length; i++) {
+    const a = cuts[i], b = cuts[i + 1]; if (b - a < 0.01) continue;
+    const m = (a + b) / 2, hs = os.filter(p => p.a < m && p.b > m).sort((p, q) => p.y0 - q.y0);
+    let y = y0;
+    for (const p of hs) { if (p.y0 > y + 0.01) put(a, b, y, p.y0); y = Math.max(y, p.y1); }
+    if (y1 > y + 0.01) put(a, b, y, y1);
   }
-  if (s1 > s + 0.01) put(s, s1, y0, y1);
 }
 // 床の板（穴 hole: [x0,z0,x1,z1] のまわりに分けて置く）
 function slab(B, x0, z0, x1, z1, y, hole, o = {}) {
@@ -27992,6 +28003,61 @@ function slab(B, x0, z0, x1, z1, y, hole, o = {}) {
   if (!hole) { put(x0, x1, z0, z1); return; }
   const [hx0, hz0, hx1, hz1] = hole;
   put(x0, x1, z0, hz0); put(x0, x1, hz1, z1); put(x0, hx0, hz0, hz1); put(hx1, x1, hz0, hz1);
+}
+// 手すり（腰の高さ 1m。見える・弾は通る）。階段の穴の縁など
+function rail(B, x0, z0, x1, z1, y, h = 1.0) {
+  box(B, x0, y, z0, x1, y + h, z1, { kind: 'rail', col: TRIM_DARK, mat: M.METAL, opaque: false, layer: 10 });
+}
+// 段の下を埋める（横から段の下へもぐり込んで、かがんだまま動けなくならないように）。
+// 坂の面のすぐ下まで、0.3m の高さごとの段の形の箱を置く。坂の面と箱の上の差はいつも上がれる段差（0.36m）より小さいので、
+// 箱の上に乗っても坂の上へ上がる。fy: 下の床の高さ
+function stairFill(B, lx0, lz0, lx1, lz1, ly0, ly1, dir, fy = ly0, o = {}) {
+  const rise = ly1 - ly0, n = Math.max(1, Math.ceil(rise / 0.3));
+  const alongZ = dir === 'n' || dir === 's', L0 = alongZ ? lz0 : lx0, L1 = alongZ ? lz1 : lx1, len = L1 - L0;
+  const lowAt1 = dir === 'n' || dir === 'w'; // 低い端が L1 の側
+  const P = { kind: 'stairbase', col: o.col || B.floorCol, mat: o.mat ?? B.mat, layer: o.layer, detail: true }; // 中の物（遠くでは描かない）
+  for (let s = 0; s < n; s++) {
+    const top = ly0 + rise * s / n - 0.02; if (top - fy < 0.05) continue;
+    const p0 = lowAt1 ? L1 - len * (s + 1) / n : L0 + len * s / n, p1 = lowAt1 ? L1 - len * s / n : L0 + len * (s + 1) / n;
+    if (alongZ) box(B, lx0, fy, p0, lx1, top, p1, P); else box(B, p0, fy, lz0, p1, top, lz1, P);
+  }
+}
+// 折り返し階段（U 字。BattleBit の集合住宅・事務所の階段室のように、階の間に途中の踊り場がある）。z にそって上がる。
+// 内のり x0..x1 × z0..z1。o.land: 階の踊り場（床の続き・階段室の出入り口）が z1 の側なら 'z1'、z0 の側なら 'z0'。
+// o.fl: 階の踊り場の奥行き、o.ml: 途中の踊り場の奥行き。ys: 床の高さの列（[0, 3, 6, 9] など）。
+// 1階ぶんに段2本: x0 の側の段が階の踊り場から途中の踊り場へ、x1 の側の段が途中の踊り場から次の階へ。段の間は仕切りの壁。
+// 1階の途中の踊り場は床まで埋め、x1 の側の段の下も埋める。いちばん上の階は、仕切りの上と、下へ抜けた穴の縁に手すり。
+// 戻り値: 各階の床に開ける穴 [x0, z0, x1, z1]
+function uStair(B, x0, z0, x1, z1, ys, o = {}) {
+  const land = o.land || 'z1', fl = o.fl ?? 1.2, ml = o.ml ?? 1.2, sp = 0.1, xm = (x0 + x1) / 2;
+  const [fz0, fz1] = land === 'z1' ? [z0 + ml, z1 - fl] : [z0 + fl, z1 - ml];   // 段
+  const [mz0, mz1] = land === 'z1' ? [z0, z0 + ml] : [z1 - ml, z1];             // 途中の踊り場
+  const upA = land === 'z1' ? 'n' : 's', upB = land === 'z1' ? 's' : 'n';
+  const col = o.col || B.floorCol, mat = o.mat ?? M.CONCRETE;
+  for (let f = 0; f + 1 < ys.length; f++) {
+    const ya = ys[f], yb = ys[f + 1], ym = (ya + yb) / 2;
+    ramp(B, x0, fz0, xm - sp / 2, fz1, ya, ym, upA, { col, mat });
+    ramp(B, xm + sp / 2, fz0, x1, fz1, ym, yb, upB, { col, mat });
+    box(B, x0, f === 0 ? ya : ym - SL, mz0, x1, ym, mz1, { kind: f === 0 ? 'stairbase' : 'landing', col, mat });
+    box(B, xm - sp / 2, ya, fz0, xm + sp / 2, yb, fz1, { kind: 'wall', col: o.spineCol || B.col, mat });
+    if (f === 0) stairFill(B, xm + sp / 2, fz0, x1, fz1, ym, yb, upB, ya, { col, mat });
+  }
+  if (o.topRail !== false) {
+    const top = ys[ys.length - 1], ez = land === 'z1' ? fz1 - 0.08 : fz0;
+    rail(B, xm - sp / 2, fz0, xm + sp / 2, fz1, top);
+    rail(B, x0, ez, xm - sp / 2, ez + 0.08, top);
+  }
+  return [x0, Math.min(fz0, mz0), x1, Math.max(fz1, mz1)];
+}
+// 屋上の階段小屋（階段室の上。BattleBit の屋上のように、階段を上がって扉から屋上へ出る）。外のり x0..x1 × z0..z1、
+// 扉は z1 の側の壁の真ん中。高さ hh（天井の下まで）
+function roofHut(B, x0, z0, x1, z1, y, hh = 2.6) {
+  const c = { mat: M.CONCRETE };
+  wallZ(B, z0, z1, x0, y, y + hh, [], c); wallZ(B, z0, z1, x1 - T, y, y + hh, [], c);
+  wallX(B, x0 + T, x1 - T, z0, y, y + hh, [], c);
+  wallX(B, x0 + T, x1 - T, z1 - T, y, y + hh, [{ at: (x1 - x0) / 2 - T, ...DOOR, w: 1.1 }], { ...c, out: 1 });
+  slab(B, x0 - 0.1, z0 - 0.1, x1 + 0.1, z1 + 0.1, y + hh + SL, null, { col: '#8e9296' });
+  coping(B, x0 - 0.1, z0 - 0.1, x1 + 0.1, z1 + 0.1, y + hh + SL);
 }
 function begin(ww, o, bw, bd, mat, col) {
   const r = o.rnd || Math.random;
@@ -28050,15 +28116,20 @@ function gable(B, y, rh, ov = 0.45, ridge = 'x', o = {}) {
     }
   }
 }
-// 平らな屋根と低い縁（パラペット）
+// 平らな屋根と低い縁（パラペット）。o.hole: 階段の穴（屋上の階段小屋の中）
 function flatRoof(B, y, h = 0.5, o = {}) {
   const { bw, bd } = B;
-  slab(B, -0.1, -0.1, bw + 0.1, bd + 0.1, y + SL, null, { col: o.col || '#8e9296' });
+  slab(B, -0.1, -0.1, bw + 0.1, bd + 0.1, y + SL, o.hole || null, { col: o.col || '#8e9296' });
   const c = { kind: 'roof', col: o.edgeCol || B.col, mat: B.mat };
   box(B, -0.1, y + SL, -0.1, bw + 0.1, y + SL + h, 0.15, c); box(B, -0.1, y + SL, bd - 0.15, bw + 0.1, y + SL + h, bd + 0.1, c);
   box(B, -0.1, y + SL, 0.15, 0.15, y + SL + h, bd - 0.15, c); box(B, bw - 0.15, y + SL, 0.15, bw + 0.1, y + SL + h, bd - 0.15, c);
-  // 縁の上の笠木（明るい線）
-  box(B, -0.14, y + SL + h, -0.14, bw + 0.14, y + SL + h + 0.08, bd + 0.14, { kind: 'trim', col: TRIM_DARK, mat: M.CONCRETE, detail: true, walk: false, hide: false });
+  // 縁の上の笠木（明るい線。縁の壁の上だけ。屋根の全面にかぶせると、屋上で立てない・押し出される）
+  coping(B, -0.1, -0.1, bw + 0.1, bd + 0.1, y + SL + h);
+}
+function coping(B, x0, z0, x1, z1, y, w = 0.25) {
+  const c = { kind: 'trim', col: TRIM_DARK, mat: M.CONCRETE, detail: true, walk: false };
+  box(B, x0 - 0.04, y, z0 - 0.04, x1 + 0.04, y + 0.08, z0 + w, c); box(B, x0 - 0.04, y, z1 - w, x1 + 0.04, y + 0.08, z1 + 0.04, c);
+  box(B, x0 - 0.04, y, z0 + w, x0 + w, y + 0.08, z1 - w, c); box(B, x1 - w, y, z0 + w, x1 + 0.04, y + 0.08, z1 - w, c);
 }
 // 家具（遮蔽物になる箱。近くだけ描く）。kind: sofa・table・bed・shelf・counter・wardrobe・desk・crate
 const FURN = {
@@ -28072,24 +28143,33 @@ function furn(B, kind, lx, ly, lz, along = 'x') {
   box(B, lx, ly, lz, lx + a, ly + h, lz + b, { kind: 'furn', detail: true, col, mat, layer, bev: 0.05 });
 }
 
-// ---- 2階建ての家（8×10m）: 1階は居間と台所、2階は寝室2つ。玄関は手前、裏口は奥。階段は奥の左。切妻の屋根・煙突・ひさし
+// ---- 2階建ての家（8×10m）: 1階は居間と台所、2階は寝室2つ。玄関は手前、裏口は奥。切妻の屋根・煙突・ひさし。
+// 階段は玄関を入ってすぐ左（手前の部屋の左の壁ぞい）。玄関の前から奥へまっすぐ上がり、上がった所が2階の奥の部屋の入口。
+// 2階の階段の穴の縁に手すり。段の下は埋める
+const HS = { x1: T + 1.2, z0: 1.4, z1: 5.1 };
 export function house(ww, o) {
-  const bw = 8, bd = 10, F = o.floors || 2, H = F * FH, r = o.rnd || Math.random;
+  const bw = 8, bd = 10, F = Math.min(2, o.floors || 2), H = F * FH, r = o.rnd || Math.random;
   const brick = o.mat === M.BRICK || (o.mat == null && r() < 0.3);
   const B = begin(ww, { ...o, kind: 'house', floors: F }, bw, bd, brick ? M.BRICK : (o.mat ?? M.BRICK), o.col || (brick ? pick(BRICKS, r) : pick(PLASTER, r)));
   if (!brick && o.mat !== M.WOOD) B.layer = 3; else if (o.mat === M.WOOD) B.layer = 22;
+  const st = F > 1;
   for (let f = 0; f < F; f++) {
     const y0 = f * FH, y1 = y0 + FH, opsF = f === 0 ? [{ at: 3, ...DOOR }, { at: 6.2, ...WIN }] : [{ at: 2, ...WIN }, { at: 6, ...WIN }];
     wallX(B, 0, bw, 0, y0, y1, opsF, { out: -1 });                                        // 手前
     wallX(B, 0, bw, bd - T, y0, y1, f === 0 ? [{ at: 6, ...DOOR }, { at: 2.4, ...WIN }] : [{ at: 4, ...WIN }], { out: 1 }); // 奥
-    wallZ(B, T, bd - T, 0, y0, y1, [{ at: 4.5, ...WIN }], { out: -1 });                   // 左
+    wallZ(B, T, bd - T, 0, y0, y1, [{ at: st && f === 0 ? 6.7 : 4.5, ...WIN }], { out: -1 }); // 左（1階は階段にかからない奥へ）
     wallZ(B, T, bd - T, bw - T, y0, y1, [{ at: 3, ...WIN }, { at: 7, ...WIN }], { out: 1 }); // 右
-    // 中の仕切り（扉つき）
-    wallX(B, T, bw - T, 5, y0, y1, [{ at: 2.5, ...DOOR }, { at: 5.6, ...DOOR }], { mat: M.DRYWALL, col: '#d8d2c4', layer: 3 });
-    if (f > 0) slab(B, 0, 0, bw, bd, y0, [T, 6.5, T + 1.1, bd - T]);
+    // 中の仕切り（扉つき）。2階は階段の上がり口（左の 1.2m）を空ける
+    const PW = { mat: M.DRYWALL, col: '#d8d2c4', layer: 3 };
+    if (st && f > 0) wallX(B, HS.x1, bw - T, 5, y0, y1, [{ at: 2.8 - HS.x1, ...DOOR }, { at: 5.9 - HS.x1, ...DOOR }], PW);
+    else wallX(B, T, bw - T, 5, y0, y1, [{ at: 2.5, ...DOOR }, { at: 5.6, ...DOOR }], PW);
+    if (f > 0) slab(B, 0, 0, bw, bd, y0, [T, HS.z0, HS.x1, HS.z1]);
   }
-  // 階段（奥の左。z=bd-T から 6.5 へ上がる）
-  for (let f = 0; f + 1 < F; f++) ramp(B, T, 6.5, T + 1.1, bd - T, f * FH, (f + 1) * FH, 'n');
+  if (st) {
+    ramp(B, T, HS.z0, HS.x1, HS.z1, 0, FH, 's');
+    stairFill(B, T, HS.z0, HS.x1, HS.z1, 0, FH, 's');
+    rail(B, HS.x1, HS.z0, HS.x1 + 0.08, 5.0, FH); rail(B, T, HS.z0 - 0.08, HS.x1 + 0.08, HS.z0, FH);
+  }
   // 天井（屋根裏の床）と切妻の屋根・煙突
   slab(B, 0, 0, bw, bd, H + SL, null, { col: '#8a857c' });
   gable(B, H + SL, 2.2, 0.45, 'x');
@@ -28097,9 +28177,9 @@ export function house(ww, o) {
   plinth(B);
   // 玄関のひさし
   box(B, 2.1, 2.45, -1.1, 3.9, 2.6, 0, { kind: 'trim', col: B.roofCol, mat: M.WOOD, walk: false });
-  // 家具
-  furn(B, 'sofa', 0.6, 0, 0.6); furn(B, 'table', 4.6, 0, 2.0); furn(B, 'counter', 4.8, 0, 9.0); furn(B, 'fridge', 7.0, 0, 8.4);
-  if (F > 1) { furn(B, 'bed', 4.6, FH, 0.6); furn(B, 'wardrobe', 0.6, FH, 4.0); furn(B, 'bed', 4.6, FH, 7.6); }
+  // 家具（階段の上り口と穴にかからない所）
+  furn(B, 'sofa', 6.7, 0, 1.0, 'z'); furn(B, 'table', 3.4, 0, 2.6); furn(B, 'counter', 4.8, 0, 9.0); furn(B, 'fridge', 6.9, 0, 8.4);
+  if (st) { furn(B, 'bed', 4.6, FH, 0.6); furn(B, 'wardrobe', 3.6, FH, 4.3); furn(B, 'bed', 4.6, FH, 7.6); }
   return B;
 }
 // 平屋（10×8m）: 居間・台所・寝室。切妻の屋根（棟は長い辺）・玄関のポーチ（柱2本）
@@ -28124,25 +28204,28 @@ export function bungalow(ww, o) {
   return B;
 }
 
-// ---- アパート（12×18m、F階）: 中央の階段室、各階に2部屋。屋上へも上がれる（手すりの低い壁）・手前にベランダ・入口のひさし
+// ---- アパート（12×18m、F階）: 中央の階段室（折り返し階段・各階の間に踊り場）、各階に部屋。屋上へは階段小屋の扉から出る
+// （縁は手すりの低い壁）・手前にベランダ・入口のひさし。階段室の出入り口は奥の踊り場の横（両側の部屋への扉）と奥の部屋
 export function apartment(ww, o) {
   const bw = 12, bd = 18, F = o.floors || 3, H = F * FH, r = o.rnd || Math.random;
   const B = begin(ww, { ...o, kind: 'apartment', floors: F }, bw, bd, o.mat ?? M.CONCRETE, o.col || pick(['#a8aeb4', '#b9b2a4', '#c2b49a', '#9fa9a1', '#b7a99c', '#c9c2b3'], r));
   B.layer = 3;
+  const SH = uStair(B, 4.5 + T, 6.5 + T, 7.5 - T, 11.5, Array.from({ length: F + 1 }, (_, k) => k * FH), { land: 'z1', fl: 1.2, ml: 1.2 });
   for (let f = 0; f < F; f++) {
     const y0 = f * FH, y1 = y0 + FH;
     wallX(B, 0, bw, 0, y0, y1, f === 0 ? [{ at: 2.5, ...WIN }, { at: 6, w: 1.6, y0: 0, y1: 2.4 }, { at: 9.5, ...WIN }] : [{ at: 2.5, ...WIN }, { at: 6, ...WIN }, { at: 9.5, w: 1.0, y0: 0, y1: 2.2 }], { out: -1 });
     wallX(B, 0, bw, bd - T, y0, y1, [{ at: 2.5, ...WIN }, { at: 6, ...(f === 0 ? DOOR : WIN) }, { at: 9.5, ...WIN }], { out: 1 });
     wallZ(B, T, bd - T, 0, y0, y1, [{ at: 3.5, ...WIN }, { at: 8.7, ...WIN }, { at: 14, ...WIN }], { out: -1 });
     wallZ(B, T, bd - T, bw - T, y0, y1, [{ at: 3.5, ...WIN }, { at: 8.7, ...WIN }, { at: 14, ...WIN }], { out: 1 });
-    // 階段室（中央 x=4.5〜7.5、z=6.5〜11.5）の壁と、部屋への扉
-    wallZ(B, 6.5, 11.5, 4.5, y0, y1, [{ at: 2.5, ...DOOR }], { mat: M.CONCRETE });
-    wallZ(B, 6.5, 11.5, 7.5 - T, y0, y1, [{ at: 2.5, ...DOOR }], { mat: M.CONCRETE });
+    // 階段室（中央 x=4.5〜7.5、z=6.5〜11.5）の壁と、部屋への扉（奥の踊り場の横）。表の側は壁（途中の踊り場がある）
+    wallZ(B, 6.5, 11.5, 4.5, y0, y1, [{ at: 4.2, ...DOOR, w: 1.0 }], { mat: M.CONCRETE });
+    wallZ(B, 6.5, 11.5, 7.5 - T, y0, y1, [{ at: 4.2, ...DOOR, w: 1.0 }], { mat: M.CONCRETE });
+    wallX(B, 4.5 + T, 7.5 - T, 6.5, y0, y1, [], { mat: M.CONCRETE });
     // 部屋の仕切り（手前と奥）
     wallX(B, T, 4.5, 6.5, y0, y1, [{ at: 2, ...DOOR }], { mat: M.DRYWALL, col: '#d6d2c8' }); wallX(B, 7.5, bw - T, 6.5, y0, y1, [{ at: 2.2, ...DOOR }], { mat: M.DRYWALL, col: '#d6d2c8' });
     wallX(B, T, 4.5, 11.5 - T, y0, y1, [{ at: 2, ...DOOR }], { mat: M.DRYWALL, col: '#d6d2c8' }); wallX(B, 7.5, bw - T, 11.5 - T, y0, y1, [{ at: 2.2, ...DOOR }], { mat: M.DRYWALL, col: '#d6d2c8' });
     if (f > 0) {
-      slab(B, 0, 0, bw, bd, y0, [4.5 + T, 6.5, 6.0, 11.5]);
+      slab(B, 0, 0, bw, bd, y0, SH);
       // ベランダ（右の窓の扉の前。床と手すり）
       box(B, 8.4, y0 - SL, -1.3, 10.6, y0, 0, { kind: 'floor', col: '#9a9a94' });
       box(B, 8.4, y0, -1.3, 10.6, y0 + 1.0, -1.18, { kind: 'rail', col: TRIM_DARK, mat: M.METAL, opaque: false, layer: 10 });
@@ -28152,9 +28235,9 @@ export function apartment(ww, o) {
     // 部屋の家具
     furn(B, 'table', 1.5, y0, 2.4); furn(B, 'sofa', 8.4, y0, 3.8); furn(B, 'shelf', 0.6, y0, 14.5, 'z'); furn(B, 'bed', 8.6, y0, 13.8);
   }
-  // 階段（階段室の左半分。各階で z=11.5 → 6.5 へ）。屋上へも
-  for (let f = 0; f < F; f++) ramp(B, 4.5 + T, 6.5, 6.0, 11.5, f * FH, (f + 1) * FH, 'n');
-  flatRoof(B, H - SL, 1.0);
+  // 屋上（階段の穴は階段小屋の中）
+  flatRoof(B, H - SL, 1.0, { hole: SH });
+  roofHut(B, 4.5, 6.5, 7.5, 11.5 + T, H);
   plinth(B, 0.3);
   // 入口のひさし・屋上の機械
   box(B, 4.6, 2.6, -1.4, 7.4, 2.78, 0, { kind: 'trim', col: TRIM_DARK, mat: M.CONCRETE, walk: false });
@@ -28172,10 +28255,14 @@ export function shop(ww, o) {
     wallX(B, 0, bw, 0, y0, y1, f === 0 ? [{ at: 2.6, ...BIGWIN }, { at: 6, ...DOOR, w: 1.6 }, { at: 9.4, ...BIGWIN }] : [{ at: 2.5, ...WIN }, { at: 6, ...WIN }, { at: 9.5, ...WIN }], { out: -1 });
     wallX(B, 0, bw, bd - T, y0, y1, f === 0 ? [{ at: 9.8, ...DOOR }] : [{ at: 3, ...WIN }, { at: 9, ...WIN }], { out: 1 });
     wallZ(B, T, bd - T, 0, y0, y1, f === 0 ? [] : [{ at: 4.5, ...WIN }], { out: -1 });
-    wallZ(B, T, bd - T, bw - T, y0, y1, [{ at: 4.5, ...WIN }], { out: 1 });
-    if (f > 0) slab(B, 0, 0, bw, bd, y0, [bw - 1.6, 1.2, bw - T, 6.4]);
+    wallZ(B, T, bd - T, bw - T, y0, y1, F > 1 && f === 0 ? [] : [{ at: 4.5, ...WIN }], { out: 1 }); // 1階の右は階段がそう
+    if (f > 0) slab(B, 0, 0, bw, bd, y0, [bw - 1.5, 1.6, bw - T, 6.4]);
   }
-  if (F > 1) ramp(B, bw - 1.6, 1.2, bw - T, 6.4, 0, FH, 's');
+  // 階段（右の壁ぞい。手前の上り口から奥へ）。段の下を埋め、2階の穴の縁に手すり
+  if (F > 1) {
+    ramp(B, bw - 1.5, 1.6, bw - T, 6.4, 0, FH, 's'); stairFill(B, bw - 1.5, 1.6, bw - T, 6.4, 0, FH, 's');
+    rail(B, bw - 1.58, 1.6, bw - 1.5, 6.4, FH); rail(B, bw - 1.58, 1.52, bw - T, 1.6, FH);
+  }
   flatRoof(B, H - SL, 0.6);
   plinth(B, 0.25);
   // ひさし（布）と看板の帯
@@ -28187,11 +28274,12 @@ export function shop(ww, o) {
   return B;
 }
 
-// ---- 事務所（14×12m、F階）: 窓の列・中央の階段・平らな屋根と屋上の機械
+// ---- 事務所（14×12m、F階）: 窓の列・中央の階段室（折り返し階段・踊り場。奥と左に出入り口）・平らな屋根と屋上の階段小屋・機械
 export function office(ww, o) {
   const bw = 14, bd = 12, F = o.floors || 3, H = F * FH, r = o.rnd || Math.random;
   const B = begin(ww, { ...o, kind: 'office', floors: F }, bw, bd, o.mat ?? M.CONCRETE, o.col || pick(['#b5b8b6', '#c8c1b0', '#a9b0b3', '#bdb2a0'], r));
   B.layer = 1;
+  const SH = uStair(B, 6 + T, 4 + T, 8.7, 9, Array.from({ length: F + 1 }, (_, k) => k * FH), { land: 'z1', fl: 1.2, ml: 1.2 });
   const row = (n, L, extra = []) => { const ops = []; for (let k = 0; k < n; k++) ops.push({ at: L * (k + 0.5) / n, ...WIN, w: 1.6 }); return ops.concat(extra); };
   for (let f = 0; f < F; f++) {
     const y0 = f * FH, y1 = y0 + FH;
@@ -28199,13 +28287,15 @@ export function office(ww, o) {
     wallX(B, 0, bw, bd - T, y0, y1, f === 0 ? row(4, bw, []).slice(0, 3).concat([{ at: 12.2, ...DOOR }]) : row(5, bw), { out: 1 });
     wallZ(B, T, bd - T, 0, y0, y1, row(3, bd - 2 * T), { out: -1 });
     wallZ(B, T, bd - T, bw - T, y0, y1, row(3, bd - 2 * T), { out: 1 });
-    // 階段室（x=6〜8.5, z=4〜9）
-    wallZ(B, 4, 9, 6, y0, y1, [{ at: 1.2, ...DOOR }], { mat: M.CONCRETE });
-    if (f > 0) slab(B, 0, 0, bw, bd, y0, [6 + T, 4, 7.5, 9]);
+    // 階段室（x=6〜9, z=4〜9）: 左・右・手前の壁。奥は開いている。左の扉は奥の踊り場の横
+    wallZ(B, 4, 9, 6, y0, y1, [{ at: 4.4, ...DOOR, w: 1.0 }], { mat: M.CONCRETE });
+    wallZ(B, 4, 9, 8.7, y0, y1, [], { mat: M.CONCRETE });
+    wallX(B, 6 + T, 8.7, 4, y0, y1, [], { mat: M.CONCRETE });
+    if (f > 0) slab(B, 0, 0, bw, bd, y0, SH);
     furn(B, 'desk', 1.0, y0, 1.2); furn(B, 'desk', 3.2, y0, 1.2); furn(B, 'desk', 9.2, y0, 1.2); furn(B, 'desk', 11.4, y0, 1.2); furn(B, 'shelf', 9.4, y0, 10.8); furn(B, 'desk', 1.4, y0, 9.6);
   }
-  for (let f = 0; f < F; f++) ramp(B, 6 + T, 4, 7.5, 9, f * FH, (f + 1) * FH, 'n');
-  flatRoof(B, H - SL, 1.0);
+  flatRoof(B, H - SL, 1.0, { hole: SH });
+  roofHut(B, 6, 4, 9, 9 + T, H);
   plinth(B, 0.3);
   box(B, 2, H + 0.25, 7, 4.2, H + 1.6, 9.6, { kind: 'roof', col: '#9aa0a2', mat: M.METAL, layer: 10, bev: 0.06 });
   box(B, 10, H + 0.25, 2, 11.2, H + 1.1, 3.4, { kind: 'roof', col: '#8d9396', mat: M.METAL, layer: 10, detail: true, bev: 0.06 });
@@ -28220,11 +28310,13 @@ export function warehouse(ww, o) {
   wallX(B, 0, bw, 0, 0, H, [{ at: 10, w: 6, y0: 0, y1: 5 }], { out: -1 });
   wallX(B, 0, bw, bd - T, 0, H, [{ at: 6, w: 5, y0: 0, y1: 4.5 }, { at: 16, ...DOOR }], { out: 1 });
   wallZ(B, T, bd - T, 0, 0, H, [{ at: 8, ...DOOR }, { at: 15, w: 2, y0: 4.6, y1: 5.8 }, { at: 22, w: 2, y0: 4.6, y1: 5.8 }], { out: -1 });
-  wallZ(B, T, bd - T, bw - T, 0, H, [{ at: 15, w: 2, y0: 4.6, y1: 5.8 }, { at: 22, ...DOOR }], { out: 1 });
-  // 右の壁ぞいのキャットウォーク（高さ3.5m・幅2m）と斜めの階段
-  box(B, bw - 2.3, 3.25, 4, bw - T, 3.5, bd - 4, { kind: 'floor', mat: M.METAL, col: '#5d6466' });
-  box(B, bw - 2.4, 3.5, 4, bw - 2.3, 4.5, bd - 4, { kind: 'rail', mat: M.METAL, col: '#5d6466', opaque: false });
-  ramp(B, bw - 2.3, bd - 4, bw - T, bd - 0.5, 0, 3.5, 'n');
+  wallZ(B, T, bd - T, bw - T, 0, H, [{ at: 15, w: 2, y0: 4.6, y1: 5.8 }, { at: 27.3, ...DOOR }], { out: 1 });
+  // 右の壁ぞいのキャットウォーク（高さ3.5m・幅2m・z 4〜22）と、奥から上がる階段（上り口の前は 3m 空ける。段の下は埋める）
+  box(B, bw - 2.3, 3.25, 4, bw - T, 3.5, 22, { kind: 'floor', mat: M.METAL, col: '#5d6466' });
+  box(B, bw - 2.4, 3.5, 4, bw - 2.3, 4.5, 22, { kind: 'rail', mat: M.METAL, col: '#5d6466', opaque: false });
+  box(B, bw - 2.4, 3.5, 4, bw - T, 4.5, 4.1, { kind: 'rail', mat: M.METAL, col: '#5d6466', opaque: false });
+  ramp(B, bw - 2.3, 22, bw - T, 26.6, 0, 3.5, 'n', { col: '#5d6466', mat: M.METAL });
+  stairFill(B, bw - 2.3, 22, bw - T, 26.6, 0, 3.5, 'n', 0, { col: '#5d6466', mat: M.METAL });
   // 屋根（低い切妻）と換気の箱
   slab(B, 0, 0, bw, bd, H + SL, null, { col: '#5f6668', mat: M.METAL });
   gable(B, H + SL, 1.6, 0.4, 'z', { col: o.roofCol || '#5f6668', wallCol: B.col });
@@ -28245,11 +28337,11 @@ export function barn(ww, o) {
   wallZ(B, T, bd - T, bw - T, 0, H, [{ at: 11, ...DOOR }, { at: 5, w: 1.0, y0: 2.4, y1: 3.4 }], { out: 1 });
   // 干し草の床（奥の半分・高さ 2.8）と階段
   box(B, T, 2.55, 9, bw - T, 2.8, bd - T, { kind: 'floor', col: '#7a6448', mat: M.WOOD, layer: 4 });
-  ramp(B, bw - 1.4, 3.6, bw - T, 9, 0, 2.8, 's', { col: '#7a6448' });
+  ramp(B, bw - 1.4, 3.6, bw - T, 9, 0, 2.8, 's', { col: '#7a6448' }); stairFill(B, bw - 1.4, 3.6, bw - T, 9, 0, 2.8, 's', 0, { col: '#6b5a44' });
   slab(B, 0, 0, bw, bd, H + SL, null, { col: '#6b5a44', mat: M.WOOD });
   gable(B, H + SL, 3.0, 0.5, 'z', { col: o.roofCol || '#5a5a58' });
   // 干し草（中と干し草の床）
-  for (const [x, z, y] of [[1.2, 12, 2.8], [2.6, 12.2, 2.8], [1.3, 13.5, 2.8], [7.2, 3, 0], [8.0, 4.4, 0]]) box(B, x, y, z, x + 1.2, y + 0.9, z + 0.8, { kind: 'crate', col: '#c9b56a', mat: M.FABRIC, layer: 12, bev: 0.08, detail: true });
+  for (const [x, z, y] of [[1.2, 12, 2.8], [2.6, 12.2, 2.8], [1.3, 13.5, 2.8], [7.0, 6.2, 0], [7.1, 7.4, 0]]) box(B, x, y, z, x + 1.2, y + 0.9, z + 0.8, { kind: 'crate', col: '#c9b56a', mat: M.FABRIC, layer: 12, bev: 0.08, detail: true });
   return B;
 }
 // ---- 小屋・車庫（5×6m）: 片流れの屋根、手前に戸口
@@ -28267,20 +28359,27 @@ export function shed(ww, o) {
   return B;
 }
 
-// ---- 見張り塔（4×4m、高さ9m）: 2段の踊り場、上は胸の高さの壁
+// ---- 見張り塔（5×5m、高さ9m）: 四方の壁（各階に細い窓、1階の手前に扉）。中は折り返し階段（3m ごとの階・間に踊り場）。
+// 各階の床は階段の横（幅 2m）と奥の踊り場。いちばん上は胸の高さの壁と、柱4本の屋根（見張りの場所）。階段の穴の縁に手すり
 export function tower(ww, o) {
-  const bw = 4, bd = 4, H = 9;
+  const bw = 5, bd = 5, H = 9, ys = [0, 3, 6, 9];
   const B = begin(ww, { ...o, kind: 'tower', floors: 3 }, bw, bd, o.mat ?? M.CONCRETE, o.col || '#9a9890');
-  // 柱4本
-  for (const [px, pz] of [[0, 0], [bw - 0.4, 0], [0, bd - 0.4], [bw - 0.4, bd - 0.4]]) box(B, px, 0, pz, px + 0.4, H + 3.2 - SL, pz + 0.4, { kind: 'pillar' });
-  // 床（4.5m・9m）と階段（外側に沿って）
-  slab(B, 0, 0, bw, bd, 4.5, [0.4, 0.4, 1.5, bd - 0.4]);
-  slab(B, 0, 0, bw, bd, H, [0.4, 0.4, 1.5, bd - 0.4]);
-  ramp(B, 0.4, 0.4, 1.5, bd - 0.4, 0, 4.5, 'n');
-  ramp(B, 0.4, 0.4, 1.5, bd - 0.4, 4.5, H, 's');
-  // 上の胸壁
+  const SLIT = { w: 0.9, y0: 1.25, y1: 1.7 };
+  for (let f = 0; f < 3; f++) {
+    const y0 = ys[f], y1 = ys[f + 1];
+    wallX(B, 0, bw, 0, y0, y1, f === 0 ? [{ at: 3.65, ...DOOR }] : [{ at: 1.3, ...SLIT }, { at: 3.65, ...SLIT }], { out: -1 });
+    wallX(B, 0, bw, bd - T, y0, y1, [{ at: 1.3, ...SLIT }, { at: 3.65, ...SLIT }], { out: 1 });
+    wallZ(B, T, bd - T, 0, y0, y1, [{ at: 2.2, ...SLIT }], { out: -1 });
+    wallZ(B, T, bd - T, bw - T, y0, y1, [{ at: 2.2, ...SLIT }], { out: 1 });
+  }
+  // 階段（左の 2.3m。奥の 1.2m が各階の踊り場）。床は 3m・6m・9m
+  const SH = uStair(B, T, T, 2.6, bd - T, ys, { land: 'z1', fl: 1.2, ml: 1.2 });
+  for (let f = 1; f < 4; f++) { slab(B, 0, 0, bw, bd, ys[f], SH); rail(B, 2.6, T, 2.68, SH[3], ys[f]); }
+  // 上の胸壁・屋根の柱・屋根
   wallX(B, 0, bw, 0, H, H + 1.1); wallX(B, 0, bw, bd - T, H, H + 1.1); wallZ(B, T, bd - T, 0, H, H + 1.1); wallZ(B, T, bd - T, bw - T, H, H + 1.1);
+  for (const [px, pz] of [[0, 0], [bw - 0.4, 0], [0, bd - 0.4], [bw - 0.4, bd - 0.4]]) box(B, px, H + 1.1, pz, px + 0.4, H + 3.2 - SL, pz + 0.4, { kind: 'pillar' });
   slab(B, -0.3, -0.3, bw + 0.3, bd + 0.3, H + 3.2, null, { col: '#6c6a64' });
+  plinth(B, 0.25);
   return B;
 }
 // ---- 掩体壕（8×6m、コンクリート）: 厚い壁に銃眼、奥に入口、屋根の上に土のう
@@ -28358,16 +28457,15 @@ export function chapel(ww, o) {
   wallZ(B, 4 + T, bd - T, bw - T, 0, H, [{ at: 3, ...TW }, { at: 7.5, ...TW }, { at: 12.5, ...TW }], { out: 1 });
   slab(B, 0, 4, bw, bd, H + SL, null, { col: '#8a857c' });
   gable(B, H + SL, 3.4, 0.45, 'z', { z0: 4, z1: bd });
-  // 鐘の塔（x 3〜7・z 0〜4）: 壁・床（4m・8m。階段の穴）・階段・鐘の部屋の開口・平らな屋根ととがった屋根
-  const TH = 11;
-  wallX(B, 3, 7, 0, 0, TH, [{ at: 2, w: 1.4, y0: 0, y1: 2.6 }, { at: 2, w: 0.5, y0: 5.0, y1: 6.4 }, { at: 2, ...BELL }], { out: -1 });
-  wallZ(B, T, 4, 3, 0, TH, [{ at: 1.85, ...BELL }, { at: 1.85, w: 0.4, y0: 5.0, y1: 6.2 }], { out: -1 });
-  wallZ(B, T, 4, 7 - T, 0, TH, [{ at: 1.85, ...BELL }, { at: 1.85, w: 0.4, y0: 5.0, y1: 6.2 }], { out: 1 });
-  wallX(B, 3, 7, 4, 0, TH, [{ at: 2.6, w: 1.2, y0: 0, y1: 2.3 }, { at: 2, ...BELL, y0: Math.max(BELL.y0, H + 3.7) }]);
-  slab(B, 3 + T, T, 7 - T, 4, 4, [3 + T, T, 4.4, 4]);
-  slab(B, 3 + T, T, 7 - T, 4, 8, [5.6, T, 7 - T, 4]);
-  ramp(B, 3 + T, T, 4.4, 4, 0, 4, 'n');
-  ramp(B, 5.6, T, 7 - T, 4, 4, 8, 's');
+  // 鐘の塔（x 3〜7・z 0〜4）: 壁・折り返し階段（床 2.7・5.4・8.1m。間に踊り場。手前が各階の踊り場で、1階は表の扉の前）・
+  // 階段の横の床（右の 1.1m。1階は広間への扉の前）・鐘の部屋（8.1m）の開口・平らな屋根ととがった屋根
+  const TH = 11, CY = [0, 2.7, 5.4, 8.1], SW = (y) => ({ w: 0.45, y0: y + 0.9, y1: y + 1.9 });
+  wallX(B, 3, 7, 0, 0, TH, [{ at: 2, w: 1.4, y0: 0, y1: 2.4 }, { at: 1.0, ...SW(2.7) }, { at: 3.15, ...SW(5.4) }, { at: 2, ...BELL }], { out: -1 });
+  wallZ(B, T, 4, 3, 0, TH, [{ at: 1.85, ...BELL }, { at: 1.85, ...SW(2.7) }, { at: 1.85, ...SW(5.4) }], { out: -1 });
+  wallZ(B, T, 4, 7 - T, 0, TH, [{ at: 1.85, ...BELL }, { at: 1.85, ...SW(5.4) }], { out: 1 });
+  wallX(B, 3, 7, 4, 0, TH, [{ at: 3.15, w: 1.1, y0: 0, y1: 2.3 }, { at: 2, ...BELL, y0: Math.max(BELL.y0, H + 3.7) }]);
+  const CH = uStair(B, 3 + T, T, 5.6, 4, CY, { land: 'z0', fl: 1.0, ml: 0.9 });
+  for (let f = 1; f < 4; f++) { slab(B, 3 + T, T, 7 - T, 4, CY[f], CH); rail(B, 5.6, CH[1], 5.68, 4, CY[f]); }
   slab(B, 2.85, -0.15, 7.15, 4.45, TH + SL, null, { col: '#77726a' });
   box(B, 2.8, TH + SL, -0.2, 7.2, TH + SL + 0.25, 4.5, { kind: 'trim', col: B.trimCol, mat: M.CONCRETE, walk: false });
   const [sx, sz] = xf(B, 5, 2.15);
@@ -28875,7 +28973,7 @@ export function roadDist(x, z) {
 const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // 建物の大きさ（ローカル bw × bd）と作る関数
-const DIMS = { house: [8, 10], bungalow: [10, 8], apartment: [12, 18], shop: [12, 9], office: [14, 12], warehouse: [20, 30], barn: [10, 16], shed: [5, 6], tower: [4, 4], bunker: [8, 6], ruin: [8, 10], gas: [22, 18], chapel: [10, 22] };
+const DIMS = { house: [8, 10], bungalow: [10, 8], apartment: [12, 18], shop: [12, 9], office: [14, 12], warehouse: [20, 30], barn: [10, 16], shed: [5, 6], tower: [5, 5], bunker: [8, 6], ruin: [8, 10], gas: [22, 18], chapel: [10, 22] };
 const BUILD = { house, bungalow, apartment, shop, office, warehouse, barn, shed, tower, bunker, ruin, gas: gasStation, chapel };
 const FALLBACK = ['house', 'bungalow', 'shed'];
 // 正面の前の空き（ひさし・ポーチ・ベランダ・荷の積み場）
@@ -34863,12 +34961,12 @@ test('敵に印（spot）: 狙っている向きの見えている敵に印が�
   ok(sp && sp.team === me.team && Math.abs((sp.until - S.t) * S.dt - SPOT_T) < 0.1, `印は ${SPOT_T} 秒`);
 });
 
-@@@@ FILE tests/unit/war_hammer.test.mjs text 3757
+@@@@ FILE tests/unit/war_hammer.test.mjs text 4009
 // 大ハンマー（分隊長・突撃・偵察）: 振って壁に穴（レンガ・木 2 回、コンクリート 4 回）・近くの敵は 1 回で倒れる
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
 import { classLoadout } from '../../src/war/classes.js';
-import { heightAt, los } from '../../src/war/world.js';
+import { heightAt, los, pushOut } from '../../src/war/world.js';
 import { M } from '../../src/engine/data/materials.js';
 
 const idle = (a, o = {}) => Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: a.pitch || 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o);
@@ -34889,7 +34987,9 @@ function wallGame(mat) {
   const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: true, per: 2 }); step(G, {});
   const S = G.S, ww = G.w, me = S.actors[0];
   for (const b of S.actors) if (b !== me) { b.alive = false; b.dead = true; }
-  const b = ww.boxes.find(q => q.alive && q.kind === 'wall' && q.mat === mat && q.z1 - q.z0 < 0.4 && q.x1 - q.x0 > 3 && q.y1 - q.y0 > 2.4 && Math.abs(q.y0 - heightAt(ww, (q.x0 + q.x1) / 2, q.z0 - 1.2)) < 0.4);
+  // 前 1.2m に立てる（家具・階段などにかからない）壁
+  const room = (q) => { const x = (q.x0 + q.x1) / 2, z = q.z0 - 1.2, y = heightAt(ww, x, z), o = pushOut(ww, x, z, y + 0.36, y + 1.8, 0.3); return !o[2]; };
+  const b = ww.boxes.find(q => q.alive && q.kind === 'wall' && q.mat === mat && q.z1 - q.z0 < 0.4 && q.x1 - q.x0 > 3 && q.y1 - q.y0 > 2.4 && Math.abs(q.y0 - heightAt(ww, (q.x0 + q.x1) / 2, q.z0 - 1.2)) < 0.4 && room(q));
   if (!b) return null;
   const cx = (b.x0 + b.x1) / 2;
   me.x = cx; me.z = b.z0 - 1.2; me.y = heightAt(ww, me.x, me.z); me.vx = me.vz = 0; me.yaw = 0; me.pitch = -0.1;
@@ -35679,6 +35779,86 @@ test('分隊ポイント: 目標の範囲で倒すと 50、目標を奪うと 10
   ok(run(f), '目標を奪った');
   eq(S.m.sqp[key], 1050, '目標を奪うと 1000');
   ok(!S.m.sqOrder[key], '奪い終えると分隊長の目標は解ける');
+});
+
+@@@@ FILE tests/unit/war_stairs.test.mjs text 5599
+import { test, ok } from '../lib/t.mjs';
+import { createGame, step } from '../../src/engine/engine.js';
+import { ceilAt, makeWarWorld, addBox, addRamp, finishWorld } from '../../src/war/world.js';
+import { moveActor } from '../../src/engine/move.js';
+import { M } from '../../src/engine/data/materials.js';
+
+// 建物の階段: リバーベンドの階段のある建物を全部、1階から階段をつないで最上階（アパート・事務所は屋上の階段小屋の扉の外）まで
+// 上がり、また1階まで下りる。どこでも止まらない・高さが合う・瞬間移動しない（建物の外へ放り出されない）・天井でかがまない
+const UP = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
+function ends(r) {
+  const [fx, fz] = UP[r.dir], alongZ = fz !== 0, cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
+  return { fx, fz, lo: alongZ ? [cx, fz > 0 ? r.z0 : r.z1] : [fx > 0 ? r.x0 : r.x1, cz], hi: alongZ ? [cx, fz > 0 ? r.z1 : r.z0] : [fx > 0 ? r.x1 : r.x0, cz] };
+}
+function routes(seed) {
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed, bots: false });
+  const S = G.S, ww = G.w, a = S.actors[0];
+  const inp = (o = {}) => ({ [a.id]: Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o) });
+  const goTo = (x, z) => {
+    let jump = 0, crouch = 0, px = a.x, pz = a.z;
+    for (let n = 0; n < 360; n++) {
+      const dx = x - a.x, dz = z - a.z, d = Math.hypot(dx, dz); if (d < 0.18) break;
+      a.oob = 0; step(G, inp({ mz: Math.min(1, d / 0.5 + 0.2), yaw: Math.atan2(dx, dz) }));
+      jump = Math.max(jump, Math.hypot(a.x - px, a.z - pz)); px = a.x; pz = a.z; if (a.st > 0.5) crouch++;
+    }
+    return { ok: Math.hypot(x - a.x, z - a.z) < 0.4, jump, crouch };
+  };
+  const byB = new Map(), bad = [], kinds = new Map();
+  for (const r of ww.ramps) if (r.kind === 'stair' && r.bld >= 0) { if (!byB.has(r.bld)) byB.set(r.bld, []); byB.get(r.bld).push(r); }
+  for (const [bid, rs] of byB) {
+    const b = ww.blds.find(q => q.id === bid); rs.sort((p, q) => p.y0 - q.y0);
+    const pts = [];
+    for (const r of rs) { const e = ends(r); pts.push([e.lo[0] - e.fx * 0.6, e.lo[1] - e.fz * 0.6, r.y0], [e.hi[0] + e.fx * 0.5, e.hi[1] + e.fz * 0.5, r.y1]); }
+    const last = rs[rs.length - 1], le = ends(last), roof = b.kind === 'apartment' || b.kind === 'office';
+    if (roof) {
+      const hx = (Math.min(...rs.map(r => r.x0)) + Math.max(...rs.map(r => r.x1))) / 2, hz = (Math.min(...rs.map(r => r.z0)) + Math.max(...rs.map(r => r.z1))) / 2;
+      pts.push([le.fz ? hx : le.hi[0] + le.fx * 0.6, le.fz ? le.hi[1] + le.fz * 0.6 : hz, last.y1], [le.fz ? hx : le.hi[0] + le.fx * 2.6, le.fz ? le.hi[1] + le.fz * 2.6 : hz, last.y1]);
+    }
+    Object.assign(a, { x: pts[0][0], z: pts[0][1], y: pts[0][2], vx: 0, vz: 0, vy: 0, alive: true, dead: false, down: false, st: 0, oob: 0 }); a.hp = a.maxHp;
+    for (let i = 0; i < 10; i++) step(G, inp());
+    const why = [];
+    const leg = (i, tag) => { const [x, z, y] = pts[i], r = goTo(x, z); if (!r.ok) return why.push(`${tag} ${i} に着かない`); if (Math.abs(a.y - y) > 0.35) return why.push(`${tag} ${i} 高さ ${a.y.toFixed(2)}≠${y.toFixed(2)}`); if (r.jump > 0.4) why.push(`${tag} ${i} 瞬間移動 ${r.jump.toFixed(2)}m`); if (r.crouch > 5) why.push(`${tag} ${i} かがむ`); };
+    for (let i = 1; i < pts.length && !why.length; i++) leg(i, '上り');
+    if (!why.length && roof && ceilAt(ww, a.x, a.z, a.y) - a.y < 50) why.push('屋上に出ていない');
+    for (let i = pts.length - 2; i >= 0 && !why.length; i--) leg(i, '下り');
+    kinds.set(b.kind, (kinds.get(b.kind) || 0) + 1);
+    if (why.length) bad.push(`${b.kind}#${bid}: ${why.join(' / ')}`);
+  }
+  return { bad, kinds };
+}
+
+test('war stairs: 階段のある建物を全部、1階から最上階・屋上まで上がって下りられる（2つの並び）', () => {
+  for (const seed of [3, 7]) {
+    const { bad, kinds } = routes(seed);
+    for (const k of ['house', 'apartment', 'office', 'shop', 'tower', 'chapel', 'barn', 'warehouse']) ok((kinds.get(k) || 0) > 0, `${k} がある（seed ${seed}）`);
+    ok(bad.length === 0, `seed ${seed}: ${bad.slice(0, 4).join(' | ')}`);
+  }
+});
+
+test('war stairs: 上へ歩いて頭が屋根の板に入っても、建物の外へ放り出されない（動く前の所で止まる）', () => {
+  // 10m 四方の屋根の板（高さ 2.75〜3.0）の下で、坂を上がって板に頭が入る
+  const ww = makeWarWorld({ sx: 64, sz: 64, hs: 2 });
+  addBox(ww, { x0: 20, y0: 2.75, z0: 20, x1: 30, y1: 3.0, z1: 30, kind: 'floor', mat: M.CONCRETE });
+  addRamp(ww, { x0: 24, z0: 20, x1: 25.2, z1: 26, y0: 0, y1: 2.4, dir: 'n' });
+  finishWorld(ww);
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false });
+  const S = G.S, a = S.actors[0];
+  Object.assign(a, { x: 24.6, z: 26.3, y: 0, vx: 0, vz: 0, vy: 0, st: 0, yaw: Math.PI });
+  let maxJump = 0;
+  let minRoom = 9;
+  for (let i = 0; i < 600; i++) {
+    const px = a.x, pz = a.z;
+    moveActor(S, ww, a, { mx: 0, mz: 1, yaw: Math.PI, pitch: 0, stance: 0, lean: 0, sprint: false }, 1 / 60, null);
+    maxJump = Math.max(maxJump, Math.hypot(a.x - px, a.z - pz)); minRoom = Math.min(minRoom, 2.75 - a.y);
+  }
+  ok(minRoom < 0.9, `板の近くまで上がる（すき間 ${minRoom.toFixed(2)}m）`);
+  ok(maxJump < 0.3, `一度に動いた最大 ${maxJump.toFixed(2)}m`);
+  ok(a.x > 20 && a.x < 30 && a.z > 20 && a.z < 30, `屋根の下にいる（${a.x.toFixed(1)}, ${a.z.toFixed(1)}）`);
 });
 
 @@@@ FILE tests/unit/war_world.test.mjs text 3449
