@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-20T07:35:36.574Z）
+HARD ENTRY ソース一式（2026-11-20T08:04:29.425Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 152956
+@@@@ FILE DESIGN.md text 154012
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -390,6 +390,7 @@ HARD ENTRY ソース一式（2026-11-20T07:35:36.574Z）
 - 11-20 WAR BIT 0.1.46（重くなる・カクつく）: 遊んでいる間の重さを減らした。(1) 壁や床に穴が開くたびに、描く塊ごとの物の表（3万の箱・1万2千の面）を全部作り直していた（1回 20〜35ms、スマホでは倍以上）→ 変わった物だけ直す。(2) 穴が開いた塊の遠い形は、近い形を使っている間は作り直さず、遠い形に切り替わる前に作る。(3) 歩いて近づいた塊の近い形（町の塊は1つ数十 ms）を1こまに2つまで作っていた → 1こまに1つ、作った時間の分だけ次を待つ（70m より近い塊は待たない）。(4) 人を描く前の姿勢の計算を、遠すぎる人（360m より先。構えた倍率の分だけ遠くまで）と画面の横より後ろの人（8m より先）は省く。骨の行列は人ごとに使い回す（毎こまのごみを減らす）。(5) 解像度の自動調整: 上げてすぐまた下げた後は「試合の終わりまで上げない」だったのを 90 秒に（一度重い場面があると、そのあと軽くなっても粗いままだった）。(6) fps の表示（設定）に1こまの計算時間（CPU ms）を出す。調べたこと: ブラウザで5分の試合を歩き回って10秒ごとに測った限り、メモリ・DOM・効果の数・状態の配列は増え続けない（エンジンの状態は node で10分の試合でも増えない）。1こまの計算は 描く 約3.5ms・HUD 約1ms・エンジン1ステップ 約1.3ms（このPC）。iPhone の発熱で遅くなる分は ここでは測れない。ほか（12:15 の要望）: 見るのを邪魔する説明の表示を消した（C4・地雷・弾薬箱の使い方の文字、射撃モード・倍率・C4 の切り替えで画面の真ん中に出る文字＝弾の欄とボタンに出ている、RPG の一度だけの案内）。拠点の文字は短く（「B 確保中 45%」。確保し終えたら出さない）。C4 の人へのダメージを BattleBit の 200 に。全部のソースの構文を確かめる単体テスト（ブラウザだけが読む main.js の誤りで起動しなかったのを、テストの前に見つける）
 - 11-20 WAR BIT 0.1.47（落とした弾倉・C4 を続けて貼る・溜まる物・重い時に軽くする）: 12:12・12:20・12:24 の要望。(1) 速いリロードで落とした弾倉: 手の高さから足もとの 0.5m 前へ回りながら落ち、見下ろすと見える（小銃の弾倉の大きさ・口に弾。前は 4×3×12cm の黒い箱で足もとの真下）。前は落として 0.6 秒たつと足もとの弾倉をすぐ拾ってしまい、落ちた弾倉が消えて見えた → 落とした本人は いったん 1.3m 離れてから戻ると拾う（ほかの人は 0.6 秒後から）。空の弾倉も落ちる（拾えない・20 秒で消える）。弾の欄の長押しで弾倉をまとめる動き（エンジン）は単体テストで確かめ済み。(2) C4: いくつも貼ってから まとめて起爆（BattleBit と同じ）。投げても残りがあれば「投げる」のまま・投げ切ったら「起爆」へ・続けて投げるのは 0.6 秒あける。(3) 溜まる物: 試合を出るたびに、人の見た目の係・手元の係・拠点の係が作った形（手に持つ物・投げ物・腕・拠点の旗・弾倉・弾薬箱・地雷など）を GPU から消す（前は試合ごとに作り直して残り、GPU のメモリが少しずつ増えていた）。(4) 重い時に軽くする段を増やした: 解像度を下げる前後に、にじみ（bloom）と草を省く → 影を省き近い形の距離を 3/4 に（端末が熱くなって遅れが続いた時。軽くなれば戻す）
 - 11-20 WAR BIT 0.1.48（投げ物・包帯・道具のボタン）: 12:12・12:32 の要望。BattleBit のキー（投げ物 G・包帯 3・道具 4/5）に合わせ、大規模戦の「投げ物・装備」のボタンを 投げ物・包帯・道具 の3つに分けた（前のボタンを動かしていれば、投げ物のボタンがその場所を引き継ぐ。包帯は上の列、道具は右の端）。押すと選んでいる物を持つ（手に持っていれば銃に戻す・数が 0 なら並びの次）。投げ物・道具のボタンは指を 16px ずらした時点で選ぶ円が出る（前は 0.36 秒の長押しのあと）。円は上・右・下・左の決まった場所で、設定（HUD）で並びを決める（同じ物を選ぶと入れ替わる）。持っていない物の場所は空き・数が 0 は薄く、数が変わっても場所は変わらない。道具の円: 兵科の道具（弾薬箱・医療キット・双眼鏡）・C4・地雷・ハンマー・RPG。キーボードは G 投げ物・3 包帯・4/5 道具。円の真ん中の説明の文字（指をずらして離す）は消した
+- 11-20 WAR BIT 0.1.49（足音・動きの音）: 12:37 の要望。走って跳ぶと宙でも走る足音が鳴っていた → 宙にいる間は足を運ばず足音も出さない（跳ぶ音と着地の音だけ）。走りの足音が 1 歩 0.95m で 1 秒に 7 歩近く、細かく速すぎた → 大規模戦の1歩の長さを速さから（0.42 + 0.24×速さ、0.6〜2.05m）: 歩き約 2.7・しゃがみ約 2.2・全力約 3.2 歩/秒（足の動き・画面の揺れも同じ歩みに）。ほかの人の軽い着地も近く（22m）なら聞こえる。ヘルメット・顔の盾ではじいた金属の高い音・防弾板の鈍い音・リロードを途中でやめた音。立つ・しゃがむ・伏せるときの服のこすれ（伏せは低く重め。ほかの人のは伏せ 14m・しゃがむ/立つ 8m まで）と、構える・構えをやめるときの小さな音（自分だけ）。構えの知らせは engine の e.s（知らせの通し番号）とぶつからないよう pose に。単体テスト war_steps
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -545,7 +546,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 148734
+@@@@ FILE src/app/game.js text 150665
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -965,6 +966,8 @@ export class Match {
       if (this.breathOn && (!this.adsOn || !p || !p.alive || p.down || (ws && ws.gasp > 0) || (!(ws && ws.holding) && this.time - (this._brT || 0) > 0.35))) this.breathOn = false;
     }
     const brBtn = (this.app.settings.breathMode || 'toggle') === 'hold' ? inp.hold.has('breath') : !!this.breathOn;
+    // 構える・構えをやめる: 銃を上げ下げする小さな音（自分だけ・大規模戦）
+    if (this.adsOn !== this._adsWas) { if (this._adsWas != null && this.S && this.S.war && p && p.alive && !p.down) this.au.sfx('act', null, { vol: 0.1, rate: this.adsOn ? 1.4 : 1.2 }); this._adsWas = this.adsOn; }
     const cmd = {
       mx: inp.mx, mz: inp.mz, yaw: this.yaw, pitch: this.pitch,
       // ローレディは人の操作からはなくした（0.1.13。撃てなくなるだけで使う理由がない）。AI は今までどおり使う（銃を下げて歩く・投降など）
@@ -1470,12 +1473,32 @@ export class Match {
         case 'depset': au.sfx(e.k === 'wire' ? 'impMetal' : 'barricade', [e.x, e.y + 0.3, e.z], { vol: e.id === me ? 0.55 : 0.8, rate: e.k === 'wire' ? 1.4 : 0.8 }); break;
         case 'depbreak': if (e.why !== 'pick') { fx.debris(e.x, e.y, e.z, e.k === 'wire' ? [0.55, 0.56, 0.54] : [0.24, 0.26, 0.25]); au.sfx('impMetal', [e.x, e.y, e.z], { vol: 1, rate: 0.7 }); } else au.sfx('draw', [e.x, e.y, e.z], { vol: 0.5 }); break;
         case 'dephit': au.sfx('impMetal', [e.x, e.y, e.z], { vol: 0.8, rate: 1.3 }); break;
+        // ヘルメット・顔の盾で弾がはじかれた（金属の高い音。撃たれた本人には近く大きく）・防弾板に当たった（鈍い音）
+        case 'rico': if (e.x != null) au.sfx('impMetal', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.9 : 0.7, rate: 1.7 }); break;
+        case 'plate': if (e.x != null) au.sfx('plateHit', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.8 : 0.6 }); break;
+        // 構えの切り替え: 服のこすれ（伏せるときは低く重め）。ほかの人のは近くだけ（伏せ 14m・しゃがむ/立つ 8m）
+        case 'stance': {
+          if (e.id === me) au.sfx('act', null, { vol: e.pose === 2 ? 0.32 : 0.2, rate: e.pose === 2 ? 0.75 : e.pose === 1 ? 1.0 : 1.15 });
+          else if (e.x != null) {
+            const dd = Math.hypot(e.x - this.cam.x, e.z - this.cam.z);
+            if (e.pose === 2 && dd < 14) au.sfx('act', [e.x, e.y + 0.4, e.z], { vol: 0.4, rate: 0.75 });
+            else if (dd < 8) au.sfx('act', [e.x, e.y + 0.9, e.z], { vol: 0.25, rate: 1.05 });
+          }
+          break;
+        }
+        // リロードを途中でやめた（自分だけ。手を止める小さな音）
+        case 'reloadx': if (e.id === me) au.sfx('click', null, { vol: 0.25, rate: 0.9 }); break;
         case 'wire': { const near = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); if (near < 30) au.sfx('impMetal', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.35 : 0.55, rate: 1.6 + Math.random() * 0.3 }); break; }
         // 着地: 自分なら画面が揺れる。高い所から落ちたほど重い音（まわりにも聞こえる）
         case 'fall': {
           const big = (e.h || 0) > 2;
-          if (e.id === me) { au.sfx('land', null, { vol: big ? 1 : 0.7, rate: big ? 0.8 : 1 }); if (big) { this.shake = Math.min(1, this.shake + 0.25 + 0.1 * e.h); this._heatUp(0.3); } }
-          else if (big && e.x != null && Math.hypot(e.x - this.cam.x, e.z - this.cam.z) < 35) au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: Math.min(1, 0.4 + e.h * 0.15), rate: 0.75 });
+          if (e.id === me) { au.sfx('land', null, { vol: big ? 1 : 0.5, rate: big ? 0.8 : 1.1 }); if (big) { this.shake = Math.min(1, this.shake + 0.25 + 0.1 * e.h); this._heatUp(0.3); } }
+          else if (e.x != null) {
+            // ほかの人の着地: 高いほど重く遠くまで（跳んだだけの軽い着地も近くなら聞こえる）
+            const dd = Math.hypot(e.x - this.cam.x, e.z - this.cam.z);
+            if (big && dd < 35) au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: Math.min(1, 0.4 + e.h * 0.15), rate: 0.75 });
+            else if (!big && dd < 22) au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.35, rate: 1.15 });
+          }
           break;
         }
         case 'throw': { const a = S.byId[e.id]; au.sfx('throw', a === p ? null : [a.x, a.y + 1.5, a.z], { vol: 0.6 }); break; }
@@ -7498,7 +7521,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.48';
+export const VERSION = '0.1.49';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -13263,7 +13286,7 @@ export default {
   },
 };
 
-@@@@ FILE src/engine/move.js text 30666
+@@@@ FILE src/engine/move.js text 31573
 // 移動: RoN の速さ（歩き2.4・ゆっくり0.96・しゃがみ1.2）、しゃがみ・伏せ・リーン・乗り越え・飛び降り・落下・階段・PvPのダッシュ
 import { groundAt, standAt, ceilAt, pushOut, raycast, STEP, CS, LH, BH, NB, levelOfY, cellType, C, leafEnd, inMap, isWallish } from './world.js';
 import { hurt, pvpDamage, breakGlass } from './combat.js';
@@ -13383,6 +13406,8 @@ export function moveActor(S, w, a, inp, dt, ev) {
     const d = want - a.st, stp = rate * dt;
     a.st = Math.abs(d) <= stp ? want : a.st + Math.sign(d) * stp;
   }
+  // 構えの切り替え（立つ・しゃがむ・伏せる）を音に（大規模戦。服のこすれ・伏せは体を落とす音。game.js）
+  if (ev && S.war && !S.predict && a.alive && !a.down && a.stance != null && want !== a.stance) ev.push({ e: 'stance', id: a.id, pose: want, x: a.x, y: a.y, z: a.z });
   a.stance = want;
   // リーン（壁にめり込まない）。ダッシュより先（リーンしている間は走らない）
   let lw = inp.lean || 0;
@@ -13489,15 +13514,20 @@ export function moveActor(S, w, a, inp, dt, ev) {
   // 歩きの位相と足音
   const dist = Math.hypot(a.x - ox, a.z - oz);
   if (ev && S.deps && S.deps.length) stepWire(S, a, dist, ev);
-  const stepLen = a.sprint ? 0.95 : a.st > 1.5 ? 0.35 : a.st > 0.5 ? 0.55 : 0.72;
+  // 1歩の長さ。大規模戦は速さから（人の走りの歩数: 歩き 1.7m/s で約 1.9 歩/秒・3.3m/s で約 2.7・全力 6.6m/s で約 3.2。
+  // 前は走りが 0.95m で 1 秒に 7 歩近く、足音が細かく速すぎた）。伏せは這う動き
+  const sp = dist / Math.max(dt, 1e-4);
+  const stepLen = w.war ? (a.st > 1.5 ? 0.5 : Math.max(0.6, Math.min(2.05, 0.42 + 0.24 * sp))) : a.sprint ? 0.95 : a.st > 1.5 ? 0.35 : a.st > 0.5 ? 0.55 : 0.72;
   const before = Math.floor(a.phase / Math.PI);
-  a.phase += dist * Math.PI / stepLen;
+  // 宙にいる間（跳んだ・落ちる）は足を運ばない（足音も出ない。前は走って跳ぶと宙で走る足音が鳴った）
+  const onG = a.ground && !a.air;
+  if (onG) a.phase += dist * Math.PI / stepLen;
   if (a.phase > 1e4) a.phase -= 2 * Math.PI * 1000;
   const after = Math.floor(a.phase / Math.PI);
   // ローカルの速さ（アニメ用）
   a.mvx = -(mvx * cy - mvz * sy); a.mvz = mvx * sy + mvz * cy;
   a.spd = Math.hypot(mvx, mvz);
-  if (after !== before && ev && a.spd > 0.25) {
+  if (after !== before && ev && a.spd > 0.25 && onG) {
     const L = levelOfY(a.y + 0.1);
     const i = Math.floor(a.x / CS), j = Math.floor(a.z / CS);
     const fm = w.war ? warFloor(w, a) : (L < w.NL && i >= 0 && j >= 0 && i < w.W && j < w.D) ? w.floorMat[w.idx(L, i, j)] : 0;
@@ -36153,6 +36183,56 @@ test('war stairs: 上へ歩いて頭が屋根の板に入っても、建物の�
   ok(minRoom < 0.9, `板の近くまで上がる（すき間 ${minRoom.toFixed(2)}m）`);
   ok(maxJump < 0.3, `一度に動いた最大 ${maxJump.toFixed(2)}m`);
   ok(a.x > 20 && a.x < 30 && a.z > 20 && a.z < 30, `屋根の下にいる（${a.x.toFixed(1)}, ${a.z.toFixed(1)}）`);
+});
+
+@@@@ FILE tests/unit/war_steps.test.mjs text 2818
+import { test, ok } from '../lib/t.mjs';
+import { createGame, step } from '../../src/engine/engine.js';
+
+// 足音（11-20）: 人の走りの歩数に近い（全力でも 1 秒に約 3 歩。前は 7 歩近く）。宙にいる間は足音が鳴らない（走って跳んでも）
+function game() { return createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false }); }
+const inp = (a, o = {}) => ({ [a.id]: Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o) });
+// 開けた所を探す（2 方向へ 30m 歩ける）
+function open(G, a) {
+  for (let i = 0; i < 30; i++) step(G, inp(a));
+  return a.yaw;
+}
+function rate(G, a, o, secs) {
+  let n = 0;
+  for (let i = 0; i < 60; i++) step(G, inp(a, o)); // 走り出し
+  for (let i = 0; i < secs * 60; i++) { a.oob = 0; n += step(G, inp(a, o)).filter(e => e.e === 'step' && e.id === a.id).length; }
+  return n / secs;
+}
+test('足音の歩数: 歩き 約 2.5〜3 歩/秒・全力 約 3〜3.6 歩/秒・しゃがみ歩き 約 2〜2.6 歩/秒', () => {
+  const G = game(), a = G.S.actors[0]; open(G, a);
+  const x0 = a.x, z0 = a.z, h0 = a.y, y0 = a.yaw;
+  const walk = rate(G, a, { mz: 1, yaw: y0 }, 3);
+  a.x = x0; a.z = z0; a.y = h0; a.vx = a.vz = a.vy = 0; a.sprT = 0;
+  const run = rate(G, a, { mz: 1, sprint: true, yaw: y0 }, 3);
+  a.x = x0; a.z = z0; a.y = h0; a.vx = a.vz = a.vy = 0; a.sprT = 0;
+  const cr = rate(G, a, { mz: 1, stance: 1, yaw: y0 }, 3);
+  ok(walk > 2.3 && walk < 3.1, `歩き ${walk.toFixed(2)} 歩/秒`);
+  ok(run > 2.9 && run < 3.7, `全力 ${run.toFixed(2)} 歩/秒`);
+  ok(cr > 1.9 && cr < 2.7, `しゃがみ ${cr.toFixed(2)} 歩/秒`);
+});
+test('走って跳ぶと、宙にいる間は足音が鳴らない', () => {
+  const G = game(), a = G.S.actors[0]; open(G, a);
+  for (let i = 0; i < 90; i++) step(G, inp(a, { mz: 1, sprint: true }));
+  step(G, inp(a, { mz: 1, sprint: true, act: [{ a: 'vault', jump: 1 }] }));
+  let air = 0, inAir = 0;
+  for (let i = 0; i < 60 && (i < 3 || !a.ground); i++) {
+    const ev = step(G, inp(a, { mz: 1, sprint: true }));
+    if (!a.ground) { air++; inAir += ev.filter(e => e.e === 'step' && e.id === a.id).length; }
+  }
+  ok(air > 20, `宙にいた ${air} ステップ`);
+  ok(inAir === 0, `宙の足音 ${inAir}`);
+});
+test('構えを変えると音の知らせが 1 回だけ出る（立つ→伏せ→しゃがむ）', () => {
+  const G = game(), a = G.S.actors[0]; open(G, a);
+  const evs = [];
+  for (const s of [2, 2, 2, 1, 1]) for (let i = 0; i < 20; i++) evs.push(...step(G, inp(a, { stance: s })).filter(e => e.e === 'stance' && e.id === a.id));
+  ok(evs.length === 2, `知らせ ${evs.length} 回`);
+  ok(evs[0].pose === 2 && evs[1].pose === 1, `順番 ${evs.map(e => e.pose).join(',')}`);
 });
 
 @@@@ FILE tests/unit/war_world.test.mjs text 3449
