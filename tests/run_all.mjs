@@ -291,6 +291,28 @@ try {
     const moved = Math.hypot(p1.x - p0.x, p1.z - p0.z), turned = p1.yaw - p0.yaw;
     rec('タップ', '2本指で移動と見回しを同時にできる', moved > 0.3 && Math.abs(turned) > 0.2, `移動${moved.toFixed(2)}m・向き${turned.toFixed(2)}rad`);
   }
+  // 11-20: スティックの指を、画面の部品（ボタン）の上まで動かしても切れない。「離した」が届かずスティックが残っていても、
+  //  次にスティックの所に触れればスティックになる（前は見回しになり、スティックが効かなかった）
+  {
+    const fireB = await center('#hud [data-btn="fire"]');
+    await touch('touchStart', [{ x: 150, y: 290, id: 13 }]);
+    for (let k = 1; k <= 10; k++) { await touch('touchMove', [{ x: 150 + k * 3, y: 290 - k * 5, id: 13 }]); await page.waitForTimeout(30); }
+    // 指をボタンの上まで大きく動かす（スティックのまま）
+    await touch('touchMove', [{ x: fireB.x, y: fireB.y, id: 13 }]); await page.waitForTimeout(250);
+    const mid = await page.evaluate(() => { const i = window.__app.input; return { stick: !!i.stick, mx: +i.mx.toFixed(2), mz: +i.mz.toFixed(2) }; });
+    await touch('touchEnd', []); await page.waitForTimeout(300);
+    const after = await page.evaluate(() => { const i = window.__app.input; return { stick: !!i.stick, mz: i.mz }; });
+    // 「離した」が届かなかったスティックを作る → 新しい指でスティックの所に触れる
+    await page.evaluate(() => { const i = window.__app.input; i.stick = { id: 777, ox: 150, oy: 290, x: 150, y: 290, fixed: false }; i.ptr.set(777, { kind: 'stick', pt: 'touch' }); });
+    const p0 = await page.evaluate(() => { const g = window.__app.game; return { x: g.p.x, z: g.p.z }; });
+    await touch('touchStart', [{ x: 150, y: 290, id: 14 }]);
+    for (let k = 1; k <= 14; k++) { await touch('touchMove', [{ x: 150, y: 290 - Math.min(45, k * 4), id: 14 }]); await page.waitForTimeout(40); }
+    const st2 = await page.evaluate(() => { const i = window.__app.input; return { id: i.stick && i.stick.id, mz: +i.mz.toFixed(2) }; });
+    await touch('touchEnd', []); await page.waitForTimeout(300);
+    const p1 = await page.evaluate(() => { const g = window.__app.game; return { x: g.p.x, z: g.p.z }; });
+    const mv = Math.hypot(p1.x - p0.x, p1.z - p0.z);
+    rec('タップ', 'スティックの指はボタンの上へ動かしても切れず、離すと止まる。「離した」が届かず残ったスティックがあっても、次に触れた指がスティックになる', mid.stick && Math.hypot(mid.mx, mid.mz) > 0.5 && !after.stick && after.mz === 0 && st2.id !== 777 && st2.mz > 0.4 && mv > 0.2, JSON.stringify({ mid, after, st2, mv: +mv.toFixed(2) }));
+  }
   const btn = (id) => center(`#hud [data-btn="${id}"]`);
   {
     const s0 = await page.evaluate(() => window.__app.game.p.stats.sh);

@@ -81,12 +81,12 @@ export class Input {
       try { a.setPointerCapture(e.pointerId); } catch (er) { /* なし */ }
       e.preventDefault();
       // 円形メニューが開いていて、タップで選ぶ方式
-      if (this.radial && this.radial.tapMode) { this.ptr.set(e.pointerId, { kind: 'radialTap', x: sx, y: sy }); this._radialMove(sx, sy); return; }
+      if (this.radial && this.radial.tapMode) { this.ptr.set(e.pointerId, { kind: 'radialTap', x: sx, y: sy, pt: e.pointerType }); this._radialMove(sx, sy); return; }
       const el = this._btnOf(e);
       if (el) {
         const b = el.dataset.btn;
         // 時刻は出来事の起きた時（重いこまで処理が遅れても、短く押したのを長押しにしない）
-        const p = { kind: 'btn', btn: b, el, x: sx, y: sy, x0: sx, y0: sy, t0: evT(e), tp: performance.now(), moved: 0, long: false };
+        const p = { kind: 'btn', btn: b, el, x: sx, y: sy, x0: sx, y0: sy, t0: evT(e), tp: performance.now(), moved: 0, long: false, pt: e.pointerType };
         this.ptr.set(e.pointerId, p);
         if (this.sprintLock && !KEEP_LOCK.has(b)) { this.sprintLock = false; this.sprintArm = false; if (this.onStick) this.onStick(null); }
         this.hold.add(b); el.classList.add('down');
@@ -101,20 +101,25 @@ export class Input {
       }
       const home = this.getStickHome ? this.getStickHome() : null;
       const fixed = this.S.stickMode === 'fixed' && home;
+      // 11-20: 前のスティックの指の「離した」が届かず残っていた（ほかに触れている指がない）: その古いスティックを捨てる
+      //  （残っていると、スティックの所に触れても見回しになり、離すまでスティックが効かなかった）
+      if (this.stick && e.pointerType === 'touch' && this._touchN === 0 && this.stick.id !== e.pointerId) this._dropStale('stick');
       const leftZone = this.S.handed === 'left' ? sx > this.stage.w * 0.55 : sx < this.stage.w * 0.45;
       const onStick = fixed ? Math.hypot(sx - home.x, sy - home.y) < 95 * (home.s || 1) : leftZone;
       if (onStick && !this.stick) {
         // 触れたら固定をやめる。もう一度ダッシュの所まで押し込むと「入れ直し」（リロードをやめて走る）
         this.sprintLock = false; this.sprintArm = false;
         this.stick = { id: e.pointerId, ox: fixed ? home.x : sx, oy: fixed ? home.y : sy, x: sx, y: sy, fixed: !!fixed };
-        this.ptr.set(e.pointerId, { kind: 'stick' });
+        this.ptr.set(e.pointerId, { kind: 'stick', pt: e.pointerType });
         if (this.onStick) this.onStick(this.stick, 0, 0);
         if (fixed) this._stickMove(sx, sy);
       } else {
-        this.ptr.set(e.pointerId, { kind: 'look', x: sx, y: sy });
+        this.ptr.set(e.pointerId, { kind: 'look', x: sx, y: sy, pt: e.pointerType });
       }
     }, { passive: false });
-    a.addEventListener('pointermove', (e) => {
+    // 11-20: 動かす・離すは window で受ける（指が画面の部品の外へ出た・部品が作り直された・つかみ（capture）が外れた時も、
+    //  指の番号で追い続ける。前は画面の area だけで受けていて、届かないとスティックが止まったり、離したのが届かず残ったりした）
+    const onMove = (e) => {
       if (!this.enabled) return;
       const p = this.ptr.get(e.pointerId);
       if (!p) return;
@@ -128,7 +133,10 @@ export class Input {
         else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) this.lk.add(sx - p.x, sy - p.y, evT(e)); }
         p.x = sx; p.y = sy;
       }
-    }, { passive: false });
+    };
+    window.addEventListener('pointermove', onMove, { passive: false, capture: true });
+    // つかみが外れた: スティック・見回しの指はつかみ直す（外れたままだと、area の外の部品へ出来事が行く）
+    a.addEventListener('lostpointercapture', (e) => { const p = this.ptr.get(e.pointerId); if (p && (p.kind === 'stick' || p.kind === 'look')) { try { a.setPointerCapture(e.pointerId); } catch (er) { /* 離した後 */ } } });
     const up = (e, cancel) => {
       unlock();
       if (!this.enabled) return;
@@ -159,9 +167,22 @@ export class Input {
       this.edges.push({ b: p.btn, k, sub: p.el.dataset.sub || null, dur });
       if (this.onBtn) this.onBtn(p.btn, k, p);
     };
-    a.addEventListener('pointerup', (e) => up(e, false));
-    a.addEventListener('pointercancel', (e) => up(e, true));
-    window.addEventListener('touchend', () => unlock(), { passive: true });
+    window.addEventListener('pointerup', (e) => up(e, false), { capture: true });
+    window.addEventListener('pointercancel', (e) => up(e, true), { capture: true });
+    // 触れている指の数（タッチの出来事から）。指が全部離れたのに残っている指の記録は、少し待ってから捨てる
+    //  （「離した」の出来事が届かなかった時の救い。スティックが残って効かなくなるのを防ぐ）
+    this._touchN = 0;
+    const tcount = (e) => { this._touchN = e.touches ? e.touches.length : 0; };
+    window.addEventListener('touchstart', (e) => { tcount(e); this._touchT = performance.now(); }, { passive: true, capture: true });
+    window.addEventListener('touchmove', tcount, { passive: true, capture: true });
+    const tend = (e) => {
+      tcount(e);
+      if (this._touchN !== 0) return;
+      const t0 = performance.now();
+      setTimeout(() => { if (this._touchN === 0 && (this._touchT || 0) < t0) this._dropStale(); }, 120);
+    };
+    window.addEventListener('touchend', (e) => { unlock(); tend(e); }, { passive: true, capture: true });
+    window.addEventListener('touchcancel', tend, { passive: true, capture: true });
     window.addEventListener('click', () => unlock(), true);
     // キーボード（パソコン）
     window.addEventListener('keydown', (e) => {
@@ -190,6 +211,21 @@ export class Input {
     window.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouseBtn.l = false; if (e.button === 2) { this.mouseBtn.r = false; if (this.enabled) this.edges.push({ b: 'ads', k: 'up', mouse: true }); } });
     a.addEventListener('contextmenu', (e) => e.preventDefault());
     a.addEventListener('wheel', (e) => { if (this.enabled && document.pointerLockElement) this.edges.push({ b: e.deltaY > 0 ? 'wpn2' : 'wpn1', k: 'tap', wheel: true }); }, { passive: true });
+  }
+  // 届かなかった「離した」の代わり: タッチの指の記録（kind を指定すればその種類だけ）を捨てる
+  _dropStale(kind) {
+    for (const [pid, p] of this.ptr) {
+      if (p.pt !== 'touch') continue;
+      if (kind && p.kind !== kind) continue;
+      this.ptr.delete(pid);
+      if (p.kind === 'btn') { this.hold.delete(p.btn); if (p.el) p.el.classList.remove('down'); this.edges.push({ b: p.btn, k: 'cancel', sub: p.el ? p.el.dataset.sub || null : null }); if (this.onBtn) this.onBtn(p.btn, 'cancel', p); }
+      if (p.kind === 'radialTap' || (this.radial && this.radial.pid === pid)) this.closeRadial();
+    }
+    if (this.stick && (!kind || kind === 'stick') && !this.ptr.has(this.stick.id)) {
+      this.stick = null; this.mx = 0; this.mz = 0;
+      if (!this.sprintLock) this.sprintArm = false;
+      if (this.onStick) this.onStick(null, 0, 0, this.sprintLock, this.sprintLock);
+    }
   }
   _stickMove(sx, sy) {
     const st = this.stick;

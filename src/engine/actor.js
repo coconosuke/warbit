@@ -76,7 +76,8 @@ export function curWeapon(a) { const s = a.ws.slot; return s >= 0 ? a.inv.w[s] :
 export function curW(a) { const w = curWeapon(a); return w ? WEAPONS[w.id] : null; }
 export function holdOf(a) {
   if (a.cuffed || a.comply || a.down || a.dead) return 'none';
-  if (a.ws.slot === 2) return 'none';
+  // 手に持った物（投げ物・道具）: 大規模戦は両手を胸の前に（拳銃と同じ構え。持った物が前に見える）
+  if (a.ws.slot === 2) return a.warCls ? 'pistol' : 'none';
   // 特殊装備: オプティワンドは片手、ほかは両手で
   if (a.ws.slot === 3) return a.inv.long === 'wand' ? 'pistol' : 'rifle';
   const W = curW(a);

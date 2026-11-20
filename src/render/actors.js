@@ -89,11 +89,31 @@ export class ActorView {
       // 結束バンド（拘束された人・締めている最中）: 両手首の位置
       let zip = null;
       if (a.cuffed || (a.cuffK || 0) > 0.8) { const b = this.bones, l = 7 * 12, q = 10 * 12; zip = [b[l], b[l + 1], b[l + 2], b[q], b[q + 1], b[q + 2]]; }
-      this.list.push({ a, L, mats, room, gun, shield: res.shield || null, x: a.x, y: a.y, z: a.z, zip });
+      // 手に持った物（投げ物・弾薬箱・医療キット・双眼鏡・大ハンマー・C4・地雷）: 右の手首に（ほかの人から見える）
+      let held = null;
+      if (a.ws && a.ws.slot === 2 && a.ws.gear && a.alive && !a.down) { const b = this.bones, q = 10 * 12; held = { id: a.ws.gear === 'c4' && a.ws.c4m === 'det' ? 'c4det' : a.ws.gear, x: b[q], y: b[q + 1], z: b[q + 2], yaw: a.yaw }; }
+      this.list.push({ a, L, mats, room, gun, shield: res.shield || null, x: a.x, y: a.y, z: a.z, zip, held });
     }
     this.items = S.items.filter(it => !it.gone);
     this.nades = S.nades || [];
     this.cams = S.cams && S.cams.length && w._cams ? { K: w._cams, st: S.cams } : null;
+  }
+  // ほかの人が手に持った物の形（原点は手の中。前が +Z）
+  heldMesh(id) {
+    this._hm = this._hm || {};
+    if (id in this._hm) return this._hm[id];
+    const B = new MeshBuilder();
+    const box = (x0, y0, z0, x1, y1, z1, col, layer = LAYER.plain) => B.box(x0, y0, z0, x1, y1, z1, layer, hex(col));
+    if (id === 'ammobig' || id === 'ammosmall') { const k = id === 'ammobig' ? 1 : 0.75; box(-0.12 * k, -0.2 * k, -0.08 * k, 0.12 * k, 0.0, 0.08 * k, '#4b5a34', LAYER.metal); box(-0.03, 0, -0.01, 0.03, 0.03, 0.01, '#1e2118'); }
+    else if (id === 'medkit') { box(-0.1, -0.13, -0.06, 0.1, 0, 0.06, '#3a3d2e', LAYER.cloth); box(-0.035, -0.1, 0.061, 0.035, -0.03, 0.064, '#d9d4c8'); }
+    else if (id === 'binoc') { for (const x of [-0.035, 0.035]) box(x - 0.022, -0.02, -0.06, x + 0.022, 0.024, 0.06, '#2a2c26', LAYER.rubber); }
+    else if (id === 'hammer') { B.tube([0, -0.05, 0], [0, 0.65, 0.15], 0.016, 0.016, 6, LAYER.wood, hex('#7a5a36'), { caps: true }); box(-0.1, 0.62, 0.1, 0.1, 0.72, 0.2, '#3c3f42', LAYER.metal); }
+    else if (id === 'c4') box(-0.055, -0.03, -0.03, 0.055, 0.015, 0.03, '#7b7a66');
+    else if (id === 'c4det') box(-0.022, -0.06, -0.014, 0.022, 0.03, 0.014, '#1f2023', LAYER.rubber);
+    else if (id === 'clay') box(-0.11, -0.05, -0.02, 0.11, 0.04, 0.02, '#55593d');
+    else if (id === 'apmine') B.cyl(0, 0, -0.025, 0.02, 0.09, 0.08, 10, LAYER.metal, hex('#4a4d38'));
+    else return (this._hm[id] = this.nadeMesh(id));
+    return (this._hm[id] = makeWorldMesh(this.gl, B));
   }
   // 飛んでいる投げ物（閃光・スティンガー・CS）
   nadeMesh(type) {
@@ -176,6 +196,17 @@ export class ActorView {
       gl.uniform1f(W.u.uRoomOverride, Math.max(0, e.room));
       drawMesh(gl, gm.body); if (gm.mag && e.a.ws.st !== 'reload') drawMesh(gl, gm.mag); if (gm.pump && !(e.gun.long === 'rpg' && e.a.inv.rpg && !e.a.inv.rpg.in)) drawMesh(gl, gm.pump); if (gm.flip) drawMesh(gl, gm.flip);
       r.stats.draws++;
+    }
+    // 手に持った物（右の手首の少し先。体の向きにそろえる）
+    for (const e of this.list) {
+      if (!e.held) continue;
+      const m = this.heldMesh(e.held.id); if (!m) continue;
+      const h = e.held, c = Math.cos(h.yaw), s = Math.sin(h.yaw), M = this.M;
+      M[0] = c; M[1] = 0; M[2] = -s; M[3] = 0; M[4] = 0; M[5] = 1; M[6] = 0; M[7] = 0; M[8] = s; M[9] = 0; M[10] = c; M[11] = 0;
+      M[12] = h.x + s * 0.04; M[13] = h.y - 0.03; M[14] = h.z + c * 0.04; M[15] = 1;
+      gl.uniformMatrix4fv(W.u.uModel, false, M);
+      gl.uniform1f(W.u.uRoomOverride, Math.max(0, e.room));
+      drawMesh(gl, m); r.stats.draws++;
     }
     // 結束バンド: 手首から手首へ（白い帯と、手首ごとの輪）
     for (const e of this.list) {
