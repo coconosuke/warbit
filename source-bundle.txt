@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-20T01:50:33.023Z）
+HARD ENTRY ソース一式（2026-11-20T02:11:28.486Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 144943
+@@@@ FILE DESIGN.md text 146191
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -385,6 +385,7 @@ HARD ENTRY ソース一式（2026-11-20T01:50:33.023Z）
 - 11-20 WAR BIT 0.1.41（大ハンマー）: 分隊長・突撃・偵察が大ハンマーを持つ（BattleBit の Sledge Hammer）。装備で選んで引き金で振る（0.9 秒。右の肩の上へ振りかぶって前の下へ振り下ろす）。1.9m 先の薄い壁・床の同じ箱を、レンガ・石膏・木は 2 回、コンクリートは 4 回叩くと幅 1.1m・高さ 1.3m の穴（war/destruct.js の carve に穴の大きさと「その箱だけ」を足した）。近くの敵は 1 回で倒れる。叩いた所に欠片と音。出撃の画面の兵科の札は、投げ物（破片・衝撃・発煙・包帯）と道具（弾薬箱・医療キット・双眼鏡・大ハンマー・RPG）を分けて書く（前は道具が投げ物の行に id のまま出ていた）。research の 40。兵科の得意を BattleBit の Wiki（Classes）に合わせた: 突撃はリロード 0.8 倍・近い照準器（2 倍まで）の構え 0.83 倍・持ち替え 0.8 倍（前はリロードと構えが 0.85 倍）、衛生は包帯 16 → 20 で巻く時間 0.5 倍。research の 41。 双眼鏡の倍率を倍率のボタンで 4・6・8 倍に変えられる（既定 6。BattleBit の双眼鏡は 4〜8 倍。research の 39）。
 - 11-20 WAR BIT 0.1.42（C4・副の道具）: 出撃の画面の LOADOUT に「道具」のタブ（銃・付属品・道具）。副の道具を「◀ C4 ×4／なし ▶」で兵科ごとに選ぶ（既定 C4。衛生は医療キットで決まり）。兵科の道具（弾薬箱・医療キット・双眼鏡・大ハンマー・RPG）は下に並べる。C4: 手に持って引き金で投げると物に貼りつく（面の向きにそろえて描く・赤い灯）。射撃モードのボタンが「投げる／起爆」になり、投げると起爆へ、起爆すると投げるへ戻る。起爆で自分の置いた C4 をまとめて爆発（半径 6m・300・2.5m まで倒れる）。壁と床に 2m の穴（コンクリートも 1 回）。起爆の間は手に起爆の装置。弾の欄・案内に残りと置いた数。大きい弾薬箱で補給（1 個 20）。ボットはまだ使わない。research の 42。
 - 11-20 WAR BIT 0.1.43（対人地雷・クレイモア）: 副の道具に クレイモア ×2・対人地雷 ×2 を足した（C4・クレイモア・対人地雷・なし）。手に持って引き金で足もとの前に置く（engine/mines.js）。置いて 1.5 秒後から作動し、味方では作動しない。対人地雷は敵が 1m 以内で爆発（半径 4m・400）。クレイモアは前の 3m・左右 35° に敵が入ると、前へ向けて爆発（前の 70° の扇の中だけ。爆発に向きを持たせた）。近くの爆発で誘爆。10 分で消える。大きい弾薬箱で補給。地面の上に描く（平たい丸と、脚つきの反った箱）。ボットの副の道具はクレイモア 4 割・対人地雷 3 割・C4 3 割で、守る拠点の場所に着くと敵の来る方へ1つ置いてから銃に戻す（C4 はまだ使わない）。research の 43。
+- 11-20 WAR BIT 0.1.44（スティックが切れる・ほかの人が持つ物）: スティック（と見回し）の指の「動かす・離す」を、画面の area ではなく window で受ける（指がボタンの上へ出ると動かす出来事が area に届かず、スティックが前の向きのまま止まっていた。確かめると、前の版は射撃のボタンの上まで動かした指の向きを受け取れていなかった）。つかみ（capture）が外れたらつかみ直す。「離した」が届かずスティックが残っていても、ほかに指が触れていなければ次の指がスティックになり、全部の指が離れて 0.12 秒たてば残った指の記録を捨てる（前は残ったスティックのせいで、スティックの所に触れても見回しになり、復活するまで動けなかった）。ほかの人（ボット・仲間）が手に持った投げ物・弾薬箱・医療キット・双眼鏡・大ハンマー・C4（起爆の装置）・クレイモア・対人地雷が、右の手首に見える（前は手が空のまま）。大規模戦で物を持っている間は、両手を胸の前に出す構え（前は腕を下ろしていた）。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -3911,7 +3912,7 @@ export function gunKeys(snd) {
 }
 export { GUNS };
 
-@@@@ FILE src/engine/actor.js text 6187
+@@@@ FILE src/engine/actor.js text 6355
 // 人（隊員・容疑者・市民・ボット・プレイヤー）。状態は関数を含まないデータだけ。
 import { WEAPONS, attachOptions, capOf, ATTACH } from './data/weapons.js';
 import { PLATE, HELMET, GEAR, LONG } from './data/equipment.js';
@@ -3990,7 +3991,8 @@ export function curWeapon(a) { const s = a.ws.slot; return s >= 0 ? a.inv.w[s] :
 export function curW(a) { const w = curWeapon(a); return w ? WEAPONS[w.id] : null; }
 export function holdOf(a) {
   if (a.cuffed || a.comply || a.down || a.dead) return 'none';
-  if (a.ws.slot === 2) return 'none';
+  // 手に持った物（投げ物・道具）: 大規模戦は両手を胸の前に（拳銃と同じ構え。持った物が前に見える）
+  if (a.ws.slot === 2) return a.warCls ? 'pistol' : 'none';
   // 特殊装備: オプティワンドは片手、ほかは両手で
   if (a.ws.slot === 3) return a.inv.long === 'wand' ? 'pistol' : 'rifle';
   const W = curW(a);
@@ -7404,7 +7406,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.43';
+export const VERSION = '0.1.44';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -17053,7 +17055,7 @@ function lerp(a, b, k) { return a + (b - a) * k; }
 function lerpA(a, b, k) { let d = b - a; const T = 2000 * Math.PI; d = ((d + T / 2) % T + T) % T - T / 2; return a + d * k; }
 function lerpPhase(a, b, k) { let d = b - a; if (d < -300) d += 628.3; if (d > 300) d -= 628.3; return a + d * k; }
 
-@@@@ FILE src/render/actors.js text 19881
+@@@@ FILE src/render/actors.js text 22499
 // 人・持っている銃・落ちている物を描く（renderer のフックに入れる）
 import { personMeshData, lookFor, boneMatrices, SV } from './people.js';
 import { sunVisAt } from '../war/render.js';
@@ -17145,11 +17147,31 @@ export class ActorView {
       // 結束バンド（拘束された人・締めている最中）: 両手首の位置
       let zip = null;
       if (a.cuffed || (a.cuffK || 0) > 0.8) { const b = this.bones, l = 7 * 12, q = 10 * 12; zip = [b[l], b[l + 1], b[l + 2], b[q], b[q + 1], b[q + 2]]; }
-      this.list.push({ a, L, mats, room, gun, shield: res.shield || null, x: a.x, y: a.y, z: a.z, zip });
+      // 手に持った物（投げ物・弾薬箱・医療キット・双眼鏡・大ハンマー・C4・地雷）: 右の手首に（ほかの人から見える）
+      let held = null;
+      if (a.ws && a.ws.slot === 2 && a.ws.gear && a.alive && !a.down) { const b = this.bones, q = 10 * 12; held = { id: a.ws.gear === 'c4' && a.ws.c4m === 'det' ? 'c4det' : a.ws.gear, x: b[q], y: b[q + 1], z: b[q + 2], yaw: a.yaw }; }
+      this.list.push({ a, L, mats, room, gun, shield: res.shield || null, x: a.x, y: a.y, z: a.z, zip, held });
     }
     this.items = S.items.filter(it => !it.gone);
     this.nades = S.nades || [];
     this.cams = S.cams && S.cams.length && w._cams ? { K: w._cams, st: S.cams } : null;
+  }
+  // ほかの人が手に持った物の形（原点は手の中。前が +Z）
+  heldMesh(id) {
+    this._hm = this._hm || {};
+    if (id in this._hm) return this._hm[id];
+    const B = new MeshBuilder();
+    const box = (x0, y0, z0, x1, y1, z1, col, layer = LAYER.plain) => B.box(x0, y0, z0, x1, y1, z1, layer, hex(col));
+    if (id === 'ammobig' || id === 'ammosmall') { const k = id === 'ammobig' ? 1 : 0.75; box(-0.12 * k, -0.2 * k, -0.08 * k, 0.12 * k, 0.0, 0.08 * k, '#4b5a34', LAYER.metal); box(-0.03, 0, -0.01, 0.03, 0.03, 0.01, '#1e2118'); }
+    else if (id === 'medkit') { box(-0.1, -0.13, -0.06, 0.1, 0, 0.06, '#3a3d2e', LAYER.cloth); box(-0.035, -0.1, 0.061, 0.035, -0.03, 0.064, '#d9d4c8'); }
+    else if (id === 'binoc') { for (const x of [-0.035, 0.035]) box(x - 0.022, -0.02, -0.06, x + 0.022, 0.024, 0.06, '#2a2c26', LAYER.rubber); }
+    else if (id === 'hammer') { B.tube([0, -0.05, 0], [0, 0.65, 0.15], 0.016, 0.016, 6, LAYER.wood, hex('#7a5a36'), { caps: true }); box(-0.1, 0.62, 0.1, 0.1, 0.72, 0.2, '#3c3f42', LAYER.metal); }
+    else if (id === 'c4') box(-0.055, -0.03, -0.03, 0.055, 0.015, 0.03, '#7b7a66');
+    else if (id === 'c4det') box(-0.022, -0.06, -0.014, 0.022, 0.03, 0.014, '#1f2023', LAYER.rubber);
+    else if (id === 'clay') box(-0.11, -0.05, -0.02, 0.11, 0.04, 0.02, '#55593d');
+    else if (id === 'apmine') B.cyl(0, 0, -0.025, 0.02, 0.09, 0.08, 10, LAYER.metal, hex('#4a4d38'));
+    else return (this._hm[id] = this.nadeMesh(id));
+    return (this._hm[id] = makeWorldMesh(this.gl, B));
   }
   // 飛んでいる投げ物（閃光・スティンガー・CS）
   nadeMesh(type) {
@@ -17232,6 +17254,17 @@ export class ActorView {
       gl.uniform1f(W.u.uRoomOverride, Math.max(0, e.room));
       drawMesh(gl, gm.body); if (gm.mag && e.a.ws.st !== 'reload') drawMesh(gl, gm.mag); if (gm.pump && !(e.gun.long === 'rpg' && e.a.inv.rpg && !e.a.inv.rpg.in)) drawMesh(gl, gm.pump); if (gm.flip) drawMesh(gl, gm.flip);
       r.stats.draws++;
+    }
+    // 手に持った物（右の手首の少し先。体の向きにそろえる）
+    for (const e of this.list) {
+      if (!e.held) continue;
+      const m = this.heldMesh(e.held.id); if (!m) continue;
+      const h = e.held, c = Math.cos(h.yaw), s = Math.sin(h.yaw), M = this.M;
+      M[0] = c; M[1] = 0; M[2] = -s; M[3] = 0; M[4] = 0; M[5] = 1; M[6] = 0; M[7] = 0; M[8] = s; M[9] = 0; M[10] = c; M[11] = 0;
+      M[12] = h.x + s * 0.04; M[13] = h.y - 0.03; M[14] = h.z + c * 0.04; M[15] = 1;
+      gl.uniformMatrix4fv(W.u.uModel, false, M);
+      gl.uniform1f(W.u.uRoomOverride, Math.max(0, e.room));
+      drawMesh(gl, m); r.stats.draws++;
     }
     // 結束バンド: 手首から手首へ（白い帯と、手首ごとの輪）
     for (const e of this.list) {
@@ -24985,7 +25018,7 @@ export const ICONS = {
   wpn: '',
 };
 
-@@@@ FILE src/ui/input.js text 20300
+@@@@ FILE src/ui/input.js text 23539
 // 入力: タッチ（スティック・視点・ボタン、2本指以上の同時操作）、長押し、円形メニュー、ジャイロ、キーボードとマウス
 // タップは pointerup で判定し、続く click は捨てる（iPhoneは2本目の指に click が来ない）
 import { sprintZone } from './stick.js';
@@ -25069,12 +25102,12 @@ export class Input {
       try { a.setPointerCapture(e.pointerId); } catch (er) { /* なし */ }
       e.preventDefault();
       // 円形メニューが開いていて、タップで選ぶ方式
-      if (this.radial && this.radial.tapMode) { this.ptr.set(e.pointerId, { kind: 'radialTap', x: sx, y: sy }); this._radialMove(sx, sy); return; }
+      if (this.radial && this.radial.tapMode) { this.ptr.set(e.pointerId, { kind: 'radialTap', x: sx, y: sy, pt: e.pointerType }); this._radialMove(sx, sy); return; }
       const el = this._btnOf(e);
       if (el) {
         const b = el.dataset.btn;
         // 時刻は出来事の起きた時（重いこまで処理が遅れても、短く押したのを長押しにしない）
-        const p = { kind: 'btn', btn: b, el, x: sx, y: sy, x0: sx, y0: sy, t0: evT(e), tp: performance.now(), moved: 0, long: false };
+        const p = { kind: 'btn', btn: b, el, x: sx, y: sy, x0: sx, y0: sy, t0: evT(e), tp: performance.now(), moved: 0, long: false, pt: e.pointerType };
         this.ptr.set(e.pointerId, p);
         if (this.sprintLock && !KEEP_LOCK.has(b)) { this.sprintLock = false; this.sprintArm = false; if (this.onStick) this.onStick(null); }
         this.hold.add(b); el.classList.add('down');
@@ -25089,20 +25122,25 @@ export class Input {
       }
       const home = this.getStickHome ? this.getStickHome() : null;
       const fixed = this.S.stickMode === 'fixed' && home;
+      // 11-20: 前のスティックの指の「離した」が届かず残っていた（ほかに触れている指がない）: その古いスティックを捨てる
+      //  （残っていると、スティックの所に触れても見回しになり、離すまでスティックが効かなかった）
+      if (this.stick && e.pointerType === 'touch' && this._touchN === 0 && this.stick.id !== e.pointerId) this._dropStale('stick');
       const leftZone = this.S.handed === 'left' ? sx > this.stage.w * 0.55 : sx < this.stage.w * 0.45;
       const onStick = fixed ? Math.hypot(sx - home.x, sy - home.y) < 95 * (home.s || 1) : leftZone;
       if (onStick && !this.stick) {
         // 触れたら固定をやめる。もう一度ダッシュの所まで押し込むと「入れ直し」（リロードをやめて走る）
         this.sprintLock = false; this.sprintArm = false;
         this.stick = { id: e.pointerId, ox: fixed ? home.x : sx, oy: fixed ? home.y : sy, x: sx, y: sy, fixed: !!fixed };
-        this.ptr.set(e.pointerId, { kind: 'stick' });
+        this.ptr.set(e.pointerId, { kind: 'stick', pt: e.pointerType });
         if (this.onStick) this.onStick(this.stick, 0, 0);
         if (fixed) this._stickMove(sx, sy);
       } else {
-        this.ptr.set(e.pointerId, { kind: 'look', x: sx, y: sy });
+        this.ptr.set(e.pointerId, { kind: 'look', x: sx, y: sy, pt: e.pointerType });
       }
     }, { passive: false });
-    a.addEventListener('pointermove', (e) => {
+    // 11-20: 動かす・離すは window で受ける（指が画面の部品の外へ出た・部品が作り直された・つかみ（capture）が外れた時も、
+    //  指の番号で追い続ける。前は画面の area だけで受けていて、届かないとスティックが止まったり、離したのが届かず残ったりした）
+    const onMove = (e) => {
       if (!this.enabled) return;
       const p = this.ptr.get(e.pointerId);
       if (!p) return;
@@ -25116,7 +25154,10 @@ export class Input {
         else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) this.lk.add(sx - p.x, sy - p.y, evT(e)); }
         p.x = sx; p.y = sy;
       }
-    }, { passive: false });
+    };
+    window.addEventListener('pointermove', onMove, { passive: false, capture: true });
+    // つかみが外れた: スティック・見回しの指はつかみ直す（外れたままだと、area の外の部品へ出来事が行く）
+    a.addEventListener('lostpointercapture', (e) => { const p = this.ptr.get(e.pointerId); if (p && (p.kind === 'stick' || p.kind === 'look')) { try { a.setPointerCapture(e.pointerId); } catch (er) { /* 離した後 */ } } });
     const up = (e, cancel) => {
       unlock();
       if (!this.enabled) return;
@@ -25147,9 +25188,22 @@ export class Input {
       this.edges.push({ b: p.btn, k, sub: p.el.dataset.sub || null, dur });
       if (this.onBtn) this.onBtn(p.btn, k, p);
     };
-    a.addEventListener('pointerup', (e) => up(e, false));
-    a.addEventListener('pointercancel', (e) => up(e, true));
-    window.addEventListener('touchend', () => unlock(), { passive: true });
+    window.addEventListener('pointerup', (e) => up(e, false), { capture: true });
+    window.addEventListener('pointercancel', (e) => up(e, true), { capture: true });
+    // 触れている指の数（タッチの出来事から）。指が全部離れたのに残っている指の記録は、少し待ってから捨てる
+    //  （「離した」の出来事が届かなかった時の救い。スティックが残って効かなくなるのを防ぐ）
+    this._touchN = 0;
+    const tcount = (e) => { this._touchN = e.touches ? e.touches.length : 0; };
+    window.addEventListener('touchstart', (e) => { tcount(e); this._touchT = performance.now(); }, { passive: true, capture: true });
+    window.addEventListener('touchmove', tcount, { passive: true, capture: true });
+    const tend = (e) => {
+      tcount(e);
+      if (this._touchN !== 0) return;
+      const t0 = performance.now();
+      setTimeout(() => { if (this._touchN === 0 && (this._touchT || 0) < t0) this._dropStale(); }, 120);
+    };
+    window.addEventListener('touchend', (e) => { unlock(); tend(e); }, { passive: true, capture: true });
+    window.addEventListener('touchcancel', tend, { passive: true, capture: true });
     window.addEventListener('click', () => unlock(), true);
     // キーボード（パソコン）
     window.addEventListener('keydown', (e) => {
@@ -25178,6 +25232,21 @@ export class Input {
     window.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouseBtn.l = false; if (e.button === 2) { this.mouseBtn.r = false; if (this.enabled) this.edges.push({ b: 'ads', k: 'up', mouse: true }); } });
     a.addEventListener('contextmenu', (e) => e.preventDefault());
     a.addEventListener('wheel', (e) => { if (this.enabled && document.pointerLockElement) this.edges.push({ b: e.deltaY > 0 ? 'wpn2' : 'wpn1', k: 'tap', wheel: true }); }, { passive: true });
+  }
+  // 届かなかった「離した」の代わり: タッチの指の記録（kind を指定すればその種類だけ）を捨てる
+  _dropStale(kind) {
+    for (const [pid, p] of this.ptr) {
+      if (p.pt !== 'touch') continue;
+      if (kind && p.kind !== kind) continue;
+      this.ptr.delete(pid);
+      if (p.kind === 'btn') { this.hold.delete(p.btn); if (p.el) p.el.classList.remove('down'); this.edges.push({ b: p.btn, k: 'cancel', sub: p.el ? p.el.dataset.sub || null : null }); if (this.onBtn) this.onBtn(p.btn, 'cancel', p); }
+      if (p.kind === 'radialTap' || (this.radial && this.radial.pid === pid)) this.closeRadial();
+    }
+    if (this.stick && (!kind || kind === 'stick') && !this.ptr.has(this.stick.id)) {
+      this.stick = null; this.mx = 0; this.mz = 0;
+      if (!this.sprintLock) this.sprintArm = false;
+      if (this.onStick) this.onStick(null, 0, 0, this.sprintLock, this.sprintLock);
+    }
   }
   _stickMove(sx, sy) {
     const st = this.stick;
@@ -31422,7 +31491,7 @@ export async function runTests(filter) {
   return res;
 }
 
-@@@@ FILE tests/run_all.mjs text 83090
+@@@@ FILE tests/run_all.mjs text 85594
 // テスト一式: node tests/run_all.mjs [--quick] [--no-sizes] → test-results/summary.md
 //  1 ビルド  2 単体  3 マップ（WAR BIT: 本陣・拠点・出撃の場所が範囲の中・本陣から拠点まで歩ける）  4 音
 //  5 自動の試合（コンクエスト・ドミネーション・TDM をボットだけで最後まで・同じシードで同じ結果・人数ごとの速さ）
@@ -31715,6 +31784,28 @@ try {
     const p1 = await page.evaluate(() => { const g = window.__app.game; return { x: g.p.x, z: g.p.z, yaw: g.yaw }; });
     const moved = Math.hypot(p1.x - p0.x, p1.z - p0.z), turned = p1.yaw - p0.yaw;
     rec('タップ', '2本指で移動と見回しを同時にできる', moved > 0.3 && Math.abs(turned) > 0.2, `移動${moved.toFixed(2)}m・向き${turned.toFixed(2)}rad`);
+  }
+  // 11-20: スティックの指を、画面の部品（ボタン）の上まで動かしても切れない。「離した」が届かずスティックが残っていても、
+  //  次にスティックの所に触れればスティックになる（前は見回しになり、スティックが効かなかった）
+  {
+    const fireB = await center('#hud [data-btn="fire"]');
+    await touch('touchStart', [{ x: 150, y: 290, id: 13 }]);
+    for (let k = 1; k <= 10; k++) { await touch('touchMove', [{ x: 150 + k * 3, y: 290 - k * 5, id: 13 }]); await page.waitForTimeout(30); }
+    // 指をボタンの上まで大きく動かす（スティックのまま）
+    await touch('touchMove', [{ x: fireB.x, y: fireB.y, id: 13 }]); await page.waitForTimeout(250);
+    const mid = await page.evaluate(() => { const i = window.__app.input; return { stick: !!i.stick, mx: +i.mx.toFixed(2), mz: +i.mz.toFixed(2) }; });
+    await touch('touchEnd', []); await page.waitForTimeout(300);
+    const after = await page.evaluate(() => { const i = window.__app.input; return { stick: !!i.stick, mz: i.mz }; });
+    // 「離した」が届かなかったスティックを作る → 新しい指でスティックの所に触れる
+    await page.evaluate(() => { const i = window.__app.input; i.stick = { id: 777, ox: 150, oy: 290, x: 150, y: 290, fixed: false }; i.ptr.set(777, { kind: 'stick', pt: 'touch' }); });
+    const p0 = await page.evaluate(() => { const g = window.__app.game; return { x: g.p.x, z: g.p.z }; });
+    await touch('touchStart', [{ x: 150, y: 290, id: 14 }]);
+    for (let k = 1; k <= 14; k++) { await touch('touchMove', [{ x: 150, y: 290 - Math.min(45, k * 4), id: 14 }]); await page.waitForTimeout(40); }
+    const st2 = await page.evaluate(() => { const i = window.__app.input; return { id: i.stick && i.stick.id, mz: +i.mz.toFixed(2) }; });
+    await touch('touchEnd', []); await page.waitForTimeout(300);
+    const p1 = await page.evaluate(() => { const g = window.__app.game; return { x: g.p.x, z: g.p.z }; });
+    const mv = Math.hypot(p1.x - p0.x, p1.z - p0.z);
+    rec('タップ', 'スティックの指はボタンの上へ動かしても切れず、離すと止まる。「離した」が届かず残ったスティックがあっても、次に触れた指がスティックになる', mid.stick && Math.hypot(mid.mx, mid.mz) > 0.5 && !after.stick && after.mz === 0 && st2.id !== 777 && st2.mz > 0.4 && mv > 0.2, JSON.stringify({ mid, after, st2, mv: +mv.toFixed(2) }));
   }
   const btn = (id) => center(`#hud [data-btn="${id}"]`);
   {
