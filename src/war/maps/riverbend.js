@@ -137,7 +137,7 @@ export function roadDist(x, z) {
 const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // 建物の大きさ（ローカル bw × bd）と作る関数
-const DIMS = { house: [8, 10], bungalow: [10, 8], apartment: [12, 18], shop: [12, 9], office: [14, 12], warehouse: [20, 30], barn: [10, 16], shed: [5, 6], tower: [4, 4], bunker: [8, 6], ruin: [8, 10], gas: [22, 18], chapel: [10, 22] };
+const DIMS = { house: [8, 10], bungalow: [10, 8], apartment: [12, 18], shop: [12, 9], office: [14, 12], warehouse: [20, 30], barn: [10, 16], shed: [5, 6], tower: [5, 5], bunker: [8, 6], ruin: [8, 10], gas: [22, 18], chapel: [10, 22] };
 const BUILD = { house, bungalow, apartment, shop, office, warehouse, barn, shed, tower, bunker, ruin, gas: gasStation, chapel };
 const FALLBACK = ['house', 'bungalow', 'shed'];
 // 正面の前の空き（ひさし・ポーチ・ベランダ・荷の積み場）

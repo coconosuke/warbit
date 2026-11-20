@@ -2,7 +2,7 @@
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
 import { classLoadout } from '../../src/war/classes.js';
-import { heightAt, los } from '../../src/war/world.js';
+import { heightAt, los, pushOut } from '../../src/war/world.js';
 import { M } from '../../src/engine/data/materials.js';
 
 const idle = (a, o = {}) => Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: a.pitch || 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o);
@@ -23,7 +23,9 @@ function wallGame(mat) {
   const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: true, per: 2 }); step(G, {});
   const S = G.S, ww = G.w, me = S.actors[0];
   for (const b of S.actors) if (b !== me) { b.alive = false; b.dead = true; }
-  const b = ww.boxes.find(q => q.alive && q.kind === 'wall' && q.mat === mat && q.z1 - q.z0 < 0.4 && q.x1 - q.x0 > 3 && q.y1 - q.y0 > 2.4 && Math.abs(q.y0 - heightAt(ww, (q.x0 + q.x1) / 2, q.z0 - 1.2)) < 0.4);
+  // 前 1.2m に立てる（家具・階段などにかからない）壁
+  const room = (q) => { const x = (q.x0 + q.x1) / 2, z = q.z0 - 1.2, y = heightAt(ww, x, z), o = pushOut(ww, x, z, y + 0.36, y + 1.8, 0.3); return !o[2]; };
+  const b = ww.boxes.find(q => q.alive && q.kind === 'wall' && q.mat === mat && q.z1 - q.z0 < 0.4 && q.x1 - q.x0 > 3 && q.y1 - q.y0 > 2.4 && Math.abs(q.y0 - heightAt(ww, (q.x0 + q.x1) / 2, q.z0 - 1.2)) < 0.4 && room(q));
   if (!b) return null;
   const cx = (b.x0 + b.x1) / 2;
   me.x = cx; me.z = b.z0 - 1.2; me.y = heightAt(ww, me.x, me.z); me.vx = me.vz = 0; me.yaw = 0; me.pitch = -0.1;

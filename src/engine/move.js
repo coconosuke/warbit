@@ -18,7 +18,7 @@ export const SPEED = { walk: 2.4, crouch: 1.2, prone: 0.45, low: 1.2, ads: 0.7, 
 // BattleBit のように、まっすぐ走り続けると数秒で少し速くなる（sprintUp 秒で sprint → sprint2）
 export const WAR_SPEED = { walk: 3.3, crouch: 2.0, prone: 0.8, ads: 0.52, sprint: 5.9, sprint2: 6.6, sprintUp: 3.0, back: 0.75, side: 0.9 };
 export const RADIUS = 0.28;
-const _po = [0, 0, 0];
+const _po = [0, 0, 0], _pb = [0, 0, 0];
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
 const _pv = [0, 0, 0, 0];
 
@@ -176,15 +176,26 @@ export function moveActor(S, w, a, inp, dt, ev) {
   const n = Math.hypot(a.vx, a.vz) * dt > 0.12 ? 2 : 1;
   const ox = a.x, oz = a.z;
   for (let k = 0; k < n; k++) {
+    const px = a.x, pz = a.z;
     a.x += a.vx * dt / n; a.z += a.vz * dt / n;
     for (let it = 0; it < 2; it++) {
       pushOut(w, a.x, a.z, a.y + STEP, a.y + h, RADIUS, S.doors, -1, _po, air);
       if (!_po[2]) break;
+      // 大規模戦: 一度に大きく押し出される（頭が上の階の床・屋根の板に入った など。いちばん近い端＝建物の外へ飛ばされる）なら、
+      // 動く前の所が空いていればそこへ戻して止める
+      if (w.war && _po[0] * _po[0] + _po[1] * _po[1] > 0.45 * 0.45) {
+        pushOut(w, px, pz, a.y + STEP, a.y + h, RADIUS, S.doors, -1, _pb, air);
+        if (!_pb[2]) { a.x = px; a.z = pz; a.vx = 0; a.vz = 0; break; }
+      }
       a.x += _po[0]; a.z += _po[1];
     }
   }
   // 開いている扉の板に体で当たって進もうとしたら、板は押されて回る（RoN と同じく、半開きの扉は体で押し開けられる）
   if (mag > 0.01) pushLeaves(S, w, a, dvx, dvz, dt);
+  // 足元（家具の上にも立てる）。大規模戦: 上る段・坂の先で頭が天井（上の階の床・屋根の板）につかえるなら、そこへは進まない
+  // （体が板にめり込むと、いちばん近い板の端＝建物の外へ押し出されるので）
+  let g = standAt(w, a.x, a.z, a.y);
+  if (w.war && g > a.y + 1e-4 && (a.x !== ox || a.z !== oz) && ceilAt(w, a.x, a.z, g) - g < h + 0.02) { a.x = ox; a.z = oz; a.vx = 0; a.vz = 0; g = standAt(w, a.x, a.z, a.y); }
   // 実際に動いた分で速さを直す（壁に沿って滑る）
   // 押し出された分で速くはならない（重なりを直した分が勢いにならないように）
   const mvx = (a.x - ox) / dt, mvz = (a.z - oz) / dt, sp0 = Math.hypot(a.vx, a.vz);
@@ -192,8 +203,6 @@ export function moveActor(S, w, a, inp, dt, ev) {
   const sp1 = Math.hypot(nvx, nvz);
   if (sp1 > sp0 && sp1 > 1e-6) { nvx *= sp0 / sp1; nvz *= sp0 / sp1; }
   a.vx = nvx; a.vz = nvz;
-  // 足元（家具の上にも立てる）
-  const g = standAt(w, a.x, a.z, a.y);
   if (g < -50) { a.y -= 9.8 * dt; if (a.y < -20) { a.y = 0; } }
   // 下り坂・縁石・低い段を下りるとき: 足は地面につけたまま（宙に浮いた扱いで照準が広がったり点滅したりしないように。11-13 20:50）
   else if (a.y - g > 0.04 && a.ground && !a.air && (a.vy || 0) > -0.6 && a.y - g <= 0.42) { a.y = g; a.vy = 0; a.airTop = null; }
