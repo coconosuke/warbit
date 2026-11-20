@@ -117,6 +117,8 @@ export function moveActor(S, w, a, inp, dt, ev) {
     const d = want - a.st, stp = rate * dt;
     a.st = Math.abs(d) <= stp ? want : a.st + Math.sign(d) * stp;
   }
+  // 構えの切り替え（立つ・しゃがむ・伏せる）を音に（大規模戦。服のこすれ・伏せは体を落とす音。game.js）
+  if (ev && S.war && !S.predict && a.alive && !a.down && a.stance != null && want !== a.stance) ev.push({ e: 'stance', id: a.id, pose: want, x: a.x, y: a.y, z: a.z });
   a.stance = want;
   // リーン（壁にめり込まない）。ダッシュより先（リーンしている間は走らない）
   let lw = inp.lean || 0;
@@ -223,15 +225,20 @@ export function moveActor(S, w, a, inp, dt, ev) {
   // 歩きの位相と足音
   const dist = Math.hypot(a.x - ox, a.z - oz);
   if (ev && S.deps && S.deps.length) stepWire(S, a, dist, ev);
-  const stepLen = a.sprint ? 0.95 : a.st > 1.5 ? 0.35 : a.st > 0.5 ? 0.55 : 0.72;
+  // 1歩の長さ。大規模戦は速さから（人の走りの歩数: 歩き 1.7m/s で約 1.9 歩/秒・3.3m/s で約 2.7・全力 6.6m/s で約 3.2。
+  // 前は走りが 0.95m で 1 秒に 7 歩近く、足音が細かく速すぎた）。伏せは這う動き
+  const sp = dist / Math.max(dt, 1e-4);
+  const stepLen = w.war ? (a.st > 1.5 ? 0.5 : Math.max(0.6, Math.min(2.05, 0.42 + 0.24 * sp))) : a.sprint ? 0.95 : a.st > 1.5 ? 0.35 : a.st > 0.5 ? 0.55 : 0.72;
   const before = Math.floor(a.phase / Math.PI);
-  a.phase += dist * Math.PI / stepLen;
+  // 宙にいる間（跳んだ・落ちる）は足を運ばない（足音も出ない。前は走って跳ぶと宙で走る足音が鳴った）
+  const onG = a.ground && !a.air;
+  if (onG) a.phase += dist * Math.PI / stepLen;
   if (a.phase > 1e4) a.phase -= 2 * Math.PI * 1000;
   const after = Math.floor(a.phase / Math.PI);
   // ローカルの速さ（アニメ用）
   a.mvx = -(mvx * cy - mvz * sy); a.mvz = mvx * sy + mvz * cy;
   a.spd = Math.hypot(mvx, mvz);
-  if (after !== before && ev && a.spd > 0.25) {
+  if (after !== before && ev && a.spd > 0.25 && onG) {
     const L = levelOfY(a.y + 0.1);
     const i = Math.floor(a.x / CS), j = Math.floor(a.z / CS);
     const fm = w.war ? warFloor(w, a) : (L < w.NL && i >= 0 && j >= 0 && i < w.W && j < w.D) ? w.floorMat[w.idx(L, i, j)] : 0;

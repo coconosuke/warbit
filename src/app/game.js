@@ -417,6 +417,8 @@ export class Match {
       if (this.breathOn && (!this.adsOn || !p || !p.alive || p.down || (ws && ws.gasp > 0) || (!(ws && ws.holding) && this.time - (this._brT || 0) > 0.35))) this.breathOn = false;
     }
     const brBtn = (this.app.settings.breathMode || 'toggle') === 'hold' ? inp.hold.has('breath') : !!this.breathOn;
+    // 構える・構えをやめる: 銃を上げ下げする小さな音（自分だけ・大規模戦）
+    if (this.adsOn !== this._adsWas) { if (this._adsWas != null && this.S && this.S.war && p && p.alive && !p.down) this.au.sfx('act', null, { vol: 0.1, rate: this.adsOn ? 1.4 : 1.2 }); this._adsWas = this.adsOn; }
     const cmd = {
       mx: inp.mx, mz: inp.mz, yaw: this.yaw, pitch: this.pitch,
       // ローレディは人の操作からはなくした（0.1.13。撃てなくなるだけで使う理由がない）。AI は今までどおり使う（銃を下げて歩く・投降など）
@@ -922,12 +924,32 @@ export class Match {
         case 'depset': au.sfx(e.k === 'wire' ? 'impMetal' : 'barricade', [e.x, e.y + 0.3, e.z], { vol: e.id === me ? 0.55 : 0.8, rate: e.k === 'wire' ? 1.4 : 0.8 }); break;
         case 'depbreak': if (e.why !== 'pick') { fx.debris(e.x, e.y, e.z, e.k === 'wire' ? [0.55, 0.56, 0.54] : [0.24, 0.26, 0.25]); au.sfx('impMetal', [e.x, e.y, e.z], { vol: 1, rate: 0.7 }); } else au.sfx('draw', [e.x, e.y, e.z], { vol: 0.5 }); break;
         case 'dephit': au.sfx('impMetal', [e.x, e.y, e.z], { vol: 0.8, rate: 1.3 }); break;
+        // ヘルメット・顔の盾で弾がはじかれた（金属の高い音。撃たれた本人には近く大きく）・防弾板に当たった（鈍い音）
+        case 'rico': if (e.x != null) au.sfx('impMetal', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.9 : 0.7, rate: 1.7 }); break;
+        case 'plate': if (e.x != null) au.sfx('plateHit', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.8 : 0.6 }); break;
+        // 構えの切り替え: 服のこすれ（伏せるときは低く重め）。ほかの人のは近くだけ（伏せ 14m・しゃがむ/立つ 8m）
+        case 'stance': {
+          if (e.id === me) au.sfx('act', null, { vol: e.pose === 2 ? 0.32 : 0.2, rate: e.pose === 2 ? 0.75 : e.pose === 1 ? 1.0 : 1.15 });
+          else if (e.x != null) {
+            const dd = Math.hypot(e.x - this.cam.x, e.z - this.cam.z);
+            if (e.pose === 2 && dd < 14) au.sfx('act', [e.x, e.y + 0.4, e.z], { vol: 0.4, rate: 0.75 });
+            else if (dd < 8) au.sfx('act', [e.x, e.y + 0.9, e.z], { vol: 0.25, rate: 1.05 });
+          }
+          break;
+        }
+        // リロードを途中でやめた（自分だけ。手を止める小さな音）
+        case 'reloadx': if (e.id === me) au.sfx('click', null, { vol: 0.25, rate: 0.9 }); break;
         case 'wire': { const near = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); if (near < 30) au.sfx('impMetal', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.35 : 0.55, rate: 1.6 + Math.random() * 0.3 }); break; }
         // 着地: 自分なら画面が揺れる。高い所から落ちたほど重い音（まわりにも聞こえる）
         case 'fall': {
           const big = (e.h || 0) > 2;
-          if (e.id === me) { au.sfx('land', null, { vol: big ? 1 : 0.7, rate: big ? 0.8 : 1 }); if (big) { this.shake = Math.min(1, this.shake + 0.25 + 0.1 * e.h); this._heatUp(0.3); } }
-          else if (big && e.x != null && Math.hypot(e.x - this.cam.x, e.z - this.cam.z) < 35) au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: Math.min(1, 0.4 + e.h * 0.15), rate: 0.75 });
+          if (e.id === me) { au.sfx('land', null, { vol: big ? 1 : 0.5, rate: big ? 0.8 : 1.1 }); if (big) { this.shake = Math.min(1, this.shake + 0.25 + 0.1 * e.h); this._heatUp(0.3); } }
+          else if (e.x != null) {
+            // ほかの人の着地: 高いほど重く遠くまで（跳んだだけの軽い着地も近くなら聞こえる）
+            const dd = Math.hypot(e.x - this.cam.x, e.z - this.cam.z);
+            if (big && dd < 35) au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: Math.min(1, 0.4 + e.h * 0.15), rate: 0.75 });
+            else if (!big && dd < 22) au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.35, rate: 1.15 });
+          }
           break;
         }
         case 'throw': { const a = S.byId[e.id]; au.sfx('throw', a === p ? null : [a.x, a.y + 1.5, a.z], { vol: 0.6 }); break; }
