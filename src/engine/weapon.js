@@ -123,6 +123,8 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
     else if (ac.a === 'consol') startConsol(S, a, ev);
     else if (ac.a === 'switch') switchTo(S, a, ac.slot, ev);
     else if (ac.a === 'mode' && ws.slot === 3) m320Next(a, ev);
+    // C4 を持っている: 射撃モードのボタンで「投げる ⇄ 起爆」（残りがなければ起爆のまま）
+    else if (ac.a === 'mode' && ws.slot === 2 && ws.gear && GEAR[ws.gear] && GEAR[ws.gear].kind === 'c4') { const g = a.inv.gear.find(x => x.id === ws.gear); ws.c4m = ws.c4m === 'det' && g && g.n > 0 ? 'throw' : 'det'; ev.push({ e: 'c4', id: a.id, k: 'mode', m: ws.c4m }); }
     // 双眼鏡の倍率（BattleBit の双眼鏡は 4〜8 倍を変えられる。research の 39）: 倍率のボタンで 4 → 6 → 8
     else if (ac.a === 'zoom' && ws.slot === 2 && ws.gear === 'binoc') { const Z = GEAR.binoc.zooms; ws.bz = ((ws.bz ?? GEAR.binoc.zi) + 1) % Z.length; ev.push({ e: 'zoom', id: a.id, z: Z[ws.bz], binoc: true }); }
     // 倍率を切り替えられる照準器: 倍率のボタン（'zoom'。11-19 14:03 から射撃モードと別。BattleBit も別のキー）。

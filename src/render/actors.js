@@ -108,6 +108,13 @@ export class ActorView {
       B.box(0.006, 0.0, -0.008, 0.012, 0.055, 0.008, LAYER.metal, hex('#9a9a90'));
       return (this._nm[type] = makeWorldMesh(this.gl, B));
     }
+    if (type === 'c4') {
+      // 貼りついた C4: 板と赤い灯（下が貼りついた面）
+      B.box(-0.055, 0, -0.03, 0.055, 0.045, 0.03, LAYER.plain, hex('#7b7a66'));
+      for (const x of [-0.03, 0.03]) B.box(x - 0.008, -0.001, -0.0315, x + 0.008, 0.046, 0.0315, LAYER.rubber, hex('#2c2d2a'));
+      B.emit = 1.5; B.box(-0.005, 0.045, -0.005, 0.005, 0.052, 0.005, LAYER.plain, hex('#ff3a2e')); B.emit = 0;
+      return (this._nm[type] = makeWorldMesh(this.gl, B));
+    }
     if (type === 'rpg') {
       // RPG のロケット（前が +Z）: 後ろのモーターの筒と羽根、太い弾頭と円すい
       const od = hex('#4a5136');
@@ -203,6 +210,14 @@ export class ActorView {
       const t = (r.time || 0) * 9 + (n.id || 0), c = Math.cos(t), s2 = Math.sin(t), M = this.M;
       M[0] = c; M[1] = s2; M[2] = 0; M[3] = 0; M[4] = -s2; M[5] = c; M[6] = 0; M[7] = 0; M[8] = 0; M[9] = 0; M[10] = 1; M[11] = 0;
       M[12] = n.x; M[13] = n.y; M[14] = n.z; M[15] = 1;
+      // 貼りついた C4: 面の向き（n.nx..）を上に
+      if (n.type === 'c4' && (n.stuck || n.rest)) {
+        const ux = n.nx ?? 0, uy = n.ny ?? 1, uz = n.nz ?? 0;
+        let ax = Math.abs(uy) < 0.9 ? 0 : 1, ay = Math.abs(uy) < 0.9 ? 1 : 0, az = 0;
+        let rx = ay * uz - az * uy, ry = az * ux - ax * uz, rz = ax * uy - ay * ux; const rl = Math.hypot(rx, ry, rz) || 1; rx /= rl; ry /= rl; rz /= rl;
+        const fx = uy * rz - uz * ry, fy = uz * rx - ux * rz, fz = ux * ry - uy * rx;
+        M[0] = rx; M[1] = ry; M[2] = rz; M[4] = ux; M[5] = uy; M[6] = uz; M[8] = fx; M[9] = fy; M[10] = fz;
+      }
       // ロケットは飛ぶ向きへ（速さがなければ前のこまからの動き）
       if (n.type === 'rpg') {
         let fx = n.vx, fy = n.vy, fz = n.vz;

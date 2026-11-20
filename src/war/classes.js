@@ -3,6 +3,7 @@
 // 銃は兵科ごとの種類から選ぶ（陣営で服だけ違う。BattleBit も銃は両陣営で同じ）。投げ物と道具は兵科ごと。
 // tools（道具）はまだ使えない（M3 で入れる）。出撃の画面では「準備中」と出す
 import { WEAPONS } from '../engine/data/weapons.js';
+import { GEAR } from '../engine/data/equipment.js';
 
 export const CLASSES = {
   leader: {
@@ -63,8 +64,12 @@ const SIGHT = { at308: null, hk417: 'acog', sks: 'acog', mini14: 'acog', g3: 'ac
 // 兵科の銃（まだない銃は除く）
 export const classGuns = (cls) => (CLASSES[cls] || CLASSES.assault).guns.filter(id => WEAPONS[id]);
 export const classSecs = (cls) => (CLASSES[cls] || CLASSES.assault).sec.filter(id => WEAPONS[id]);
-// 兵科と銃から装備を作る（engine の makeInventory に渡す形）
-export function classLoadout(cls, gun, sec, att) {
+// 副の道具（出撃の画面の LOADOUT の「道具」で選ぶ。BattleBit は全兵科が C4・地雷などから選べる。衛生は医療キットで決まり。
+//  research の 39・42）。既定は C4
+export const GADGETS = ['c4', 'clay', 'apmine', 'none'];
+export function classGadgets(cls) { return cls === 'medic' ? [] : GADGETS; }
+// 兵科と銃から装備を作る（engine の makeInventory に渡す形）。gad: 副の道具
+export function classLoadout(cls, gun, sec, att, gad) {
   const C = CLASSES[cls] || CLASSES.assault;
   const G = classGuns(cls), Ss = classSecs(cls);
   const g = gun && G.includes(gun) ? gun : G[0];
@@ -75,5 +80,8 @@ export function classLoadout(cls, gun, sec, att) {
   // 付属品（出撃の画面の LOADOUT で選ぶ。付けられない物は makeWeapon が外す）
   const A = att && att[g];
   if (A) for (const k of ['sight', 'muzzle', 'grip', 'side']) if (A[k]) prim[k] = A[k];
-  return { war: true, primary: prim, secondary: { id: s, ammo: 'ap' }, long: C.long || 'none', gear: C.gear.map(x => x.slice()), vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
+  const gear = C.gear.map(x => x.slice());
+  const gs = classGadgets(cls), gd = gs.includes(gad) ? gad : gs[0];
+  if (gd && gd !== 'none' && GEAR[gd]) gear.push([gd, GEAR[gd].max || 1]);
+  return { war: true, primary: prim, secondary: { id: s, ammo: 'ap' }, long: C.long || 'none', gear, vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
 }

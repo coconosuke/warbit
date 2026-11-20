@@ -674,8 +674,8 @@ try {
     // 集合地点（11-19）: 分隊ポイント 200 で、集合のボタン → 目の前に置かれる（出撃の画面に「集合」）
     {
       await page.evaluate(() => { const g = window.__app.game, p = g.p, S = g.S; (S.m.sqp = S.m.sqp || {})[p.team + ':' + p.squad] = 200; });
-      await page.waitForTimeout(400);
-      const vis = await page.evaluate(() => { const e = document.querySelector('#hud [data-btn="rally"]'); return !!e && !e.classList.contains('na') && !e.classList.contains('dis') && getComputedStyle(e).display !== 'none'; });
+      // HUD のボタンの状態が変わるまで待つ（描画が遅い環境では 0.4 秒では足りないことがある）
+      const vis = await page.waitForFunction(() => { const e = document.querySelector('#hud [data-btn="rally"]'); return !!e && !e.classList.contains('na') && !e.classList.contains('dis') && getComputedStyle(e).display !== 'none'; }, null, { timeout: 8000 }).then(() => true).catch(() => false);
       await tapAt(await btn('rally'), 76);
       await page.waitForTimeout(500);
       const rl = await page.evaluate(() => { const g = window.__app.game, p = g.p, S = g.S, r = (S.rallies || []).find(q => q.team === p.team && q.sq === p.squad); return r ? { d: +Math.hypot(r.x - p.x, r.z - p.z).toFixed(2), pts: S.m.sqp[p.team + ':' + p.squad] } : null; });

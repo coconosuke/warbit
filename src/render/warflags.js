@@ -67,6 +67,16 @@ export class WarFlags {
     Ab.box(-0.265, 0.12, -0.05, -0.255, 0.2, 0.05, LAYER.metal, hex('#d8c9a0'));
     Ab.box(0.255, 0.12, -0.05, 0.265, 0.2, 0.05, LAYER.metal, hex('#d8c9a0'));
     this.ammoMesh = makeWorldMesh(this.gl, Ab);
+    // 対人地雷（平たい丸）とクレイモア（前へ反った箱と細い脚）。この作品の形
+    const Ap = new MeshBuilder();
+    Ap.cyl(0, 0, 0, 0.045, 0.09, 0.08, 10, LAYER.metal, hex('#4a4d38'));
+    Ap.cyl(0, 0, 0.045, 0.06, 0.025, 0.025, 8, LAYER.metal, hex('#2c2e26'));
+    this.apMesh = makeWorldMesh(this.gl, Ap);
+    const Cl = new MeshBuilder();
+    Cl.box(-0.11, 0.06, -0.02, 0.11, 0.15, 0.02, LAYER.plain, hex('#55593d'));
+    Cl.box(-0.08, 0.15, -0.01, 0.08, 0.16, 0.01, LAYER.plain, hex('#3f4230'));
+    for (const x of [-0.08, 0.08]) { Cl.box(x - 0.006, 0, -0.03, x + 0.006, 0.06, -0.018, LAYER.metal, hex('#2a2b26')); Cl.box(x - 0.006, 0, 0.018, x + 0.006, 0.06, 0.03, LAYER.metal, hex('#2a2b26')); }
+    this.clayMesh = makeWorldMesh(this.gl, Cl);
     this.M = new Float32Array(16);
     this.flags = [];
     this.wind = 0;
@@ -123,6 +133,8 @@ WarFlags.prototype._drawRallies = function (f) {
   if (D && D.length) this._drawMags(f, D);
   const A = this.S && this.S.ammo;
   if (A && A.length) this._drawMags(f, A, true);
+  const Mi = this.S && this.S.mines;
+  if (Mi && Mi.length) this._drawMines(f, Mi);
   const L = this.S && this.S.rallies;
   if (!L || !L.length) return;
   const r = this.r, gl = this.gl, P = r.P.world, M = this.M;
@@ -158,6 +170,24 @@ WarFlags.prototype._drawMags = function (f, D, box) {
     M.fill(0); M[0] = c; M[2] = -s; M[5] = k; M[8] = s; M[10] = c; M[15] = 1; M[12] = q.x; M[13] = q.y + 0.005; M[14] = q.z;
     gl.uniformMatrix4fv(P.u.uModel, false, M);
     drawMesh(gl, box ? this.ammoMesh : this.magMesh);
+  }
+  M.fill(0); M[0] = M[5] = M[10] = M[15] = 1;
+  gl.uniformMatrix4fv(P.u.uModel, false, M);
+  if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, -1);
+};
+// 対人地雷・クレイモア（向き yaw。近くだけ）
+WarFlags.prototype._drawMines = function (f, L) {
+  const r = this.r, gl = this.gl, P = r.P.world, M = this.M;
+  r._bindLight(P, f);
+  gl.uniformMatrix4fv(P.u.uVP, false, r.vp);
+  if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, 1);
+  gl.uniform3f(P.u.uTint, 1, 1, 1);
+  for (const q of L) {
+    if (Math.hypot(q.x - r.camPos[0], q.z - r.camPos[2]) > 60) continue;
+    const c = Math.cos(q.yaw), s = Math.sin(q.yaw);
+    M.fill(0); M[0] = c; M[2] = -s; M[5] = 1; M[8] = s; M[10] = c; M[15] = 1; M[12] = q.x; M[13] = q.y + 0.005; M[14] = q.z;
+    gl.uniformMatrix4fv(P.u.uModel, false, M);
+    drawMesh(gl, q.kind === 'clay' ? this.clayMesh : this.apMesh);
   }
   M.fill(0); M[0] = M[5] = M[10] = M[15] = 1;
   gl.uniformMatrix4fv(P.u.uModel, false, M);

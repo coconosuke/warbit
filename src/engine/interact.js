@@ -1,5 +1,6 @@
 // 調べる・使う: 見ている物（扉・人・落ちている物・爆弾・壁）と、そのときできる操作。時間のかかる動作の進み。
 import { placeAmmo } from './ammobox.js';
+import { placeMine } from './mines.js';
 import { raycast, los, CS, LH, levelOfY, NB, isWallish, C, leafEnd, pushOut, rayBox } from './world.js';
 import { M, MATS } from './data/materials.js';
 import { GEAR, LONG, HAND_LONG } from './data/equipment.js';
@@ -828,7 +829,7 @@ function selectGear(S, a, id, ev) {
   if (!g || g.n <= 0) { ev.push({ e: 'deny', id: a.id, why: 'nogear' }); return; }
   // 回復の道具は、体力が満タンで血も止まっているときは使えない（11-13 20:50。道具が変わっても同じ）
   if (G.kind === 'heal') { if (a.act) return; if (!needsHeal(a)) { ev.push({ e: 'deny', id: a.id, why: 'fullhp' }); return; } if (g.n > 0) { g.n--; a.act = { k: 'bandage', t: 0, dur: ACT_T.bandage * (S.war && a.warCls === 'medic' ? 0.5 : 1), kind: 'self', id: a.id, still: false, noAds: true, x: a.x, z: a.z, pose: 'bandage', tgt: null }; ev.push({ e: 'act', id: a.id, k: 'bandage', dur: ACT_T.bandage }); } return; }
-  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy' || G.kind === 'ammo' || G.kind === 'medkit' || G.kind === 'binoc' || G.kind === 'hammer') {
+  if (G.kind === 'nade' || G.kind === 'spray' || G.kind === 'deploy' || G.kind === 'ammo' || G.kind === 'medkit' || G.kind === 'binoc' || G.kind === 'hammer' || G.kind === 'c4' || G.kind === 'mine') {
     // 手に持つ（slot 2）。引き金で投げる・吹きつける・前に置く
     a.ws.gear = id;
     if (a.ws.slot !== 2) switchTo(S, a, 2, ev);
@@ -845,6 +846,8 @@ function gearInHand(S, w, a, dt, ev) {
   ws.st = 'gear';
   const id = ws.gear;
   const g = a.inv.gear.find(x => x.id === id);
+  // C4: 置いた物があれば、残りが 0 でも起爆のために持っていられる
+  if (GEAR[id] && GEAR[id].kind === 'c4') { const pr = !!inp.fire && !ws.gearTrig; ws.gearTrig = !!inp.fire; c4Tick(S, a, g, pr, ev); return; }
   if (!g || g.n <= 0) { switchTo(S, a, ws.prev >= 0 ? ws.prev : 0, ev); ws.st = 'holster'; return; }
   // 双眼鏡: 押した時に印（大規模戦の印の決まりで、遠く・細く）
   if (GEAR[id].kind === 'binoc') { const pr = !!inp.fire && !ws.gearTrig; ws.gearTrig = !!inp.fire; if (pr) ev.push({ e: 'binocSpot', id: a.id }); return; }
@@ -864,6 +867,12 @@ function gearInHand(S, w, a, dt, ev) {
     else { ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.35; }
   } else if (GEAR[id].kind === 'deploy') {
     startDeploy(S, w, a, id, ev);
+  } else if (GEAR[id].kind === 'mine') {
+    // 対人地雷・クレイモア: 足もとの前へ置く。残りがあれば持ったまま、なければ前の銃へ
+    g.n--;
+    placeMine(S, w, a, id, ev);
+    if (g.n > 0) { ws.st = 'draw'; ws.t = 0.6; ws.gearTrig = true; }
+    else { ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.35; }
   } else if (GEAR[id].kind === 'ammo') {
     // 弾薬箱: 足もとの前へ置く。残りがあれば持ったまま、なければ前の銃へ
     g.n--;
@@ -876,6 +885,27 @@ function gearInHand(S, w, a, dt, ev) {
     ws.sprays = (ws.sprays || 0) + 1;
     if (ws.sprays >= (GEAR.spray.uses || 6)) { g.n = 0; ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.3; }
   }
+}
+
+// C4: ws.c4m = 'throw'（投げる）| 'det'（起爆）。投げると起爆に、起爆すると（残りがあれば）投げるに戻る
+export function myC4(S, a) { return (S.nades || []).filter(n => n.type === 'c4' && n.by === a.id); }
+function c4Tick(S, a, g, press, ev) {
+  const ws = a.ws, left = g ? g.n : 0, placed = myC4(S, a).length;
+  if (!ws.c4m) ws.c4m = left > 0 ? 'throw' : 'det';
+  if (ws.c4m === 'throw' && left <= 0) ws.c4m = 'det';
+  if (ws.c4m === 'det' && placed === 0 && left <= 0) { switchTo(S, a, ws.prev >= 0 ? ws.prev : 0, ev); ws.st = 'holster'; return; }
+  if (!press || a.sprint || a.vault) return;
+  if (ws.c4m === 'throw') {
+    g.n--;
+    const n = throwNade(S, a, 'c4', 0.35, ev);
+    n.sticky = true; n.fuse = 1e9;
+    ws.c4m = 'det';
+    ev.push({ e: 'c4', id: a.id, k: 'throw', left: g.n });
+  } else if (placed > 0) {
+    for (const n of myC4(S, a)) n.t = n.fuse;
+    ev.push({ e: 'c4', id: a.id, k: 'det', n: placed });
+    if (left > 0) ws.c4m = 'throw';
+  } else if (left > 0) ws.c4m = 'throw';
 }
 
 // 大ハンマーを振る: ws.swing = 振り始めてからの時間（なければ振っていない）。hitAt で当たりを見る
@@ -915,8 +945,9 @@ function hammerHit(S, w, a, ev) {
     if (b && b.alive && (b.kind === 'wall' || b.kind === 'floor')) {
       b.ham = (b.ham || 0) + 1;
       if (b.ham >= (b.mat === M.CONCRETE ? H.hard : H.soft)) {
-        const ks = carve(w, hx + dx * 0.05, hy, hz + dz * 0.05, 0.35, { force: true, w: 1.1, h: 1.3, floor: 1.1, only: b.id });
-        if (ks.length) { (S.carves || (S.carves = [])).push([hx, hy, hz, 0.35, 1]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: hx, y: hy, z: hz, r: 0.35, ks, cn: w._carveN, ham: 1 }); }
+        const o = { force: true, w: 1.1, h: 1.3, floor: 1.1, only: b.id }, cx = hx + dx * 0.05, cz = hz + dz * 0.05;
+        const ks = carve(w, cx, hy, cz, 0.35, o);
+        if (ks.length) { (S.carves || (S.carves = [])).push([cx, hy, cz, 0.35, 1]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: cx, y: hy, z: cz, r: 0.35, ks, cn: w._carveN, ham: 1, o }); }
       }
     }
   }

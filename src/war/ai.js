@@ -195,6 +195,8 @@ function think(S, w, a, dt, ctx) {
   inp.stance = 0;
   if (a.down) { inp.mx = 0; inp.mz = 0; return inp; }
   if (a.act) { inp.mx = 0; inp.mz = 0; inp.stance = a.act.k === 'revive' ? 1 : a.stance; return inp; }
+  // 地雷を置いた: 銃へ戻す
+  if (ai.mineBack && S.t >= ai.mineBack) { ai.mineBack = 0; pushAct(inp, { a: 'switch', slot: 0 }); }
   // RPG を持ったまま（撃ち終えた・敵を見失った）: 銃へ戻す
   if (a.ws.slot === 3 && !(ai.rpgUntil && S.t < ai.rpgUntil) && a.ws.st !== 'holster' && a.ws.st !== 'draw' && (!ai.selT || S.t - ai.selT > SEC(S, 1))) { ai.selT = S.t; pushAct(inp, { a: 'switch', slot: 0 }); }
   // 見回す（交代で）
@@ -386,6 +388,8 @@ function objective(S, w, a, inp, ctx, sk, dt) {
     if (ai.hold) {
       const dh = Math.hypot(ai.hold.x - a.x, ai.hold.z - a.z);
       if (dh > 1.0) { moveToPoint(S, w, a, inp, [ai.hold.x, ai.hold.z], ctx, sk, dt, { sprint: dh > 18 && !threat, face: true }); return; }
+      // 着いた: 敵の来る方へクレイモア・対人地雷を1つ置く（守る場所ごとに1回。敵が近い時は置かない）
+      if (!threat && !ai.tgt && ai.mineAt !== ai.hold.until && placeMineAt(S, a, inp, ai.hold.lx, ai.hold.lz, sk, dt)) return;
       // 着いた: 敵の来る方を見張る（しゃがむ・ときどき向きを少し変える）
       if (!ai.watchT || S.t > ai.watchT) { ai.watchT = S.t + SEC(S, 2.5 + 3 * hrand(a.id, S.t, 15)); ai.watchOff = (hrand(a.id, S.t, 16) - 0.5) * 1.4; }
       const lx = threat ? threat.x : ai.hold.lx, lz = threat ? threat.z : ai.hold.lz;
@@ -427,6 +431,20 @@ function objective(S, w, a, inp, ctx, sk, dt) {
     }
   }
   moveToPoint(S, w, a, inp, to, ctx, sk, dt, { sprint: dg > 30 && !threat && !a.ai.tgt, face: !a.ai.tgt });
+}
+
+// クレイモア・対人地雷を、敵の来る方（lx, lz）へ向けて足もとの前に置く。置き終えたら（か、持っていなければ）false
+function placeMineAt(S, a, inp, lx, lz, sk, dt) {
+  const ai = a.ai, g = a.inv.gear.find(x => (x.id === 'clay' || x.id === 'apmine') && x.n > 0);
+  if (!g) { ai.mineAt = ai.hold.until; return false; }
+  const want = yawTo(lx - a.x, lz - a.z);
+  inp.yaw = turnToward(a.yaw, want, sk.turn * Math.PI / 180 * dt); inp.pitch = a.pitch * 0.9; inp.mx = 0; inp.mz = 0; inp.stance = 1;
+  if (a.ws.slot !== 2 || a.ws.gear !== g.id) { if (!ai.selT || S.t - ai.selT > SEC(S, 1)) { ai.selT = S.t; pushAct(inp, { a: 'gear', id: g.id }); } return true; }
+  if ((a.ws.st === 'gear' || a.ws.st === 'ready') && Math.abs(angDiff(a.yaw, want)) < 0.15) {
+    const n0 = g.n; inp.fire = !ai.minePress; ai.minePress = !ai.minePress;
+    if (inp.fire && n0 > 0) { ai.mineAt = ai.hold.until; ai.selT = S.t; ai.mineBack = S.t + SEC(S, 0.4); }
+  }
+  return true;
 }
 
 // 拠点の中の自分の場所（ボットごとに違う向き・距離。遮蔽物が見つからないとき）

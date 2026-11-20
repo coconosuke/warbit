@@ -7,7 +7,7 @@ import { magCap } from './actor.js';
 export const AMMOBOX = { big: 244, small: 150, r: 2.0, every: 0.8, life: 240, pts: 10 };
 // 救急（包帯）と投げ物・RPG の弾も補給する（BattleBit の重い弾薬箱: 救急 100・投げ物 50・重い道具 100。小さい箱は救急 40 だけ）。
 //  包帯・投げ物は 1つ 25、RPG は 1 発 40（Wiki の補給の重さ）。4 秒に1つ
-export const AIDBOX = { aid: 100, thr: 50, gad: 100, aidSmall: 40, cost: 25, rpg: 40, every: 4 };
+export const AIDBOX = { aid: 100, thr: 50, gad: 100, aidSmall: 40, cost: 25, rpg: 40, c4: 20, every: 4 };
 
 export function placeAmmo(S, a, id, ev) {
   const big = id === 'ammobig';
@@ -47,9 +47,12 @@ export function stepAmmo(S, ev, award) {
         const thr = gs.find(g => (g.id === 'frag' || g.id === 'impact' || g.id === 'smoke') && g.n < (g.n0 || 0));
         // 工兵の RPG の予備も（BattleBit の重い弾薬箱は道具も補充する。重い道具の枠から 1 発 40）
         const rp = a.inv && a.inv.rpg && a.inv.rpg.n + a.inv.rpg.in < (a.inv.rpg.n0 || 0) + 1 ? a.inv.rpg : null;
+        const c4 = gs.find(g => (g.id === 'c4' || g.id === 'apmine' || g.id === 'clay') && g.n < (g.n0 || 0));
         if (ban && b.aid >= AIDBOX.cost) { ban.n++; b.aid -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'bandage' }); }
         else if (thr && b.thr >= AIDBOX.cost) { thr.n++; b.thr -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: thr.id }); }
         else if (rp && (b.gad || 0) >= AIDBOX.rpg) { rp.n++; b.gad -= AIDBOX.rpg; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'rpg' }); }
+        // C4（Wiki の補給の重さ 20。援護の重い弾薬箱は C4 も補給する）
+        else if (c4 && (b.gad || 0) >= AIDBOX.c4) { c4.n++; b.gad -= AIDBOX.c4; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: c4.id }); }
       }
       // 主の銃から、満タンなら拳銃
       const w = a.inv && a.inv.w || [];

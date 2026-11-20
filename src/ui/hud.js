@@ -323,7 +323,7 @@ export class Hud {
       // 弾
       const wi = v.wi, W = wi ? WEAPONS[wi.id] : null;
       let akey = '';
-      if (p.ws.slot === 2 && v.gearId) { const g = p.inv.gear.find(x => x.id === v.gearId); akey = 'g|' + v.gearId + '|' + (g ? g.n : 0); }
+      if (p.ws.slot === 2 && v.gearId) { const g = p.inv.gear.find(x => x.id === v.gearId); akey = 'g|' + v.gearId + '|' + (g ? g.n : 0) + '|' + (p.ws.c4m || '') + '|' + (v.c4n || 0); }
       else if (p.ws.slot === 3 && p.inv.long) { const m = p.inv.m320, rp = p.inv.rpg; akey = 'L|' + p.inv.long + '|' + (m ? [m.sel, m.flash, m.stinger, m.cs].join(',') : rp ? rp.in + ',' + rp.n : '') + '|' + (p.ws.lt > 0 ? 1 : 0); }
       else if (wi && W) { const [m, r] = ammoCount(wi); akey = wi.id + '|' + m + '|' + r + '|' + wi.mode + '|' + (wi.zi || 0) + '|' + (wi.mags ? wi.mags.join(',') : '') + '|' + p.ws.st; }
       if (this.cache.ammo !== akey) {
@@ -349,7 +349,7 @@ export class Hud {
           }
         } else if (akey.startsWith('g|')) {
           const g = p.inv.gear.find(x => x.id === v.gearId);
-          am.querySelector('.mode').textContent = GEAR[v.gearId] ? GEAR[v.gearId].name : '';
+          am.querySelector('.mode').textContent = (GEAR[v.gearId] ? GEAR[v.gearId].name : '') + (v.gearId === 'c4' ? (p.ws.c4m === 'det' ? `・起爆（置いた ${v.c4n || 0}）` : '・投げる') : '');
           am.querySelector('.cnt').innerHTML = `<b>${g ? g.n : 0}</b><span>個</span>`;
           am.querySelector('.mags').innerHTML = '';
         } else if (wi && W) {
@@ -386,13 +386,15 @@ export class Hud {
       // 射撃モードのボタン: 射撃モードだけ（フル・バースト・単発）。倍率は別のボタン（倍率を切り替えられる照準器の時だけ出す。11-19 14:03）
       const bino = p.ws.slot === 2 && p.ws.gear === 'binoc' && GEAR.binoc;
       const zs = bino ? GEAR.binoc.zooms : !m320 && W && wi ? zoomsOf(wi.att) : null;
-      const fm = m320 ? '弾種' : W ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') : '';
+      // C4 を持っている: 射撃モードのボタンで「投げる／起爆」
+      const c4 = p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4';
+      const fm = c4 ? (p.ws.c4m === 'det' ? '起爆' : '投げる') : m320 ? '弾種' : W ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') : '';
       const zl = bino ? `×${GEAR.binoc.zooms[p.ws.bz ?? GEAR.binoc.zi]}` : zs ? (zoomOf(wi) <= 1 ? '×1' : `×${zoomOf(wi)}`) : '';
-      const fk = fm + '|' + zl + '|' + (zs ? 1 : 0) + (m320 || (W && W.modes.length > 1) ? 1 : 0);
+      const fk = fm + '|' + zl + '|' + (zs ? 1 : 0) + (c4 || m320 || (W && W.modes.length > 1) ? 1 : 0);
       if (this.cache.fmk !== fk) {
         this.cache.fmk = fk;
         this.btn.fmode.querySelector('.lb').textContent = fm;
-        this.btn.fmode.classList.toggle('dis', !m320 && !(W && W.modes.length > 1));
+        this.btn.fmode.classList.toggle('dis', !c4 && !m320 && !(W && W.modes.length > 1));
         this.btn.zoom.querySelector('.lb').textContent = zl;
         this.btn.zoom.classList.toggle('na', !zs);
       }

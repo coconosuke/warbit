@@ -64,6 +64,26 @@ export class ViewModel {
       B.box(-0.012, -0.01, -0.03, 0.012, 0.012, 0.03, LAYER.metal, hex('#3a3c34'));
       const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
     }
+    if (id === 'apmine' || id === 'clay') {
+      // 手に持った対人地雷（平たい丸）・クレイモア（反った箱）
+      if (id === 'apmine') { B.cyl(0, 0, -0.022, 0.022, 0.045, 0.04, 10, LAYER.metal, hex('#4a4d38')); B.cyl(0, 0, 0.022, 0.032, 0.013, 0.013, 8, LAYER.metal, hex('#2c2e26')); }
+      else { B.box(-0.055, -0.022, -0.01, 0.055, 0.022, 0.01, LAYER.plain, hex('#55593d')); B.box(-0.04, 0.022, -0.005, 0.04, 0.027, 0.005, LAYER.plain, hex('#3f4230')); }
+      const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
+    }
+    if (id === 'c4' || id === 'c4det') {
+      // C4（この作品の形）: 灰色がかったオリーブの板にテープの帯、上に小さな起爆の箱と赤い灯。起爆の装置: 黒い握りと短いアンテナ・赤いボタン
+      if (id === 'c4') {
+        B.box(-0.055, -0.022, -0.03, 0.055, 0.022, 0.03, LAYER.plain, hex('#7b7a66'));
+        for (const x of [-0.03, 0.03]) B.box(x - 0.008, -0.0235, -0.0315, x + 0.008, 0.0235, 0.0315, LAYER.rubber, hex('#2c2d2a'));
+        B.box(-0.014, 0.022, -0.012, 0.014, 0.036, 0.012, LAYER.metal, hex('#333538'));
+        B.emit = 1.5; B.box(-0.004, 0.036, -0.004, 0.004, 0.04, 0.004, LAYER.plain, hex('#ff3a2e')); B.emit = 0;
+      } else {
+        B.box(-0.022, -0.05, -0.014, 0.022, 0.04, 0.014, LAYER.rubber, hex('#1f2023'));
+        B.tube([0.012, 0.04, 0], [0.012, 0.11, 0], 0.003, 0.002, 6, LAYER.metal, hex('#2a2b2e'), { caps: true });
+        B.emit = 1.2; B.box(-0.009, 0.04, -0.009, 0.005, 0.048, 0.005, LAYER.plain, hex('#d8322a')); B.emit = 0;
+      }
+      const m = makeWorldMesh(this.gl, B); this.nadeMeshes[id] = m; return m;
+    }
     if (id === 'hammer') {
       // 大ハンマー（この作品の形）: 木の柄（下が原点の近く、上へ +Y）と、上の鉄の頭（横に長い）。柄の下にゴムの握り
       B.tube([0, -0.36, 0], [0, 0.36, 0], 0.016, 0.017, 8, LAYER.wood, hex('#7a5a36'), { caps: true });
@@ -244,10 +264,11 @@ export class ViewModel {
       } else pumpOff = -(P.pumpZ || 0.08) * bell(pr);
     }
     // 投げ物を持っている
-    const nade = ws.slot === 2 && ws.gear && GEAR[ws.gear] && (GEAR[ws.gear].kind === 'nade' || GEAR[ws.gear].kind === 'ammo' || GEAR[ws.gear].kind === 'medkit' || GEAR[ws.gear].kind === 'binoc' || GEAR[ws.gear].kind === 'hammer');
+    const nade = ws.slot === 2 && ws.gear && GEAR[ws.gear] && (GEAR[ws.gear].kind === 'nade' || GEAR[ws.gear].kind === 'ammo' || GEAR[ws.gear].kind === 'medkit' || GEAR[ws.gear].kind === 'binoc' || GEAR[ws.gear].kind === 'hammer' || GEAR[ws.gear].kind === 'c4' || GEAR[ws.gear].kind === 'mine');
     // 双眼鏡をのぞききったら、手と双眼鏡は描かない（のぞき窓の絵だけ）
     if (ws.slot === 2 && ws.gear === 'binoc' && a.ads > 0.9) this.scoped = true;
-    this.nade = nade ? ws.gear : null;
+    // C4 は「起爆」の間は起爆の装置を持つ
+    this.nade = nade ? (ws.gear === 'c4' && ws.c4m === 'det' ? 'c4det' : ws.gear) : null;
     // 世界へ
     let gR = R, gU = U, gF = F;
     const rotAll = (ax, ang) => { gR = rot(gR, ax, ang); gU = rot(gU, ax, ang); gF = rot(gF, ax, ang); };

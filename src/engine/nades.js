@@ -9,6 +9,7 @@ import { blastDeps } from './deploy.js';
 import { blastRallies } from './rally.js';
 import { GEAR } from './data/equipment.js';
 import { carve } from '../war/destruct.js';
+import { blastMines } from './mines.js';
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
 
@@ -93,6 +94,8 @@ export function stepNades(S, w, dt, ev) {
           const t = Math.max(0, h.t0 - 0.06);
           n.x += dx * t; n.y += dy * t; n.z += dz * t;
           if (n.impact) { n.t = n.fuse; }
+          // C4: 当たった面に貼りつく（面の向きを覚える。描く時に向きをそろえる）
+          else if (n.sticky) { n.x -= dx * 0.02; n.y -= dy * 0.02; n.z -= dz * 0.02; n.vx = n.vy = n.vz = 0; n.rest = true; n.stuck = true; n.nx = h.nx || 0; n.ny = h.ny ?? 1; n.nz = h.nz || 0; ev.push({ e: 'stick', n: n.id, x: n.x, y: n.y, z: n.z }); }
           else {
             // 跳ね返り
             const nx = h.nx || 0, ny = h.ny || 0, nz = h.nz || 0;
@@ -161,6 +164,9 @@ function detonate(S, w, n, ev) {
     S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 8, dmg: 170, fall: 1.9, kind: 'frag', by: n.by, t: 0 });
   } else if (n.type === 'rpg') {
     S.blasts.push({ x: n.x, y: n.y + 0.1, z: n.z, r: ROCKET.r, dmg: ROCKET.dmg, fall: ROCKET.fall, kind: 'rpg', by: n.by, t: 0 });
+  } else if (n.type === 'c4') {
+    const C = GEAR.c4;
+    S.blasts.push({ x: n.x, y: n.y + 0.05, z: n.z, r: C.r, dmg: C.dmg, fall: C.fall, kind: 'c4', by: n.by, t: 0 });
   }
 }
 
@@ -219,6 +225,8 @@ export function stepBlasts(S, w, dt, ev) {
       if (b.only != null && a.id !== b.only) continue;
       const d = Math.hypot(a.x - b.x, a.y + 0.9 - b.y, a.z - b.z);
       if (d > b.r) continue;
+      // クレイモア: 前の扇の中だけ
+      if (b.dir) { const dx = a.x - b.x, dz = a.z - b.z, l = Math.hypot(dx, dz); if (l > 0.4 && (dx * b.dir[0] + dz * b.dir[1]) / l < b.cone) continue; }
       if (!los(w, b.x, b.y, b.z, a.x, a.y + 0.9, a.z, S.doors) && !los(w, b.x, b.y, b.z, a.x, a.y + 1.6, a.z, S.doors)) continue;
       const k = Math.pow(1 - d / b.r, b.fall || 1.3);
       const dmg = b.dmg * k;
@@ -241,10 +249,14 @@ export function stepBlasts(S, w, dt, ev) {
     blastDeps(S, w, b.x, b.y, b.z, b.kind === 'c2' ? 2.4 : b.kind === 'frame' ? 2.0 : 1.7, ev, b.by ?? -1);
     // 集合地点（大規模戦）
     blastRallies(S, b.x, b.y, b.z, (b.r || 4) * 0.6, b.by ?? -1, ev);
+    // 地雷・クレイモアの誘爆
+    blastMines(S, b.x, b.y, b.z, b.r || 4);
     // 大規模戦: RPG（HEAT）は壁と床に穴を開ける（war/destruct.js）。描く側は 'carve' の出来事で塊を作り直す
-    if (w.war && b.kind === 'rpg') {
-      const ks = carve(w, b.x, b.y, b.z, 1.3);
-      if (ks.length) { (S.carves || (S.carves = [])).push([b.x, b.y, b.z, 1.3]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: b.x, y: b.y, z: b.z, r: 1.3, ks, cn: w._carveN }); }
+    if (w.war && (b.kind === 'rpg' || b.kind === 'c4')) {
+      // C4 はコンクリートも 1 回で、穴も大きい（2m）
+      const c4 = b.kind === 'c4', R = c4 ? 1.0 : 1.3, o = c4 ? { force: true, w: GEAR.c4.hole, h: GEAR.c4.hole, floor: GEAR.c4.hole } : {};
+      const ks = carve(w, b.x, b.y, b.z, R, o);
+      if (ks.length) { (S.carves || (S.carves = [])).push([b.x, b.y, b.z, R, c4 ? 2 : 0]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: b.x, y: b.y, z: b.z, r: R, ks, cn: w._carveN, o }); }
     }
     // 壁（石膏・木）を壊す
     if (!w.war && (b.kind === 'c2' || b.kind === 'frame' || b.kind === 'frag')) {
