@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-20T03:48:29.762Z）
+HARD ENTRY ソース一式（2026-11-20T07:35:36.574Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 151809
+@@@@ FILE DESIGN.md text 152956
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -389,6 +389,7 @@ HARD ENTRY ソース一式（2026-11-20T03:48:29.762Z）
 - 11-20 WAR BIT 0.1.45（建物の階段・屋上）: 全部の建物の階段を、プログラムで実際に1階から最上階・屋上まで上り下りさせて確かめ（tests/unit/war_stairs.test.mjs）、作り直した。原因: アパートと事務所はいちばん上の階段が屋上の高さまで続くのに屋根の板に穴がなく、頭が板に入ると いちばん近い板の端＝建物の外へ押し出されていた。見張り塔は2本の階段が同じ場所で交差して頭がつかえた。家・倉庫・礼拝堂の塔は階段の下か上の端が壁に突き当たり横からしか乗り降りできず、納屋は階段の上に干し草。平らな屋根の笠木が屋根の全面をふさぐ箱で、屋上では立てなかった。直し: アパート・事務所・見張り塔（5×5m に広げ、四方の壁と細い窓）・礼拝堂の塔は、階の間に踊り場のある折り返し階段（2本の間は仕切りの壁。いちばん上は穴の縁に手すり）。アパートと事務所は屋上の階段小屋の扉から屋上へ出る。家は階段を玄関の左へ移し、玄関の前から奥へ上がって2階の奥の部屋へ出る（穴の縁に手すり）。店・倉庫・納屋は上り口の前を空け、段の下を埋めた（横からもぐり込んで動けなくならない）。笠木は縁の上だけ。動きの守り（大規模戦）: 上る段・坂の先で頭が天井につかえるならそこへは進まない／一度に 0.45m より大きく押し出されるなら動く前の所へ戻す（どの建物でも外へ放り出されない）。壁の開口が上下に重なる所（扉の上の窓・鐘の部屋）を正しく抜くようにした（前は鐘の部屋の開口がふさがっていた）
 - 11-20 WAR BIT 0.1.46（重くなる・カクつく）: 遊んでいる間の重さを減らした。(1) 壁や床に穴が開くたびに、描く塊ごとの物の表（3万の箱・1万2千の面）を全部作り直していた（1回 20〜35ms、スマホでは倍以上）→ 変わった物だけ直す。(2) 穴が開いた塊の遠い形は、近い形を使っている間は作り直さず、遠い形に切り替わる前に作る。(3) 歩いて近づいた塊の近い形（町の塊は1つ数十 ms）を1こまに2つまで作っていた → 1こまに1つ、作った時間の分だけ次を待つ（70m より近い塊は待たない）。(4) 人を描く前の姿勢の計算を、遠すぎる人（360m より先。構えた倍率の分だけ遠くまで）と画面の横より後ろの人（8m より先）は省く。骨の行列は人ごとに使い回す（毎こまのごみを減らす）。(5) 解像度の自動調整: 上げてすぐまた下げた後は「試合の終わりまで上げない」だったのを 90 秒に（一度重い場面があると、そのあと軽くなっても粗いままだった）。(6) fps の表示（設定）に1こまの計算時間（CPU ms）を出す。調べたこと: ブラウザで5分の試合を歩き回って10秒ごとに測った限り、メモリ・DOM・効果の数・状態の配列は増え続けない（エンジンの状態は node で10分の試合でも増えない）。1こまの計算は 描く 約3.5ms・HUD 約1ms・エンジン1ステップ 約1.3ms（このPC）。iPhone の発熱で遅くなる分は ここでは測れない。ほか（12:15 の要望）: 見るのを邪魔する説明の表示を消した（C4・地雷・弾薬箱の使い方の文字、射撃モード・倍率・C4 の切り替えで画面の真ん中に出る文字＝弾の欄とボタンに出ている、RPG の一度だけの案内）。拠点の文字は短く（「B 確保中 45%」。確保し終えたら出さない）。C4 の人へのダメージを BattleBit の 200 に。全部のソースの構文を確かめる単体テスト（ブラウザだけが読む main.js の誤りで起動しなかったのを、テストの前に見つける）
 - 11-20 WAR BIT 0.1.47（落とした弾倉・C4 を続けて貼る・溜まる物・重い時に軽くする）: 12:12・12:20・12:24 の要望。(1) 速いリロードで落とした弾倉: 手の高さから足もとの 0.5m 前へ回りながら落ち、見下ろすと見える（小銃の弾倉の大きさ・口に弾。前は 4×3×12cm の黒い箱で足もとの真下）。前は落として 0.6 秒たつと足もとの弾倉をすぐ拾ってしまい、落ちた弾倉が消えて見えた → 落とした本人は いったん 1.3m 離れてから戻ると拾う（ほかの人は 0.6 秒後から）。空の弾倉も落ちる（拾えない・20 秒で消える）。弾の欄の長押しで弾倉をまとめる動き（エンジン）は単体テストで確かめ済み。(2) C4: いくつも貼ってから まとめて起爆（BattleBit と同じ）。投げても残りがあれば「投げる」のまま・投げ切ったら「起爆」へ・続けて投げるのは 0.6 秒あける。(3) 溜まる物: 試合を出るたびに、人の見た目の係・手元の係・拠点の係が作った形（手に持つ物・投げ物・腕・拠点の旗・弾倉・弾薬箱・地雷など）を GPU から消す（前は試合ごとに作り直して残り、GPU のメモリが少しずつ増えていた）。(4) 重い時に軽くする段を増やした: 解像度を下げる前後に、にじみ（bloom）と草を省く → 影を省き近い形の距離を 3/4 に（端末が熱くなって遅れが続いた時。軽くなれば戻す）
+- 11-20 WAR BIT 0.1.48（投げ物・包帯・道具のボタン）: 12:12・12:32 の要望。BattleBit のキー（投げ物 G・包帯 3・道具 4/5）に合わせ、大規模戦の「投げ物・装備」のボタンを 投げ物・包帯・道具 の3つに分けた（前のボタンを動かしていれば、投げ物のボタンがその場所を引き継ぐ。包帯は上の列、道具は右の端）。押すと選んでいる物を持つ（手に持っていれば銃に戻す・数が 0 なら並びの次）。投げ物・道具のボタンは指を 16px ずらした時点で選ぶ円が出る（前は 0.36 秒の長押しのあと）。円は上・右・下・左の決まった場所で、設定（HUD）で並びを決める（同じ物を選ぶと入れ替わる）。持っていない物の場所は空き・数が 0 は薄く、数が変わっても場所は変わらない。道具の円: 兵科の道具（弾薬箱・医療キット・双眼鏡）・C4・地雷・ハンマー・RPG。キーボードは G 投げ物・3 包帯・4/5 道具。円の真ん中の説明の文字（指をずらして離す）は消した
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -544,7 +545,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 142787
+@@@@ FILE src/app/game.js text 148734
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -617,6 +618,10 @@ export class Match {
     this.acc = 0; this.time = 0; this.dead = false; this.done = false;
     this.adsOn = false; this.leanSide = 0; this.stance = 0; this.team = 'gold'; this.nvgOn = false;
     this.gearSel = (this.p.inv.gear.find(g => GEAR[g.id].kind === 'nade') || this.p.inv.gear[0] || {}).id || null;
+    // 大規模戦: 投げ物・道具のボタンで選んでいる物（円の並びの順で最初に持っている物）
+    this.nadeSel = null; this.gadSel = null; this._fixSlots();
+    // 投げ物・道具のボタンを指でずらしたら、その場で選ぶ円を出す（input.js）
+    this.app.input.onDragMenu = (btn, pid, x, y) => { if (!this.p.alive) return; if (btn === 'gear') this._gearMenu({ pid, x, y }); else this._slotMenu(btn === 'nade' ? 'nade' : 'gad', pid, x, y); };
     this.acts = [];
     this.shake = 0; this.flashW = 0; this.dmgK = 0; this.suppK = 0; this.exposure = 1; this.blurK = 0;
     this.ctx = null; this.ctxT = 0;
@@ -650,7 +655,7 @@ export class Match {
       this.wf = new WarFlags(this.r); this.wf.set(this.S.m.flags, this.w, this.p.team); this.wf.S = this.S;
     } else this.r.setMap(this.w, this.def, this.S);
   }
-  destroy() { if (this.wf) { this.wf.dispose(); this.wf = null; } this.hud.warMarks(null); this.hud.deploy(null); this.r.clearMap(); this.fx.clear(); this.av.dispose(); this.fx.dispose(); this.vm.dispose(); this.au.occluder = null; this.au.ambience(false); this.au.stopMusic(1.5); this.au.loop('heart', false, { fade: 0.3 }); this.au.setHurt(0); }
+  destroy() { if (this.app.input.onDragMenu) this.app.input.onDragMenu = null; if (this.wf) { this.wf.dispose(); this.wf = null; } this.hud.warMarks(null); this.hud.deploy(null); this.r.clearMap(); this.fx.clear(); this.av.dispose(); this.fx.dispose(); this.vm.dispose(); this.au.occluder = null; this.au.ambience(false); this.au.stopMusic(1.5); this.au.loop('heart', false, { fade: 0.3 }); this.au.setHurt(0); }
   rebind(r) {
     if (r) { if (this.av) { this.av.dispose(); this.fx.dispose(); this.vm.dispose(); } this.r = r; this.av = new ActorView(r); this.fx = new FX(r); this.vm = new ViewModel(r, this.av); this.fx.blood = this.app.settings.blood !== false; { const g = gfxOf(this.app.settings); this.fx.amount = { low: 0.5, normal: 1, high: 1.5 }[g.fx] || 1; this.fx.shells = g.shells !== false; } this.av.hidden.add(this.p.id); this.vm.setColors(this.av.look(this.p).pal.slice(3, 6), [0.02, 0.02, 0.025]); this.fx.onClink = (x, y, z) => this.au.sfx('shell', [x, y, z], { vol: 0.35 }); }
     this._setWorld();
@@ -848,7 +853,8 @@ export class Match {
     // ダッシュを入れ直した（押し直した・スティックを押し込み直した）: リロードの最中ならやめて走る（11-12。エンジンが決める。weapon.js）
     if (inp.sprPress && p && p.alive) this.acts.push({ a: 'sprint' });
     for (const e of inp.edges) {
-      const b = e.b, k = e.k;
+      // キーボード: 大規模戦の G は投げ物。ほかのモードの 3・4・5 は前の「投げ物・装備」
+      const b = this.S.war ? (e.b === 'gear' ? 'nade' : e.b) : (e.b === 'heal' || e.b === 'gad' ? 'gear' : e.b), k = e.k;
       switch (b) {
         case 'ads': {
           const mode = st.adsMode || 'tap';
@@ -902,10 +908,14 @@ export class Match {
         case 'cmd': if (this.S.pvp) break; if (k === 'tap') this._cmdDefault(); else if (k === 'long') this._cmdMenu(e); break;
         case 'team': if (k === 'down') { if (this.S.pvp || this.S.war) this.boardOn = !this.boardOn; else this.team = TEAMS[(TEAMS.indexOf(this.team) + 1) % 3]; } break;
         case 'board': if (k === 'down') this.boardOn = !this.boardOn; break;
+        // 大規模戦: 投げ物（G）・包帯（3）・道具（4・5）のボタン（BattleBit のキーに合わせて分ける。11-20）
+        case 'nade': if (k === 'tap') this._slotUse('nade'); else if (k === 'long' && !(this.app.input.radial)) this._slotMenu('nade', e.pid, e.x, e.y); break;
+        case 'gad': if (k === 'tap') this._slotUse('gad'); else if (k === 'long' && !(this.app.input.radial)) this._slotMenu('gad', e.pid, e.x, e.y); break;
+        case 'heal': if (k === 'tap') { const g = p.inv.gear.find(x => x.id === 'bandage'); if (g && g.n > 0) this.acts.push({ a: 'gear', id: 'bandage' }); } break;
         case 'gear':
           // 手に持った物（投げ物・RPG など）を持っていれば銃に戻す。選んだのが RPG（@long）なら構える
           if (k === 'tap') { if (p.ws.slot === 2 || p.ws.slot === 3) this.acts.push({ a: 'switch', slot: p.ws.prev >= 0 && p.ws.prev < 2 ? p.ws.prev : 0 }); else if (this.gearSel === '@long') this.acts.push({ a: 'long' }); else if (this.gearSel) this.acts.push({ a: 'gear', id: this.gearSel }); }
-          else if (k === 'long') this._gearMenu(e);
+          else if (k === 'long' && !this.app.input.radial) this._gearMenu(e);
           break;
         case 'wpn1': if (k === 'down' || (k === 'tap' && e.wheel)) this.acts.push({ a: 'switch', slot: 0 }); break;
         case 'wpn2': if (k === 'down' || (k === 'tap' && e.wheel)) this.acts.push({ a: 'switch', slot: 1 }); break;
@@ -1157,6 +1167,71 @@ export class Match {
     if (!items.length) return;
     this.app.input.openRadial('gear', items, e.pid, e.x, e.y);
     this.app.input.radial.title = '装備';
+  }
+  // ---- 大規模戦の投げ物・道具のボタン
+  // 円の並びの1つ（設定の radNade・radGad の文字）→ 持っている物 { id, n, lb }（持っていなければ null）。
+  // 'tool' 兵科の道具・'gad' 副の道具・'long' RPG など、ほかは道具の id そのもの
+  _slotItem(c) {
+    const p = this.p, G = p.inv.gear;
+    const of = (id) => { const g = G.find(x => x.id === id); return g ? { id, n: g.n, lb: GEAR[id].name.replace(/（.*）/, '') } : null; };
+    if (c === 'long') { const L = p.inv.long; if (!L || L === 'none' || !LONG[L]) return null; return { id: '@long', n: L === 'rpg' && p.inv.rpg ? p.inv.rpg.in + p.inv.rpg.n : null, lb: LONG[L].name.replace(/（.*）/, '') }; }
+    if (c === 'tool') { for (const id of ['ammosmall', 'ammobig', 'medkit', 'binoc']) { const r = of(id); if (r) return r; } return null; }
+    if (c === 'gad') { for (const id of ['c4', 'clay', 'apmine']) { const r = of(id); if (r) return r; } return null; }
+    return c && GEAR[c] ? of(c) : null;
+  }
+  _slotIds(kind) { const st = this.app.settings; return (kind === 'nade' ? st.radNade : st.radGad) || []; }
+  // 選んでいる物が持っていない物なら、並びの順で最初に持っている物（数が 0 でも）
+  _fixSlots() {
+    if (!this.S.war) return;
+    for (const kind of ['nade', 'gad']) {
+      const key = kind === 'nade' ? 'nadeSel' : 'gadSel', cur = this[key];
+      const has = cur && (cur === '@long' ? this._slotItem('long') : this.p.inv.gear.some(g => g.id === cur));
+      if (has) continue;
+      let pick = null;
+      for (const c of this._slotIds(kind)) { const it = this._slotItem(c); if (it) { pick = it.id; break; } }
+      // 並びに入れていない物しか持っていない時
+      if (!pick && kind === 'nade') { const g = this.p.inv.gear.find(x => GEAR[x.id].kind === 'nade'); pick = g ? g.id : null; }
+      this[key] = pick;
+    }
+  }
+  // 押した: 手に持っていれば銃に戻す。でなければ選んでいる物を持つ（数が 0 なら並びの次の物）
+  _slotUse(kind) {
+    const p = this.p; if (!p.alive) return;
+    const held = p.ws.slot === 3 ? '@long' : p.ws.slot === 2 ? p.ws.gear : null;
+    const isNade = (id) => id && id !== '@long' && GEAR[id] && GEAR[id].kind === 'nade';
+    if (held && (kind === 'nade') === isNade(held) && held !== 'bandage') { this.acts.push({ a: 'switch', slot: p.ws.prev >= 0 && p.ws.prev < 2 ? p.ws.prev : 0 }); return; }
+    let id = kind === 'nade' ? this.nadeSel : this.gadSel;
+    const nOf = (q) => q === '@long' ? 1 : ((p.inv.gear.find(x => x.id === q) || { n: 0 }).n);
+    if (!id || nOf(id) <= 0) { for (const c of this._slotIds(kind)) { const it = this._slotItem(c); if (it && (it.n == null || it.n > 0)) { id = it.id; break; } } }
+    if (!id || nOf(id) <= 0) return;
+    if (kind === 'nade') this.nadeSel = id; else this.gadSel = id;
+    if (id === '@long') this.acts.push({ a: 'long' }); else this.acts.push({ a: 'gear', id });
+  }
+  // 選ぶ円（上・右・下・左の決まった場所。持っていない所は空き・数が 0 は薄く）。選ぶと持つ
+  _slotMenu(kind, pid, x, y) {
+    const p = this.p; if (!p.alive) return;
+    const items = this._slotIds(kind).map(c => {
+      const it = this._slotItem(c); if (!it) return null;
+      return { label: it.lb, sub: it.n == null ? '' : '×' + it.n, disabled: it.n === 0, go: () => {
+        if (kind === 'nade') this.nadeSel = it.id; else this.gadSel = it.id;
+        if (it.id === '@long') { if (p.ws.slot !== 3) this.acts.push({ a: 'long' }); } else this.acts.push({ a: 'gear', id: it.id });
+      } };
+    });
+    if (!items.some(Boolean)) return;
+    this.app.input.openRadial(kind, items, pid, x, y);
+    this.app.input.radial.title = kind === 'nade' ? '投げ物' : '道具';
+  }
+  // HUD のボタンの表示
+  _slotView() {
+    const p = this.p, held = p.ws.slot === 3 ? '@long' : p.ws.slot === 2 ? p.ws.gear : null, out = {};
+    for (const kind of ['nade', 'gad']) {
+      const id = kind === 'nade' ? this.nadeSel : this.gadSel;
+      const it = id ? this._slotItem(id === '@long' ? 'long' : id) : null;
+      out[kind] = it ? { lb: it.lb, n: it.n, dis: it.n === 0, on: held === id } : { lb: '', n: null, dis: true, on: false };
+    }
+    const b = p.inv.gear.find(x => x.id === 'bandage');
+    out.heal = { lb: '包帯', n: b ? b.n : 0, dis: !b || b.n <= 0, on: held === 'bandage' };
+    return out;
   }
   // ---- ドローン（対戦の攻撃側）
   _droneToggle() {
@@ -1877,8 +1952,9 @@ export class Match {
     const wi = curWeapon(p);
     // 選んでいた物を持っていない（兵科を替えた・RPG のない兵科）: 投げ物の最初に戻す
     if (this.gearSel === '@long' ? !(p.inv.long && p.inv.long !== 'none' && LONG[p.inv.long]) : this.gearSel && !p.inv.gear.some(g => g.id === this.gearSel)) this.gearSel = (p.inv.gear.find(g => GEAR[g.id].kind === 'nade') || p.inv.gear[0] || {}).id || null;
+    if (S.war) this._fixSlots();
     const v = {
-      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn,
+      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null,
       // ダッシュを押しているが、ほかの操作（構える・リーン・撃つ・リロード）が先で走っていない
       sprWait: !!(p.alive && !p.sprint && this.app.input && (this.app.input.sprintArm || this.app.input.sprintLock)), leanL: this.leanSide < 0, leanR: this.leanSide > 0, nvgOn: this.nvgOn, hasNvg: p.armor.head === 'nvg',
       gearSel: this.gearSel, gearId: p.ws.gear, team: this.team, c4n: S.war ? (S.nades || []).filter(n => n.type === 'c4' && n.by === p.id).length : 0,
@@ -3113,7 +3189,7 @@ export class TitleScene {
   }
 }
 
-@@@@ FILE src/app/settings.js text 5371
+@@@@ FILE src/app/settings.js text 6088
 // 設定の既定値と保存。sv: 設定の形の版（形を変えたら上げて、古い値を直す）
 import { load, save } from './save.js';
 import { LOADOUTS, PVP_LOADOUTS } from '../engine/data/npc.js';
@@ -3137,6 +3213,9 @@ export const DEFAULTS = {
   // 11-20 続き（BattleBit の Friendly Name Tag Size・Show Pings・Screen Shake・2回押しのリロードの間）: 味方の名前の大きさ（文字の px）、
   //  敵の印を出す、画面の揺れ（0〜1。前の「画面の揺れ」標準／弱 は効いていなかった）、リロードの2回押しとみなす間（秒）
   nameSize: 11, showPings: true, shakeK: 1, rlDbl: 0.4,
+  // 大規模戦の 投げ物・道具 のボタンの円の並び（上・右・下・左。'' は空き）。数が変わっても場所は変わらない（11-20）
+  //  投げ物: frag 破片・impact 衝撃・smoke 発煙・flash 閃光。道具: tool 兵科の道具（弾薬箱・医療キット・双眼鏡）・gad 副の道具（C4・地雷）・hammer ハンマー・long RPG など
+  radNade: ['frag', 'impact', 'smoke', 'flash'], radGad: ['tool', 'gad', 'hammer', 'long'],
   // 画面
   quality: 'medium', // low | medium | high | custom（下の gfx を自分で選ぶ）
   gfx: { detail: 'medium', shadow: 'low', bloom: true, aa: 'fxaa', lights: 6, fx: 'normal', shells: true },
@@ -3156,6 +3235,8 @@ export function loadSettings() {
   if (s.sensScope !== undefined && s.sensZ === undefined && s.sensScope !== DEFAULTS.sensScope) { const f = s.sensScope / DEFAULTS.sensScope; for (const k of Object.keys(out.sensZ)) out.sensZ[k] = +(DEFAULTS.sensZ[k] * f).toFixed(3); }
   // 前の「画面の揺れ: 弱」→ 揺れ 50%
   if (s.shake === false && s.shakeK === undefined) out.shakeK = 0.5;
+  // 円の並びは4つの文字の列（違えば既定に）
+  for (const k of ['radNade', 'radGad']) if (!Array.isArray(out[k]) || out[k].length !== 4 || out[k].some(x => typeof x !== 'string')) out[k] = DEFAULTS[k].slice();
   out.sv = DEFAULTS.sv;
   return out;
 }
@@ -7417,7 +7498,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.47';
+export const VERSION = '0.1.48';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -24195,7 +24276,7 @@ export class DeployScreen {
   }
 }
 
-@@@@ FILE src/ui/hud.js text 56296
+@@@@ FILE src/ui/hud.js text 57160
 // HUD（CODモバイル／PUBGモバイル風）: ボタン、ミニマップ、方位、目的、出来事、隊員、体力、弾、字幕、照準、命中、被弾の向き、円形メニュー、HUDの編集
 import { BTN, INFO, ICONS } from './hudlayout.js';
 import { onTap } from './input.js';
@@ -24322,7 +24403,8 @@ export class Hud {
     const k = this.k(), H = this.S.hud || {};
     const op = this.S.hudOpacity ?? 0.85;
     for (const [id, def] of Object.entries(BTN)) {
-      const e = this.btn[id], ov = H[id] || {};
+      // 投げ物のボタン（大規模戦）は、前の「投げ物・装備」のボタンを動かしていればその場所を引き継ぐ
+      const e = this.btn[id], ov = H[id] || (id === 'nade' && H.gear) || {};
       let hide = !!ov.hide;
       if (def.pve && !this.mode.pve) hide = true;
       if (def.pvpOnly && !this.mode.pvp) hide = true;
@@ -24423,8 +24505,9 @@ export class Hud {
     cx = Math.max(R + 40, Math.min(this.stage.w - R - 40, cx)); cy = Math.max(R + 30, Math.min(this.stage.h - R - 30, cy));
     if (r.x !== cx || r.y !== cy) { r.x = cx; r.y = cy; }
     const n = r.items.length;
-    let h = `<div class="rc" style="left:${cx}px;top:${cy}px;width:${R * 2}px;height:${R * 2}px;--rs:${(k * rs).toFixed(3)}"><div class="mid">${r.title || ''}<small>${r.tapMode ? '選んでタップ／外で取り消し' : '指をずらして離す'}</small></div>`;
+    let h = `<div class="rc" style="left:${cx}px;top:${cy}px;width:${R * 2}px;height:${R * 2}px;--rs:${(k * rs).toFixed(3)}"><div class="mid">${r.title || ''}</div>`;
     r.items.forEach((it, i) => {
+      if (!it) return; // 空きの場所（並びを決めた円で、その物を持っていない）
       const a = (i / n) * Math.PI * 2;
       const x = Math.sin(a) * R * 0.86, y = -Math.cos(a) * R * 0.86;
       h += `<div class="ri${i === r.sel ? ' sel' : ''}${it.disabled ? ' dis' : ''}" style="left:${R + x}px;top:${R + y}px">${it.label}${it.sub ? `<small>${it.sub}</small>` : ''}</div>`;
@@ -24602,6 +24685,17 @@ export class Hud {
       const gn = lg ? (p.inv.rpg ? p.inv.rpg.in + p.inv.rpg.n : 1) : v.gearSel ? (p.inv.gear.find(x => x.id === v.gearSel) || { n: 0 }).n : 0;
       const gk = gtxt + gn;
       if (this.cache.gear !== gk) { this.cache.gear = gk; this.btn.gear.querySelector('.lb').textContent = gtxt; this.btn.gear.querySelector('.ct').textContent = v.gearSel ? gn : ''; }
+      // 大規模戦: 投げ物・包帯・道具のボタン（選んでいる物の名前と数。持っていない・0 なら薄く）
+      if (this.mode.war && v.slots) {
+        for (const [id, o] of Object.entries(v.slots)) {
+          const e = this.btn[id]; if (!e) continue;
+          const key = o.lb + '|' + o.n + '|' + (o.dis ? 1 : 0) + '|' + (o.on ? 1 : 0);
+          if (this.cache['sl_' + id] === key) continue;
+          this.cache['sl_' + id] = key;
+          e.querySelector('.lb').textContent = o.lb; e.querySelector('.ct').textContent = o.n == null ? '' : o.n;
+          e.classList.toggle('dis', !!o.dis); e.classList.toggle('on', !!o.on);
+        }
+      }
       if (this.btn.rally) { const rk = (v.rally ? 1 : 0) + '|' + (v.rally && v.rally.ok ? 1 : 0) + '|' + (v.rally ? v.rally.lb : ''); if (this.cache.rally !== rk) { this.cache.rally = rk; this.btn.rally.classList.toggle('na', !v.rally); this.btn.rally.classList.toggle('dis', !!v.rally && !v.rally.ok); this.btn.rally.querySelector('.lb').textContent = v.rally ? v.rally.lb : ''; } }
       this.btn.vault.classList.toggle('dis', !v.canVault && !this.mode.war); // 乗り越えのボタンは文字を出さない（11-12 の要望）。大規模戦は越える物がなくても跳ぶ
       this.btn.reload.classList.toggle('dis', false);
@@ -25012,7 +25106,7 @@ export function buildPlan(w, def, s = 4) {
   return { levels, s };
 }
 
-@@@@ FILE src/ui/hudlayout.js text 11109
+@@@@ FILE src/ui/hudlayout.js text 12274
 // HUD のボタンの既定の配置（CODモバイル／PUBGモバイルを参考）。基準は 844×390 の横画面。
 // ax: 'l'|'r'|'c'（左右の基準）、ay: 't'|'b'|'c'。x, y は基準からの距離（中心まで）、s は直径、o は濃さ。
 // 設定の hud[id] = { x, y, s, o, hide } で上書きする（HUD の編集）。
@@ -25032,7 +25126,12 @@ export const BTN = {
   use: { name: '調べる（長押しでメニュー）', ax: 'r', ay: 'b', x: 238, y: 140, s: 58, icon: 'use', noWar: true },
   cmd: { name: '命令（長押しでメニュー）', ax: 'r', ay: 'b', x: 316, y: 98, s: 56, icon: 'cmd', pve: true },
   team: { name: '命令する隊', ax: 'r', ay: 'b', x: 316, y: 160, s: 38, icon: 'team', pve: true },
-  gear: { name: '投げ物・装備（長押しで選ぶ）', ax: 'r', ay: 'b', x: 92, y: 236, s: 52, icon: 'gear' },
+  gear: { name: '投げ物・装備（長押しで選ぶ）', ax: 'r', ay: 'b', x: 92, y: 236, s: 52, icon: 'gear', noWar: true },
+  // 大規模戦（11-20）: BattleBit のキー（投げ物 G・包帯 3・道具 4/5）に合わせ、投げ物・包帯・道具の3つに分ける。
+  // 投げ物と道具は、指をずらすとすぐ選ぶ円が出る（長押しを待たない）。円の並びは設定で決め、数が変わっても動かない
+  nade: { name: '投げ物（ずらすと種類を選ぶ）', ax: 'r', ay: 'b', x: 92, y: 236, s: 52, icon: 'gear', warOnly: true },
+  heal: { name: '包帯', ax: 'r', ay: 't', x: 126, y: 92, s: 40, icon: 'heal', warOnly: true },
+  gad: { name: '道具（ずらすと選ぶ）', ax: 'r', ay: 'b', x: 36, y: 270, s: 46, icon: 'gad', warOnly: true },
   fmode: { name: '射撃モード', ax: 'r', ay: 't', x: 214, y: 92, s: 36, icon: 'fmode' },
   spot: { name: '敵に印（分隊に知らせる）', ax: 'l', ay: 't', x: 170, y: 40, s: 40, icon: 'spot', warOnly: true },
   rally: { name: '集合地点を置く（分隊長・分隊ポイント 200）', ax: 'l', ay: 't', x: 218, y: 40, s: 40, icon: 'rally', warOnly: true },
@@ -25082,6 +25181,10 @@ export const ICONS = {
   cmd: '<path d="M5 21V3M5 4h12l-3 4 3 4H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   team: '<circle cx="8" cy="9" r="3" fill="currentColor"/><circle cx="16" cy="9" r="3" fill="currentColor"/><path d="M2 20c0-4 3-6 6-6s6 2 6 6M10 20c0-4 3-6 6-6s6 2 6 6" fill="currentColor"/>',
   gear: '<rect x="8" y="7" width="8" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 7V4h4v3M14 4l4-2" fill="none" stroke="currentColor" stroke-width="2"/>',
+  // 包帯: 巻いた包帯と十字
+  heal: '<rect x="3" y="7" width="18" height="10" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9.2v5.6M9.2 12h5.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  // 道具: 取っ手のある箱
+  gad: '<rect x="3" y="8" width="18" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 8V5h6v3M3 13h18" fill="none" stroke="currentColor" stroke-width="2"/>',
   // 敵に印: 目と小さな菱形
   rally: '<rect x="6" y="14" width="12" height="7" rx="1.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 14V6" stroke="currentColor" stroke-width="2"/><path d="M8.2 7.2a5.4 5.4 0 0 1 7.6 0M5.6 4.6a9 9 0 0 1 12.8 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   spot: '<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8.6l3 3.4-3 3.4-3-3.4z" fill="currentColor"/>',
@@ -25096,7 +25199,7 @@ export const ICONS = {
   wpn: '',
 };
 
-@@@@ FILE src/ui/input.js text 23539
+@@@@ FILE src/ui/input.js text 24128
 // 入力: タッチ（スティック・視点・ボタン、2本指以上の同時操作）、長押し、円形メニュー、ジャイロ、キーボードとマウス
 // タップは pointerup で判定し、続く click は捨てる（iPhoneは2本目の指に click が来ない）
 import { sprintZone } from './stick.js';
@@ -25130,6 +25233,7 @@ export function onRepeat(el, fn) {
   el.addEventListener('pointerup', stop); el.addEventListener('pointercancel', stop); el.addEventListener('pointerleave', stop);
 }
 
+const DRAG_MENU = new Set(['nade', 'gad', 'gear']); // ずらすと選ぶ円が出るボタン
 const LONG = 360; // 長押し（ms）。11-20: 420 → 360（伏せ・投げ物を選ぶ・弾倉をまとめる の長押しが遅く感じる）
 // ダッシュの固定を続けるボタン（11-12）: 撃つ・構える・リーン・リロードの間は走らず、終わるとまた走る（押したままのダッシュと同じ）。
 // 持ち替え・乗り越えも走ったまま。ほかのボタン（調べる・命令・装備・しゃがむなど）は、今までどおり固定をやめる
@@ -25154,7 +25258,7 @@ export class Input {
     this.sprintArm = false; this.sprintLock = false; this.sprPress = 0;
     this.toggles = { ads: false, leanL: false, leanR: false, crouch: false, prone: false, low: false };
     this.gyro = { on: false, ok: false, x: 0, y: 0, last: 0 };
-    this.onStick = null; this.onRadial = null; this.onBtn = null;
+    this.onStick = null; this.onRadial = null; this.onBtn = null; this.onDragMenu = null;
     this.radial = null; // 開いている円形メニュー {btn, x, y, items, sel, pid}
     this.getStickHome = null;
     this._bind();
@@ -25228,6 +25332,8 @@ export class Input {
       else if (p.kind === 'radialTap') this._radialMove(sx, sy);
       else if (p.kind === 'btn') {
         p.moved = Math.max(p.moved, Math.hypot(sx - p.x0, sy - p.y0));
+        // 投げ物・道具のボタン: 指をずらした時点で選ぶ円を出す（長押しを待たない。11-20 の要望）。円はその場ですぐ開き、続く動きで選ぶ
+        if (!this.radial && !p.dragged && p.moved > 16 && this.onDragMenu && DRAG_MENU.has(p.btn)) { p.dragged = true; this.onDragMenu(p.btn, e.pointerId, p.x0, p.y0); }
         if (this.radial && this.radial.pid === e.pointerId) { this._radialMove(sx, sy); }
         else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) this.lk.add(sx - p.x, sy - p.y, evT(e)); }
         p.x = sx; p.y = sy;
@@ -25292,7 +25398,7 @@ export class Input {
       if (this.keys.has(k)) return;
       this.keys.add(k);
       if (k === 'ShiftLeft') this.sprPress++;
-      const map = { KeyR: 'reload', KeyC: 'crouch', KeyZ: 'prone', KeyQ: 'leanL', KeyE: 'leanR', KeyF: 'shout', KeyV: 'use', KeyG: 'gear', KeyX: 'fmode', KeyB: 'zoom', KeyT: 'light', KeyN: 'nvg', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Space: 'vault', Digit1: 'wpn1', Digit2: 'wpn2', Digit3: 'gear', KeyH: 'cmd', Tab: 'team', KeyK: 'drone', KeyY: 'melee' };
+      const map = { KeyR: 'reload', KeyC: 'crouch', KeyZ: 'prone', KeyQ: 'leanL', KeyE: 'leanR', KeyF: 'shout', KeyV: 'use', KeyG: 'gear', KeyX: 'fmode', KeyB: 'zoom', KeyT: 'light', KeyN: 'nvg', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Space: 'vault', Digit1: 'wpn1', Digit2: 'wpn2', Digit3: 'heal', Digit4: 'gad', Digit5: 'gad', KeyH: 'cmd', Tab: 'team', KeyK: 'drone', KeyY: 'melee' };
       const b = map[k];
       if (b) { e.preventDefault(); this.edges.push({ b, k: 'down', key: true }); this._keyT = this._keyT || {}; this._keyT[k] = performance.now(); }
     });
@@ -25300,7 +25406,7 @@ export class Input {
       const k = e.code;
       this.keys.delete(k);
       if (!this.enabled) return;
-      const map = { KeyR: 'reload', KeyC: 'crouch', KeyZ: 'prone', KeyQ: 'leanL', KeyE: 'leanR', KeyF: 'shout', KeyV: 'use', KeyG: 'gear', KeyX: 'fmode', KeyB: 'zoom', KeyT: 'light', KeyN: 'nvg', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Space: 'vault', Digit1: 'wpn1', Digit2: 'wpn2', Digit3: 'gear', KeyH: 'cmd', Tab: 'team', KeyK: 'drone', KeyY: 'melee' };
+      const map = { KeyR: 'reload', KeyC: 'crouch', KeyZ: 'prone', KeyQ: 'leanL', KeyE: 'leanR', KeyF: 'shout', KeyV: 'use', KeyG: 'gear', KeyX: 'fmode', KeyB: 'zoom', KeyT: 'light', KeyN: 'nvg', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Space: 'vault', Digit1: 'wpn1', Digit2: 'wpn2', Digit3: 'heal', Digit4: 'gad', Digit5: 'gad', KeyH: 'cmd', Tab: 'team', KeyK: 'drone', KeyY: 'melee' };
       const b = map[k];
       if (b) { const dur = performance.now() - ((this._keyT && this._keyT[k]) || 0); this.edges.push({ b, k: dur > LONG ? 'longup' : 'tap', key: true, dur }); }
     });
@@ -25357,7 +25463,7 @@ export class Input {
     const dx = sx - r.x, dy = sy - r.y, d = Math.hypot(dx, dy);
     const n = r.items.length;
     if (d < 34 * Math.max(0.8, r.scale || 1)) r.sel = -1;
-    else { let a = Math.atan2(dx, -dy); if (a < 0) a += Math.PI * 2; r.sel = Math.floor((a + Math.PI / n) / (Math.PI * 2 / n)) % n; }
+    else { let a = Math.atan2(dx, -dy); if (a < 0) a += Math.PI * 2; r.sel = Math.floor((a + Math.PI / n) / (Math.PI * 2 / n)) % n; if (!r.items[r.sel]) r.sel = -1; }
     if (this.onRadial) this.onRadial(r);
   }
   _radialPick(tap) {
@@ -25428,7 +25534,7 @@ export class Input {
     this._avgGap = gap > 2000 ? avg : avg * 0.85 + gap * 0.15; // 一時停止などの長い空きは平均に入れない
     this._lastTake = now;
     for (const [pid, p] of this.ptr) {
-      if (p.kind !== 'btn' || p.long || p.moved > 36 || hitch) continue;
+      if (p.kind !== 'btn' || p.long || p.dragged || p.moved > 36 || hitch) continue;
       // 長押しは「押したのを受け取ってから」の時間で（受け取りが遅れたぶんで長押しにしない）
       if (now - (p.tp ?? p.t0) >= LONG) { p.long = true; out.edges.push({ b: p.btn, k: 'long', pid, x: p.x0, y: p.y0, sub: p.el.dataset.sub || null }); }
     }
@@ -25684,7 +25790,7 @@ export class LookResampler {
   pending() { return [this.cx - this.ox, this.cy - this.oy]; }
 }
 
-@@@@ FILE src/ui/screens.js text 59441
+@@@@ FILE src/ui/screens.js text 60552
 // 画面: 読み込み・タイトル（WAR BIT）・PLAY（モードと人数）・一時停止・地図（タブレット）・結果・設定。
 // メニューの形と表記は BattleBit に合わせる（英語の大文字に日本語を小さく添える。research/WARBIT.md の 10）。
 // 旧 HARD ENTRY の画面（作戦・対戦・訓練・ロビー・資料室）はメニューから外した（11-13 03:10・03:15 の要望）。中身は後で消す
@@ -26244,7 +26350,21 @@ export class Screens {
       row('移動スティックの大きさ', '位置は「配置を編集」でドラッグ', 'stickS'); binds.push(() => slider(this.stage, body.querySelector('[data-k="stickS"]'), { min: 0.6, max: 1.8, step: 0.05, value: (S.hud && S.hud.stick && S.hud.stick.s) || 1, fmt: pct, label: '移動スティックの大きさ', onInput: (v) => { stk().s = v; save(); } }));
       row('移動スティックの濃さ', '', 'stickO'); binds.push(() => slider(this.stage, body.querySelector('[data-k="stickO"]'), { min: 0.15, max: 1, step: 0.05, value: (S.hud && S.hud.stick && S.hud.stick.o) ?? 0.55, fmt: pct, label: '移動スティックの濃さ', onInput: (v) => { stk().o = v; save(); } }));
       row('ダッシュの判定位置', 'スティックの中心からの距離（半径の何倍か）', 'stickSpr'); binds.push(() => slider(this.stage, body.querySelector('[data-k="stickSpr"]'), { min: 1, max: 2.4, step: 0.05, value: (S.hud && S.hud.stick && S.hud.stick.spr) ?? 1.25, fmt: (v) => v.toFixed(2) + '倍', label: 'ダッシュの判定位置', onInput: (v) => { stk().spr = v; save(); } }));
-      row('長押しメニューの大きさ', '投げ物・装備を選ぶ円形メニュー', 'radialScale'); sl('radialScale', 0.8, 1.6, 0.05, pct);
+      row('選ぶ円の大きさ', '投げ物・道具を選ぶ円', 'radialScale'); sl('radialScale', 0.8, 1.6, 0.05, pct);
+      // 大規模戦の 投げ物・道具 のボタンで出る円の並び（上・右・下・左）。同じ物を選ぶと入れ替わる。数が変わっても場所は変わらない（11-20）
+      {
+        const RN = [['frag', '破片'], ['impact', '衝撃'], ['smoke', '発煙'], ['flash', '閃光'], ['', 'なし']];
+        const RG = [['tool', '兵科の道具'], ['gad', 'C4・地雷'], ['hammer', 'ハンマー'], ['long', 'RPG'], ['', 'なし']];
+        const POS = ['上', '右', '下', '左'];
+        for (const [key, list, nm] of [['radNade', RN, '投げ物の円'], ['radGad', RG, '道具の円']]) for (let i = 0; i < 4; i++) {
+          row(`${nm}・${POS[i]}`, i === 0 ? '大規模戦。同じ物を選ぶと入れ替わる' : '', key + i);
+          binds.push(() => chips(body.querySelector(`[data-k="${key}${i}"]`), list, (S[key] || [])[i] ?? '', (v) => {
+            const A = (S[key] || ['', '', '', '']).slice(), j = A.indexOf(v);
+            if (v && j >= 0 && j !== i) A[j] = A[i];
+            A[i] = v; S[key] = A; save(); this.args = ['hud']; this._settings('hud');
+          }));
+        }
+      }
       row('照準', '腰だめ', 'crosshair'); ch('crosshair', [['cross', '十字'], ['dot', '点'], ['none', 'なし']]);
       row('照準の色', '', 'crossColor'); binds.push(() => chips(body.querySelector('[data-k="crossColor"]'), [['#ffffff', '白'], ['#7dff7a', '緑'], ['#ffe14a', '黄'], ['#4ae8ff', '水色'], ['#ff5ad2', '桃']], S.crossColor, (v) => { S.crossColor = v; save(); }, { swatch: true }));
       row('ミニマップ', 'タップで地図', 'minimap'); ch('minimap', [[true, '表示'], [false, '非表示']]);
@@ -31666,7 +31786,7 @@ export async function runTests(filter) {
   return res;
 }
 
-@@@@ FILE tests/run_all.mjs text 85594
+@@@@ FILE tests/run_all.mjs text 87498
 // テスト一式: node tests/run_all.mjs [--quick] [--no-sizes] → test-results/summary.md
 //  1 ビルド  2 単体  3 マップ（WAR BIT: 本陣・拠点・出撃の場所が範囲の中・本陣から拠点まで歩ける）  4 音
 //  5 自動の試合（コンクエスト・ドミネーション・TDM をボットだけで最後まで・同じシードで同じ結果・人数ごとの速さ）
@@ -32284,10 +32404,10 @@ try {
     await page.waitForFunction(() => window.__app.game.dcls === 'engineer', null, { timeout: 15000 }).catch(() => {});
     await tapAt(await center('#hud .dps-go'), 71);
     await page.waitForFunction(() => window.__app.game.p.alive && window.__app.game.p.warCls === 'engineer', null, { timeout: 30000 }).catch(() => {});
-    await page.evaluate(() => { const g = window.__app.game; g.gearSel = '@long'; g.pitch = 0.03; });
+    await page.evaluate(() => { const g = window.__app.game; g.gadSel = '@long'; g.pitch = 0.03; });
     await page.waitForTimeout(400);
-    const glb = await page.evaluate(() => (document.querySelector('#hud [data-btn="gear"] .lb') || {}).textContent || '');
-    await tapAt(await btn('gear'), 72);
+    const glb = await page.evaluate(() => (document.querySelector('#hud [data-btn="gad"] .lb') || {}).textContent || '');
+    await tapAt(await btn('gad'), 72);
     const held = await page.waitForFunction(() => { const p = window.__app.game.p; return p.ws.slot === 3 && p.ws.st === 'long'; }, null, { timeout: 30000 }).then(() => true).catch(() => false);
     await holdAt(await btn('fire'), 300, 73);
     const fired = await page.waitForFunction(() => window.__app.game.p.inv.rpg && window.__app.game.p.inv.rpg.in === 0, null, { timeout: 15000 }).then(() => true).catch(() => false);
@@ -32295,6 +32415,22 @@ try {
     const am = await page.evaluate(() => document.querySelector('#hud .hud-ammo').innerText.replace(/\s+/g, ' '));
     await shot('射撃場-RPG');
     rec('射撃場', '工兵の RPG-7: 装備のボタンで構え、射撃のボタンで撃つと弾の欄が 0（装填中）', glb === 'RPG-7' && held && fired && /RPG-7/.test(am) && /\b0\b/.test(am), `ボタン「${glb}」・構え${held ? '○' : '×'}・撃つ${fired ? '○' : '×'}・弾「${am}」`);
+    // 投げ物・包帯・道具のボタン（0.1.48。BattleBit の G・3・4/5）: 前の「投げ物・装備」のボタンは出ない。投げ物のボタンを指でずらすと
+    // 離す前に円が出て（長押しを待たない）、下（発煙）へずらして離すと発煙弾を持つ。円の並びは数が変わっても同じ（空きは空き）
+    await page.evaluate(() => { const g = window.__app.game; g.acts.push({ a: 'switch', slot: 0 }); });
+    await page.waitForTimeout(600);
+    const vis = await page.evaluate(() => ['gear', 'nade', 'heal', 'gad'].map(id => { const e = document.querySelector(`#hud [data-btn="${id}"]`); return id + ':' + (e && !e.classList.contains('hidden') ? 1 : 0); }).join(','));
+    const nb = await btn('nade');
+    await touch('touchStart', [{ x: nb.x, y: nb.y, id: 74 }]);
+    await touch('touchMove', [{ x: nb.x, y: nb.y + 12, id: 74 }]);
+    await touch('touchMove', [{ x: nb.x, y: nb.y + 26, id: 74 }]);
+    await page.waitForTimeout(80);
+    const rad = await page.evaluate(() => { const r = window.__app.input.radial; return r ? { btn: r.btn, n: r.items.length, labels: r.items.map(i => i ? i.label : '-') } : null; });
+    await touch('touchMove', [{ x: nb.x, y: nb.y + 80, id: 74 }]);
+    await page.waitForTimeout(60);
+    await touch('touchEnd', []);
+    const got = await page.waitForFunction(() => { const g = window.__app.game; return g.p.ws.gear === 'smoke' && g.nadeSel === 'smoke'; }, null, { timeout: 15000 }).then(() => true).catch(() => false);
+    rec('射撃場', '投げ物・包帯・道具のボタン: 前の装備のボタンは出ない。投げ物を指でずらすと離す前に円が出て、下へずらすと発煙弾を持つ', vis === 'gear:0,nade:1,heal:1,gad:1' && rad && rad.btn === 'nade' && rad.n === 4 && got, `${vis}・円 ${rad ? rad.labels.join('/') : 'なし'}・発煙 ${got ? '○' : '×'}`);
   } catch (e) { rec('射撃場', '射撃場だけの物', false, e.message.slice(0, 200)); }
 
   // ---- WAR BIT: タイトル → PLAY → コンクエスト 16 vs 16 → 出撃の画面 → 兵科を選んで出る → 撃つ → 倒れて出撃し直す → 勝ち → 結果 → もう一度
