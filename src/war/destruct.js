@@ -71,7 +71,7 @@ export function restoreWorld(ww) {
 export function carve(ww, x, y, z, R = 1.2, o = {}) {
   if (!ww || !ww.war || !ww.cellBox) return [];
   const changed = new Set(), hw = (o.w || HOLE.w) / 2, hh = (o.h || HOLE.h) / 2, hf = (o.floor || HOLE.floor) / 2;
-  const holes = [];
+  const holes = [], gone = [], made = [], hid = [];
   for (const b of nearBoxes(ww, x, z, R + 2)) {
     if (!b.alive || b.hide || (b.kind !== 'wall' && b.kind !== 'floor') || !SOFT.has(b.mat)) continue;
     if (o.only != null && b.id !== o.only) continue;
@@ -93,8 +93,8 @@ export function carve(ww, x, y, z, R = 1.2, o = {}) {
     else h = [Math.max(b.x0, cx - hf), b.y0 - 0.01, Math.max(b.z0, cz - hf), Math.min(b.x1, cx + hf), b.y1 + 0.01, Math.min(b.z1, cz + hf)];
     // 下や上に細い帯だけ残るなら、そこまで抜く（扉のような穴に）
     if (ax !== 'y') { if (h[1] - b.y0 < 0.35) h[1] = b.y0 - 0.01; if (b.y1 - h[4] < 0.25) h[4] = b.y1 + 0.01; }
-    cut(ww, b, h[0], h[1], h[2], h[3], h[4], h[5], ax);
-    holes.push(h);
+    for (const nb of cut(ww, b, h[0], h[1], h[2], h[3], h[4], h[5], ax)) made.push(nb);
+    gone.push(b); holes.push(h);
     changed.add(chunkOf(ww, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2));
   }
   if (!holes.length) return [];
@@ -103,13 +103,22 @@ export function carve(ww, x, y, z, R = 1.2, o = {}) {
   for (const b of nearBoxes(ww, x, z, R + 3)) {
     if (!b.alive || b.kind !== 'trim') continue;
     const mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2, mz = (b.z0 + b.z1) / 2;
-    if (holes.some(h => inside(mx, my, mz, h))) { b.alive = false; mods(ww).dead.push(b); changed.add(chunkOf(ww, mx, mz)); }
+    if (holes.some(h => inside(mx, my, mz, h))) { b.alive = false; mods(ww).dead.push(b); gone.push(b); changed.add(chunkOf(ww, mx, mz)); }
   }
   for (const d of ww.decos || []) {
     if (d.hide) continue;
     const p0 = d.pts[0]; if (Math.abs(p0[0] - x) > R + 3 || Math.abs(p0[2] - z) > R + 3) continue;
-    if (holes.some(h => d.pts.every(p => inside(p[0], p[1], p[2], h)))) { d.hide = true; mods(ww).decos.push(d); changed.add(chunkOf(ww, p0[0], p0[2])); }
+    if (holes.some(h => d.pts.every(p => inside(p[0], p[1], p[2], h)))) { d.hide = true; mods(ww).decos.push(d); hid.push(d); changed.add(chunkOf(ww, p0[0], p0[2])); }
   }
-  ww._chunkItems = null;
+  fixItems(ww, gone, made, hid);
   return [...changed];
+}
+// 描く塊ごとの物の表（render.js の sortIn）を、変わった物だけ直す（全部を作り直すと、穴を開けるたびに数十 ms 止まる）
+function fixItems(ww, gone, made, hid) {
+  const C = ww._chunkItems; if (!C) return;
+  const ck = (x, z) => Math.min(C.NZ - 1, Math.max(0, Math.floor(z / CH))) * C.NX + Math.min(C.NX - 1, Math.max(0, Math.floor(x / CH)));
+  const drop = (L, o) => { const i = L.indexOf(o); if (i >= 0) L.splice(i, 1); };
+  for (const b of gone) drop(C.it[ck((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2)].boxes, b);
+  for (const b of made) C.it[ck((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2)].boxes.push(b);
+  for (const d of hid) { let x = 0, z = 0; for (const p of d.pts) { x += p[0]; z += p[2]; } drop(C.it[ck(x / d.pts.length, z / d.pts.length)].decos, d); }
 }

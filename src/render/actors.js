@@ -71,15 +71,22 @@ export class ActorView {
     return m;
   }
   // このこまの準備: S（エンジンの状態）、alpha（補間）
+  // opts.cull = { x, z, yaw, d, cos }: 大規模戦で、遠すぎる人（d より先。倍率の分だけ遠くまで）と、画面の横より後ろの人（8m より先）は
+  // 姿勢を作らず描かない（人が多いと、1こまごとの姿勢の計算と描く数が重い）
   prepare(S, w, opts = {}) {
     this.list.length = 0;
+    const C = opts.cull, sy = C ? Math.sin(C.yaw) : 0, cy = C ? Math.cos(C.yaw) : 0;
+    const M = this._mats || (this._mats = new Map());
+    if (M.size > S.actors.length * 2 + 16) M.clear();
     for (const a of S.actors) {
       if (a.isDrone) { if (a.alive && !this.hidden.has(a.id)) this.list.push({ drone: true, a, x: a.x, y: a.y, z: a.z }); continue; }
       if (this.hidden.has(a.id)) continue;
       if (!a.alive && !a.dead) continue;
+      if (C) { const dx = a.x - C.x, dz = a.z - C.z, d = Math.hypot(dx, dz); if (d > C.d || (d > 8 && dx * sy + dz * cy < d * C.cos)) continue; }
       const res = computePose(poseInput(a, this.pi), this.bones);
       const L = this.look(a);
-      const mats = new Float32Array(NBONE * 16);
+      // 骨の行列はこの人の物を使い回す（毎こま新しく作るとごみが増える）
+      let mats = M.get(a.id); if (!mats) M.set(a.id, mats = new Float32Array(NBONE * 16));
       boneMatrices(this.bones, res.s, mats);
       const room = roomOf(w, a.x, a.y + 0.5, a.z);
       let gun = null;

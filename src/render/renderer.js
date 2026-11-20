@@ -318,20 +318,24 @@ export class Renderer {
     this.roofY = 1e9;
     this.buildMs = performance.now() - t0;
   }
-  // 大規模戦の壁・床が壊れた: その塊の遠い形と近い形を作り直す（ks: 塊の番号）
+  // 大規模戦の壁・床が壊れた: その塊の近い形（建物の箱の部分だけ）を作り直す（ks: 塊の番号）。
+  // 遠い形は、近い形を使っている間は作り直さず印だけ付け（farDirty）、遠い形に切り替わる前に作り直す（壊すたびに止まらないように）
   rebuildWarChunks(ks) {
     if (!this.war || !this.chunks) return;
     const gl = this.gl;
     for (const k of ks) {
       const ch = this.chunks.find(c => c.k === k); if (!ch || !('far' in ch)) continue;
-      const fb = buildWarFarChunk(this.war, k), m = makeWorldMesh(gl, fb.B);
-      if (ch.mesh === ch.far) ch.mesh = m;
-      delMesh(gl, ch.far); ch.far = m; ch.farTris = m ? m.n / 3 : 0;
-      // 近い形は建物の箱の部分だけ（地形と木はそのまま。数 ms）
-      if (ch.near) { const was = ch.mesh2 === ch.nearBox; delMesh(gl, ch.nearBox); ch.nearBox = makeWorldMesh(gl, buildWarNearBoxes(this.war, k, { lite: this.warLite })); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); if (was) ch.mesh2 = ch.nearBox; }
+      if (ch.near) { ch.farDirty = true; const was = ch.mesh2 === ch.nearBox; delMesh(gl, ch.nearBox); ch.nearBox = makeWorldMesh(gl, buildWarNearBoxes(this.war, k, { lite: this.warLite })); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); if (was) ch.mesh2 = ch.nearBox; }
+      else this._rebuildFar(ch);
     }
   }
-  // 近い形を作る・捨てる。budget: 1こまで作る数（-1 で全部）
+  _rebuildFar(ch) {
+    const gl = this.gl, m = makeWorldMesh(gl, buildWarFarChunk(this.war, ch.k).B);
+    if (ch.mesh === ch.far) ch.mesh = m;
+    delMesh(gl, ch.far); ch.far = m; ch.farTris = m ? m.n / 3 : 0; ch.farDirty = false;
+  }
+  // 近い形を作る・捨てる。budget: 1こまで作る数（-1 で全部）。
+  // 町の塊は1つ作るのに数十 ms かかるので、作った時間の分だけ次を待つ（重いこまが続かない。歩いて町に入るときにカクつかない）
   _warSelect(c, budget = 2) {
     const gl = this.gl, N = this.nearDist;
     const want = [];
@@ -339,10 +343,18 @@ export class Renderer {
       ch.d = Math.hypot((ch.x0 + ch.x1) / 2 - c.x, (ch.z0 + ch.z1) / 2 - c.z);
       if (ch.d < N && !ch.near) want.push(ch);
       else if (ch.near && ch.d > N + 110) { delMesh(gl, ch.near); delMesh(gl, ch.nearBox); ch.near = null; ch.nearBox = null; ch.nearTris = 0; }
+      // 壊れた所の遠い形: 遠い形に切り替わる前に作り直す
+      if (ch.farDirty && (!ch.near || ch.d >= N + 30)) this._rebuildFar(ch);
     }
     want.sort((a, b) => a.d - b.d);
-    const nb = budget < 0 ? want.length : Math.min(want.length, budget);
-    for (let k = 0; k < nb; k++) { const ch = want[k], r = buildWarNear(this.war, ch.k, { lite: this.warLite, split: true }); ch.near = makeWorldMesh(gl, r.B); ch.nearBox = makeWorldMesh(gl, r.BX); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); }
+    const all = budget < 0;
+    this._buildWait = Math.max(0, (this._buildWait || 0) - 1);
+    let nb = all ? want.length : this._buildWait > 0 && !(want.length && want[0].d < 70) ? 0 : Math.min(want.length, 1);
+    for (let k = 0; k < nb; k++) {
+      const t0 = performance.now(), ch = want[k], r = buildWarNear(this.war, ch.k, { lite: this.warLite, split: true });
+      ch.near = makeWorldMesh(gl, r.B); ch.nearBox = makeWorldMesh(gl, r.BX); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0);
+      if (!all) this._buildWait = Math.min(12, Math.floor((performance.now() - t0) / 8));
+    }
     // 草（近い塊だけ。塊の中心から grassD＋45m 以内）
     const G = this.grassD;
     if (G > 0) {

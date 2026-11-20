@@ -43,12 +43,13 @@ class App {
     D.fastT = D.ema < target * 1.06 ? D.fastT + raw : 0;
     if (D.cool > 0) return;
     // 解像度を変えると画面を作り直すので一瞬止まる。行ったり来たりしないように:
-    //  下げるのは3秒遅れが続いたとき。上げるのは20秒速いままのときだけで、上げてすぐ（30秒以内）また下げたら、それからは上げない（画質の設定を変えると初めから）。
+    //  下げるのは3秒遅れが続いたとき。上げるのは20秒速いままのときだけで、上げてすぐ（30秒以内）また下げたら、それから 90 秒は上げない
+    //  （前は試合の終わりまで上げなかった: 一度重い場面があると、そのあと軽くなっても粗いまま。端末が冷えたら戻す）
     //  （11-12 まで: 遅れが続くと毎秒30こまに固定して戻さなかった → エイムがなめらかでなくなる。もう固定しない）
     if (D.slowT > 3 && D.i < DYN.length - 1) {
-      if (D.upAt != null && D.t - D.upAt < 30) D.noUp = true;
+      if (D.upAt != null && D.t - D.upAt < 30) D.noUpUntil = D.t + 90;
       D.i++; D.cool = 3; D.slowT = 0; D.fastT = 0; D.ema = 0; this._resize();
-    } else if (D.fastT > 20 && D.i > 0 && !D.noUp) { D.i--; D.cool = 5; D.fastT = 0; D.upAt = D.t; this._resize(); }
+    } else if (D.fastT > 20 && D.i > 0 && !(D.noUpUntil && D.t < D.noUpUntil)) { D.i--; D.cool = 5; D.fastT = 0; D.upAt = D.t; this._resize(); }
   }
   renderScale() { return (this.settings.scale || 1) * DYN[this.dyn.i]; }
   fpsCap() { return this.dyn.cap ? Math.min(this.dyn.cap, this.settings.fps) : this.settings.fps; }
@@ -156,13 +157,16 @@ class App {
     if (this.mode === 'game' && !this.paused && raw < 0.5) this._dynStep(raw);
     try {
       const netRun = this.game && this.game.net && !this.game.done && (this.mode === 'game' || this.mode === 'pause');
+      const tf = performance.now();
       if (netRun) this.game.frame(dt, { input: this.mode === 'game' });
       else if (this.mode === 'game' && this.game && !this.paused) this.game.frame(dt);
       else if (this.mode === 'title' || this.mode === 'menu') this.titleScene.frame(dt, this.mode === 'menu');
+      // 1こまの計算の時間（描く命令を出すまで。画面の右上の fps の表示に出す）
+      const cpu = performance.now() - tf; this.cpuMs = this.cpuMs ? this.cpuMs + (cpu - this.cpuMs) * 0.1 : cpu;
     } catch (e) { console.error(e); this._lastErr = String(e && e.stack || e); }
     if (this.settings.showFps) {
       this.fpsN++; this.fpsT += raw;
-      if (this.fpsT > 0.5) { const r = this.renderer.stats; this.fpsEl.textContent = `${Math.round(this.fpsN / this.fpsT)}fps · ${r.draws} · ${(r.tris / 1000).toFixed(0)}k · ${Math.round(DYN[this.dyn.i] * 100)}%${this.dyn.cap ? ' · 上限' + this.dyn.cap : ''}`; this.fpsN = 0; this.fpsT = 0; }
+      if (this.fpsT > 0.5) { const r = this.renderer.stats; this.fpsEl.textContent = `${Math.round(this.fpsN / this.fpsT)}fps · CPU ${(this.cpuMs || 0).toFixed(1)}ms · ${r.draws} · ${(r.tris / 1000).toFixed(0)}k · ${Math.round(DYN[this.dyn.i] * 100)}%${this.dyn.cap ? ' · 上限' + this.dyn.cap : ''}`; this.fpsN = 0; this.fpsT = 0; }
     }
   };
 

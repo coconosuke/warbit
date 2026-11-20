@@ -89,3 +89,19 @@ test('RPG を壁に撃つと穴が開き、試合を作り直すと元に戻る'
   const G2 = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false });
   ok(b.alive && G2.w === ww, '次の試合では元どおり（同じマップの形を使い回す）');
 });
+
+test('穴を開けたとき、描く塊ごとの物の表は変わった物だけ直す（全部を作り直した表と同じ）', async () => {
+  const { buildWarFarChunk } = await import('../../src/war/render.js');
+  const ww = warWorld('riverbend');
+  restoreWorld(ww);
+  buildWarFarChunk(ww, 0); // 表を作る
+  const b = findWall(ww, M.BRICK);
+  const cx = (b.x0 + b.x1) / 2, cy = b.y0 + 1.3, cz = (b.z0 + b.z1) / 2;
+  const ks = carve(ww, cx, cy, cz - 0.3, 1.2);
+  ok(ww._chunkItems, '表は捨てずに直す');
+  const sig = (C) => C.it.map(c => c.boxes.map(q => q.id).sort((p, q) => p - q).join(',') + '|' + c.decos.length).join(';');
+  const inc = sig(ww._chunkItems);
+  ww._chunkItems = null; buildWarFarChunk(ww, ks[0]);
+  ok(inc === sig(ww._chunkItems), '全部を作り直した表と同じ');
+  restoreWorld(ww);
+});

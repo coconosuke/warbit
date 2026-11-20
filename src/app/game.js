@@ -701,7 +701,7 @@ export class Match {
         // 近接: 振る音、当たった物の音（体・バリケードはそれぞれの出来事で）
         case 'melee': { const a = S.byId[e.id]; au.sfx('throw', e.id === me || !a ? null : [a.x, a.y + 1.3, a.z], { vol: e.id === me ? 0.75 : 0.55, rate: 1.3 }); break; }
         // C4: 起爆の音・切り替えの音
-        case 'c4': if (e.id === me) { if (e.k === 'det') au.sfx('beep', null, { vol: 0.8, rate: 1.4 }); else if (e.k === 'mode') { au.sfx('fmode', null, { vol: 0.5 }); hud.showBanner(e.m === 'det' ? 'C4 ― 起爆' : 'C4 ― 投げる', 700); } } break;
+        case 'c4': if (e.id === me) { if (e.k === 'det') au.sfx('beep', null, { vol: 0.8, rate: 1.4 }); else if (e.k === 'mode') au.sfx('fmode', null, { vol: 0.5 }); } break; // 投げる／起爆は射撃モードのボタンに出る（画面の真ん中の文字は出さない）
         case 'mine': if (e.k === 'place' && e.by === me) au.sfx('cuffs', null, { vol: 0.5, rate: 0.8 }); break;
         case 'stick': { au.sfx('nadeBounce', [e.x, e.y, e.z], { vol: 0.6, rate: 0.7 }); break; }
         // 大ハンマー: 振る音・当たった音と粉（壁は面の色の欠片）
@@ -773,10 +773,10 @@ export class Match {
         case 'pumped': { const a = S.byId[e.id], wb = a && curWeapon(a); if (wb && WEAPONS[wb.id] && WEAPONS[wb.id].bolt) break; /* ボルトの音は 'bolt' で鳴らした */ if (e.id === me) au.sfx('pump', null, { vol: 0.75 }); else if (a) au.sfx('pump', [a.x, a.y + 1.2, a.z], { vol: 0.5 }); break; }
         // ボルトの操作の音（起こす・引く・押す・倒す。音の中の間合いは見た目の動きと同じ）
         case 'bolt': if (e.id === me) au.sfx('bolt', null, { vol: 0.8 }); else { const a = S.byId[e.id]; if (a) au.sfx('bolt', [a.x, a.y + 1.2, a.z], { vol: 0.55 }); } break;
-        case 'zoom': if (e.id === me) { au.sfx('fmode', null, { vol: 0.5 }); hud.showBanner(e.binoc ? `双眼鏡 ${e.z}倍` : e.sight === 'mag3' ? (e.z <= 1 ? 'ブースターを倒した（等倍）' : 'ブースター 3倍') : e.z <= 1 ? 'スコープ 等倍' : `スコープ ${e.z}倍`, 800); } break;
+        case 'zoom': if (e.id === me) { au.sfx('fmode', null, { vol: 0.5 }); if (!S.war) hud.showBanner(e.binoc ? `双眼鏡 ${e.z}倍` : e.sight === 'mag3' ? (e.z <= 1 ? 'ブースターを倒した（等倍）' : 'ブースター 3倍') : e.z <= 1 ? 'スコープ 等倍' : `スコープ ${e.z}倍`, 800); } break;
         case 'dry': if (e.id === me) au.sfx('dry', null, { vol: 0.6 }); break;
         case 'draw': if (e.id === me) au.sfx('draw', null, { vol: 0.45 }); break;
-        case 'fmode': if (e.id === me) { au.sfx('fmode', null, { vol: 0.5 }); hud.showBanner(S.war ? (e.m === 'auto' ? 'AUTO' : e.m === 'burst' ? 'BURST' : 'SEMI') : e.m === 'auto' ? '連射' : '単発', 700); } break;
+        case 'fmode': if (e.id === me) { au.sfx('fmode', null, { vol: 0.5 }); if (!S.war) hud.showBanner(S.war ? (e.m === 'auto' ? 'AUTO' : e.m === 'burst' ? 'BURST' : 'SEMI') : e.m === 'auto' ? '連射' : '単発', 700); } break;
         case 'lightsw': if (e.id === me) au.sfx('click', null, { vol: 0.4 }); break;
         case 'step': { const a = S.byId[e.id]; if (a && a !== p) au.step(e.f, [e.x, e.y, e.z], e.loud); else if (a === p) au.step(e.f, null, e.loud * 0.6); break; }
         case 'shout': { const a = S.byId[e.id]; if (a) this._say(a, e.line > -1 || typeof e.line === 'string' ? e.line : 'swat_police', a === p); break; }
@@ -817,7 +817,6 @@ export class Match {
         case 'redeploy': if (e.id === me) { this.kiaT = -99; this.dlo = false; this._resetControls(); } break;
         case 'respawn': if (e.id === me) { this.dlo = false; hud.deploy(null); if (S.war) this.r.warmWar(p.x, p.z); this.dead = false; this.spec = null; this.yaw = p.yaw; this.pitch = 0; this._resetControls(); this.av.hidden.add(me); if (e.zone == null) hud.hideBanner();
           // 工兵で初めて出た時: RPG-7 の出し方（1回だけ）
-          if (S.war && p.inv.long === 'rpg' && !this._rpgHint) { this._rpgHint = true; hud.feed('RPG-7: 装備のボタンを長押しして選ぶ（次からは押すだけで構える）', 'ok'); }
         } break;
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
@@ -1060,7 +1059,14 @@ export class Match {
     }
     // 人と効果（ステップの間を補間した位置で）
     const keep = this._lerpActors();
-    this.av.prepare(S, this.w);
+    // 大規模戦: 遠すぎる人・画面の横より後ろの人は描かない（構えた倍率の分だけ遠くまで描く）
+    let cull = null;
+    if (S.war) {
+      const zw = p.ads > 0.3 ? (binocZoom(p) || zoomOf(curWeapon(p)) || 1) : 1, asp = r.canvas.width / Math.max(1, r.canvas.height);
+      const half = Math.atan(Math.tan((cam.fov || 60 * DEG) / 2) * asp);
+      cull = { x: cam.x, z: cam.z, yaw: cam.yaw, d: 360 * Math.max(1, zw), cos: Math.cos(Math.min(Math.PI, half + 0.4)) };
+    }
+    this.av.prepare(S, this.w, { cull });
     this._unlerp(keep);
     this.av.hideCam = this.camView; // 見ているカメラ自身は描かない
     const fp = !this.dead && p.alive && !(p.down && !S.pvp) && !(drone && drone.alive) && this.camView == null && !p.peek && !this.debugCam;
@@ -1410,20 +1416,16 @@ export class Match {
   _warPrompt(prompt) {
     const S = this.S, p = this.p, m = S.m;
     if (!p.alive) return '';
-    // 対人地雷・クレイモアを持っている
-    if (p.ws.slot === 2 && (p.ws.gear === 'apmine' || p.ws.gear === 'clay')) { const g = p.inv.gear.find(x => x.id === p.ws.gear); return `${GEAR[p.ws.gear].name} ― 射撃: ${p.ws.gear === 'clay' ? '向いている方へ置く' : '足もとの前に置く'}（残り ${g ? g.n : 0}）`; }
-    // C4 を持っている
-    if (p.ws.slot === 2 && p.ws.gear === 'c4') { const n = (S.nades || []).filter(q => q.type === 'c4' && q.by === p.id).length, g = p.inv.gear.find(x => x.id === 'c4'); return p.ws.c4m === 'det' ? `C4 ― 射撃: 起爆（置いた ${n}）・射撃モード: 投げるへ（残り ${g ? g.n : 0}）` : `C4 ― 射撃: 投げて貼る（残り ${g ? g.n : 0}）・射撃モード: 起爆へ（置いた ${n}）`; }
-    if (S.ammo) for (const b of S.ammo) if (b.team === p.team && Math.hypot(p.x - b.x, p.z - b.z) < 2 && Math.abs(p.y - b.y) < 1.6) return `${b.big ? '大きい' : '小さい'}弾薬箱 ― 近くにいると弾倉を補給（残り ${b.left} 発）`;
+    // 道具の使い方・弾薬箱の説明の文字は出さない（見るのを邪魔する。BattleBit も出さない）
     for (const f of m.flags) {
       if (Math.hypot(p.x - f.x, p.z - f.z) > f.r) continue;
       const my = p.team, mine = my === 0 ? f.prog : -f.prog, pct = Math.round(Math.abs(f.prog) * 100);
-      const nm = `拠点${f.id}（${f.name}）`;
-      if (f.contested && f.n[0] === f.n[1]) return `${nm} ― 奪い合い（同じ人数で止まっている）`;
-      if (f.owner === my && mine >= 0.999) return `${nm} ― 確保している`;
-      if (f.owner === 1 - my) return `${nm} ― 敵の拠点を中立に戻している ${100 - pct}%`;
-      if (mine > 0) return `${nm} ― 確保中 ${pct}%`;
-      return `${nm} ― ${f.owner < 0 ? '中立' : ''} 敵が確保しかけている ${pct}%`;
+      const nm = f.id;
+      if (f.contested && f.n[0] === f.n[1]) return `${nm} 奪い合い`;
+      if (f.owner === my && mine >= 0.999) return '';
+      if (f.owner === 1 - my) return `${nm} 中立へ ${100 - pct}%`;
+      if (mine > 0) return `${nm} 確保中 ${pct}%`;
+      return `${nm} 敵が確保中 ${pct}%`;
     }
     return prompt;
   }
