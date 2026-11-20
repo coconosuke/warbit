@@ -21,6 +21,9 @@ export const DEFAULTS = {
   // 11-20 続き（BattleBit の Friendly Name Tag Size・Show Pings・Screen Shake・2回押しのリロードの間）: 味方の名前の大きさ（文字の px）、
   //  敵の印を出す、画面の揺れ（0〜1。前の「画面の揺れ」標準／弱 は効いていなかった）、リロードの2回押しとみなす間（秒）
   nameSize: 11, showPings: true, shakeK: 1, rlDbl: 0.4,
+  // 大規模戦の 投げ物・道具 のボタンの円の並び（上・右・下・左。'' は空き）。数が変わっても場所は変わらない（11-20）
+  //  投げ物: frag 破片・impact 衝撃・smoke 発煙・flash 閃光。道具: tool 兵科の道具（弾薬箱・医療キット・双眼鏡）・gad 副の道具（C4・地雷）・hammer ハンマー・long RPG など
+  radNade: ['frag', 'impact', 'smoke', 'flash'], radGad: ['tool', 'gad', 'hammer', 'long'],
   // 画面
   quality: 'medium', // low | medium | high | custom（下の gfx を自分で選ぶ）
   gfx: { detail: 'medium', shadow: 'low', bloom: true, aa: 'fxaa', lights: 6, fx: 'normal', shells: true },
@@ -40,6 +43,8 @@ export function loadSettings() {
   if (s.sensScope !== undefined && s.sensZ === undefined && s.sensScope !== DEFAULTS.sensScope) { const f = s.sensScope / DEFAULTS.sensScope; for (const k of Object.keys(out.sensZ)) out.sensZ[k] = +(DEFAULTS.sensZ[k] * f).toFixed(3); }
   // 前の「画面の揺れ: 弱」→ 揺れ 50%
   if (s.shake === false && s.shakeK === undefined) out.shakeK = 0.5;
+  // 円の並びは4つの文字の列（違えば既定に）
+  for (const k of ['radNade', 'radGad']) if (!Array.isArray(out[k]) || out[k].length !== 4 || out[k].some(x => typeof x !== 'string')) out[k] = DEFAULTS[k].slice();
   out.sv = DEFAULTS.sv;
   return out;
 }

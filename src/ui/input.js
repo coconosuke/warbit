@@ -31,6 +31,7 @@ export function onRepeat(el, fn) {
   el.addEventListener('pointerup', stop); el.addEventListener('pointercancel', stop); el.addEventListener('pointerleave', stop);
 }
 
+const DRAG_MENU = new Set(['nade', 'gad', 'gear']); // ずらすと選ぶ円が出るボタン
 const LONG = 360; // 長押し（ms）。11-20: 420 → 360（伏せ・投げ物を選ぶ・弾倉をまとめる の長押しが遅く感じる）
 // ダッシュの固定を続けるボタン（11-12）: 撃つ・構える・リーン・リロードの間は走らず、終わるとまた走る（押したままのダッシュと同じ）。
 // 持ち替え・乗り越えも走ったまま。ほかのボタン（調べる・命令・装備・しゃがむなど）は、今までどおり固定をやめる
@@ -55,7 +56,7 @@ export class Input {
     this.sprintArm = false; this.sprintLock = false; this.sprPress = 0;
     this.toggles = { ads: false, leanL: false, leanR: false, crouch: false, prone: false, low: false };
     this.gyro = { on: false, ok: false, x: 0, y: 0, last: 0 };
-    this.onStick = null; this.onRadial = null; this.onBtn = null;
+    this.onStick = null; this.onRadial = null; this.onBtn = null; this.onDragMenu = null;
     this.radial = null; // 開いている円形メニュー {btn, x, y, items, sel, pid}
     this.getStickHome = null;
     this._bind();
@@ -129,6 +130,8 @@ export class Input {
       else if (p.kind === 'radialTap') this._radialMove(sx, sy);
       else if (p.kind === 'btn') {
         p.moved = Math.max(p.moved, Math.hypot(sx - p.x0, sy - p.y0));
+        // 投げ物・道具のボタン: 指をずらした時点で選ぶ円を出す（長押しを待たない。11-20 の要望）。円はその場ですぐ開き、続く動きで選ぶ
+        if (!this.radial && !p.dragged && p.moved > 16 && this.onDragMenu && DRAG_MENU.has(p.btn)) { p.dragged = true; this.onDragMenu(p.btn, e.pointerId, p.x0, p.y0); }
         if (this.radial && this.radial.pid === e.pointerId) { this._radialMove(sx, sy); }
         else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) this.lk.add(sx - p.x, sy - p.y, evT(e)); }
         p.x = sx; p.y = sy;
@@ -193,7 +196,7 @@ export class Input {
       if (this.keys.has(k)) return;
       this.keys.add(k);
       if (k === 'ShiftLeft') this.sprPress++;
-      const map = { KeyR: 'reload', KeyC: 'crouch', KeyZ: 'prone', KeyQ: 'leanL', KeyE: 'leanR', KeyF: 'shout', KeyV: 'use', KeyG: 'gear', KeyX: 'fmode', KeyB: 'zoom', KeyT: 'light', KeyN: 'nvg', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Space: 'vault', Digit1: 'wpn1', Digit2: 'wpn2', Digit3: 'gear', KeyH: 'cmd', Tab: 'team', KeyK: 'drone', KeyY: 'melee' };
+      const map = { KeyR: 'reload', KeyC: 'crouch', KeyZ: 'prone', KeyQ: 'leanL', KeyE: 'leanR', KeyF: 'shout', KeyV: 'use', KeyG: 'gear', KeyX: 'fmode', KeyB: 'zoom', KeyT: 'light', KeyN: 'nvg', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Space: 'vault', Digit1: 'wpn1', Digit2: 'wpn2', Digit3: 'heal', Digit4: 'gad', Digit5: 'gad', KeyH: 'cmd', Tab: 'team', KeyK: 'drone', KeyY: 'melee' };
       const b = map[k];
       if (b) { e.preventDefault(); this.edges.push({ b, k: 'down', key: true }); this._keyT = this._keyT || {}; this._keyT[k] = performance.now(); }
     });
@@ -201,7 +204,7 @@ export class Input {
       const k = e.code;
       this.keys.delete(k);
       if (!this.enabled) return;
-      const map = { KeyR: 'reload', KeyC: 'crouch', KeyZ: 'prone', KeyQ: 'leanL', KeyE: 'leanR', KeyF: 'shout', KeyV: 'use', KeyG: 'gear', KeyX: 'fmode', KeyB: 'zoom', KeyT: 'light', KeyN: 'nvg', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Space: 'vault', Digit1: 'wpn1', Digit2: 'wpn2', Digit3: 'gear', KeyH: 'cmd', Tab: 'team', KeyK: 'drone', KeyY: 'melee' };
+      const map = { KeyR: 'reload', KeyC: 'crouch', KeyZ: 'prone', KeyQ: 'leanL', KeyE: 'leanR', KeyF: 'shout', KeyV: 'use', KeyG: 'gear', KeyX: 'fmode', KeyB: 'zoom', KeyT: 'light', KeyN: 'nvg', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Space: 'vault', Digit1: 'wpn1', Digit2: 'wpn2', Digit3: 'heal', Digit4: 'gad', Digit5: 'gad', KeyH: 'cmd', Tab: 'team', KeyK: 'drone', KeyY: 'melee' };
       const b = map[k];
       if (b) { const dur = performance.now() - ((this._keyT && this._keyT[k]) || 0); this.edges.push({ b, k: dur > LONG ? 'longup' : 'tap', key: true, dur }); }
     });
@@ -258,7 +261,7 @@ export class Input {
     const dx = sx - r.x, dy = sy - r.y, d = Math.hypot(dx, dy);
     const n = r.items.length;
     if (d < 34 * Math.max(0.8, r.scale || 1)) r.sel = -1;
-    else { let a = Math.atan2(dx, -dy); if (a < 0) a += Math.PI * 2; r.sel = Math.floor((a + Math.PI / n) / (Math.PI * 2 / n)) % n; }
+    else { let a = Math.atan2(dx, -dy); if (a < 0) a += Math.PI * 2; r.sel = Math.floor((a + Math.PI / n) / (Math.PI * 2 / n)) % n; if (!r.items[r.sel]) r.sel = -1; }
     if (this.onRadial) this.onRadial(r);
   }
   _radialPick(tap) {
@@ -329,7 +332,7 @@ export class Input {
     this._avgGap = gap > 2000 ? avg : avg * 0.85 + gap * 0.15; // 一時停止などの長い空きは平均に入れない
     this._lastTake = now;
     for (const [pid, p] of this.ptr) {
-      if (p.kind !== 'btn' || p.long || p.moved > 36 || hitch) continue;
+      if (p.kind !== 'btn' || p.long || p.dragged || p.moved > 36 || hitch) continue;
       // 長押しは「押したのを受け取ってから」の時間で（受け取りが遅れたぶんで長押しにしない）
       if (now - (p.tp ?? p.t0) >= LONG) { p.long = true; out.edges.push({ b: p.btn, k: 'long', pid, x: p.x0, y: p.y0, sub: p.el.dataset.sub || null }); }
     }

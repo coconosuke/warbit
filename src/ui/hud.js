@@ -124,7 +124,8 @@ export class Hud {
     const k = this.k(), H = this.S.hud || {};
     const op = this.S.hudOpacity ?? 0.85;
     for (const [id, def] of Object.entries(BTN)) {
-      const e = this.btn[id], ov = H[id] || {};
+      // 投げ物のボタン（大規模戦）は、前の「投げ物・装備」のボタンを動かしていればその場所を引き継ぐ
+      const e = this.btn[id], ov = H[id] || (id === 'nade' && H.gear) || {};
       let hide = !!ov.hide;
       if (def.pve && !this.mode.pve) hide = true;
       if (def.pvpOnly && !this.mode.pvp) hide = true;
@@ -225,8 +226,9 @@ export class Hud {
     cx = Math.max(R + 40, Math.min(this.stage.w - R - 40, cx)); cy = Math.max(R + 30, Math.min(this.stage.h - R - 30, cy));
     if (r.x !== cx || r.y !== cy) { r.x = cx; r.y = cy; }
     const n = r.items.length;
-    let h = `<div class="rc" style="left:${cx}px;top:${cy}px;width:${R * 2}px;height:${R * 2}px;--rs:${(k * rs).toFixed(3)}"><div class="mid">${r.title || ''}<small>${r.tapMode ? '選んでタップ／外で取り消し' : '指をずらして離す'}</small></div>`;
+    let h = `<div class="rc" style="left:${cx}px;top:${cy}px;width:${R * 2}px;height:${R * 2}px;--rs:${(k * rs).toFixed(3)}"><div class="mid">${r.title || ''}</div>`;
     r.items.forEach((it, i) => {
+      if (!it) return; // 空きの場所（並びを決めた円で、その物を持っていない）
       const a = (i / n) * Math.PI * 2;
       const x = Math.sin(a) * R * 0.86, y = -Math.cos(a) * R * 0.86;
       h += `<div class="ri${i === r.sel ? ' sel' : ''}${it.disabled ? ' dis' : ''}" style="left:${R + x}px;top:${R + y}px">${it.label}${it.sub ? `<small>${it.sub}</small>` : ''}</div>`;
@@ -404,6 +406,17 @@ export class Hud {
       const gn = lg ? (p.inv.rpg ? p.inv.rpg.in + p.inv.rpg.n : 1) : v.gearSel ? (p.inv.gear.find(x => x.id === v.gearSel) || { n: 0 }).n : 0;
       const gk = gtxt + gn;
       if (this.cache.gear !== gk) { this.cache.gear = gk; this.btn.gear.querySelector('.lb').textContent = gtxt; this.btn.gear.querySelector('.ct').textContent = v.gearSel ? gn : ''; }
+      // 大規模戦: 投げ物・包帯・道具のボタン（選んでいる物の名前と数。持っていない・0 なら薄く）
+      if (this.mode.war && v.slots) {
+        for (const [id, o] of Object.entries(v.slots)) {
+          const e = this.btn[id]; if (!e) continue;
+          const key = o.lb + '|' + o.n + '|' + (o.dis ? 1 : 0) + '|' + (o.on ? 1 : 0);
+          if (this.cache['sl_' + id] === key) continue;
+          this.cache['sl_' + id] = key;
+          e.querySelector('.lb').textContent = o.lb; e.querySelector('.ct').textContent = o.n == null ? '' : o.n;
+          e.classList.toggle('dis', !!o.dis); e.classList.toggle('on', !!o.on);
+        }
+      }
       if (this.btn.rally) { const rk = (v.rally ? 1 : 0) + '|' + (v.rally && v.rally.ok ? 1 : 0) + '|' + (v.rally ? v.rally.lb : ''); if (this.cache.rally !== rk) { this.cache.rally = rk; this.btn.rally.classList.toggle('na', !v.rally); this.btn.rally.classList.toggle('dis', !!v.rally && !v.rally.ok); this.btn.rally.querySelector('.lb').textContent = v.rally ? v.rally.lb : ''; } }
       this.btn.vault.classList.toggle('dis', !v.canVault && !this.mode.war); // 乗り越えのボタンは文字を出さない（11-12 の要望）。大規模戦は越える物がなくても跳ぶ
       this.btn.reload.classList.toggle('dis', false);

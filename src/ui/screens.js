@@ -557,7 +557,21 @@ export class Screens {
       row('移動スティックの大きさ', '位置は「配置を編集」でドラッグ', 'stickS'); binds.push(() => slider(this.stage, body.querySelector('[data-k="stickS"]'), { min: 0.6, max: 1.8, step: 0.05, value: (S.hud && S.hud.stick && S.hud.stick.s) || 1, fmt: pct, label: '移動スティックの大きさ', onInput: (v) => { stk().s = v; save(); } }));
       row('移動スティックの濃さ', '', 'stickO'); binds.push(() => slider(this.stage, body.querySelector('[data-k="stickO"]'), { min: 0.15, max: 1, step: 0.05, value: (S.hud && S.hud.stick && S.hud.stick.o) ?? 0.55, fmt: pct, label: '移動スティックの濃さ', onInput: (v) => { stk().o = v; save(); } }));
       row('ダッシュの判定位置', 'スティックの中心からの距離（半径の何倍か）', 'stickSpr'); binds.push(() => slider(this.stage, body.querySelector('[data-k="stickSpr"]'), { min: 1, max: 2.4, step: 0.05, value: (S.hud && S.hud.stick && S.hud.stick.spr) ?? 1.25, fmt: (v) => v.toFixed(2) + '倍', label: 'ダッシュの判定位置', onInput: (v) => { stk().spr = v; save(); } }));
-      row('長押しメニューの大きさ', '投げ物・装備を選ぶ円形メニュー', 'radialScale'); sl('radialScale', 0.8, 1.6, 0.05, pct);
+      row('選ぶ円の大きさ', '投げ物・道具を選ぶ円', 'radialScale'); sl('radialScale', 0.8, 1.6, 0.05, pct);
+      // 大規模戦の 投げ物・道具 のボタンで出る円の並び（上・右・下・左）。同じ物を選ぶと入れ替わる。数が変わっても場所は変わらない（11-20）
+      {
+        const RN = [['frag', '破片'], ['impact', '衝撃'], ['smoke', '発煙'], ['flash', '閃光'], ['', 'なし']];
+        const RG = [['tool', '兵科の道具'], ['gad', 'C4・地雷'], ['hammer', 'ハンマー'], ['long', 'RPG'], ['', 'なし']];
+        const POS = ['上', '右', '下', '左'];
+        for (const [key, list, nm] of [['radNade', RN, '投げ物の円'], ['radGad', RG, '道具の円']]) for (let i = 0; i < 4; i++) {
+          row(`${nm}・${POS[i]}`, i === 0 ? '大規模戦。同じ物を選ぶと入れ替わる' : '', key + i);
+          binds.push(() => chips(body.querySelector(`[data-k="${key}${i}"]`), list, (S[key] || [])[i] ?? '', (v) => {
+            const A = (S[key] || ['', '', '', '']).slice(), j = A.indexOf(v);
+            if (v && j >= 0 && j !== i) A[j] = A[i];
+            A[i] = v; S[key] = A; save(); this.args = ['hud']; this._settings('hud');
+          }));
+        }
+      }
       row('照準', '腰だめ', 'crosshair'); ch('crosshair', [['cross', '十字'], ['dot', '点'], ['none', 'なし']]);
       row('照準の色', '', 'crossColor'); binds.push(() => chips(body.querySelector('[data-k="crossColor"]'), [['#ffffff', '白'], ['#7dff7a', '緑'], ['#ffe14a', '黄'], ['#4ae8ff', '水色'], ['#ff5ad2', '桃']], S.crossColor, (v) => { S.crossColor = v; save(); }, { swatch: true }));
       row('ミニマップ', 'タップで地図', 'minimap'); ch('minimap', [[true, '表示'], [false, '非表示']]);

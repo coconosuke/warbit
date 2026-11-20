@@ -17,7 +17,12 @@ export const BTN = {
   use: { name: '調べる（長押しでメニュー）', ax: 'r', ay: 'b', x: 238, y: 140, s: 58, icon: 'use', noWar: true },
   cmd: { name: '命令（長押しでメニュー）', ax: 'r', ay: 'b', x: 316, y: 98, s: 56, icon: 'cmd', pve: true },
   team: { name: '命令する隊', ax: 'r', ay: 'b', x: 316, y: 160, s: 38, icon: 'team', pve: true },
-  gear: { name: '投げ物・装備（長押しで選ぶ）', ax: 'r', ay: 'b', x: 92, y: 236, s: 52, icon: 'gear' },
+  gear: { name: '投げ物・装備（長押しで選ぶ）', ax: 'r', ay: 'b', x: 92, y: 236, s: 52, icon: 'gear', noWar: true },
+  // 大規模戦（11-20）: BattleBit のキー（投げ物 G・包帯 3・道具 4/5）に合わせ、投げ物・包帯・道具の3つに分ける。
+  // 投げ物と道具は、指をずらすとすぐ選ぶ円が出る（長押しを待たない）。円の並びは設定で決め、数が変わっても動かない
+  nade: { name: '投げ物（ずらすと種類を選ぶ）', ax: 'r', ay: 'b', x: 92, y: 236, s: 52, icon: 'gear', warOnly: true },
+  heal: { name: '包帯', ax: 'r', ay: 't', x: 126, y: 92, s: 40, icon: 'heal', warOnly: true },
+  gad: { name: '道具（ずらすと選ぶ）', ax: 'r', ay: 'b', x: 36, y: 270, s: 46, icon: 'gad', warOnly: true },
   fmode: { name: '射撃モード', ax: 'r', ay: 't', x: 214, y: 92, s: 36, icon: 'fmode' },
   spot: { name: '敵に印（分隊に知らせる）', ax: 'l', ay: 't', x: 170, y: 40, s: 40, icon: 'spot', warOnly: true },
   rally: { name: '集合地点を置く（分隊長・分隊ポイント 200）', ax: 'l', ay: 't', x: 218, y: 40, s: 40, icon: 'rally', warOnly: true },
@@ -67,6 +72,10 @@ export const ICONS = {
   cmd: '<path d="M5 21V3M5 4h12l-3 4 3 4H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   team: '<circle cx="8" cy="9" r="3" fill="currentColor"/><circle cx="16" cy="9" r="3" fill="currentColor"/><path d="M2 20c0-4 3-6 6-6s6 2 6 6M10 20c0-4 3-6 6-6s6 2 6 6" fill="currentColor"/>',
   gear: '<rect x="8" y="7" width="8" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 7V4h4v3M14 4l4-2" fill="none" stroke="currentColor" stroke-width="2"/>',
+  // 包帯: 巻いた包帯と十字
+  heal: '<rect x="3" y="7" width="18" height="10" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9.2v5.6M9.2 12h5.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  // 道具: 取っ手のある箱
+  gad: '<rect x="3" y="8" width="18" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 8V5h6v3M3 13h18" fill="none" stroke="currentColor" stroke-width="2"/>',
   // 敵に印: 目と小さな菱形
   rally: '<rect x="6" y="14" width="12" height="7" rx="1.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 14V6" stroke="currentColor" stroke-width="2"/><path d="M8.2 7.2a5.4 5.4 0 0 1 7.6 0M5.6 4.6a9 9 0 0 1 12.8 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   spot: '<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8.6l3 3.4-3 3.4-3-3.4z" fill="currentColor"/>',

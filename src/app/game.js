@@ -70,6 +70,10 @@ export class Match {
     this.acc = 0; this.time = 0; this.dead = false; this.done = false;
     this.adsOn = false; this.leanSide = 0; this.stance = 0; this.team = 'gold'; this.nvgOn = false;
     this.gearSel = (this.p.inv.gear.find(g => GEAR[g.id].kind === 'nade') || this.p.inv.gear[0] || {}).id || null;
+    // 大規模戦: 投げ物・道具のボタンで選んでいる物（円の並びの順で最初に持っている物）
+    this.nadeSel = null; this.gadSel = null; this._fixSlots();
+    // 投げ物・道具のボタンを指でずらしたら、その場で選ぶ円を出す（input.js）
+    this.app.input.onDragMenu = (btn, pid, x, y) => { if (!this.p.alive) return; if (btn === 'gear') this._gearMenu({ pid, x, y }); else this._slotMenu(btn === 'nade' ? 'nade' : 'gad', pid, x, y); };
     this.acts = [];
     this.shake = 0; this.flashW = 0; this.dmgK = 0; this.suppK = 0; this.exposure = 1; this.blurK = 0;
     this.ctx = null; this.ctxT = 0;
@@ -103,7 +107,7 @@ export class Match {
       this.wf = new WarFlags(this.r); this.wf.set(this.S.m.flags, this.w, this.p.team); this.wf.S = this.S;
     } else this.r.setMap(this.w, this.def, this.S);
   }
-  destroy() { if (this.wf) { this.wf.dispose(); this.wf = null; } this.hud.warMarks(null); this.hud.deploy(null); this.r.clearMap(); this.fx.clear(); this.av.dispose(); this.fx.dispose(); this.vm.dispose(); this.au.occluder = null; this.au.ambience(false); this.au.stopMusic(1.5); this.au.loop('heart', false, { fade: 0.3 }); this.au.setHurt(0); }
+  destroy() { if (this.app.input.onDragMenu) this.app.input.onDragMenu = null; if (this.wf) { this.wf.dispose(); this.wf = null; } this.hud.warMarks(null); this.hud.deploy(null); this.r.clearMap(); this.fx.clear(); this.av.dispose(); this.fx.dispose(); this.vm.dispose(); this.au.occluder = null; this.au.ambience(false); this.au.stopMusic(1.5); this.au.loop('heart', false, { fade: 0.3 }); this.au.setHurt(0); }
   rebind(r) {
     if (r) { if (this.av) { this.av.dispose(); this.fx.dispose(); this.vm.dispose(); } this.r = r; this.av = new ActorView(r); this.fx = new FX(r); this.vm = new ViewModel(r, this.av); this.fx.blood = this.app.settings.blood !== false; { const g = gfxOf(this.app.settings); this.fx.amount = { low: 0.5, normal: 1, high: 1.5 }[g.fx] || 1; this.fx.shells = g.shells !== false; } this.av.hidden.add(this.p.id); this.vm.setColors(this.av.look(this.p).pal.slice(3, 6), [0.02, 0.02, 0.025]); this.fx.onClink = (x, y, z) => this.au.sfx('shell', [x, y, z], { vol: 0.35 }); }
     this._setWorld();
@@ -301,7 +305,8 @@ export class Match {
     // ダッシュを入れ直した（押し直した・スティックを押し込み直した）: リロードの最中ならやめて走る（11-12。エンジンが決める。weapon.js）
     if (inp.sprPress && p && p.alive) this.acts.push({ a: 'sprint' });
     for (const e of inp.edges) {
-      const b = e.b, k = e.k;
+      // キーボード: 大規模戦の G は投げ物。ほかのモードの 3・4・5 は前の「投げ物・装備」
+      const b = this.S.war ? (e.b === 'gear' ? 'nade' : e.b) : (e.b === 'heal' || e.b === 'gad' ? 'gear' : e.b), k = e.k;
       switch (b) {
         case 'ads': {
           const mode = st.adsMode || 'tap';
@@ -355,10 +360,14 @@ export class Match {
         case 'cmd': if (this.S.pvp) break; if (k === 'tap') this._cmdDefault(); else if (k === 'long') this._cmdMenu(e); break;
         case 'team': if (k === 'down') { if (this.S.pvp || this.S.war) this.boardOn = !this.boardOn; else this.team = TEAMS[(TEAMS.indexOf(this.team) + 1) % 3]; } break;
         case 'board': if (k === 'down') this.boardOn = !this.boardOn; break;
+        // 大規模戦: 投げ物（G）・包帯（3）・道具（4・5）のボタン（BattleBit のキーに合わせて分ける。11-20）
+        case 'nade': if (k === 'tap') this._slotUse('nade'); else if (k === 'long' && !(this.app.input.radial)) this._slotMenu('nade', e.pid, e.x, e.y); break;
+        case 'gad': if (k === 'tap') this._slotUse('gad'); else if (k === 'long' && !(this.app.input.radial)) this._slotMenu('gad', e.pid, e.x, e.y); break;
+        case 'heal': if (k === 'tap') { const g = p.inv.gear.find(x => x.id === 'bandage'); if (g && g.n > 0) this.acts.push({ a: 'gear', id: 'bandage' }); } break;
         case 'gear':
           // 手に持った物（投げ物・RPG など）を持っていれば銃に戻す。選んだのが RPG（@long）なら構える
           if (k === 'tap') { if (p.ws.slot === 2 || p.ws.slot === 3) this.acts.push({ a: 'switch', slot: p.ws.prev >= 0 && p.ws.prev < 2 ? p.ws.prev : 0 }); else if (this.gearSel === '@long') this.acts.push({ a: 'long' }); else if (this.gearSel) this.acts.push({ a: 'gear', id: this.gearSel }); }
-          else if (k === 'long') this._gearMenu(e);
+          else if (k === 'long' && !this.app.input.radial) this._gearMenu(e);
           break;
         case 'wpn1': if (k === 'down' || (k === 'tap' && e.wheel)) this.acts.push({ a: 'switch', slot: 0 }); break;
         case 'wpn2': if (k === 'down' || (k === 'tap' && e.wheel)) this.acts.push({ a: 'switch', slot: 1 }); break;
@@ -610,6 +619,71 @@ export class Match {
     if (!items.length) return;
     this.app.input.openRadial('gear', items, e.pid, e.x, e.y);
     this.app.input.radial.title = '装備';
+  }
+  // ---- 大規模戦の投げ物・道具のボタン
+  // 円の並びの1つ（設定の radNade・radGad の文字）→ 持っている物 { id, n, lb }（持っていなければ null）。
+  // 'tool' 兵科の道具・'gad' 副の道具・'long' RPG など、ほかは道具の id そのもの
+  _slotItem(c) {
+    const p = this.p, G = p.inv.gear;
+    const of = (id) => { const g = G.find(x => x.id === id); return g ? { id, n: g.n, lb: GEAR[id].name.replace(/（.*）/, '') } : null; };
+    if (c === 'long') { const L = p.inv.long; if (!L || L === 'none' || !LONG[L]) return null; return { id: '@long', n: L === 'rpg' && p.inv.rpg ? p.inv.rpg.in + p.inv.rpg.n : null, lb: LONG[L].name.replace(/（.*）/, '') }; }
+    if (c === 'tool') { for (const id of ['ammosmall', 'ammobig', 'medkit', 'binoc']) { const r = of(id); if (r) return r; } return null; }
+    if (c === 'gad') { for (const id of ['c4', 'clay', 'apmine']) { const r = of(id); if (r) return r; } return null; }
+    return c && GEAR[c] ? of(c) : null;
+  }
+  _slotIds(kind) { const st = this.app.settings; return (kind === 'nade' ? st.radNade : st.radGad) || []; }
+  // 選んでいる物が持っていない物なら、並びの順で最初に持っている物（数が 0 でも）
+  _fixSlots() {
+    if (!this.S.war) return;
+    for (const kind of ['nade', 'gad']) {
+      const key = kind === 'nade' ? 'nadeSel' : 'gadSel', cur = this[key];
+      const has = cur && (cur === '@long' ? this._slotItem('long') : this.p.inv.gear.some(g => g.id === cur));
+      if (has) continue;
+      let pick = null;
+      for (const c of this._slotIds(kind)) { const it = this._slotItem(c); if (it) { pick = it.id; break; } }
+      // 並びに入れていない物しか持っていない時
+      if (!pick && kind === 'nade') { const g = this.p.inv.gear.find(x => GEAR[x.id].kind === 'nade'); pick = g ? g.id : null; }
+      this[key] = pick;
+    }
+  }
+  // 押した: 手に持っていれば銃に戻す。でなければ選んでいる物を持つ（数が 0 なら並びの次の物）
+  _slotUse(kind) {
+    const p = this.p; if (!p.alive) return;
+    const held = p.ws.slot === 3 ? '@long' : p.ws.slot === 2 ? p.ws.gear : null;
+    const isNade = (id) => id && id !== '@long' && GEAR[id] && GEAR[id].kind === 'nade';
+    if (held && (kind === 'nade') === isNade(held) && held !== 'bandage') { this.acts.push({ a: 'switch', slot: p.ws.prev >= 0 && p.ws.prev < 2 ? p.ws.prev : 0 }); return; }
+    let id = kind === 'nade' ? this.nadeSel : this.gadSel;
+    const nOf = (q) => q === '@long' ? 1 : ((p.inv.gear.find(x => x.id === q) || { n: 0 }).n);
+    if (!id || nOf(id) <= 0) { for (const c of this._slotIds(kind)) { const it = this._slotItem(c); if (it && (it.n == null || it.n > 0)) { id = it.id; break; } } }
+    if (!id || nOf(id) <= 0) return;
+    if (kind === 'nade') this.nadeSel = id; else this.gadSel = id;
+    if (id === '@long') this.acts.push({ a: 'long' }); else this.acts.push({ a: 'gear', id });
+  }
+  // 選ぶ円（上・右・下・左の決まった場所。持っていない所は空き・数が 0 は薄く）。選ぶと持つ
+  _slotMenu(kind, pid, x, y) {
+    const p = this.p; if (!p.alive) return;
+    const items = this._slotIds(kind).map(c => {
+      const it = this._slotItem(c); if (!it) return null;
+      return { label: it.lb, sub: it.n == null ? '' : '×' + it.n, disabled: it.n === 0, go: () => {
+        if (kind === 'nade') this.nadeSel = it.id; else this.gadSel = it.id;
+        if (it.id === '@long') { if (p.ws.slot !== 3) this.acts.push({ a: 'long' }); } else this.acts.push({ a: 'gear', id: it.id });
+      } };
+    });
+    if (!items.some(Boolean)) return;
+    this.app.input.openRadial(kind, items, pid, x, y);
+    this.app.input.radial.title = kind === 'nade' ? '投げ物' : '道具';
+  }
+  // HUD のボタンの表示
+  _slotView() {
+    const p = this.p, held = p.ws.slot === 3 ? '@long' : p.ws.slot === 2 ? p.ws.gear : null, out = {};
+    for (const kind of ['nade', 'gad']) {
+      const id = kind === 'nade' ? this.nadeSel : this.gadSel;
+      const it = id ? this._slotItem(id === '@long' ? 'long' : id) : null;
+      out[kind] = it ? { lb: it.lb, n: it.n, dis: it.n === 0, on: held === id } : { lb: '', n: null, dis: true, on: false };
+    }
+    const b = p.inv.gear.find(x => x.id === 'bandage');
+    out.heal = { lb: '包帯', n: b ? b.n : 0, dis: !b || b.n <= 0, on: held === 'bandage' };
+    return out;
   }
   // ---- ドローン（対戦の攻撃側）
   _droneToggle() {
@@ -1330,8 +1404,9 @@ export class Match {
     const wi = curWeapon(p);
     // 選んでいた物を持っていない（兵科を替えた・RPG のない兵科）: 投げ物の最初に戻す
     if (this.gearSel === '@long' ? !(p.inv.long && p.inv.long !== 'none' && LONG[p.inv.long]) : this.gearSel && !p.inv.gear.some(g => g.id === this.gearSel)) this.gearSel = (p.inv.gear.find(g => GEAR[g.id].kind === 'nade') || p.inv.gear[0] || {}).id || null;
+    if (S.war) this._fixSlots();
     const v = {
-      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn,
+      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null,
       // ダッシュを押しているが、ほかの操作（構える・リーン・撃つ・リロード）が先で走っていない
       sprWait: !!(p.alive && !p.sprint && this.app.input && (this.app.input.sprintArm || this.app.input.sprintLock)), leanL: this.leanSide < 0, leanR: this.leanSide > 0, nvgOn: this.nvgOn, hasNvg: p.armor.head === 'nvg',
       gearSel: this.gearSel, gearId: p.ws.gear, team: this.team, c4n: S.war ? (S.nades || []).filter(n => n.type === 'c4' && n.by === p.id).length : 0,

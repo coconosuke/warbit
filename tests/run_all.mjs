@@ -615,10 +615,10 @@ try {
     await page.waitForFunction(() => window.__app.game.dcls === 'engineer', null, { timeout: 15000 }).catch(() => {});
     await tapAt(await center('#hud .dps-go'), 71);
     await page.waitForFunction(() => window.__app.game.p.alive && window.__app.game.p.warCls === 'engineer', null, { timeout: 30000 }).catch(() => {});
-    await page.evaluate(() => { const g = window.__app.game; g.gearSel = '@long'; g.pitch = 0.03; });
+    await page.evaluate(() => { const g = window.__app.game; g.gadSel = '@long'; g.pitch = 0.03; });
     await page.waitForTimeout(400);
-    const glb = await page.evaluate(() => (document.querySelector('#hud [data-btn="gear"] .lb') || {}).textContent || '');
-    await tapAt(await btn('gear'), 72);
+    const glb = await page.evaluate(() => (document.querySelector('#hud [data-btn="gad"] .lb') || {}).textContent || '');
+    await tapAt(await btn('gad'), 72);
     const held = await page.waitForFunction(() => { const p = window.__app.game.p; return p.ws.slot === 3 && p.ws.st === 'long'; }, null, { timeout: 30000 }).then(() => true).catch(() => false);
     await holdAt(await btn('fire'), 300, 73);
     const fired = await page.waitForFunction(() => window.__app.game.p.inv.rpg && window.__app.game.p.inv.rpg.in === 0, null, { timeout: 15000 }).then(() => true).catch(() => false);
@@ -626,6 +626,22 @@ try {
     const am = await page.evaluate(() => document.querySelector('#hud .hud-ammo').innerText.replace(/\s+/g, ' '));
     await shot('射撃場-RPG');
     rec('射撃場', '工兵の RPG-7: 装備のボタンで構え、射撃のボタンで撃つと弾の欄が 0（装填中）', glb === 'RPG-7' && held && fired && /RPG-7/.test(am) && /\b0\b/.test(am), `ボタン「${glb}」・構え${held ? '○' : '×'}・撃つ${fired ? '○' : '×'}・弾「${am}」`);
+    // 投げ物・包帯・道具のボタン（0.1.48。BattleBit の G・3・4/5）: 前の「投げ物・装備」のボタンは出ない。投げ物のボタンを指でずらすと
+    // 離す前に円が出て（長押しを待たない）、下（発煙）へずらして離すと発煙弾を持つ。円の並びは数が変わっても同じ（空きは空き）
+    await page.evaluate(() => { const g = window.__app.game; g.acts.push({ a: 'switch', slot: 0 }); });
+    await page.waitForTimeout(600);
+    const vis = await page.evaluate(() => ['gear', 'nade', 'heal', 'gad'].map(id => { const e = document.querySelector(`#hud [data-btn="${id}"]`); return id + ':' + (e && !e.classList.contains('hidden') ? 1 : 0); }).join(','));
+    const nb = await btn('nade');
+    await touch('touchStart', [{ x: nb.x, y: nb.y, id: 74 }]);
+    await touch('touchMove', [{ x: nb.x, y: nb.y + 12, id: 74 }]);
+    await touch('touchMove', [{ x: nb.x, y: nb.y + 26, id: 74 }]);
+    await page.waitForTimeout(80);
+    const rad = await page.evaluate(() => { const r = window.__app.input.radial; return r ? { btn: r.btn, n: r.items.length, labels: r.items.map(i => i ? i.label : '-') } : null; });
+    await touch('touchMove', [{ x: nb.x, y: nb.y + 80, id: 74 }]);
+    await page.waitForTimeout(60);
+    await touch('touchEnd', []);
+    const got = await page.waitForFunction(() => { const g = window.__app.game; return g.p.ws.gear === 'smoke' && g.nadeSel === 'smoke'; }, null, { timeout: 15000 }).then(() => true).catch(() => false);
+    rec('射撃場', '投げ物・包帯・道具のボタン: 前の装備のボタンは出ない。投げ物を指でずらすと離す前に円が出て、下へずらすと発煙弾を持つ', vis === 'gear:0,nade:1,heal:1,gad:1' && rad && rad.btn === 'nade' && rad.n === 4 && got, `${vis}・円 ${rad ? rad.labels.join('/') : 'なし'}・発煙 ${got ? '○' : '×'}`);
   } catch (e) { rec('射撃場', '射撃場だけの物', false, e.message.slice(0, 200)); }
 
   // ---- WAR BIT: タイトル → PLAY → コンクエスト 16 vs 16 → 出撃の画面 → 兵科を選んで出る → 撃つ → 倒れて出撃し直す → 勝ち → 結果 → もう一度
