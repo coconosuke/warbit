@@ -2,7 +2,7 @@
 // 色は見る人から見て 味方 青・敵 赤・中立 白（BattleBit の Ally / Enemy / Neutral Objective。research/WARBIT.md の 10）
 import { MeshBuilder, hex } from './build.js';
 import { LAYER } from './textures.js';
-import { makeWorldMesh, drawMesh } from './renderer.js';
+import { makeWorldMesh, drawMesh, delMesh } from './renderer.js';
 import { TC } from '../ui/teamcol.js';
 
 const POLE_H = 9;
@@ -54,11 +54,17 @@ export class WarFlags {
     const Lm = new MeshBuilder();
     Lm.box(-0.05, 0.47, 0.06, 0.05, 0.55, 0.14, LAYER.metal, hex('#ffffff'));
     this.rallyLamp = makeWorldMesh(this.gl, Lm);
-    // 落ちた弾倉（大規模戦）: 小さい黒い箱を横に寝かせる
-    const Mg = new MeshBuilder();
-    Mg.box(-0.018, 0, -0.06, 0.018, 0.028, 0.06, LAYER.metal, hex('#22241f'));
-    Mg.box(-0.012, 0.028, -0.055, 0.012, 0.034, -0.035, LAYER.metal, hex('#3a3c36'));
-    this.magMesh = makeWorldMesh(this.gl, Mg);
+    // 落ちた弾倉（大規模戦）: 小銃の弾倉の大きさ（長さ 18cm・幅 6.5cm・厚み 3cm）を横に寝かせる。底の板と、口に見える弾（真鍮）。
+    // 空の弾倉は弾なし（mag0）
+    const mkMag = (full) => {
+      const Mg = new MeshBuilder();
+      Mg.box(-0.033, 0, -0.09, 0.033, 0.03, 0.07, LAYER.metal, hex('#3a3b35'));
+      Mg.box(-0.031, 0.002, 0.07, 0.031, 0.028, 0.088, LAYER.metal, hex('#4a4b44')); // 曲がった先
+      Mg.box(-0.036, -0.002, -0.1, 0.036, 0.032, -0.09, LAYER.rubber, hex('#1e1f1c'));  // 底の板
+      Mg.box(-0.025, 0.006, 0.088, 0.025, 0.024, 0.094, LAYER.metal, hex(full ? '#c9a14a' : '#2a2b27')); // 口（弾）
+      return makeWorldMesh(this.gl, Mg);
+    };
+    this.magMesh = mkMag(true); this.mag0Mesh = mkMag(false);
     // 弾薬箱（この作品の形: 緑の箱・ふたの帯・取っ手。小さいのは縮める）
     const Ab = new MeshBuilder();
     Ab.box(-0.26, 0, -0.16, 0.26, 0.3, 0.16, LAYER.metal, hex('#4b5a34'));
@@ -82,7 +88,11 @@ export class WarFlags {
     this.wind = 0;
     this._off = [r.hook('opaque', (rr, f) => this.draw(f))];
   }
-  dispose() { for (const f of this._off) f(); this._off = []; }
+  dispose() {
+    for (const f of this._off) f(); this._off = [];
+    const gl = this.gl;
+    for (const k of ['pole', 'cloth', 'ring', 'rallyBody', 'rallyLamp', 'magMesh', 'mag0Mesh', 'ammoMesh', 'apMesh', 'clayMesh']) { try { delMesh(gl, this[k]); } catch (e) { /* 消えている */ } this[k] = null; }
+  }
   set(flags, ww, myTeam = 0) { this.flags = flags; this.ww = ww; this.my = myTeam; }
   draw(f) {
     this._drawRallies(f);
@@ -164,12 +174,17 @@ WarFlags.prototype._drawMags = function (f, D, box) {
   gl.uniformMatrix4fv(P.u.uVP, false, r.vp);
   if (P.u.uRoomOverride) gl.uniform1f(P.u.uRoomOverride, 1);
   gl.uniform3f(P.u.uTint, 1, 1, 1);
+  const S = this.S;
   for (const q of D) {
     if (Math.hypot(q.x - r.camPos[0], q.z - r.camPos[2]) > (box ? 150 : 40)) continue;
+    // 落ちる途中（手の高さから。回りながら）
+    let y = q.y + 0.005, roll = 0;
+    if (!box && q.y0 != null && S) { const t = Math.max(0, (S.t - q.t) * S.dt), h = (q.y0 - q.y) - 4.9 * t * t; if (h > 0) { y += h; roll = (1 - h / (q.y0 - q.y)) * 2.2; } }
     const k = box && !q.big ? 0.72 : 1, c = Math.cos(q.yaw) * k, s = Math.sin(q.yaw) * k;
-    M.fill(0); M[0] = c; M[2] = -s; M[5] = k; M[8] = s; M[10] = c; M[15] = 1; M[12] = q.x; M[13] = q.y + 0.005; M[14] = q.z;
+    M.fill(0); M[0] = c; M[2] = -s; M[5] = k; M[8] = s; M[10] = c; M[15] = 1; M[12] = q.x; M[13] = y; M[14] = q.z;
+    if (roll) { const cr = Math.cos(roll), sr = Math.sin(roll); for (let i = 0; i < 3; i++) { const a = M[4 + i], b = M[8 + i]; M[4 + i] = cr * a + sr * b; M[8 + i] = -sr * a + cr * b; } }
     gl.uniformMatrix4fv(P.u.uModel, false, M);
-    drawMesh(gl, box ? this.ammoMesh : this.magMesh);
+    drawMesh(gl, box ? this.ammoMesh : q.n > 0 ? this.magMesh : this.mag0Mesh);
   }
   M.fill(0); M[0] = M[5] = M[10] = M[15] = 1;
   gl.uniformMatrix4fv(P.u.uModel, false, M);

@@ -887,7 +887,9 @@ function gearInHand(S, w, a, dt, ev) {
   }
 }
 
-// C4: ws.c4m = 'throw'（投げる）| 'det'（起爆）。投げると起爆に、起爆すると（残りがあれば）投げるに戻る
+// C4: ws.c4m = 'throw'（投げる）| 'det'（起爆）。BattleBit のように、いくつも貼ってから まとめて起爆できる:
+// 投げても残りがあれば「投げる」のまま（残りがなくなったら起爆へ）。射撃モードのボタンで起爆へ切り替え、起爆すると（残りがあれば）投げるに戻る。
+// 続けて投げるのは 0.6 秒あける
 export function myC4(S, a) { return (S.nades || []).filter(n => n.type === 'c4' && n.by === a.id); }
 function c4Tick(S, a, g, press, ev) {
   const ws = a.ws, left = g ? g.n : 0, placed = myC4(S, a).length;
@@ -896,10 +898,12 @@ function c4Tick(S, a, g, press, ev) {
   if (ws.c4m === 'det' && placed === 0 && left <= 0) { switchTo(S, a, ws.prev >= 0 ? ws.prev : 0, ev); ws.st = 'holster'; return; }
   if (!press || a.sprint || a.vault) return;
   if (ws.c4m === 'throw') {
+    if (ws.c4next && S.t < ws.c4next) return;
     g.n--;
     const n = throwNade(S, a, 'c4', 0.35, ev);
     n.sticky = true; n.fuse = 1e9;
-    ws.c4m = 'det';
+    ws.c4next = S.t + Math.round(0.6 / S.dt);
+    if (g.n <= 0) ws.c4m = 'det';
     ev.push({ e: 'c4', id: a.id, k: 'throw', left: g.n });
   } else if (placed > 0) {
     for (const n of myC4(S, a)) n.t = n.fuse;

@@ -2,7 +2,7 @@
 import { personMeshData, lookFor, boneMatrices, SV } from './people.js';
 import { sunVisAt } from '../war/render.js';
 import { gunModel, longModel, shieldModel } from './guns.js';
-import { makeWorldMesh, drawMesh } from './renderer.js';
+import { makeWorldMesh, drawMesh, delMesh } from './renderer.js';
 import { computePose, NBONE } from '../engine/pose.js';
 import { poseInput } from '../engine/combat.js';
 import { curWeapon } from '../engine/actor.js';
@@ -33,7 +33,16 @@ export class ActorView {
     this.hidden = new Set(); // 一人称で自分は描かない
     this._off = [r.hook('opaque', (rr, f) => this.drawOpaque(f)), r.hook('shadow', (rr, pl) => this.drawShadow(pl))];
   }
-  dispose() { for (const f of this._off || []) f(); this._off = []; this.list.length = 0; this.items.length = 0; }
+  // 試合を出るとき: この見た目の係が作った形（手に持つ物・投げ物・カメラ・ドローン・結束バンド・盾）を GPU から消す
+  // （人と銃の形は描く係（renderer）の共有の表なので残す。前は試合ごとに作り直した形が残り、GPU のメモリが少しずつ増えていた）
+  dispose() {
+    for (const f of this._off || []) f(); this._off = []; this.list.length = 0; this.items.length = 0;
+    const gl = this.gl, del = (m) => { try { delMesh(gl, m); } catch (e) { /* 消えている */ } };
+    for (const o of [this._hm, this._nm, this._cm]) if (o) for (const k of Object.keys(o)) del(o[k]);
+    del(this._dm); del(this._zip); if (this._shield) del(this._shield.body);
+    this._hm = this._nm = this._cm = null; this._dm = this._zip = this._shield = null;
+    if (this._mats) this._mats.clear(); if (this._rk) this._rk.clear(); this.looks.clear();
+  }
   look(a) {
     let L = this.looks.get(a.id);
     if (L && L.v === a._lookV) return L;

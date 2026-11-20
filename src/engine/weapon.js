@@ -185,7 +185,7 @@ function finishState(S, a, ev) {
         const nm = wi.mags[bi]; wi.mags.splice(bi, 1);
         if (ws.rk === 'tac' && wi.mag > 0) wi.mags.push(wi.mag);
         // 速いリロード（大規模戦）: 抜いた弾倉は足もとに落ちる。弾が残っていれば、上を歩くと拾える（BattleBit。research §30）
-        else if (ws.rk === 'fast' && wi.mag > 0 && S.war) dropMag(S, a, wi, wi.mag, ev);
+        else if (ws.rk === 'fast' && S.war) dropMag(S, a, wi, wi.mag, ev);
         wi.mag = nm;
         if (!wi.ch && W.chamber) { if (wi.mag > 0) { wi.mag--; wi.ch = 1; } }
       }
@@ -234,24 +234,29 @@ export function startConsol(S, a, ev) {
   if (ev) ev.push({ e: 'consol', id: a.id, dur: ws.t, n: used });
   return true;
 }
-// 落ちた弾倉（大規模戦）: S.mdrops。60 秒で消える。同じ銃を持つ人が上を歩くと拾う（弾倉の数が初めの数より少ない時）
+// 落ちた弾倉（大規模戦）: S.mdrops。手の高さから足もとの少し前へ落ちる（見下ろすと見える）。弾の残った弾倉は 60 秒、空の弾倉は 20 秒で消える。
+// 同じ銃を持つ人が上（0.9m）を歩くと拾う（弾倉の数が初めの数より少ない時。空の弾倉は拾わない）。
+// 落とした本人は、いったん 1.3m 離れてから戻ると拾う（落としてその場に立っていると、すぐ拾ってしまい落ちた弾倉が消えて見えたため）
 export function dropMag(S, a, wi, n, ev) {
   const L = S.mdrops || (S.mdrops = []);
   const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
-  const d = { id: (S.mdropN = (S.mdropN || 0) + 1), wid: wi.id, n, x: a.x + fx * 0.25 + Math.cos(a.yaw) * 0.12, y: a.y, z: a.z + fz * 0.25 - Math.sin(a.yaw) * 0.12, yaw: a.yaw + 0.7, t: S.t, by: a.id };
+  const d = { id: (S.mdropN = (S.mdropN || 0) + 1), wid: wi.id, n, x: a.x + fx * 0.5 - Math.cos(a.yaw) * 0.14, y: a.y, z: a.z + fz * 0.5 + Math.sin(a.yaw) * 0.14, y0: a.y + 1.15, yaw: a.yaw + 0.7, t: S.t, by: a.id, away: false };
   L.push(d); if (L.length > 40) L.shift();
-  if (ev) ev.push({ e: 'magDrop', id: a.id, x: d.x, y: d.y, z: d.z });
+  if (ev) ev.push({ e: 'magDrop', id: a.id, x: d.x, y: d.y, z: d.z, n });
 }
 export function pickMags(S, ev) {
   const L = S.mdrops; if (!L || !L.length) return;
-  const life = Math.round(60 / S.dt);
+  const life = Math.round(60 / S.dt), lifeE = Math.round(20 / S.dt);
   for (let i = L.length - 1; i >= 0; i--) {
     const d = L[i];
-    if (S.t - d.t > life) { L.splice(i, 1); continue; }
+    if (S.t - d.t > (d.n > 0 ? life : lifeE)) { L.splice(i, 1); continue; }
+    if (d.n <= 0) continue;
+    // 落とした本人: 1.3m 離れたら拾えるようになる
+    if (!d.away) { const o = S.byId[d.by]; if (!o || !o.alive || Math.hypot(o.x - d.x, o.z - d.z) > 1.3) d.away = true; }
     // 落としてすぐは拾わない（0.6秒）
     if (S.t - d.t < Math.round(0.6 / S.dt)) continue;
     for (const a of S.actors) {
-      if (a.pid == null || !a.alive || a.down || Math.abs(a.y - d.y) > 1.5 || Math.hypot(a.x - d.x, a.z - d.z) > 1.1) continue;
+      if (a.pid == null || !a.alive || a.down || (a.id === d.by && !d.away) || Math.abs(a.y - d.y) > 1.5 || Math.hypot(a.x - d.x, a.z - d.z) > 0.9) continue;
       const wi = a.inv && a.inv.w && a.inv.w.find(w => w && w.id === d.wid && w.mags);
       if (!wi || wi.mags.length >= (wi.spare0 || 0)) continue;
       wi.mags.push(d.n); L.splice(i, 1);

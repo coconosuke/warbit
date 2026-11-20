@@ -78,3 +78,24 @@ test('突撃はリロードが 25% 速い（時間 0.8 倍）・持ち替えも 
   const d1 = drawT('medic'), d2 = drawT('assault');
   ok(Math.abs(d2 / d1 - 0.8) < 0.06, '持ち替え ' + (d2 / d1).toFixed(3));
 });
+
+test('速いリロードで落とした弾倉は、その場に立っている間は拾わない（見えて残る）。離れて戻ると拾う。空の弾倉も落ちるが拾わない', () => {
+  const G = game(), S = G.S, me = S.actors[0]; ready(G, me);
+  const wi = curWeapon(me), n0 = wi.mags.length;
+  wi.mag = 9;
+  run(G, me, 1, { act: [{ a: 'reload', fast: true }] }); ready(G, me);
+  ok(S.mdrops && S.mdrops.length === 1, '落ちた');
+  const d = S.mdrops[0];
+  ok(Math.hypot(d.x - me.x, d.z - me.z) > 0.4, '足もとの少し前（見下ろすと見える）');
+  ok(d.y0 > d.y + 1, '手の高さから落ちる');
+  run(G, me, 120, {});
+  eq(S.mdrops.length, 1, '2秒立っていても拾わない');
+  me.x = d.x + 2; run(G, me, 5, {}); me.x = d.x; me.z = d.z; run(G, me, 5, {});
+  eq(S.mdrops.length, 0, '離れて戻ると拾う'); eq(wi.mags.length, n0, '数が戻る');
+  // 空の弾倉
+  wi.mag = 0; wi.ch = 0;
+  run(G, me, 1, { act: [{ a: 'reload', fast: true }] }); ready(G, me);
+  ok(S.mdrops.length === 1 && S.mdrops[0].n === 0, '空の弾倉も落ちる');
+  const e = S.mdrops[0]; me.x = e.x + 2; run(G, me, 5, {}); me.x = e.x; me.z = e.z; run(G, me, 5, {});
+  eq(S.mdrops.length, 1, '空は拾わない');
+});

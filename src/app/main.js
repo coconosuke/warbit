@@ -19,8 +19,9 @@ import { netMixin } from './netapp.js';
 const $ = (s) => document.querySelector(s);
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
 const QORDER = ['low', 'medium', 'high'];
-// 遊んでいる間に描くのが遅れたら（端末が熱くなると遅れる）、解像度を段階的に下げる。遅れがなくなれば少しずつ戻す
-const DYN = [1, 0.86, 0.74, 0.64, 0.56];
+// 遊んでいる間に描くのが遅れたら（端末が熱くなると遅れる）、段階的に軽くする。遅れがなくなれば少しずつ戻す。
+// [解像度, 軽くする段]: 段 1 = にじみ（bloom）と草を省く、段 2 = それに加えて影を省き、近い形の距離を 3/4 に
+const DYN = [[1, 0], [0.86, 0], [0.86, 1], [0.74, 1], [0.74, 2], [0.64, 2], [0.56, 2]];
 
 class App {
   constructor() {
@@ -51,11 +52,12 @@ class App {
       D.i++; D.cool = 3; D.slowT = 0; D.fastT = 0; D.ema = 0; this._resize();
     } else if (D.fastT > 20 && D.i > 0 && !(D.noUpUntil && D.t < D.noUpUntil)) { D.i--; D.cool = 5; D.fastT = 0; D.upAt = D.t; this._resize(); }
   }
-  renderScale() { return (this.settings.scale || 1) * DYN[this.dyn.i]; }
+  renderScale() { return (this.settings.scale || 1) * DYN[this.dyn.i][0]; }
   fpsCap() { return this.dyn.cap ? Math.min(this.dyn.cap, this.settings.fps) : this.settings.fps; }
   _dynReset() { this.dyn = { i: 0, ema: 0, slowT: 0, fastT: 0, cool: 1, cap: 0 }; }
   _resize() {
     if (!this.renderer || !this.stage.w) return;
+    this.renderer.dynLite = DYN[this.dyn.i][1];
     const dpr = Math.min(window.devicePixelRatio || 1, 3) * this.renderScale();
     this.renderer.resize(this.stage.w, this.stage.h, dpr);
   }
@@ -166,7 +168,7 @@ class App {
     } catch (e) { console.error(e); this._lastErr = String(e && e.stack || e); }
     if (this.settings.showFps) {
       this.fpsN++; this.fpsT += raw;
-      if (this.fpsT > 0.5) { const r = this.renderer.stats; this.fpsEl.textContent = `${Math.round(this.fpsN / this.fpsT)}fps · CPU ${(this.cpuMs || 0).toFixed(1)}ms · ${r.draws} · ${(r.tris / 1000).toFixed(0)}k · ${Math.round(DYN[this.dyn.i] * 100)}%${this.dyn.cap ? ' · 上限' + this.dyn.cap : ''}`; this.fpsN = 0; this.fpsT = 0; }
+      if (this.fpsT > 0.5) { const r = this.renderer.stats; this.fpsEl.textContent = `${Math.round(this.fpsN / this.fpsT)}fps · CPU ${(this.cpuMs || 0).toFixed(1)}ms · ${r.draws} · ${(r.tris / 1000).toFixed(0)}k · ${Math.round(DYN[this.dyn.i][0] * 100)}%${DYN[this.dyn.i][1] ? ' 軽' + DYN[this.dyn.i][1] : ''}${this.dyn.cap ? ' · 上限' + this.dyn.cap : ''}`; this.fpsN = 0; this.fpsT = 0; }
     }
   };
 

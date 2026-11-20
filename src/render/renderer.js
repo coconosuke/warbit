@@ -61,7 +61,7 @@ function vaoWorld(gl, v, i) {
   return { vao, vb, ib, n: i.length, type: i instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT };
 }
 export function makeWorldMesh(gl, B) { const { v, i } = B.arrays(); if (!i.length) return null; return vaoWorld(gl, v, i); }
-function delMesh(gl, m) { if (!m) return; gl.deleteVertexArray(m.vao); gl.deleteBuffer(m.vb); gl.deleteBuffer(m.ib); }
+export function delMesh(gl, m) { if (!m) return; gl.deleteVertexArray(m.vao); gl.deleteBuffer(m.vb); gl.deleteBuffer(m.ib); }
 export function drawMesh(gl, m) { if (!m) return; gl.bindVertexArray(m.vao); gl.drawElements(gl.TRIANGLES, m.n, m.type, 0); }
 
 const PREC = 'precision highp float;\nprecision highp int;\nprecision highp sampler2DArray;\nprecision highp sampler3D;\nprecision highp sampler2DShadow;\n';
@@ -337,7 +337,7 @@ export class Renderer {
   // 近い形を作る・捨てる。budget: 1こまで作る数（-1 で全部）。
   // 町の塊は1つ作るのに数十 ms かかるので、作った時間の分だけ次を待つ（重いこまが続かない。歩いて町に入るときにカクつかない）
   _warSelect(c, budget = 2) {
-    const gl = this.gl, N = this.nearDist;
+    const gl = this.gl, N = this.nearDist * ((this.dynLite || 0) >= 2 ? 0.75 : 1);
     const want = [];
     for (const ch of this.chunks) {
       ch.d = Math.hypot((ch.x0 + ch.x1) / 2 - c.x, (ch.z0 + ch.z1) / 2 - c.z);
@@ -356,7 +356,7 @@ export class Renderer {
       if (!all) this._buildWait = Math.min(12, Math.floor((performance.now() - t0) / 8));
     }
     // 草（近い塊だけ。塊の中心から grassD＋45m 以内）
-    const G = this.grassD;
+    const G = (this.dynLite || 0) >= 1 ? 0 : this.grassD;
     if (G > 0) {
       let gb = budget < 0 ? 1e9 : 1;
       const gw = [];
@@ -468,7 +468,7 @@ export class Renderer {
     if (this.war) this._warSelect(c);
     // 影
     this.shadowOn = false;
-    if (this.q.shadow && this.sky.night < 0.5 && f.shadows !== false) this._shadowPass(c);
+    if (this.q.shadow && this.sky.night < 0.5 && f.shadows !== false && !(this.war && (this.dynLite || 0) >= 2)) this._shadowPass(c);
     // スコープの中の像（倍率の低いスコープ。画面の中の丸いレンズにだけ拡大した世界を描く。research の 20）
     this.pipOn = false;
     if (f.pip && f.pip.r > 8) this._pipPass(f, c);
@@ -516,7 +516,7 @@ export class Renderer {
     vis.sort((a, b) => a[0] - b[0]);
     for (const [, ch] of vis) { drawMesh(gl, ch.mesh); if (ch.mesh2) { drawMesh(gl, ch.mesh2); this.stats.draws++; } this.stats.draws++; this.stats.tris += ch.tris; this.stats.chunks++; }
     // 草（裏も描く）
-    if (this.grassD > 0) {
+    if (this.grassD > 0 && !((this.dynLite || 0) >= 1)) {
       gl.disable(gl.CULL_FACE);
       for (const [, ch] of vis) if (ch.grass && ch.d < this.grassD + 45) { drawMesh(gl, ch.grass); this.stats.draws++; this.stats.tris += ch.grassTris; }
       gl.enable(gl.CULL_FACE);
@@ -723,7 +723,8 @@ export class Renderer {
     gl.bindVertexArray(this.vaoEmpty);
     // にじみ
     let bloomK = 0;
-    if (this.bloomT.length) {
+    const bloomOn = this.bloomT.length && !((this.dynLite || 0) >= 1);
+    if (bloomOn) {
       gl.useProgram(P.down.p);
       let src = this.hdr, sw = W, sh = H;
       for (let i = 0; i < this.bloomT.length; i++) {
@@ -754,7 +755,7 @@ export class Renderer {
     const C = P.comp;
     gl.useProgram(C.p);
     gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, this.hdr);
-    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, this.bloomT.length ? this.bloomT[0].t : this.blank);
+    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, bloomOn ? this.bloomT[0].t : this.blank);
     gl.uniform1f(C.u.uBloomK, bloomK);
     if (C.u.uPipC) { gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, this.pipOn ? this.pipT : this.blank); gl.uniform4f(C.u.uPipC, this.pipOn ? this.pipC[0] : 0.5, this.pipOn ? this.pipC[1] : 0.5, this.pipOn ? this.pipR : 0, this.pipOn ? 1 : 0); }
     gl.uniform1f(C.u.uExposure, p.exposure ?? 1);

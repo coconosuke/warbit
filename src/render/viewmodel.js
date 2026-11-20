@@ -1,7 +1,7 @@
 // 一人称の腕と銃: 腰だめ↔ADS（照準の線を目に合わせる）、揺れ（向きの慣性・歩き・呼吸）、撃った跳ね、リロード・ポンプ・持ち替え・ローレディ・ダッシュ・投げ物
 import { MeshBuilder, hex, mulc } from './build.js';
 import { LAYER } from './textures.js';
-import { makeWorldMesh, drawMesh } from './renderer.js';
+import { makeWorldMesh, drawMesh, delMesh } from './renderer.js';
 import { WEAPONS, opticOf, swayCamK, PIP_MAX_ZOOM } from '../engine/data/weapons.js';
 // スコープの中の像のレンズの大きさ（画面の縦の半分に対する半径。BattleBit の 4倍の見え方に合わせて約半分）
 export const PIP_LENS = 0.5;
@@ -38,7 +38,12 @@ export class ViewModel {
     this.out = { muzzle: [0, 0, 0], fwd: [0, 0, 1], light: null, eject: [0, 0, 0], right: [1, 0, 0], up: [0, 1, 0] };
     this._off = [r.hook('viewmodel', (rr, f) => this.draw(f))];
   }
-  dispose() { for (const f of this._off || []) f(); this._off = []; }
+  dispose() {
+    for (const f of this._off || []) f(); this._off = [];
+    const gl = this.gl;
+    try { for (const k of Object.keys(this.nadeMeshes || {})) delMesh(gl, this.nadeMeshes[k]); if (this.armVAO) { gl.deleteVertexArray(this.armVAO); gl.deleteBuffer(this.armVB); gl.deleteBuffer(this.armIB); } } catch (e) { /* 消えている */ }
+    this.nadeMeshes = {}; this.armVAO = this.armVB = this.armIB = null;
+  }
   setColors(sleeve, glove) { this.sleeve = sleeve; this.glove = glove; }
   nadeMesh(id) {
     if (this.nadeMeshes[id]) return this.nadeMeshes[id];
