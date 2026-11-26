@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-26T09:21:32.999Z）
+HARD ENTRY ソース一式（2026-11-26T09:38:03.112Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 161839
+@@@@ FILE DESIGN.md text 162482
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -395,6 +395,7 @@ HARD ENTRY ソース一式（2026-11-26T09:21:32.999Z）
 - 11-26 WAR BIT 0.1.51（窓ガラス・弾で崩れる壁・選ぶ円が開いたまま・重さ・しゃがみとリーン・タッチの記録・ほかの人の音）: 11-20 17:45〜・11-26 16:20 の要望。窓ガラス: 外壁の窓（床から上・高さ 0.9m 以上）に板（透ける・見通しはふさがない・弾は通って少し弱まる）。弾が当たる・爆発（届く距離の 0.8 倍）・乗り越え（前の 0.9m）で割れる。割れるまでは通れない。オンラインの参加側は 'wglass' の知らせで同じ板を割る。描き方は近い形の塊ごとの透ける面（ガラスの描き方・奥から）。選ぶ円（投げ物・道具）が開いたままになる: 重いこまで長押しの知らせを読む前に指を離すと、離した指の番号で開いて、その指の「離した」が二度と来なかった → 指がもういなければ開かない・開いた指がいなくなったら閉じる・タップで選ぶ方式のまま 4 秒触らなければ閉じる。重さ: エンジンが時々 12〜50ms 止まっていた → 最初に敵を見つけた時に作っていた木の葉・茂みの表を試合の始めに作る・ボットが道を作るのを 1 ステップ 16000 マスまでに（超えた分は次のステップ）・見通しの結果を 0.3 秒使い回す・250m より遠い人の銃口の光は出さない。fps の表示に 1 こまの内訳（動き＝エンジンと回数・音と効果・描く・HUD）。しゃがみ・伏せでジャンプを押すと立つ（跳ばない）。リーン中に走り出すとリーンをやめる（構えている間の Shift は除く）。タッチ: 遊んでいる間の指の動きはページの側で使うと伝える（touchstart・touchmove を止める。出撃の画面・成績表は除く）・fps の表示に指の取り消しの回数。弾でも、れんが・木・石膏の壁は当たった所（0.75m の升目）に弾の強さがたまり、0.7m 四方の穴（れんが 小銃 60 発・木 18・石膏 10。research 52。コンクリート・鉄・土のうは弾では崩れない）。オンラインの参加側は 'carve' の知らせで同じ穴を開ける（爆発・ハンマーと同じ）。ほかの人のリロードの差す音（18m）・弾を込める音（14m）・持ち替え（10m）・ライトの切り替え（6m）・包帯（8m）・息が切れた音（7m）も近くなら聞こえる（前は抜く音だけ。抜く音も 20m までに）。単体テスト war_wallshot
 - 11-26 WAR BIT 0.1.52（建物が崩れる）: 12:12 の「建築物の破壊の仕方を BattleBit に」。BattleBit: 太い柱・はりを RPG・C4 で壊すと建物が崩れ、中の人はがれきで死ぬ。大きい建物は崩れない（research 52）。ここでは建物ごとに「構造の傷み」をためる: 建物の中か壁から 1.5m までの重い爆発（C4 1・RPG 0.7。手榴弾・弾・ハンマーは数えない）。崩れる量: 家 3・平屋 2・店 3・納屋 2.5・礼拝堂 4・見張り塔 2・廃墟 2・ガソリンスタンド 3（推測）。集合住宅・事務所・倉庫・トーチカは崩れない。崩れると建物の箱・段・描くだけの面が消え、がれきの山（4〜12・高さ 0.4〜1.2m・乗れる・建物の番号で同じ位置）が残る。中の人（床から屋根まで・壁から 0.3m まで）は死ぬ（崩した人の倒した数）。土ぼこり・がれき・低いとどろき・近いと画面が揺れる。オンラインの参加側は 'collapse' の知らせで同じに崩す。試合のあとは元に戻す。単体テスト war_collapse
 - 11-26 WAR BIT 0.1.53（ボットの耳・軽く）: 12:12 の「人間らしい視覚・行動・判断」。見えないが聞こえた敵（壁・角の向こうの銃声 90m まで・走る足音 16m まで）の、おおよその向き（±8°〜。遠いほどずれる）へ振り向く。振り向いている間は、歩いても向きを道の向きで消さない（振り向いて見回しで見つける）。狙う相手がいるとき・振り向いて 1.5 秒の間はしない。軽く: 遠い形（遠くの塊）に、建物の中に収まる箱（仕切りの壁・段・家具。外から見えない）を入れない（遠い形の三角形 約 4% 減）。音ごとの響きへの送りの節を 2 つから 1 つに。単体テスト war_vision（壁の向こうの銃声）
+- 11-26 WAR BIT 0.1.54（狙いの精度）: 12:20 の「エイム操作の正確さ・緻密さ」。① 重いこまで指の動きがまとめて届いたとき、まとめられた一つ一つ（getCoalescedEvents。時刻つき）を見回しに足す（時刻で直線に求める lookres.js が、こまの間の指の動きを正しくたどる。動いた合計は同じ。使えない端末は前と同じ）。② 構えの途中（覗き込み 0.2〜0.8）は、腰だめと構えの感度の間をなめらかに移す（前は半分を超えた瞬間に感度が跳び、構えながら狙うと照準が急に遅くなった）
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -550,7 +551,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 157984
+@@@@ FILE src/app/game.js text 158234
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -731,7 +732,8 @@ export class Match {
     const zoom = binocZoom(p) || zoomOf(wi);
     let k = (inp.mouse ? 0.0022 : 0.0052) * (st.sens || 1);
     // 倍率の照準器は「スコープ」の感度（4倍が基準）を倍率に合わせて変える（画面の上で同じ速さ。2倍は0.72・8倍は0.23）
-    if (ads > 0.5) k *= zoom >= 1.5 ? sensForZoom(st, zoom) : (st.sensAds || 0.75);
+    // 構えの途中（覗き込む 0.2〜0.8）は、腰だめと構えの感度の間をなめらかに移す（11-26: 前は半分を超えた瞬間に感度が跳んだ）
+    { const kz = zoom >= 1.5 ? sensForZoom(st, zoom) : (st.sensAds || 0.75), u = clamp((ads - 0.2) / 0.6, 0, 1); k *= 1 + (kz - 1) * u * u * (3 - 2 * u); }
     if (inp.fire && !inp.mouse) k *= st.sensFire || 1;
     // エイムアシスト（タッチ）。対戦は部屋の設定（0なし・1弱い・2ふつう）
     let want = 1, track = null;
@@ -7621,7 +7623,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.53';
+export const VERSION = '0.1.54';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -25446,7 +25448,7 @@ export const ICONS = {
   wpn: '',
 };
 
-@@@@ FILE src/ui/input.js text 26374
+@@@@ FILE src/ui/input.js text 27117
 // 入力: タッチ（スティック・視点・ボタン、2本指以上の同時操作）、長押し、円形メニュー、ジャイロ、キーボードとマウス
 // タップは pointerup で判定し、続く click は捨てる（iPhoneは2本目の指に click が来ない）
 import { sprintZone } from './stick.js';
@@ -25577,14 +25579,14 @@ export class Input {
       if (!p) return;
       const [sx, sy] = this.stage.toStage(e.clientX, e.clientY);
       if (p.kind === 'stick') this._stickMove(sx, sy);
-      else if (p.kind === 'look') { this.lk.add(sx - p.x, sy - p.y, evT(e)); p.x = sx; p.y = sy; }
+      else if (p.kind === 'look') { this._lookAdd(e, p, sx, sy); }
       else if (p.kind === 'radialTap') this._radialMove(sx, sy);
       else if (p.kind === 'btn') {
         p.moved = Math.max(p.moved, Math.hypot(sx - p.x0, sy - p.y0));
         // 投げ物・道具のボタン: 指をずらした時点で選ぶ円を出す（長押しを待たない。11-20 の要望）。円はその場ですぐ開き、続く動きで選ぶ
         if (!this.radial && !p.dragged && p.moved > 16 && this.onDragMenu && DRAG_MENU.has(p.btn)) { p.dragged = true; this.onDragMenu(p.btn, e.pointerId, p.x0, p.y0); }
         if (this.radial && this.radial.pid === e.pointerId) { this._radialMove(sx, sy); }
-        else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) this.lk.add(sx - p.x, sy - p.y, evT(e)); }
+        else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) { this._lookAdd(e, p, sx, sy); return; } }
         p.x = sx; p.y = sy;
       }
     };
@@ -25674,6 +25676,17 @@ export class Input {
     a.addEventListener('wheel', (e) => { if (this.enabled && document.pointerLockElement) this.edges.push({ b: e.deltaY > 0 ? 'wpn2' : 'wpn1', k: 'tap', wheel: true }); }, { passive: true });
   }
   // 届かなかった「離した」の代わり: タッチの指の記録（kind を指定すればその種類だけ）を捨てる
+  // 見回しの指の動きを足す（11-26）: 重いこまで間の動きがまとめて届いたときは、まとめられた一つ一つ（時刻つき）を足す
+  //  （時刻で直線に求める lookres.js が、こまの間の指の動きを正しくたどれる。動いた合計は同じ）
+  _lookAdd(e, p, sx, sy) {
+    const cs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+    if (cs && cs.length > 1) {
+      for (const c of cs) { const [cx, cy] = this.stage.toStage(c.clientX, c.clientY); this.lk.add(cx - p.x, cy - p.y, evT(c)); p.x = cx; p.y = cy; }
+      if (p.x !== sx || p.y !== sy) { this.lk.add(sx - p.x, sy - p.y, evT(e)); p.x = sx; p.y = sy; }
+      return;
+    }
+    this.lk.add(sx - p.x, sy - p.y, evT(e)); p.x = sx; p.y = sy;
+  }
   _dropStale(kind) {
     for (const [pid, p] of this.ptr) {
       if (p.pt !== 'touch') continue;
