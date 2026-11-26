@@ -240,10 +240,11 @@ function think(S, w, a, dt, ctx) {
   // ---- 撃ち合い
   if (tgt) { if (fight(S, w, a, inp, tgt, ctx, sk, dt, rEff, rMax)) return inp; }
   else if (ai.tgtPos && S.t - (ai.seenT ?? -1e9) < SEC(S, 9) && ai.tgtId != null) { if (lost(S, w, a, inp, ctx, sk, dt)) return inp; }
-  else if (ai.look && S.t - ai.lookT < SEC(S, 1.5)) { const e = eyeAI(S, a); inp.yaw = turnToward(a.yaw, yawTo(ai.look[0] - e[0], ai.look[2] - e[2]), sk.turn * Math.PI / 180 * dt); inp.pitch = a.pitch * 0.9; }
+  else if (ai.look && S.t - ai.lookT < SEC(S, 1.5)) { const e = eyeAI(S, a); inp.yaw = turnToward(a.yaw, yawTo(ai.look[0] - e[0], ai.look[2] - e[2]), sk.turn * Math.PI / 180 * dt); inp.pitch = a.pitch * 0.9; ai.lookLock = true; }
 
-  // ---- 目標の拠点へ（または拠点で守る）
+  // ---- 目標の拠点へ（または拠点で守る）。音の方へ振り向いている間は、向きを変えずに歩く（振り向きを道の向きで消さない）
   objective(S, w, a, inp, ctx, sk, dt);
+  ai.lookLock = false;
   return inp;
 }
 
@@ -585,7 +586,7 @@ function moveToPoint(S, w, a, inp, to, ctx, sk, dt, o = {}) {
   const P = ai.path || [to];
   while (ai.pi < P.length - 1 && Math.hypot(P[ai.pi][0] - a.x, P[ai.pi][1] - a.z) < 2.0) ai.pi++;
   const p = P[Math.min(ai.pi || 0, P.length - 1)];
-  if (o.face) { inp.yaw = turnToward(a.yaw, yawTo(p[0] - a.x, p[1] - a.z), sk.turn * Math.PI / 180 * dt); inp.pitch = a.pitch * 0.85; }
+  if (o.face && !ai.lookLock) { inp.yaw = turnToward(a.yaw, yawTo(p[0] - a.x, p[1] - a.z), sk.turn * Math.PI / 180 * dt); inp.pitch = a.pitch * 0.85; }
   steerToward(a, inp, p[0], p[1], 1);
   separate(S, a, inp, ctx, 2.8);
   inp.sprint = !!o.sprint && Math.abs(angDiff(inp.yaw, a.yaw)) < 0.3 && inp.mz > 0.5;
@@ -613,11 +614,12 @@ function scan(S, w, a, ctx, sk) {
   for (const [d, b] of cand) {
     if (n >= 4) break;
     const ang = Math.abs(angDiff(yawTo(b.x - a.x, b.z - a.z), a.yaw));
-    const heard = (b.fireK || 0) > 0.2 && d < 90;
+    // 聞こえる: 撃った音（90m まで）・走る足音（16m まで）
+    const heard = (b.fireK || 0) > 0.2 && d < 90, steps = !heard && d < 16 && (b.spd || 0) > 3.2 && b.ground !== false;
     const fov = ai.tgt === b.id ? 2.0 : 1.05;
     // 視野の端（60°〜100°）: 走っている相手の動きだけ目に入る（人の目は端で動きに気づく。見つけるのは遅い。11-20）
     const edge = ang > fov && ang < 1.75 && d < 60 && (b.spd || 0) > 2.5;
-    if (ang > fov && d > 20 && !heard && !edge) continue;
+    if (ang > fov && d > 20 && !heard && !edge && !steps) continue;
     n++;
     const by = b.y + (b.st > 1.5 ? 0.35 : b.st > 0.5 ? 0.95 : 1.35);
     const mem = ai.seen || (ai.seen = {});
@@ -634,6 +636,12 @@ function scan(S, w, a, ctx, sk) {
         part = wLos(w, e[0], e[1], e[2], b.x, hy, b.z) ? 0.45 : 0;
       }
       r.los = { t: S.t, ax: a.x, az: a.z, bx: b.x, bz: b.z, st: b.st, ast: a.st, part };
+    }
+    // 見えないが聞こえた（壁・角の向こうの銃声や足音）: 人と同じく、音のしたおおよその向き（±8°・遠いほどずれる）へ振り向く（11-26）。
+    //  狙う相手がいるとき・振り向いてすぐ（1.5 秒）はしない。振り向けば、見回しで見つけられる
+    if (!part && (heard || steps) && ai.tgt == null && S.t - (ai.lookT ?? -1e9) > SEC(S, 1.5)) {
+      const err = (hrand(a.id, S.t, 43) - 0.5) * (0.28 + Math.min(0.3, d / 300)), ang2 = yawTo(b.x - a.x, b.z - a.z) + err;
+      ai.look = [a.x + Math.sin(ang2) * d, b.y + 1.3, a.z + Math.cos(ang2) * d]; ai.lookT = S.t;
     }
     if (!part) continue;
     // 煙（発煙弾）の向こうは見えない。薄いところは見つけにくい（11-19 18:16）

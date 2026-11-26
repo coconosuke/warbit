@@ -53,3 +53,23 @@ test('視野の端（約 75°）: 止まっている相手には気づかず、�
   for (let i = 0; i < 300 && !saw; i++) { hold(true); step(G, inp(me, { mx: 1, sprint: true })); if (foe.ai.tgt === me.id) saw = true; }
   ok(saw, '走っている相手には気づく');
 });
+
+test('壁の向こうの銃声: 見えなくても、音のしたおおよその向きへ振り向く', async () => {
+  const { addBox, reindexBox } = await import('../../src/war/world.js');
+  const G = game({ bots: true, per: 2 });
+  const [S, me, foe] = duel(G);
+  const sp = openSpot(G); ok(sp, '開けた所');
+  const [cx, cz] = sp, y0 = heightAt(G.w, cx, cz);
+  // 敵ボットの後ろ（-z）20m に自分、その間 8m に高い壁
+  const wb = addBox(G.w, { x0: cx - 6, x1: cx + 6, z0: cz - 8.3, z1: cz - 7.7, y0: y0 - 1, y1: y0 + 6, mat: 0, kind: 'wall' }); reindexBox(G.w, wb);
+  let turned = false;
+  for (let i = 0; i < 240 && !turned; i++) {
+    put(G, foe, cx, cz); if (i === 0) foe.yaw = 0; foe.ai.tgt = null;
+    put(G, me, cx, cz - 20);
+    me.fireK = 1;
+    step(G, inp(me));
+    const back = Math.abs(Math.atan2(Math.sin(foe.yaw - Math.PI), Math.cos(foe.yaw - Math.PI)));
+    if (back < 0.5) turned = true;
+  }
+  ok(turned, '後ろ（音の方）を向いた ' + foe.yaw.toFixed(2));
+});

@@ -637,6 +637,12 @@ function decoMesh(B, d, tops) {
   B.poly(d.pts.slice().reverse(), d.n.map(v => -v), d.layer ?? LAYER.concrete, mulc(hex(d.col), 0.6));
   B.room = 1;
 }
+// 建物の床の広さ（番号 → [x0,z0,x1,z1]）
+function bldRects(ww) {
+  if (ww._bldRects) return ww._bldRects;
+  const m = new Map(); for (const bd of ww.blds || []) m.set(bd.id, bd.rect);
+  return (ww._bldRects = m);
+}
 // 塊の割り当て（箱・坂・木を中心のある塊へ）
 function sortIn(ww) {
   if (ww._chunkItems) return ww._chunkItems;
@@ -671,7 +677,14 @@ export function buildWarFarChunk(ww, k) {
     terrainMesh(B, ww, x0, z0, x1, z1, 8, 6);
     let y0 = 1e9, y1 = -1e9;
     for (let j = Math.floor(z0 / ww.hs); j <= Math.min(ww.HD - 1, Math.ceil(z1 / ww.hs)); j++) for (let i = Math.floor(x0 / ww.hs); i <= Math.min(ww.HW - 1, Math.ceil(x1 / ww.hs)); i++) { const hv = ww.h[j * ww.HW + i]; if (hv < y0) y0 = hv; if (hv > y1) y1 = hv; }
-    for (const b of it[k].boxes) { if ((b.kind === 'crate' || b.kind === 'rail' || b.detail) && !b.far || b.kind === 'glass') continue; boxMesh(B, ww, b, tops, false); y1 = Math.max(y1, b.y1); y0 = Math.min(y0, b.y0); }
+    // 遠い形は建物の外側だけ（11-26: 中の仕切りの壁・段・家具は外から見えないのに、遠い形の三角形の半分近くを使っていた）。
+    //  建物の床の広さから 0.5m 以上内側に収まる箱は描かない（外壁・屋根・床の板は縁に触れるので残る）
+    const BR = bldRects(ww);
+    for (const b of it[k].boxes) {
+      if ((b.kind === 'crate' || b.kind === 'rail' || b.detail) && !b.far || b.kind === 'glass') continue;
+      if (b.bld >= 0 && b.kind !== 'roof') { const r = BR.get(b.bld); if (r && b.x0 > r[0] + 0.5 && b.x1 < r[2] - 0.5 && b.z0 > r[1] + 0.5 && b.z1 < r[3] - 0.5) continue; }
+      boxMesh(B, ww, b, tops, false); y1 = Math.max(y1, b.y1); y0 = Math.min(y0, b.y0);
+    }
     for (const rp of it[k].ramps) if (rp.kind === 'roof' || rp.kind === 'bridge') { smoothRamp(B, rp, hex(rp.col || '#8d8a84'), rp.layer ?? LAYER.concrete); y1 = Math.max(y1, rp.y1); }
     for (const c of it[k].cyls) if (c.far) { cylMesh(B, c); y1 = Math.max(y1, c.y1); }
     for (const d of it[k].decos) if (d.far) { decoMesh(B, d, tops); for (const p of d.pts) y1 = Math.max(y1, p[1]); }

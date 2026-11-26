@@ -198,8 +198,8 @@ export class AudioSys {
     out.connect(this.bus[o.bus || 'sfx']);
     const vb = o.verb ?? (o.bus === 'ui' ? 0 : 0.5);
     if (vb > 0) {
-      const sI = c.createGain(); sI.gain.value = vb; out.connect(sI); sI.connect(this.sendIn); nodes.push(sI);
-      const sO = c.createGain(); sO.gain.value = vb; out.connect(sO); sO.connect(this.sendOut); nodes.push(sO);
+      // 響きへ送る量は中・外とも同じなので、1つの音量の節で両方へ（11-26: 音ごとの節を1つ減らす。大人数の撃ち合いで軽く）
+      const sV = c.createGain(); sV.gain.value = vb; out.connect(sV); sV.connect(this.sendIn); sV.connect(this.sendOut); nodes.push(sV);
     }
     const h = { src, g, prio: !!o.prio };
     src.onended = () => { this.active.delete(h); setTimeout(() => { for (const n of nodes) { try { n.disconnect(); } catch (e) { /* 外れている */ } } }, 80); };
