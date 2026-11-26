@@ -128,14 +128,14 @@ export class Input {
       if (!p) return;
       const [sx, sy] = this.stage.toStage(e.clientX, e.clientY);
       if (p.kind === 'stick') this._stickMove(sx, sy);
-      else if (p.kind === 'look') { this.lk.add(sx - p.x, sy - p.y, evT(e)); p.x = sx; p.y = sy; }
+      else if (p.kind === 'look') { this._lookAdd(e, p, sx, sy); }
       else if (p.kind === 'radialTap') this._radialMove(sx, sy);
       else if (p.kind === 'btn') {
         p.moved = Math.max(p.moved, Math.hypot(sx - p.x0, sy - p.y0));
         // 投げ物・道具のボタン: 指をずらした時点で選ぶ円を出す（長押しを待たない。11-20 の要望）。円はその場ですぐ開き、続く動きで選ぶ
         if (!this.radial && !p.dragged && p.moved > 16 && this.onDragMenu && DRAG_MENU.has(p.btn)) { p.dragged = true; this.onDragMenu(p.btn, e.pointerId, p.x0, p.y0); }
         if (this.radial && this.radial.pid === e.pointerId) { this._radialMove(sx, sy); }
-        else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) this.lk.add(sx - p.x, sy - p.y, evT(e)); }
+        else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) { this._lookAdd(e, p, sx, sy); return; } }
         p.x = sx; p.y = sy;
       }
     };
@@ -225,6 +225,17 @@ export class Input {
     a.addEventListener('wheel', (e) => { if (this.enabled && document.pointerLockElement) this.edges.push({ b: e.deltaY > 0 ? 'wpn2' : 'wpn1', k: 'tap', wheel: true }); }, { passive: true });
   }
   // 届かなかった「離した」の代わり: タッチの指の記録（kind を指定すればその種類だけ）を捨てる
+  // 見回しの指の動きを足す（11-26）: 重いこまで間の動きがまとめて届いたときは、まとめられた一つ一つ（時刻つき）を足す
+  //  （時刻で直線に求める lookres.js が、こまの間の指の動きを正しくたどれる。動いた合計は同じ）
+  _lookAdd(e, p, sx, sy) {
+    const cs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+    if (cs && cs.length > 1) {
+      for (const c of cs) { const [cx, cy] = this.stage.toStage(c.clientX, c.clientY); this.lk.add(cx - p.x, cy - p.y, evT(c)); p.x = cx; p.y = cy; }
+      if (p.x !== sx || p.y !== sy) { this.lk.add(sx - p.x, sy - p.y, evT(e)); p.x = sx; p.y = sy; }
+      return;
+    }
+    this.lk.add(sx - p.x, sy - p.y, evT(e)); p.x = sx; p.y = sy;
+  }
   _dropStale(kind) {
     for (const [pid, p] of this.ptr) {
       if (p.pt !== 'touch') continue;

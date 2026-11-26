@@ -178,7 +178,8 @@ export class Match {
     const zoom = binocZoom(p) || zoomOf(wi);
     let k = (inp.mouse ? 0.0022 : 0.0052) * (st.sens || 1);
     // 倍率の照準器は「スコープ」の感度（4倍が基準）を倍率に合わせて変える（画面の上で同じ速さ。2倍は0.72・8倍は0.23）
-    if (ads > 0.5) k *= zoom >= 1.5 ? sensForZoom(st, zoom) : (st.sensAds || 0.75);
+    // 構えの途中（覗き込む 0.2〜0.8）は、腰だめと構えの感度の間をなめらかに移す（11-26: 前は半分を超えた瞬間に感度が跳んだ）
+    { const kz = zoom >= 1.5 ? sensForZoom(st, zoom) : (st.sensAds || 0.75), u = clamp((ads - 0.2) / 0.6, 0, 1); k *= 1 + (kz - 1) * u * u * (3 - 2 * u); }
     if (inp.fire && !inp.mouse) k *= st.sensFire || 1;
     // エイムアシスト（タッチ）。対戦は部屋の設定（0なし・1弱い・2ふつう）
     let want = 1, track = null;
