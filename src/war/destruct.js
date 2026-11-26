@@ -54,13 +54,15 @@ function cut(ww, b, hx0, hy0, hz0, hx1, hy1, hz1, ax) {
   return made;
 }
 // 試合で変えた物の記録（マップの形は試合をまたいで使い回すので、次の試合の前に戻す）
-function mods(ww) { return ww._mods || (ww._mods = { base: ww.boxes.length, dead: [], dmg: [], decos: [] }); }
+function mods(ww) { return ww._mods || (ww._mods = { base: ww.boxes.length, dead: [], dmg: [], decos: [], ramps: [], blds: [] }); }
 export function restoreWorld(ww) {
   if (ww) { ww._carveN = 0; ww._bdmg = null; }
   const m = ww && ww._mods; if (!m) return false;
   for (const b of m.dead) b.alive = true;
   for (const b of m.dmg) { b.dmg = 0; b.chip = false; }
   for (const d of m.decos) d.hide = false;
+  for (const r of m.ramps || []) r.dead = false;
+  for (const bd of m.blds || []) { bd.down = false; bd.sdmg = 0; }
   if (ww.boxes.length > m.base) { ww.boxes.length = m.base; for (const c of ww.cellBox) for (let i = c.length - 1; i >= 0; i--) if (c[i] >= m.base) c.splice(i, 1); }
   ww._mods = null; ww._chunkItems = null;
   return true;
@@ -112,6 +114,47 @@ export function carve(ww, x, y, z, R = 1.2, o = {}) {
   }
   fixItems(ww, gone, made, hid);
   return [...changed];
+}
+// ---- 建物が崩れる（11-26）。BattleBit: 太い柱・はり（構造の部分）を RPG・C4 で壊すと建物が崩れ、中の人はがれきで死ぬ。
+//  大きい建物（集合住宅・事務所・倉庫）と、トーチカは崩れない（research の 52）。ここでは建物ごとの「構造の傷み」を、
+//  建物の中か壁から 1.5m までの重い爆発（C4 1・RPG 0.7）でためて、決まった量で崩す。量は推測
+export const STRUCT = { house: 3, bungalow: 2, shop: 3, barn: 2.5, chapel: 4, tower: 2, ruin: 2, gas: 3 };
+export function bldTop(bd) { return bd.y + (bd.floors || 1) * 3.2 + 3; }
+// 爆発（x,y,z・重さ k）がかかる建物を探して傷みをためる。崩れた建物の一覧を返す
+export function structHit(ww, x, y, z, k) {
+  const out = [];
+  for (const bd of ww.blds || []) {
+    const hp = STRUCT[bd.kind]; if (!hp || bd.down) continue;
+    const [x0, z0, x1, z1] = bd.rect;
+    if (x < x0 - 1.5 || x > x1 + 1.5 || z < z0 - 1.5 || z > z1 + 1.5 || y < bd.y - 1 || y > bldTop(bd)) continue;
+    if (!bd.sdmg) mods(ww).blds.push(bd);
+    bd.sdmg = (bd.sdmg || 0) + k;
+    if (bd.sdmg >= hp) out.push(bd);
+  }
+  return out;
+}
+// 崩す: 建物の箱・段（坂）・描くだけの面を消し、がれきの山（低い箱。乗れる）を置く。戻り値: 変わった描く塊
+export function collapseBld(ww, bd) {
+  if (!bd || bd.down) return [];
+  const m = mods(ww); bd.down = true; if (!m.blds.includes(bd)) m.blds.push(bd);
+  const ks = new Set(), id = bd.id;
+  for (const b of ww.boxes) if (b.alive && b.bld === id) { b.alive = false; m.dead.push(b); ks.add(chunkOf(ww, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2)); }
+  for (const r of ww.ramps) if (r.bld === id && !r.dead) { r.dead = true; m.ramps.push(r); }
+  for (const d of ww.decos || []) if (d.bld === id && !d.hide) { d.hide = true; m.decos.push(d); }
+  // がれき: 床の広さに合わせて 4〜12 の山（高さ 0.4〜1.2m。位置は建物の番号で決まる＝オンラインの全員で同じ）
+  const [x0, z0, x1, z1] = bd.rect, W = x1 - x0, D = z1 - z0;
+  let s = (id * 2654435761) >>> 0; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const n = Math.max(4, Math.min(12, Math.round(W * D / 14)));
+  const col = (ww.boxes.find(b => b.bld === id && b.kind === 'wall') || {}).col || '#8d8a84';
+  for (let i = 0; i < n; i++) {
+    const cx = x0 + 0.8 + rnd() * Math.max(0.1, W - 1.6), cz = z0 + 0.8 + rnd() * Math.max(0.1, D - 1.6);
+    const sx = 0.8 + rnd() * 1.4, sz = 0.8 + rnd() * 1.4, h = 0.4 + rnd() * 0.8, gy = heightAt(ww, cx, cz);
+    const nb = addBox(ww, { x0: cx - sx, z0: cz - sz, x1: cx + sx, z1: cz + sz, y0: gy - 0.3, y1: gy + h, mat: M.CONCRETE, kind: 'rubble', bld: -1, col, layer: 1 });
+    reindexBox(ww, nb); ks.add(chunkOf(ww, cx, cz));
+  }
+  for (const [ax, az] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) ks.add(chunkOf(ww, ax, az));
+  ww._chunkItems = null;
+  return [...ks];
 }
 // 窓ガラスを割る（11-20）: 箱を消す（元に戻すときは restoreWorld）。戻り値: 変わった描く塊
 export function breakPane(ww, b) {

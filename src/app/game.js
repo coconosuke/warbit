@@ -30,7 +30,7 @@ import { LINES } from '../audio/lines.js';
 import { vfovOf } from './settings.js';
 import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
-import { carve, breakPane } from '../war/destruct.js';
+import { carve, breakPane, collapseBld } from '../war/destruct.js';
 import { los as warLos } from '../war/world.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
 import { classGadgets, CLASSES, CLASS_LIST, classGuns, classSecs, classLoadout } from '../war/classes.js';
@@ -850,6 +850,17 @@ export class Match {
         }
         case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', fullhp: '体力が満タン', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
         case 'nade': { if (e.type === 'frag' || e.type === 'impact') break; if (e.type === 'smoke') { for (let i = 0; i < 6; i++) fx.smoke(e.x, e.y + 0.5, e.z, 0.9, [0.62, 0.63, 0.64], 0.6, 3); au.sfx('gasPop', [e.x, e.y, e.z], { rate: 0.8 }); break; } if (e.type === 'cs') { for (let i = 0; i < 8; i++) fx.smoke(e.x, e.y + 0.4, e.z, 1.2, [0.85, 0.85, 0.8], 0.5, 6); au.sfx('gasPop', [e.x, e.y, e.z]); } else { fx.explosion(e.x, e.y, e.z, 3, e.type === 'flash' ? 'flash' : 'stinger'); au.sfx(e.type === 'flash' ? 'flashbang' : 'stinger', [e.x, e.y, e.z]); } const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 10) * 0.6); break; }
+        // 建物が崩れた（大規模戦）: オンラインの参加側は自分の世界でも崩す。土ぼこり・がれき・低いとどろき・近いと揺れる
+        case 'collapse': {
+          let ks = e.ks || [];
+          if (this.w && this.w.war) { const bd = (this.w.blds || []).find(q => q.id === e.bld); if (bd && !bd.down) ks = collapseBld(this.w, bd); }
+          this.r.rebuildWarChunks && this.r.rebuildWarChunks(ks);
+          const n = Math.min(14, Math.max(6, Math.round((e.w * e.d) / 10)));
+          for (let i = 0; i < n; i++) { const x = e.x + (Math.random() - 0.5) * e.w, z = e.z + (Math.random() - 0.5) * e.d; fx.debris(x, e.y + 0.5 + Math.random() * 3, z, [0.55, 0.5, 0.45]); for (let q = 0; q < 2; q++) fx.smoke(x, e.y + 1 + Math.random() * 3, z, 2.2, [0.62, 0.58, 0.52], 0.55, 6); }
+          au.boom([e.x, e.y + 2, e.z], { size: 1.3 }); au.sfx('wallBreak', [e.x, e.y + 1, e.z], { vol: 1, rate: 0.6 });
+          const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 40) * 0.8);
+          break;
+        }
         // 大規模戦の窓ガラスが割れた（オンラインの参加側は、自分の世界でも同じ板を割る）
         case 'wglass': {
           let ks = e.ks || [];

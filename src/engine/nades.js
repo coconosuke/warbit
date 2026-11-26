@@ -8,7 +8,7 @@ import { blastBars } from './barricade.js';
 import { blastDeps } from './deploy.js';
 import { blastRallies } from './rally.js';
 import { GEAR } from './data/equipment.js';
-import { carve, shatterNear } from '../war/destruct.js';
+import { carve, shatterNear, structHit, collapseBld, bldTop } from '../war/destruct.js';
 import { blastMines } from './mines.js';
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
@@ -212,6 +212,17 @@ export function stepClouds(S, w, dt, ev) {
 }
 
 // 爆発（罠・C2・壁の爆破薬）: 見通しのある人にダメージ、石膏の壁を壊す
+// 建物が崩れる（大規模戦・11-26）: 中の人（床から屋根まで・壁から 0.3m まで）はがれきで死ぬ。オンラインの参加側は 'collapse' の知らせで同じに崩す
+function collapseWar(S, w, bd, by, ev) {
+  const ks = collapseBld(w, bd); if (!ks.length) return;
+  const [x0, z0, x1, z1] = bd.rect, top = bldTop(bd);
+  for (const a of S.actors) {
+    if (!a.alive || a.x < x0 - 0.3 || a.x > x1 + 0.3 || a.z < z0 - 0.3 || a.z > z1 + 0.3 || a.y < bd.y - 0.8 || a.y > top) continue;
+    if (S.pvp) pvpDamage(S, a, 500, by, 'chest', 0, 0, ev, 'blast'); else hurt(S, w, a, 500, 'chest', by, null, 0, 0, ev, 'blast');
+    if (a.alive && a.down) killActor(S, a, by, ev, 'blast');
+  }
+  ev.push({ e: 'collapse', bld: bd.id, ks, x: (x0 + x1) / 2, y: bd.y, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0 });
+}
 export function stepBlasts(S, w, dt, ev) {
   for (let i = S.blasts.length - 1; i >= 0; i--) {
     const b = S.blasts[i];
@@ -257,6 +268,8 @@ export function stepBlasts(S, w, dt, ev) {
       const c4 = b.kind === 'c4', R = c4 ? 1.0 : 1.3, o = c4 ? { force: true, w: GEAR.c4.hole, h: GEAR.c4.hole, floor: GEAR.c4.hole } : {};
       const ks = carve(w, b.x, b.y, b.z, R, o);
       if (ks.length) { (S.carves || (S.carves = [])).push([b.x, b.y, b.z, R, c4 ? 2 : 0]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: b.x, y: b.y, z: b.z, r: R, ks, cn: w._carveN, o }); }
+      // 建物の構造の傷み（C4 1・RPG 0.7）。決まった量で崩れる（war/destruct.js の STRUCT）
+      for (const bd of structHit(w, b.x, b.y, b.z, c4 ? 1 : 0.7)) collapseWar(S, w, bd, by, ev);
     }
     // 大規模戦: 爆発のまわりの窓ガラスは割れる（届く距離の 0.8 倍まで）
     if (w.war) shatterNear(S, w, b.x, b.y, b.z, Math.max(2.5, (b.r || 4) * 0.8), ev);

@@ -147,6 +147,7 @@ export function groundAt(ww, x, z, y) {
   }
   for (const id of ww.cellRamp[k]) {
     const r = ww.ramps[id];
+    if (r.dead) continue;
     if (x < r.x0 || x > r.x1 || z < r.z0 || z > r.z1) continue;
     const h = rampH(r, x, z);
     if (h <= y + STEP + 0.02 && h > best) best = h;
@@ -165,6 +166,7 @@ export function ceilAt(ww, x, z, y) {
   }
   for (const id of ww.cellRamp[k]) {
     const r = ww.ramps[id];
+    if (r.dead) continue;
     if (x < r.x0 || x > r.x1 || z < r.z0 || z > r.z1) continue;
     const h = rampH(r, x, z) - r.th;
     if (h > y + 0.1 && h < best) best = h;
@@ -334,7 +336,7 @@ export function raycast(ww, ox, oy, oz, dx, dy, dz, max, opt = {}) {
     }
     for (const id of ww.cellRamp[k]) {
       if (sr[id] === sn) continue; sr[id] = sn;
-      const rr = ww.ramps[id], r = rayRamp(ox, oy, oz, dx, dy, dz, rr, stopAt);
+      const rr = ww.ramps[id]; if (rr.dead) continue; const r = rayRamp(ox, oy, oz, dx, dy, dz, rr, stopAt);
       if (r && r[0] < stopAt) { hits.push({ t0: r[0], t1: r[1], kind: 'stair', mat: rr.mat, id, nx: r[2], ny: r[3], nz: r[4] }); if (opt.stopOpaque) stopAt = r[0]; }
     }
     for (const id of ww.cellCyl[k]) {

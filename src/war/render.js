@@ -644,7 +644,7 @@ function sortIn(ww) {
   const it = Array.from({ length: NX * NZ }, () => ({ boxes: [], ramps: [], trees: [], cyls: [], decos: [], bushes: [], wires: [] }));
   const ck = (x, z) => Math.min(NZ - 1, Math.max(0, Math.floor(z / CH))) * NX + Math.min(NX - 1, Math.max(0, Math.floor(x / CH)));
   for (const b of ww.boxes) if (b.alive) it[ck((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2)].boxes.push(b);
-  for (const rp of ww.ramps) it[ck((rp.x0 + rp.x1) / 2, (rp.z0 + rp.z1) / 2)].ramps.push(rp);
+  for (const rp of ww.ramps) if (!rp.dead) it[ck((rp.x0 + rp.x1) / 2, (rp.z0 + rp.z1) / 2)].ramps.push(rp);
   for (const t of ww.trees || []) it[ck(t.x, t.z)].trees.push(t);
   for (const c of ww.cyls) if (c.col && c.alive) it[ck(c.x, c.z)].cyls.push(c);
   for (const d of ww.decos || []) { if (d.hide) continue; let x = 0, z = 0; for (const p of d.pts) { x += p[0]; z += p[2]; } it[ck(x / d.pts.length, z / d.pts.length)].decos.push(d); }
