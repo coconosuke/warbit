@@ -801,6 +801,12 @@ export function buildWarNearBoxes(ww, k, o = {}, BX = new MeshBuilder()) {
   while (!g.next().done);
   return BX;
 }
+// 少しずつ作る版（遠めの塊が壊れた時。描く側が数 ms ずつ next() を呼ぶ。done で value に形）
+export function* buildWarNearBoxesJob(ww, k, o = {}) {
+  const BX = new MeshBuilder();
+  yield* nearBoxesJob(ww, k, o, BX);
+  return BX;
+}
 function* nearBoxesJob(ww, k, o, BX) {
   const tops = bldTops(ww), { it } = sortIn(ww);
   let c = 0;
