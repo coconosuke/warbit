@@ -478,3 +478,26 @@
 - 掲示板には、地面に転がった手榴弾を撃つとはじかれて動く、という話もある（WAR BIT は未対応）。
 - 弱まり方（中心から離れるとどれだけ減るか）は見つからなかった。WAR BIT は「致命は破片で約 3.5m・衝撃で約 1.4m」になる弱まり方にした（推測）。
 - 出典: https://battlebit.wiki.gg/wiki/Frag_Grenade ・ https://battlebit.wiki.gg/wiki/Impact_Grenade ・ https://steamcommunity.com/app/671860/discussions/4/6717729343879798931/ ・ https://steamcommunity.com/app/671860/discussions/4/3805028677410535659/ ・ https://steamcommunity.com/app/671860/discussions/4/3805028278538705497/ ・ https://gamerant.com/battlebit-remastered-best-throwables-ranked/
+
+## 57. 倒れた味方を起こす（蘇生）（2026-11-26）
+- 公式 wiki（Bandage）: 包帯は味方を起こすのに使う。起こすのに衛生である必要はない（どの兵科でも包帯で起こせる）。1 つで自分を 40 回復（2.0 から）。持てる数は突撃 6・衛生 20・援護 6・工兵 6・偵察 5（分隊長は表に無い）。補給の値段 20。
+- 公式 wiki（Medic）: 衛生は包帯を、出血している味方・倒れた味方・自分に 2 倍の速さで使える。20 個持てる（ふつうは 6）。医療キットは何度でも使え、左で自分・右で近くの味方を治す。置いた医療キットは誰でも使えるが、手で使うより遅い。
+- パッチノート: 1.31「衛生に、倒れた人の印と、その人があきらめるまでの残り時間が見えるようにした」。1.4「暗視中に GIVE UP の表示が見えない不具合を直した」。2.0「包帯・蘇生で倒れた人を狙う判定を良くした」「包帯で味方を治すことはできない。止血と蘇生だけ」。
+- 攻略記事: 起きた味方の体力は約半分（Gameranx「about 50%」・Game Rant「half health」）。倒れた味方は F で引きずって安全な所へ運べ、引きずりながら包帯も使える（Gameranx・TheGamer）。
+- Steam の掲示板: 衛生でない兵科でも起こせるが包帯を使う。衛生でない兵科には起こすのが遅い。
+- 見つからなかったもの: 起こすのにかかる秒数、倒れていられる秒数。
+- WAR BIT の対応（11-26）: 倒れた味方の胴から 1.8m 以内に立つと、包帯のボタンが「起こす」に変わり、押すと包帯を 1 つ使って起こす（突撃などは 4 秒・衛生は 2 秒。秒数は推測）。起きると体力は半分。倒れていられるのは 30 秒（推測。前は 10 秒で、起こす間がなかった）で、起こされている間は止まる。衛生には 150m 以内の倒れた味方すべてに十字の印と残りの輪、ほかの兵科は分隊の人（150m）と近く（40m）の味方に十字の印。包帯の数は wiki の表に合わせた（分隊長は 6）。引きずるのは次に入れる。
+- 出典: https://battlebit.wiki.gg/wiki/Bandage ・ https://battlebit.wiki.gg/wiki/Medic ・ https://battlebit.wiki.gg/wiki/Patch_Notes ・ https://gameranx.com/features/id/470289/article/ ・ https://gamerant.com/battlebit-remastered-how-to-heal-yourself-teammates/ ・ https://www.thegamer.com/battlebit-remastered-how-to-heal/ ・ https://steamcommunity.com/app/671860/discussions/4/6717729343879669249/ ・ https://www.pcgamesn.com/battlebit-remastered/patch-notes-2-0-0
+
+## 58. C4 の操作（2026-11-26）
+- 道具の解説（steamah「complete gadgets rundown」）: C4 は左クリックで投げ、右クリックで起爆する。撃たれたり壊されたりしても爆発する。近くの面に引き寄せられて貼りつき、乗り物にも貼れる。壁やほとんどの遮蔽物を壊す。
+- Steam の掲示板: 「C4 の起爆装置（clicker）を押す」という言い方がある（起爆は手元の装置）。
+- WAR BIT の対応（11-26 の要望と同じ）: C4 を持っている間、射撃のボタン（左クリック）で投げ、構えのボタン（右クリック）で貼った C4 をまとめて起爆。前の「射撃モードのボタンで投げる／起爆を切り替える」はやめた。C4 を持っている間は、射撃のボタンの絵を「投げる」、構えのボタンの絵を「起爆」に変える。撃たれて爆発するのはまだ（次に入れる）。
+- 出典: https://steamah.com/battlebit-remastered-complete-gadgets-rundown/ ・ https://steamcommunity.com/app/671860/discussions/4/3801651661447905549
+
+## 59. 影とグラフィック（2026-11-26）
+- 公式の記事「Visual Changes in Operation Overhaul」（3.0）: 霧を作り直し（体積の霧ではなく、奥行きと影で隠す方法。軽い）、太陽の光の筋（god rays）、アンビエントオクルージョン（建物の中が囲まれて見える）、影を深く、描画距離と影の距離を伸ばし「遠くからでも、近くの人と同じ影が見える」ように。今の PC で同じように動くとしている。
+- 公式の記事「New ambient lighting」: 前の作りは光源が 8 つまでだった。光の仕組みを作り直し、街灯や机の電灯も光り、壊せる。
+- 設定の解説（attackofthefanboy・thenerdstash）: Shadows（あり/なし）・Shadow Resolution（例 512）・Shadow Distance（例 100）・Anti-Aliasing・LOD Quality（例 400）・Number of Lights（例 4）・Render Distance（例 4000）・Shader Quality・Brightness/Coloring・Contrast Intensity（例 100）・Vignette・ADS Effect・Motion Blur。
+- WAR BIT の対応（11-26）: 近くの細かい影（±44m）の外に「遠くの影」（±300m・2048 画素で 1 画素 約 0.3m）を足した。木・建物・岩が遠くでも地面に影を落とす。太陽は動かないので、毎こま描かず、カメラが 100m 動いた時と壊れた時（3 秒に 1 回まで）だけ描き直す。霧の影・光の筋・アンビエントオクルージョンはこれから。
+- 出典: https://joinbattlebit.com/visual-changes-overhaul/ ・ https://joinbattlebit.com/new-ambient-lighting/ ・ https://attackofthefanboy.com/guides/best-settings-for-battlebit-remastered-graphics-performance-and-more/ ・ https://thenerdstash.com/battlebit-remastered-best-settings-guide/

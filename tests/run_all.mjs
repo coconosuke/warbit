@@ -112,6 +112,7 @@ try {
 } catch (e) { rec('音', '音の検査', false, e.message.slice(0, 200)); }
 
 // ---------------- 5 自動の試合（WAR BIT: ボットだけ。ゲームと同じ毎秒60こま）
+// 0.1.59: 倒れていられるのが 30 秒になり、起こし合うので、コンクエストの試合は長くなった（上限 25 分 → 40 分）
 try {
   const { createGame, step } = await import('../src/engine/engine.js');
   const runWar = (wmode, size, seed, maxMin) => {
@@ -122,7 +123,7 @@ try {
     return { over: S.m.over, win: S.m.winner, why: S.m.why || '', kills, flags, min: i / 3600, ms: (Date.now() - t) / Math.max(1, i), score: (wmode === 'conquest' ? S.m.tickets : S.m.score).map(Math.ceil), G };
   };
   const fmt = (r) => `${r.over ? (r.win < 0 ? '引き分け' : 'チーム' + r.win + 'の勝ち') + '（' + r.why + '）' : '終わらず'}・${r.min.toFixed(1)}分・${r.score.join('/')}・キル${r.kills}・拠点${r.flags}・${r.ms.toFixed(2)}ms`;
-  for (const [m, size, cap, name] of [['conquest', 'small', 25, 'コンクエスト 16 vs 16'], ['domination', 'small', 16, 'ドミネーション 16 vs 16'], ['tdm', 'small', 11, 'チームデスマッチ 8 vs 8'], ['tdm', 'medium', 11, 'チームデスマッチ 16 vs 16']]) {
+  for (const [m, size, cap, name] of [['conquest', 'small', 40, 'コンクエスト 16 vs 16'], ['domination', 'small', 16, 'ドミネーション 16 vs 16'], ['tdm', 'small', 11, 'チームデスマッチ 8 vs 8'], ['tdm', 'medium', 11, 'チームデスマッチ 16 vs 16']]) {
     const r = runWar(m, size, 7, QUICK ? 3 : cap);
     rec('自動の試合', `${name}: ボットだけで例外なく${QUICK ? '動く' : '決着する'}（撃ち合い・${m === 'tdm' ? 'キル' : '拠点の取り合い'}）`, (QUICK || r.over) && r.kills > 0 && (m === 'tdm' || r.flags > 0), fmt(r));
   }
@@ -642,24 +643,45 @@ try {
     await touch('touchEnd', []);
     const got = await page.waitForFunction(() => { const g = window.__app.game; return g.p.ws.gear === 'smoke' && g.nadeSel === 'smoke'; }, null, { timeout: 15000 }).then(() => true).catch(() => false);
     rec('射撃場', '投げ物・包帯・道具のボタン: 前の装備のボタンは出ない。投げ物を指でずらすと離す前に円が出て、下へずらすと発煙弾を持つ', vis === 'gear:0,nade:1,heal:1,gad:1' && rad && rad.btn === 'nade' && rad.n === 4 && got, `${vis}・円 ${rad ? rad.labels.join('/') : 'なし'}・発煙 ${got ? '○' : '×'}`);
-    // 下投げ（0.1.58。11-26 の要望）: 投げ物を持っている間だけ下投げのボタンが出る。射撃のボタンを押しただけでは投げず（ピンを抜く）、
-    // 射撃のボタンから指をずらして下投げのボタンの上で離すと、腰の高さから軽く放る（上投げは 15m/s、下投げは 8m/s）
+    // 円の選び（11-26 22:28）: 指を置いた所から少し（30 点）ずらしただけで、その向きの物を選べる（名前の所までずらさなくてよい）
+    { const nb3 = await btn('nade');
+      await touch('touchStart', [{ x: nb3.x, y: nb3.y, id: 77 }]);
+      await touch('touchMove', [{ x: nb3.x, y: nb3.y + 18, id: 77 }]);
+      await touch('touchMove', [{ x: nb3.x, y: nb3.y + 30, id: 77 }]);
+      await page.waitForTimeout(120);
+      const sel = await page.evaluate(() => { const r = window.__app.input.radial; return r ? { sel: r.sel, lb: r.sel >= 0 && r.items[r.sel] ? r.items[r.sel].label : '' } : null; });
+      await touch('touchEnd', []);
+      await page.waitForTimeout(200);
+      rec('射撃場', '投げ物の円: 指を少し（30 点）下へずらすだけで下の物（発煙）を選ぶ', !!sel && sel.sel >= 0 && /発煙/.test(sel.lb), JSON.stringify(sel)); }
+    // 投げ物のボタンを長押しして、動かさずに離す: 円は閉じる（11-26 22:23: 前は真ん中で離すと出たままになっていた）
+    { const nb2 = await btn('nade');
+      await touch('touchStart', [{ x: nb2.x, y: nb2.y, id: 76 }]);
+      await page.waitForTimeout(700);
+      const opened = await page.evaluate(() => !!window.__app.input.radial);
+      await touch('touchEnd', []);
+      await page.waitForTimeout(250);
+      const closed = await page.evaluate(() => !window.__app.input.radial && !document.querySelector('#hud .hud-radial.on, #hud .radial.on'));
+      rec('射撃場', '投げ物のボタンを長押しで円が開き、動かさずに離すと閉じる（出たままにならない）', opened && closed, `開く ${opened ? '○' : '×'}・離すと ${closed ? '閉じる' : '出たまま'}`); }
+    // 下投げ（0.1.60。11-26 22:21 の指示）: 投げ物を持つと射撃のボタンの絵が「投げる」に変わる。押しただけでは投げず（ピンを抜く）、
+    // 押して離すと上投げ、押したままボタンの外へずらして離すと下投げ（絵が「下投げ」に変わる。腰の高さから 8m/s。上投げは 15m/s）
     await page.waitForFunction(() => { const p = window.__app.game.p; return p.ws.slot === 2 && p.ws.st === 'gear'; }, null, { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(250);
-    const uv = await page.evaluate(() => { const e = document.querySelector('#hud [data-btn="under"]'); return !!e && !e.classList.contains('ads-off') && !e.classList.contains('hidden'); });
-    const fb = await btn('fire'), ub = await btn('under');
+    const fnade = await page.evaluate(() => { const e = document.querySelector('#hud [data-btn="fire"]'); return !!e && e.classList.contains('nade') && !document.querySelector('#hud [data-btn="under"]'); });
+    const fb = await btn('fire');
     // 前に撃った RPG のロケットなどは数えない（これから投げる発煙弾だけ）
     await page.evaluate(() => { const g = window.__app.game, me = g.p, old = new Set(g.S.nades.map(q => q.id)); window.__nadeSeen = null; const f = () => { const n = g.S.nades.find(q => q.by === me.id && !old.has(q.id) && q.type === 'smoke'); if (n && !window.__nadeSeen) window.__nadeSeen = { sp: Math.hypot(n.vx, n.vz), dy: n.y - me.y }; if (!window.__nadeSeen) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+    const yaw0 = await page.evaluate(() => window.__app.game.yaw);
     await touch('touchStart', [{ x: fb.x, y: fb.y, id: 75 }]);
     await page.waitForTimeout(400);
-    const pin = await page.evaluate(() => { const g = window.__app.game; return !window.__nadeSeen && g.p.ws.cook != null; });
-    for (let k = 1; k <= 6; k++) await touch('touchMove', [{ x: fb.x + (ub.x - fb.x) * k / 6, y: fb.y + (ub.y - fb.y) * k / 6, id: 75 }]);
-    await page.waitForTimeout(60);
+    const pin = await page.evaluate(() => { const g = window.__app.game, r = document.querySelector('#hud .hud-under'); return !window.__nadeSeen && g.p.ws.cook != null && !!r && r.classList.contains('on') && !r.classList.contains('arm'); });
+    for (let k = 1; k <= 6; k++) await touch('touchMove', [{ x: fb.x - 14 * k, y: fb.y - 6 * k, id: 75 }]);
+    await page.waitForTimeout(150);
+    const armed = await page.evaluate(() => { const e = document.querySelector('#hud [data-btn="fire"]'), r = document.querySelector('#hud .hud-under'); return e.classList.contains('under') && /下投げ/.test(e.textContent) && r.classList.contains('arm'); });
     await touch('touchEnd', []);
-    const seen = await page.waitForFunction(() => window.__nadeSeen, null, { timeout: 5000 }).then(h => h.jsonValue()).catch(() => null);
-    await page.waitForTimeout(300);
-    const uv2 = await page.evaluate(() => { const e = document.querySelector('#hud [data-btn="under"]'); return !!e && !e.classList.contains('ads-off'); });
-    rec('射撃場', '下投げ: 投げ物を持つ間だけボタンが出る。押しただけでは投げず、射撃から指をずらして下投げの上で離すと腰の高さから軽く放る', uv && pin && !!seen && seen.sp < 10 && seen.dy < 1.2, `ボタン ${uv ? '○' : '×'}（投げた後 ${uv2 ? '残る' : '消える'}）・押しただけ ${pin ? '投げない' : '×'}・速さ ${seen ? seen.sp.toFixed(1) : '-'}m/s・高さ ${seen ? seen.dy.toFixed(2) : '-'}m`);
+    const seen = await page.waitForFunction(() => window.__nadeSeen, null, { timeout: 8000 }).then(h => h.jsonValue()).catch(() => null);
+    const yawMoved = await page.evaluate((y0) => Math.abs(window.__app.game.yaw - y0), yaw0);
+    const ringOff = await page.evaluate(() => !document.querySelector('#hud .hud-under.on'));
+    rec('射撃場', '下投げ: 投げ物を持つと射撃のボタンの絵が変わる。押すと境目の輪が出て、押しただけでは投げず、輪の外へずらして離すと腰の高さから軽く放る（ずらしても見回さない）', fnade && pin && armed && ringOff && !!seen && seen.sp < 10 && seen.dy < 1.2 && yawMoved < 0.02, `絵 ${fnade ? '○' : '×'}・押すと ${pin ? '輪・投げない' : '×'}・離すと輪 ${ringOff ? '消える' : '残る'}・ずらすと ${armed ? '下投げの絵' : '×'}・速さ ${seen ? seen.sp.toFixed(1) : '-'}m/s・高さ ${seen ? seen.dy.toFixed(2) : '-'}m・向き ${yawMoved.toFixed(3)}`);
   } catch (e) { rec('射撃場', '射撃場だけの物', false, e.message.slice(0, 200)); }
 
   // ---- WAR BIT: タイトル → PLAY → コンクエスト 16 vs 16 → 出撃の画面 → 兵科を選んで出る → 撃つ → 倒れて出撃し直す → 勝ち → 結果 → もう一度

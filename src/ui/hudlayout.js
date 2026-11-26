@@ -25,8 +25,6 @@ export const BTN = {
   gad: { name: '道具（ずらすと選ぶ）', ax: 'r', ay: 'b', x: 36, y: 270, s: 46, icon: 'gad', warOnly: true },
   // 落ちた弾倉を拾う（11-20）: 近く（2m）に拾える弾倉がある間だけ出る
   pick: { name: '拾う（近くに落ちた弾倉がある間）', ax: 'r', ay: 'b', x: 250, y: 196, s: 46, icon: 'pick', warOnly: true },
-  // 下投げ（11-26）: 投げ物を持っている間だけ、射撃のボタンの左上に出る。射撃のボタンから指をずらしてここで離すと、近くへ軽く放る
-  under: { name: '下投げ（投げ物を持っている間。射撃からずらして離す）', ax: 'r', ay: 'b', x: 172, y: 138, s: 46, icon: 'under' },
   fmode: { name: '射撃モード', ax: 'r', ay: 't', x: 214, y: 92, s: 36, icon: 'fmode' },
   spot: { name: '敵に印（分隊に知らせる）', ax: 'l', ay: 't', x: 170, y: 40, s: 40, icon: 'spot', warOnly: true },
   rally: { name: '集合地点を置く（分隊長・分隊ポイント 200）', ax: 'l', ay: 't', x: 218, y: 40, s: 40, icon: 'rally', warOnly: true },
@@ -79,6 +77,11 @@ export const ICONS = {
   // 包帯: 巻いた包帯と十字
   heal: '<rect x="3" y="7" width="18" height="10" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9.2v5.6M9.2 12h5.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
   // 道具: 取っ手のある箱
+  // 投げ物を上から投げる（丸い手榴弾と上へ弧を描く矢印）。下投げは under（下から弧）
+  nadeThrow: '<circle cx="8" cy="15" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10.8V9h2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 11c2-5 5-7 8.5-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="2.2 2.4"/><path d="M17.5 2.8l3 1.2-1.6 2.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  // C4 を投げる（四角い爆薬と矢印）・起爆（起爆装置の握りと火花）
+  c4throw: '<rect x="3" y="11" width="11" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15h7" stroke="currentColor" stroke-width="1.6"/><path d="M14 9l6-5M15.5 4H20v4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  c4det: '<rect x="6" y="9" width="8" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 12l5-3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M10 9V6M7 3.5l1.6 2.2M13 3.5l-1.6 2.2M18.5 4.5l1 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   under: '<path d="M4 6c3 0 5 2 6.5 5.5S14 18 19 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="2.2 2.6"/><circle cx="19" cy="18" r="2.6" fill="currentColor"/><path d="M3 9.5l2.5-4.5 2.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   pick: '<path d="M12 3v9M8.5 8.5 12 12l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="6" y="14" width="12" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="2"/>',
   gad: '<rect x="3" y="8" width="18" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 8V5h6v3M3 13h18" fill="none" stroke="currentColor" stroke-width="2"/>',

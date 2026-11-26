@@ -1,6 +1,7 @@
 // 体の状態の時間の進み: 怯み・閃光・ガス・テーザー・耳鳴り・制圧・エイムパンチ・出血・行動不能・ダウン
 import { killActor } from './combat.js';
 
+export const WAR_DOWN_T = 30;
 export function stepStatus(S, w, dt, ev) {
   for (const a of S.actors) {
     if (a.isDrone) continue;
@@ -22,8 +23,9 @@ export function stepStatus(S, w, dt, ev) {
     if (a.down) {
       a.downT += dt;
       if (S.pvp && a.dbno > 0) {
-        // ダウン: 20HP が約20秒で尽きる（傷を押さえると半分の速さ = 動かないとき）。大規模戦は 10 秒（起こす仕組みは次の段階）
-        a.dbno -= dt * (S.war ? 2 : a.spd < 0.05 ? 0.6 : 1.0);
+        // ダウン: 20HP が約20秒で尽きる（傷を押さえると半分の速さ = 動かないとき）。
+        //  大規模戦は 30 秒（11-26: 包帯で起こせるようにしたので、寄って起こす間をとる。本家の長さは見つからない。research の 57）
+        if (!(S.war && a.revT != null && S.t - a.revT <= 1)) a.dbno -= dt * (S.war ? 20 / WAR_DOWN_T : a.spd < 0.05 ? 0.6 : 1.0);
         if (a.dbno <= 0) { const by = a.lastHit ? S.byId[a.lastHit.by] : null; killActor(S, a, by, ev, 'bleed'); }
       } else if (!S.pvp && a.bleedOut > 0 && !a.cuffed && !a.reported) {
         a.bleedOut -= dt;

@@ -216,6 +216,15 @@ export class Hud {
   }
 
   // ---- 円形メニュー
+  // 下投げの境目（11-26 22:29）: 投げ物を持って射撃を押している間、指を置いた所に点線の輪。輪の外へ出すと
+  //  輪が橙の線になり「離すと下投げ」。輪の中で離すと上投げ。o: null で隠す
+  underRing(o) {
+    const e = this.underEl || (this.underEl = (() => { const d = el('div', 'hud-under', '<i></i><b></b>'); this.root.appendChild(d); return d; })());
+    if (!o) { e.classList.remove('on', 'arm'); return; }
+    e.style.left = o.x + 'px'; e.style.top = o.y + 'px'; e.style.width = e.style.height = (o.r * 2) + 'px';
+    e.querySelector('b').textContent = o.arm ? '離すと下投げ' : '外で離すと下投げ';
+    e.classList.add('on'); e.classList.toggle('arm', !!o.arm);
+  }
   radial(r) {
     const e = this.radialEl;
     if (!r) { e.classList.remove('on'); e.innerHTML = ''; return; }
@@ -262,8 +271,21 @@ export class Hud {
     { const gk = v.giveup || 0; if (this.cache.giveup !== gk) { this.cache.giveup = gk; this.giveup.classList.toggle('on', gk > 0); this.giveup.classList.toggle('arm', gk === 2); this.giveup.lastChild.textContent = gk === 2 ? 'もう一度押すと出撃の画面へ' : '出撃の画面へ'; } }
     // 拾う: 近くに拾える弾倉がある間だけ出す
     if (this.btn.pick) { const on = !!(v.pick && p && p.alive); if (this.cache.pickOn !== on && !this.editing) { this.cache.pickOn = on; this.btn.pick.classList.toggle('ads-off', !on); } }
-    // 下投げ: 投げ物を手に持っている間だけ出す（射撃のボタンから指をずらして上で離すか、このボタンを押して離す）
-    if (this.btn.under) { const on = !!v.under; if (this.cache.underOn !== on && !this.editing) { this.cache.underOn = on; this.btn.under.classList.toggle('ads-off', !on); } }
+    // 手に持つ物でボタンの絵を変える（11-26）:
+    //  C4: 射撃のボタンは「投げる」、構えのボタンは「起爆」（貼った C4 が無い間は起爆を薄く）
+    //  投げ物: 射撃のボタンは「投げる」の絵。押したままボタンの外へ指をずらすと「下投げ」の絵と文字（そこで離すと下投げ）
+    { const ck = v.c4 ? 'c4|' + (v.c4n > 0 ? 1 : 0) + '|' + (v.c4left > 0 ? 1 : 0) : v.nadeHeld ? 'nd|' + (v.underArm ? 1 : 0) : '';
+      if (this.cache.c4k !== ck && !this.editing) {
+        this.cache.c4k = ck;
+        const sw = (id, icon, lb) => { const e = this.btn[id]; if (!e) return; const sv = e.querySelector('svg'); if (sv) sv.innerHTML = ICONS[icon] || ''; const l = e.querySelector('.lb'); if (l && !(this.mode.war && v.slots && v.slots[id])) l.textContent = lb; };
+        if (v.c4) { sw('fire', 'c4throw', '投げる'); sw('ads', 'c4det', ''); this.btn.ads && this.btn.ads.classList.toggle('dis', !(v.c4n > 0)); this.btn.fire && this.btn.fire.classList.toggle('dis', !(v.c4left > 0)); }
+        else {
+          if (v.nadeHeld) sw('fire', v.underArm ? 'under' : 'nadeThrow', v.underArm ? '下投げ' : ''); else sw('fire', 'fire', '');
+          sw('ads', 'ads', ''); this.btn.ads && this.btn.ads.classList.remove('dis'); this.btn.fire && this.btn.fire.classList.remove('dis');
+        }
+        if (this.btn.fire) { this.btn.fire.classList.toggle('c4', !!v.c4); this.btn.fire.classList.toggle('nade', !!v.nadeHeld); this.btn.fire.classList.toggle('under', !!(v.nadeHeld && v.underArm)); }
+        if (this.btn.ads) this.btn.ads.classList.toggle('c4', !!v.c4);
+      } }
     // 息止め: ボタンは構えている間だけ出す。息の残りの棒は、止めている間と戻るまで
     {
       const ws = p && p.ws, on = !!(p && p.alive && ads > 0.6);
@@ -355,7 +377,7 @@ export class Hud {
           }
         } else if (akey.startsWith('g|')) {
           const g = p.inv.gear.find(x => x.id === v.gearId);
-          am.querySelector('.mode').textContent = (GEAR[v.gearId] ? GEAR[v.gearId].name : '') + (v.gearId === 'c4' ? (p.ws.c4m === 'det' ? `・起爆（置いた ${v.c4n || 0}）` : '・投げる') : '');
+          am.querySelector('.mode').textContent = (GEAR[v.gearId] ? GEAR[v.gearId].name : '') + (v.gearId === 'c4' ? `・貼った ${v.c4n || 0}` : '');
           am.querySelector('.cnt').innerHTML = `<b>${g ? g.n : 0}</b><span>個</span>`;
           am.querySelector('.mags').innerHTML = '';
         } else if (wi && W) {
@@ -392,11 +414,11 @@ export class Hud {
       // 射撃モードのボタン: 射撃モードだけ（フル・バースト・単発）。倍率は別のボタン（倍率を切り替えられる照準器の時だけ出す。11-19 14:03）
       const bino = p.ws.slot === 2 && p.ws.gear === 'binoc' && GEAR.binoc;
       const zs = bino ? GEAR.binoc.zooms : !m320 && W && wi ? zoomsOf(wi.att) : null;
-      // C4 を持っている: 射撃モードのボタンで「投げる／起爆」
+      // C4 を持っている: 射撃のボタンで投げ、構えのボタンで起爆（射撃モードのボタンは使わない）
       const c4 = p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4';
-      const fm = c4 ? (p.ws.c4m === 'det' ? '起爆' : '投げる') : m320 ? '弾種' : W ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') : '';
+      const fm = c4 ? '' : m320 ? '弾種' : W ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') : '';
       const zl = bino ? `×${GEAR.binoc.zooms[p.ws.bz ?? GEAR.binoc.zi]}` : zs ? (zoomOf(wi) <= 1 ? '×1' : `×${zoomOf(wi)}`) : '';
-      const fk = fm + '|' + zl + '|' + (zs ? 1 : 0) + (c4 || m320 || (W && W.modes.length > 1) ? 1 : 0);
+      const fk = fm + '|' + zl + '|' + (zs ? 1 : 0) + (m320 || (!c4 && W && W.modes.length > 1) ? 1 : 0);
       if (this.cache.fmk !== fk) {
         this.cache.fmk = fk;
         this.btn.fmode.querySelector('.lb').textContent = fm;
@@ -582,6 +604,14 @@ export class Hud {
         const w = c.measureText(m.t).width + 10;
         c.fillStyle = 'rgba(8,12,18,0.62)'; c.fillRect(m.x - w / 2, m.y - 9, w, 18);
         c.fillStyle = '#f2f4f5'; c.fillText(m.t, m.x, m.y + 0.5);
+      } else if (m.k === 'downm') {
+        // 倒れた味方: 白い十字（起こされている間は緑）と距離。衛生には残りの輪（減っていく。少ないと赤）
+        c.globalAlpha = 0.95; const r = 8;
+        c.beginPath(); c.arc(m.x, m.y, r + 2, 0, Math.PI * 2); c.fillStyle = 'rgba(8,12,18,0.55)'; c.fill();
+        if (m.left != null) { c.beginPath(); c.arc(m.x, m.y, r + 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * m.left); c.lineWidth = 2.5; c.strokeStyle = m.left < 0.3 ? '#ff5a4a' : '#f2f4f5'; c.stroke(); }
+        c.fillStyle = m.rev ? '#6ee07a' : '#ff5a4a'; const a = 2.2, b = 5.5;
+        c.fillRect(m.x - a, m.y - b, a * 2, b * 2); c.fillRect(m.x - b, m.y - a, b * 2, a * 2);
+        c.font = '700 10px Inter, sans-serif'; c.fillStyle = 'rgba(235,240,245,0.92)'; c.fillText(Math.round(m.d) + 'm', m.x, m.y + r + 10);
       } else if (m.k === 'spot') {
         // 印をつけた敵: 赤い菱形と距離
         c.globalAlpha = 0.95; const s = 6;

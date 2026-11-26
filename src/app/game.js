@@ -2,7 +2,8 @@
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
 import { curWeapon, curW, ammoCount, makeWeapon } from '../engine/actor.js';
-import { contextOf, OP_NAME, doorOps, personOps } from '../engine/interact.js';
+import { contextOf, OP_NAME, doorOps, personOps, personPoint } from '../engine/interact.js';
+import { WAR_DOWN_T } from '../engine/status.js';
 import { spreadDeg, magNear } from '../engine/weapon.js';
 import { vaultPlan } from '../engine/move.js';
 import { depSpot, DEP_WHY } from '../engine/deploy.js';
@@ -317,6 +318,8 @@ export class Match {
       const b = this.S.war ? (e.b === 'gear' ? 'nade' : e.b) : (e.b === 'heal' || e.b === 'gad' ? 'gear' : e.b), k = e.k;
       switch (b) {
         case 'ads': {
+          // C4 を持っている: 構えのボタン（右クリック）で起爆（本家と同じ）。構えにはしない
+          if (p && p.ws && p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4') { if (k === 'down') this.acts.push({ a: 'c4det' }); this.adsOn = false; break; }
           const mode = st.adsMode || 'tap';
           if (e.mouse) { this.adsOn = k === 'down'; break; }
           if (mode === 'hold') { if (k === 'down') this.adsOn = true; else if (k !== 'long') this.adsOn = false; }
@@ -364,7 +367,7 @@ export class Match {
         // 落ちた弾倉を拾う（大規模戦。近くにある間だけボタンが出る。キーボードは V）
         case 'pick': if (k === 'down') this.acts.push({ a: 'pickmag' }); break;
         case 'use':
-          if (this.S.war) { if (k === 'down' && magNear(this.S, p)) this.acts.push({ a: 'pickmag' }); break; }
+          if (this.S.war) { if (k === 'down') { const rt = this._reviveTgt(); if (rt && p.inv.gear.some(x => x.id === 'bandage' && x.n > 0)) this.acts.push({ a: 'op', k: 'person', id: rt.id, op: 'revive' }); else if (magNear(this.S, p)) this.acts.push({ a: 'pickmag' }); } break; }
           if (p.peek) { if (k === 'tap' || (k === 'down' && e.key)) this._peekQuit(); break; }
           if (k === 'tap' || (k === 'down' && e.key)) { if (!e.key || k === 'down') this._useDefault(); }
           else if (k === 'long') this._useMenu(e);
@@ -375,7 +378,8 @@ export class Match {
         // 大規模戦: 投げ物（G）・包帯（3）・道具（4・5）のボタン（BattleBit のキーに合わせて分ける。11-20）
         case 'nade': if (k === 'tap') this._slotUse('nade'); else if (k === 'long' && !(this.app.input.radial)) this._slotMenu('nade', e.pid, e.x, e.y); break;
         case 'gad': if (k === 'tap') this._slotUse('gad'); else if (k === 'long' && !(this.app.input.radial)) this._slotMenu('gad', e.pid, e.x, e.y); break;
-        case 'heal': if (k === 'tap') { const g = p.inv.gear.find(x => x.id === 'bandage'); if (g && g.n > 0) this.acts.push({ a: 'gear', id: 'bandage' }); } break;
+        // 包帯: 近くに倒れた味方がいれば起こす（本家と同じく包帯を1つ使う。11-26）。いなければ自分に巻く
+        case 'heal': if (k === 'tap') { const g = p.inv.gear.find(x => x.id === 'bandage'); if (g && g.n > 0) { const rt = this.S.war ? this._reviveTgt() : null; this.acts.push(rt ? { a: 'op', k: 'person', id: rt.id, op: 'revive' } : { a: 'gear', id: 'bandage' }); } } break;
         case 'gear':
           // 手に持った物（投げ物・RPG など）を持っていれば銃に戻す。選んだのが RPG（@long）なら構える
           if (k === 'tap') { if (p.ws.slot === 2 || p.ws.slot === 3) this.acts.push({ a: 'switch', slot: p.ws.prev >= 0 && p.ws.prev < 2 ? p.ws.prev : 0 }); else if (this.gearSel === '@long') this.acts.push({ a: 'long' }); else if (this.gearSel) this.acts.push({ a: 'gear', id: this.gearSel }); }
@@ -436,6 +440,8 @@ export class Match {
     // 構える・構えをやめる: 銃を上げ下げする小さな音（自分だけ・大規模戦）
     if (this.adsOn !== this._adsWas) { if (this._adsWas != null && this.S && this.S.war && p && p.alive && !p.down) this.au.sfx('act', null, { vol: 0.1, rate: this.adsOn ? 1.4 : 1.2 }); this._adsWas = this.adsOn; }
     if (inp.under && !inp.fire) this._underUntil = performance.now() + 250;
+    // C4 を持っている間は構えない（構えのボタンは起爆）
+    if (p && p.ws && p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4') this.adsOn = false;
     const cmd = {
       mx: inp.mx, mz: inp.mz, yaw: this.yaw, pitch: this.pitch,
       // ローレディは人の操作からはなくした（0.1.13。撃てなくなるだけで使う理由がない）。AI は今までどおり使う（銃を下げて歩く・投降など）
@@ -702,9 +708,24 @@ export class Match {
       const it = id ? this._slotItem(id === '@long' ? 'long' : id) : null;
       out[kind] = it ? { lb: it.lb, n: it.n, dis: it.n === 0, on: held === id } : { lb: '', n: null, dis: true, on: false };
     }
-    const b = p.inv.gear.find(x => x.id === 'bandage');
-    out.heal = { lb: '包帯', n: b ? b.n : 0, dis: !b || b.n <= 0, on: held === 'bandage' };
+    const b = p.inv.gear.find(x => x.id === 'bandage'), rt = b && b.n > 0 ? this._reviveTgt() : null;
+    out.heal = { lb: rt ? '起こす' : '包帯', n: b ? b.n : 0, dis: !b || b.n <= 0, on: held === 'bandage' || !!rt };
     return out;
+  }
+  // 起こせる倒れた味方（大規模戦）: 自分が立っていて、1.8m 以内（横たわった胴の点から。エンジンは 1.9m まで届く）の倒れた味方のうち、近くて前にいる人
+  _reviveTgt() {
+    const S = this.S, p = this.p;
+    if (!S || !S.war || !p || !p.alive || p.down || (p.act && p.act.k !== 'revive')) return null;
+    const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
+    let best = null, bs = 1e9;
+    for (const b of S.actors) {
+      if (b === p || !b.alive || !b.down || b.team !== p.team) continue;
+      const tp = personPoint(S, b), dx = tp[0] - p.x, dz = tp[2] - p.z, d = Math.hypot(dx, dz);
+      if (d > 1.8 || Math.abs(b.y - p.y) > 0.7) continue;
+      const sc = d - 0.6 * (dx * fx + dz * fz) / (d || 1);
+      if (sc < bs) { bs = sc; best = b; }
+    }
+    return best;
   }
   // ---- ドローン（対戦の攻撃側）
   _droneToggle() {
@@ -798,7 +819,7 @@ export class Match {
         // 近接: 振る音、当たった物の音（体・バリケードはそれぞれの出来事で）
         case 'melee': { const a = S.byId[e.id]; au.sfx('throw', e.id === me || !a ? null : [a.x, a.y + 1.3, a.z], { vol: e.id === me ? 0.75 : 0.55, rate: 1.3 }); break; }
         // C4: 起爆の音・切り替えの音
-        case 'c4': if (e.id === me) { if (e.k === 'det') au.sfx('beep', null, { vol: 0.8, rate: 1.4 }); else if (e.k === 'mode') au.sfx('fmode', null, { vol: 0.5 }); } break; // 投げる／起爆は射撃モードのボタンに出る（画面の真ん中の文字は出さない）
+        case 'c4': if (e.id === me) { if (e.k === 'det') au.sfx('beep', null, { vol: 0.8, rate: 1.4 }); else if (e.k === 'none') { au.sfx('dry', null, { vol: 0.5 }); hud.showBanner('貼った C4 がない', 1100); } } break; // 投げるは射撃のボタン・起爆は構えのボタン（11-26）
         case 'mine': if (e.k === 'place' && e.by === me) au.sfx('cuffs', null, { vol: 0.5, rate: 0.8 }); break;
         case 'stick': { au.sfx('nadeBounce', [e.x, e.y, e.z], { vol: 0.6, rate: 0.7 }); break; }
         // 大ハンマー: 振る音・当たった音と粉（壁は面の色の欠片）
@@ -1503,11 +1524,14 @@ export class Match {
     if (S.war) this._fixSlots();
     // 投げ物を手に持っている（下投げのボタンを出す・握っている間の信管の輪）
     const nadeHeld = !!(p.alive && !p.down && p.ws && p.ws.slot === 2 && p.ws.gear && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'nade');
+    // 射撃の指: 投げ物を持っている間は、ずらすと下投げ（見回さない）
+    this.app.input.nadeHeld = nadeHeld;
     const v = {
-      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null, pick: !!(S.war && magNear(S, p)), under: nadeHeld,
+      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null, pick: !!(S.war && magNear(S, p)), nadeHeld, underArm: nadeHeld && !!this.app.input.underArm,
       // ダッシュを押しているが、ほかの操作（構える・リーン・撃つ・リロード）が先で走っていない
       sprWait: !!(p.alive && !p.sprint && this.app.input && (this.app.input.sprintArm || this.app.input.sprintLock)), leanL: this.leanSide < 0, leanR: this.leanSide > 0, nvgOn: this.nvgOn, hasNvg: p.armor.head === 'nvg',
       gearSel: this.gearSel, gearId: p.ws.gear, team: this.team, c4n: S.war ? (S.nades || []).filter(n => n.type === 'c4' && n.by === p.id).length : 0,
+      c4: !!(p.alive && !p.down && p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4'), c4left: (p.inv.gear.find(g => g.id === 'c4') || { n: 0 }).n,
       spread: wi ? spreadDeg(S, p, WEAPONS[wi.id], wi) : 2,
       giveup: S.war && S.m.mode !== 'range' && p.alive && p.down ? (this.time - (this._guT ?? -99) < 2.5 ? 2 : 1) : 0,
       optic: p.ws && p.ws.slot === 2 && p.ws.gear === 'binoc' ? BINOC_OPTIC : null, canVault: this.vaultOK !== false, rally: this._rallyBtn(),
@@ -1526,7 +1550,7 @@ export class Match {
     let prompt = '';
     if (c && !tooFar(c)) prompt = `${ctxName(c, S)}: ${OP_NAME[c.def.op] || c.def.op}` + (c.def.far ? '（間に物がある）' : c.ops.length > 1 ? '（長押し: メニュー）' : '');
     if (!c && this.depHint) prompt = this.depHint;
-    if (p.act) { v.prog = Math.min(1, p.act.t / p.act.dur); v.progLabel = OP_NAME[p.act.k] || ''; prompt = ''; }
+    if (p.act) { v.prog = Math.min(1, p.act.t / p.act.dur); v.progLabel = S.war && p.act.k === 'revive' ? '起こす' : OP_NAME[p.act.k] || ''; prompt = ''; }
     // 投げ物を握っている（ピンを抜いた）: 信管の残りを輪で（離すと投げる。0 で手の中で爆発）
     else if (nadeHeld && p.ws.cook != null && !GEAR[p.ws.gear].impact) { const fz = fuseOf(S, p.ws.gear), left = Math.max(0, fz - p.ws.cook); v.prog = Math.min(1, p.ws.cook / fz); v.progLabel = `${left.toFixed(1)}秒`; }
     if (this.droneId != null) prompt = S.m && S.m.phase === 'prep' && p.staged ? 'ドローン ― 射撃: 敵にマーク／乗り越え: ジャンプ（準備が終わると出現地点に出る）' : 'ドローン ― 射撃: マーク／乗り越え: ジャンプ／ドローン: 戻る';
@@ -1591,6 +1615,10 @@ export class Match {
   _warPrompt(prompt) {
     const S = this.S, p = this.p, m = S.m;
     if (!p.alive) return '';
+    // 倒れている: 起こしてもらえるまでの残り（起こされている間は止まる）
+    if (p.down) { const left = Math.max(0, Math.ceil((p.dbno || 0) / 20 * WAR_DOWN_T)); return p.revT != null && S.t - p.revT <= 2 ? `${(S.byId[p.revBy] || {}).name || '味方'} が起こしている` : `倒れた ― 味方が起こせるのはあと ${left} 秒`; }
+    // 近くに倒れた味方: 包帯のボタンで起こす
+    if (!p.act) { const rt = this._reviveTgt(); if (rt) return p.inv.gear.some(x => x.id === 'bandage' && x.n > 0) ? `${rt.name} を起こす ― 包帯のボタン` : `${rt.name} を起こすには包帯が要る`; }
     // 道具の使い方・弾薬箱の説明の文字は出さない（見るのを邪魔する。BattleBit も出さない）
     for (const f of m.flags) {
       if (Math.hypot(p.x - f.x, p.z - f.z) > f.r) continue;
@@ -1635,8 +1663,18 @@ export class Match {
         list.push({ k: 'sign', x: q[0], y: q[1], t: sg.d + 'm', d });
       }
     }
+    // 倒れた味方（11-26。本家 1.31: 衛生には倒れた人の印と、あきらめるまでの残り時間が見える）:
+    //  衛生は 150m 以内の倒れた味方すべてに十字と残りの輪。ほかの兵科は分隊の人（150m）と近くの味方（40m）に十字だけ
+    const medic = p.warCls === 'medic' && p.alive && !p.down;
     for (const a of S.actors) {
-      if (a === p || !a.alive || a.team !== my) continue;
+      if (a === p || !a.alive || !a.down || a.team !== my) continue;
+      const d = Math.hypot(a.x - cam.x, a.z - cam.z);
+      if (d > 150 || (!medic && a.squad !== p.squad && d > 40)) continue;
+      const q = proj(a.x, a.y + 0.9, a.z); if (!q || q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) continue;
+      list.push({ k: 'downm', x: q[0], y: q[1], d, left: medic ? Math.max(0, Math.min(1, (a.dbno || 0) / 20)) : null, rev: a.revT != null && S.t - a.revT <= 2 });
+    }
+    for (const a of S.actors) {
+      if (a === p || !a.alive || a.down || a.team !== my) continue;
       const d = Math.hypot(a.x - cam.x, a.z - cam.z); if (d > 140) continue;
       const q = proj(a.x, a.y + bodyH(a) + 0.45, a.z); if (!q || q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) continue;
       const sq = a.squad === p.squad;

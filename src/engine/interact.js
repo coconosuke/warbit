@@ -159,7 +159,8 @@ function doorDist(d, x, z) {
 // 届かない理由（直前の reachOK）: 'dist' 離れている、'block' 間に物・人・壁がある
 export let REACH_WHY = 'dist';
 export function reachOK(S, w, a, k, id, op, slack = 0) {
-  const lim = (REACH_D[op] ?? 1.0) + slack;
+  // 大規模戦で起こす: 横たわった体のどこかに手が届けばよい（胴の点から 1.9m まで。倒れる途中に始めても、倒れきった胴に届く）
+  const lim = (REACH_D[op] ?? 1.0) + slack + (S.war && op === 'revive' ? 0.9 : 0);
   REACH_WHY = 'dist';
   if (lim >= 90) return true;
   const L = levelOfY(a.y + 0.2);
@@ -463,7 +464,8 @@ export function personOps(S, a, b) {
   const ops = [];
   if (S.pvp) {
     // 起こす: 大規模戦は包帯が要る（BattleBit と同じく包帯で起こす。誰でも）
-    if (b.alive && b.down && b.team === a.team && (!S.war || (a.inv && a.inv.gear.some(g => g.id === 'bandage' && g.n > 0)))) ops.push({ op: 'revive', t: ACT_T.revive });
+    //  衛生は包帯を 2 倍の速さで使う（公式 wiki。research/WARBIT.md の 57）
+    if (b.alive && b.down && b.team === a.team && (!S.war || (a.inv && a.inv.gear.some(g => g.id === 'bandage' && g.n > 0)))) ops.push({ op: 'revive', t: ACT_T.revive * (S.war && a.warCls === 'medic' ? 0.5 : 1) });
     return ops;
   }
   if (b.alive && !b.cuffed && (b.comply >= 1 || b.down || b.tased > 0 || b.stun > 1.0 || b.flash > 1.0) && b.kind !== 'swat') ops.push({ op: 'restrain', t: ACT_T.restrain });
@@ -584,7 +586,8 @@ export function doAction(S, w, a, ac, ev) {
     if (!ctx || ctx.k !== ac.k || ctx.id !== ac.id) {
       // AIは見ていなくても近ければよい
       if (a.pid == null && ac.k === 'door') ctx = { k: 'door', id: ac.id, ops: doorOps(S, w, a, ac.id) };
-      else if (a.pid == null && ac.k === 'person') { const b = S.byId[ac.id]; ctx = b ? { k: 'person', id: ac.id, ops: personOps(S, a, b) } : null; }
+      // 大規模戦の人も: 倒れた味方を起こすボタン（狙いを合わせなくても、近くの倒れた味方を選んで押す）
+      else if ((a.pid == null || S.war) && ac.k === 'person') { const b = S.byId[ac.id]; ctx = b ? { k: 'person', id: ac.id, ops: personOps(S, a, b) } : null; }
       else if (a.pid == null && ac.k === 'item') { const it = S.items.find(x => x.id === ac.id); ctx = it ? { k: 'item', id: ac.id, ops: itemOps(S, a, it) } : null; }
       else if (a.pid == null && ac.k === 'site') { const eye = eyeOf(S, a); ctx = siteOps(S, w, a, eye, 0, 0); }
       else if (a.pid == null && ac.k === 'wall') { const kk = ac.id; ctx = { k: 'wall', id: kk, q: ac.q || 1, ops: wallOps(S, w, a, { k: kk, q: ac.q || 1 }) }; }
@@ -700,6 +703,8 @@ export function stepActs(S, w, dt, ev) {
       if (!b) { cancel('gone'); continue; }
       if (x.k === 'restrain' && (b.cuffed || !b.alive || (!b.comply && !b.down && b.tased <= 0 && b.stun <= 0 && b.flash <= 0.2))) { cancel('tgt'); continue; }
       if (x.k === 'restrain') { b.cuffK = Math.min(1, x.t / x.dur); b.cuffBy = a.id; }
+      // 起こしている: 倒れた人の時間は止める（手当てを受けている間に尽きない）。起きる前に死んだら止める
+      if (x.k === 'revive') { if (!b.alive || !b.down) { cancel('tgt'); continue; } b.revT = S.t; b.revBy = a.id; }
     }
     x.t += dt;
     if (x.t < x.dur) continue;
@@ -915,29 +920,22 @@ function gearInHand(S, w, a, dt, ev) {
   }
 }
 
-// C4: ws.c4m = 'throw'（投げる）| 'det'（起爆）。BattleBit のように、いくつも貼ってから まとめて起爆できる:
-// 投げても残りがあれば「投げる」のまま（残りがなくなったら起爆へ）。射撃モードのボタンで起爆へ切り替え、起爆すると（残りがあれば）投げるに戻る。
-// 続けて投げるのは 0.6 秒あける
+// C4（11-26 から本家と同じ操作）: 引き金（左）で投げて貼る（続けて投げるのは 0.6 秒あける）。起爆は構えのボタン（右）＝ 'c4det' の操作
+//  （weapon.js）。いくつも貼ってから まとめて起爆できる。残りが無く、貼った物も無ければ前の銃へ
 export function myC4(S, a) { return (S.nades || []).filter(n => n.type === 'c4' && n.by === a.id); }
 function c4Tick(S, a, g, press, ev) {
-  const ws = a.ws, left = g ? g.n : 0, placed = myC4(S, a).length;
-  if (!ws.c4m) ws.c4m = left > 0 ? 'throw' : 'det';
-  if (ws.c4m === 'throw' && left <= 0) ws.c4m = 'det';
-  if (ws.c4m === 'det' && placed === 0 && left <= 0) { switchTo(S, a, ws.prev >= 0 ? ws.prev : 0, ev); ws.st = 'holster'; return; }
+  const ws = a.ws, left = g ? g.n : 0;
+  // 手に見える物（残りがあれば C4、無ければ起爆装置だけ）
+  ws.c4m = left > 0 ? 'throw' : 'det';
+  if (left <= 0 && myC4(S, a).length === 0) { switchTo(S, a, ws.prev >= 0 ? ws.prev : 0, ev); ws.st = 'holster'; return; }
   if (!press || a.sprint || a.vault) return;
-  if (ws.c4m === 'throw') {
-    if (ws.c4next && S.t < ws.c4next) return;
-    g.n--;
-    const n = throwNade(S, a, 'c4', 0.35, ev);
-    n.sticky = true; n.fuse = 1e9;
-    ws.c4next = S.t + Math.round(0.6 / S.dt);
-    if (g.n <= 0) ws.c4m = 'det';
-    ev.push({ e: 'c4', id: a.id, k: 'throw', left: g.n });
-  } else if (placed > 0) {
-    for (const n of myC4(S, a)) n.t = n.fuse;
-    ev.push({ e: 'c4', id: a.id, k: 'det', n: placed });
-    if (left > 0) ws.c4m = 'throw';
-  } else if (left > 0) ws.c4m = 'throw';
+  if (left <= 0) { ev.push({ e: 'deny', id: a.id, why: 'nogear' }); return; }
+  if (ws.c4next && S.t < ws.c4next) return;
+  g.n--;
+  const n = throwNade(S, a, 'c4', 0.35, ev);
+  n.sticky = true; n.fuse = 1e9;
+  ws.c4next = S.t + Math.round(0.6 / S.dt);
+  ev.push({ e: 'c4', id: a.id, k: 'throw', left: g.n });
 }
 
 // 大ハンマーを振る: ws.swing = 振り始めてからの時間（なければ振っていない）。hitAt で当たりを見る

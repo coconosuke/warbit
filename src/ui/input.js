@@ -32,6 +32,8 @@ export function onRepeat(el, fn) {
 }
 
 const DRAG_MENU = new Set(['nade', 'gad', 'gear']); // ずらすと選ぶ円が出るボタン
+// 下投げにする、射撃の指をずらす距離（画面の基準 844×390 の点。射撃のボタンの半径 43 の少し外）
+const UNDER_D = 52;
 const LONG = 360; // 長押し（ms）。11-20: 420 → 360（伏せ・投げ物を選ぶ・弾倉をまとめる の長押しが遅く感じる）
 // ダッシュの固定を続けるボタン（11-12）: 撃つ・構える・リーン・リロードの間は走らず、終わるとまた走る（押したままのダッシュと同じ）。
 // 持ち替え・乗り越えも走ったまま。ほかのボタン（調べる・命令・装備・しゃがむなど）は、今までどおり固定をやめる
@@ -56,7 +58,7 @@ export class Input {
     this.sprintArm = false; this.sprintLock = false; this.sprPress = 0;
     this.toggles = { ads: false, leanL: false, leanR: false, crouch: false, prone: false, low: false };
     this.gyro = { on: false, ok: false, x: 0, y: 0, last: 0 };
-    this.onStick = null; this.onRadial = null; this.onBtn = null; this.onDragMenu = null;
+    this.onStick = null; this.onRadial = null; this.onBtn = null; this.onDragMenu = null; this.onUnderRing = null;
     this.radial = null; // 開いている円形メニュー {btn, x, y, items, sel, pid}
     // タッチの記録（fps の表示）: cancel 指の取り消し・tcancel タッチの取り消し・lost つかみが外れた・stale 離したのが届かず捨てた
     this.diag = { cancel: 0, tcancel: 0, lost: 0, stale: 0 };
@@ -71,15 +73,12 @@ export class Input {
     this.mouseBtn = { l: false, r: false };
     this.radial = null; if (this.onRadial) this.onRadial(null);
     if (this.onStick) this.onStick(null);
+    this.underArm = false; if (this.onUnderRing) this.onUnderRing(null);
     for (const el of this.area.querySelectorAll('.down')) el.classList.remove('down');
   }
-  // 指が下投げのボタン（出ている時だけ）の上にあるか
-  _overUnder(e) {
-    const u = this._underEl || (this._underEl = this.area.querySelector('[data-btn="under"]'));
-    if (!u || !u.isConnected || u.classList.contains('ads-off') || u.classList.contains('hidden')) { if (u && !u.isConnected) this._underEl = null; return false; }
-    const r = u.getBoundingClientRect(), m = 6;
-    return e.clientX >= r.left - m && e.clientX <= r.right + m && e.clientY >= r.top - m && e.clientY <= r.bottom + m;
-  }
+  // 投げ物を持っている時の射撃の指（11-26 22:21 の指示）: 押して離すと上投げ、押したまま一定の距離（UNDER_D）より外へずらして離すと下投げ。
+  //  投げ物を持っている間は、射撃の指をずらしても見回さない（ずらすのは下投げの選び）。game.js が nadeHeld を毎こま入れる
+  _underOf(p, sx, sy) { return Math.hypot(sx - p.x0, sy - p.y0) > UNDER_D; }
   _btnOf(e) { let t = e.target; while (t && t !== this.area) { if (t.dataset && t.dataset.btn && !t.classList.contains('hidden')) return t; t = t.parentNode; } return null; }
   _bind() {
     const a = this.area;
@@ -96,7 +95,9 @@ export class Input {
       if (el) {
         const b = el.dataset.btn;
         // 時刻は出来事の起きた時（重いこまで処理が遅れても、短く押したのを長押しにしない）
-        const p = { kind: 'btn', btn: b, el, x: sx, y: sy, x0: sx, y0: sy, t0: evT(e), tp: performance.now(), moved: 0, long: false, pt: e.pointerType };
+        const p = { kind: 'btn', btn: b, el, x: sx, y: sy, x0: sx, y0: sy, t0: evT(e), tp: performance.now(), moved: 0, long: false, pt: e.pointerType, nade: (b === 'fire' || b === 'fireL') && !!this.nadeHeld };
+        // 投げ物を持って射撃を押した: 下投げになる境目の輪を、指を置いた所に出す（11-26 22:29）
+        if (p.nade && this.onUnderRing) this.onUnderRing({ x: sx, y: sy, r: UNDER_D, arm: false });
         this.ptr.set(e.pointerId, p);
         if (this.sprintLock && !KEEP_LOCK.has(b)) { this.sprintLock = false; this.sprintArm = false; if (this.onStick) this.onStick(null); }
         this.hold.add(b); el.classList.add('down');
@@ -143,8 +144,7 @@ export class Input {
         if (!this.radial && !p.dragged && p.moved > 16 && this.onDragMenu && DRAG_MENU.has(p.btn)) { p.dragged = true; this.onDragMenu(p.btn, e.pointerId, p.x0, p.y0); }
         if (this.radial && this.radial.pid === e.pointerId) { this._radialMove(sx, sy); }
         else if (p.btn === 'fire' || p.btn === 'fireL') {
-          // 下投げのボタンの上に来た指は見回さない（射撃のボタンから下投げへ指をずらす間に、狙いが動きすぎないように）
-          if (this._overUnder(e)) { p.x = sx; p.y = sy; return; }
+          if (p.nade) { p.x = sx; p.y = sy; const u = this._underOf(p, sx, sy); if (u !== !!this.underArm) { this.underArm = u; if (this.onUnderArm) this.onUnderArm(u); if (this.onUnderRing) this.onUnderRing({ x: p.x0, y: p.y0, r: UNDER_D, arm: u }); } return; }
           if (this.S.fireLook !== false) { this._lookAdd(e, p, sx, sy); return; }
         }
         p.x = sx; p.y = sy;
@@ -168,13 +168,17 @@ export class Input {
       if (p.kind === 'radialTap') { if (!cancel) this._radialPick(true); return; }
       if (p.kind !== 'btn') return;
       this.hold.delete(p.btn); p.el.classList.remove('down');
-      // 下投げ: 下投げのボタンを離した、または射撃の指を下投げのボタンの上で離した（取り消しは除く）
-      if (!cancel && (p.btn === 'under' || ((p.btn === 'fire' || p.btn === 'fireL') && this._overUnder(e)))) this._underRel = true;
+      // 下投げ: 投げ物を持って押した射撃の指を、一定の距離より外へずらして離した（取り消しは除く）
+      if ((p.btn === 'fire' || p.btn === 'fireL') && p.nade) {
+        if (!cancel) { const [ux, uy] = this.stage.toStage(e.clientX, e.clientY); if (this._underOf(p, ux, uy)) this._underRel = true; }
+        if (this.underArm) { this.underArm = false; if (this.onUnderArm) this.onUnderArm(false); }
+        if (this.onUnderRing) this.onUnderRing(null);
+      }
       lastTapUp = performance.now();
       if (this.radial && this.radial.pid === e.pointerId) {
-        // 円形メニュー: 離した所を選ぶ（真ん中ならタップで選ぶ方式に切り替え）
+        // 円形メニュー: 離した所を選ぶ。真ん中で離したら何も選ばずに閉じる（11-26 22:23: 前は真ん中で離すとタップで選ぶ方式に切り替わり、
+        //  長押しで開いたメニューが離しても出たままになっていた）
         if (cancel) { this.closeRadial(); return; }
-        if (this.radial.sel < 0 && !this.radial.tapMode && p.moved < 14) { this.radial.tapMode = true; this.radial.pid = null; this.radial.t0 = performance.now(); if (this.onRadial) this.onRadial(this.radial); return; }
         this._radialPick(false);
         return;
       }
@@ -288,15 +292,19 @@ export class Input {
     // 11-26: 指がもう離れている（重いこまで、長押しの知らせを読む前に離した）なら開かない。
     //  前は離した指の番号で開いて、その指の「離した」が二度と来ないので開いたままになった
     if (pid != null && !this.ptr.has(pid)) return;
-    this.radial = { btn, items, pid, x: cx, y: cy, sel: -1, tapMode: pid == null, t0: performance.now() };
+    // ox, oy: 指を置いた所（選ぶ向きはここから測る。円の絵は画面の端で内側へずらすので、絵の中心とは違うことがある）
+    this.radial = { btn, items, pid, x: cx, y: cy, ox: cx, oy: cy, sel: -1, tapMode: pid == null, t0: performance.now() };
     if (this.onRadial) this.onRadial(this.radial);
   }
   closeRadial() { this.radial = null; if (this.onRadial) this.onRadial(null); }
   _radialMove(sx, sy) {
     const r = this.radial; if (!r) return;
-    const dx = sx - r.x, dy = sy - r.y, d = Math.hypot(dx, dy);
+    // 11-26 22:28: 指を置いた所から少し（22 点）ずらすだけで、その向きの物を選ぶ（前は円の絵の中心から 34 点×大きさで、
+    //  画面の端で円がずれると名前の所までずらさないと選べなかった）。タップで選ぶ方式は今までどおり円の中心から
+    const fx = r.tapMode ? r.x : r.ox ?? r.x, fy = r.tapMode ? r.y : r.oy ?? r.y;
+    const dx = sx - fx, dy = sy - fy, d = Math.hypot(dx, dy);
     const n = r.items.length;
-    if (d < 34 * Math.max(0.8, r.scale || 1)) r.sel = -1;
+    if (d < (r.tapMode ? 34 * Math.max(0.8, r.scale || 1) : 22)) r.sel = -1;
     else { let a = Math.atan2(dx, -dy); if (a < 0) a += Math.PI * 2; r.sel = Math.floor((a + Math.PI / n) / (Math.PI * 2 / n)) % n; if (!r.items[r.sel]) r.sel = -1; }
     if (this.onRadial) this.onRadial(r);
   }
@@ -350,9 +358,9 @@ export class Input {
     const [tgx, tgy] = this.gk ? this.gk.take(performance.now()) : [0, 0];
     const out = {
       mx, mz, lookDX: this.lookDX + tlx, lookDY: this.lookDY + tly, gyroX: this.gyro.x + tgx, gyroY: this.gyro.y + tgy,
-      fire: this.hold.has('fire') || this.hold.has('fireL') || this.hold.has('under') || this.mouseBtn.l,
-      // 下投げ（11-26）: 下投げのボタンを押している・射撃の指を下投げのボタンの上で離した・右ボタンを押したまま左を離した
-      under: this._underRel || this.hold.has('under') || (this.mouseBtn.r && !this.mouseBtn.l),
+      fire: this.hold.has('fire') || this.hold.has('fireL') || this.mouseBtn.l,
+      // 下投げ（11-26）: 射撃の指を一定の距離より外へずらして離した・右ボタンを押したまま左を離した
+      under: this._underRel || (this.mouseBtn.r && !this.mouseBtn.l),
       sprint: this.sprintArm || this.sprintLock || K.has('ShiftLeft') || this.hold.has('sprint'), sprPress: this.sprPress,
       hold: this.hold, edges: this.edges.slice(),
       mouse: !!document.pointerLockElement, touch: this.touchUsed,

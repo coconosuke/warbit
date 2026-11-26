@@ -18,6 +18,7 @@ uniform highp sampler2D uDLR;     // 動く光ごとに、届く部屋（光が�
 uniform vec4 uLGd;                // W1, D1, NLy, NL
 uniform vec4 uMapD;               // W, D, CS, LH
 uniform vec3 uSunDir; uniform vec3 uSunCol; uniform float uShadowOn; uniform mat4 uShadowVP; uniform highp sampler2DShadow uShadow; uniform float uShadowTexel;
+uniform float uShadowOn2; uniform mat4 uShadowVP2; uniform highp sampler2DShadow uShadow2;
 uniform vec3 uSkyCol; uniform float uAmbMin; uniform float uOuter; uniform float uWar; uniform float uFogFar; uniform float uGrassD;
 uniform vec4 uDLp[${MAX_DL}]; uniform vec4 uDLc[${MAX_DL}]; uniform vec4 uDLd[${MAX_DL}]; uniform int uDLn;
 uniform vec3 uCam; uniform vec3 uFogCol; uniform float uFogD; uniform float uFogIn; uniform float uTime;
@@ -65,18 +66,34 @@ float aoAt(vec3 p, vec3 n){
   k *= mix(1.0, mix(0.72, 1.0, smoothstep(0.0, 0.45, yl)) * mix(0.86, 1.0, smoothstep(2.8, 2.45, yl)), side);
   return k;
 }
+// 遠くの影（大規模戦。±300m・1 画素 約 0.3m）。-1 は範囲の外
+float sunShadowFar(vec3 p, vec3 n){
+  if (uShadowOn2 < 0.5) return -1.0;
+  vec4 c = uShadowVP2 * vec4(p + n * 0.35, 1.0);
+  vec3 q = c.xyz * 0.5 + 0.5;
+  if (q.x < 0.0 || q.y < 0.0 || q.x > 1.0 || q.y > 1.0 || q.z > 1.0) return -1.0;
+  float b = 0.0006, s = 0.0, t = 1.0 / 2048.0;
+  s += texture(uShadow2, vec3(q.xy + vec2(-0.7, -0.7) * t, q.z - b));
+  s += texture(uShadow2, vec3(q.xy + vec2(0.7, -0.7) * t, q.z - b));
+  s += texture(uShadow2, vec3(q.xy + vec2(-0.7, 0.7) * t, q.z - b));
+  s += texture(uShadow2, vec3(q.xy + vec2(0.7, 0.7) * t, q.z - b));
+  float e = min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y));
+  return mix(1.0, s * 0.25, smoothstep(0.0, 0.08, e));
+}
 float sunShadow(vec3 p, vec3 n){
   vec4 c = uShadowVP * vec4(p + n * 0.04, 1.0);
   vec3 q = c.xyz * 0.5 + 0.5;
-  if (q.x < 0.0 || q.y < 0.0 || q.x > 1.0 || q.y > 1.0 || q.z > 1.0) return -1.0;
+  if (q.x < 0.0 || q.y < 0.0 || q.x > 1.0 || q.y > 1.0 || q.z > 1.0) return sunShadowFar(p, n);
   float b = 0.0015, s = 0.0, t = uShadowTexel;
   s += texture(uShadow, vec3(q.xy + vec2(-0.6, -0.6) * t, q.z - b));
   s += texture(uShadow, vec3(q.xy + vec2(0.6, -0.6) * t, q.z - b));
   s += texture(uShadow, vec3(q.xy + vec2(-0.6, 0.6) * t, q.z - b));
   s += texture(uShadow, vec3(q.xy + vec2(0.6, 0.6) * t, q.z - b));
-  // 影の範囲の縁では影を薄くして、境目を目立たせない
-  float e = min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y));
-  return mix(1.0, s * 0.25, smoothstep(0.0, 0.12, e));
+  // 影の範囲の縁では、遠くの影へなめらかに移す（遠くの影が無ければ影なしへ）
+  float e = min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)), w = smoothstep(0.0, 0.12, e);
+  if (w >= 1.0) return s * 0.25;
+  float f = sunShadowFar(p, n);
+  return mix(f >= 0.0 ? f : 1.0, s * 0.25, w);
 }
 vec3 dynLights(vec3 p, vec3 n, float room){
   vec3 acc = vec3(0.0);

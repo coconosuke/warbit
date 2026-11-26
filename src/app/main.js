@@ -82,6 +82,7 @@ class App {
     this.input.setSettings(this.settings);
     this.input.onStick = (st, dx, dy, spr, lock) => this.hud.stick(st, dx, dy, spr, lock);
     this.input.onRadial = (r) => this.hud.radial(r);
+    this.input.onUnderRing = (o) => this.hud.underRing(o);
     this.input.getStickHome = () => this.hud.stickHome;
     this.fpsEl = $('#fps'); this.fadeEl = $('#fade'); this.ctxEl = $('.ctxlost');
     this.stage.onLayout(() => { this._resize(); if (this.game && (this.mode === 'pause' || this.mode === 'result')) this.game.redraw(); });

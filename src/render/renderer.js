@@ -86,7 +86,7 @@ function prog(gl, vs, fs, name, defs = '') {
   for (let k = 0; k < n; k++) { const info = gl.getActiveUniform(p, k); u[info.name.replace(/\[0\]$/, '')] = gl.getUniformLocation(p, info.name); }
   // テクスチャの番号は固定
   gl.useProgram(p);
-  const units = { uTex: 0, uLG: 1, uWM: 2, uAO: 3, uDLR: 4, uShadow: 5, uSrc: 6, uBloom: 7, uPip: 8 };
+  const units = { uTex: 0, uLG: 1, uWM: 2, uAO: 3, uDLR: 4, uShadow: 5, uSrc: 6, uBloom: 7, uPip: 8, uShadow2: 9 };
   for (const [k, v] of Object.entries(units)) if (u[k]) gl.uniform1i(u[k], v);
   return { p, u, name };
 }
@@ -178,6 +178,9 @@ export class Renderer {
     }
     if (q.fxaa) { this.ldr = tex2D(gl, W, H, {}); this.ldrF = fbo(gl, this.ldr, null); }
     if (q.shadow) { this.shT = depthTex(gl, q.shadow, q.shadow, true); this.shF = fbo(gl, null, this.shT); }
+    // 遠くの影（大規模戦。11-26: 本家 Operation Overhaul の「遠くでも同じ影」）: 2048 の地図で、カメラのまわり ±300m。
+    //  太陽は動かないので、毎こまは描かず、カメラが 100m 動いた時・壊れた時（3 秒に 1 回まで）だけ描き直す
+    if (q.shadow) { this.shT2 = depthTex(gl, 2048, 2048, true); this.shF2 = fbo(gl, null, this.shT2); if (this.sh2) this.sh2.dirty = true; }
   }
   _freeTargets() {
     const gl = this.gl, dt = t => t && gl.deleteTexture(t), df = f => f && gl.deleteFramebuffer(f);
@@ -187,6 +190,7 @@ export class Renderer {
     this.bloomT = [];
     dt(this.ldr); df(this.ldrF); this.ldr = this.ldrF = null;
     dt(this.shT); df(this.shF); this.shT = this.shF = null;
+    dt(this.shT2); df(this.shF2); this.shT2 = this.shF2 = null;
   }
   resize(cssW, cssH, dpr) {
     const px = cssW * cssH * dpr * dpr;
@@ -313,7 +317,7 @@ export class Renderer {
     this.dlrData = new Uint8Array(MAX_DL);
     this.dlr = tex2D(gl, 1, MAX_DL, { internal: gl.R8, format: gl.RED, data: this.dlrData, filter: gl.NEAREST });
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
-    this._job = null; this._dirty = null; this._boxJobs = null;
+    this._job = null; this._dirty = null; this._boxJobs = null; if (this.sh2) { this.sh2.dirty = true; this.sh2.ok = false; this.sh2.cx = 1e9; }
     this.chunks = buildWarFar(ww).map(c => { const m = makeWorldMesh(gl, c.B); return { k: c.k, x0: c.x0, z0: c.z0, x1: c.x1, z1: c.z1, y0: c.y0, y1: c.y1, far: m, farTris: m ? m.n / 3 : 0, far2: null, far2Tris: 0, lod2: false, near: null, nearTris: 0, grass: null, grassTris: 0, mesh: m, glass: null, tris: m ? m.n / 3 : 0, d: 1e9 }; });
     this.doorMeshes = []; this.barMeshes = []; this.outer = null;
     this.roofY = 1e9;
@@ -352,6 +356,7 @@ export class Renderer {
     if (was) ch.mesh2 = ch.nearBox;
   }
   _rebuildFar(ch) {
+    if (this.sh2) this.sh2.dirty = true;
     const gl = this.gl, m = makeWorldMesh(gl, buildWarFarChunk(this.war, ch.k).B);
     if (ch.mesh === ch.far) ch.mesh = m;
     delMesh(gl, ch.far); ch.far = m; ch.farTris = m ? m.n / 3 : 0; ch.farDirty = false;
@@ -443,6 +448,7 @@ export class Renderer {
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.aoT);
     gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, this.dlr);
     gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, this.shT || this.blankDepth());
+    gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, this.shT2 || this.blankDepth());
     if (u.uLGd) gl.uniform4f(u.uLGd, ...this.lgDim);
     if (u.uMapD) gl.uniform4f(u.uMapD, this.w0.W, this.w0.D, CS, LH);
     if (u.uSunDir) gl.uniform3fv(u.uSunDir, sky.sunDir);
@@ -450,6 +456,8 @@ export class Renderer {
     if (u.uShadowOn) gl.uniform1f(u.uShadowOn, this.shadowOn ? 1 : 0);
     if (u.uShadowVP) gl.uniformMatrix4fv(u.uShadowVP, false, this.shVP);
     if (u.uShadowTexel) gl.uniform1f(u.uShadowTexel, this.q.shadow ? 1 / this.q.shadow : 0);
+    if (u.uShadowOn2) gl.uniform1f(u.uShadowOn2, this.shadowOn && this.sh2 && this.sh2.ok ? 1 : 0);
+    if (u.uShadowVP2 && this.sh2) gl.uniformMatrix4fv(u.uShadowVP2, false, this.sh2.vp);
     if (u.uSkyCol) gl.uniform3fv(u.uSkyCol, sky.sky);
     if (u.uAmbMin) gl.uniform1f(u.uAmbMin, opts.ambMin || 0);
     if (u.uWar) gl.uniform1f(u.uWar, this.war ? 1 : 0);
@@ -532,7 +540,7 @@ export class Renderer {
     }
     // 影
     this.shadowOn = false;
-    if (this.q.shadow && this.sky.night < 0.5 && f.shadows !== false && !(this.war && (this.dynLite || 0) >= 2)) this._shadowPass(c);
+    if (this.q.shadow && this.sky.night < 0.5 && f.shadows !== false && !(this.war && (this.dynLite || 0) >= 2)) { this._shadowPass(c); if (this.war) this._shadowFarPass(c); }
     // スコープの中の像（倍率の低いスコープ。画面の中の丸いレンズにだけ拡大した世界を描く。research の 20）
     this.pipOn = false;
     if (f.pip && f.pip.r > 8) this._pipPass(f, c);
@@ -779,6 +787,45 @@ export class Renderer {
     gl.disable(gl.POLYGON_OFFSET_FILL);
     gl.enable(gl.CULL_FACE);
     this.shadowOn = true;
+  }
+
+  // 遠くの影の地図（大規模戦）: カメラのまわり ±R2。遠い形（2段目があればそれ）で描く。近い 44m は今までの細かい影が上に重なる
+  _shadowFarPass(c) {
+    const gl = this.gl, sky = this.sky, R2 = 300, N = 2048, Dd = 420;
+    if (!this.shT2) return;
+    const S2 = this.sh2 || (this.sh2 = { vp: new Float32Array(16), cx: 1e9, cz: 1e9, dirty: true, ok: false, next: 0, sun: '' });
+    const now = performance.now(), sunK = sky.sunDir.map(v => v.toFixed(3)).join(',');
+    const moved = Math.hypot(c.x - S2.cx, c.z - S2.cz) > 100;
+    if (!moved && sunK === S2.sun && !(S2.dirty && now >= S2.next)) return;
+    S2.dirty = false; S2.next = now + 3000; S2.sun = sunK;
+    // 中心はカメラの所を 16m の格子に合わせる（描き直しの前後で影がずれて見えないように）
+    const cx = Math.round(c.x / 16) * 16, cz = Math.round(c.z / 16) * 16, cy = c.y;
+    S2.cx = cx; S2.cz = cz;
+    const sd = sky.sunDir, view = new Float32Array(16), proj = new Float32Array(16);
+    m4lookAt(view, cx + sd[0] * Dd, cy + sd[1] * Dd, cz + sd[2] * Dd, cx, cy, cz, 0, 1, 0);
+    const n = 1, ff = Dd * 2;
+    proj[0] = 1 / R2; proj[5] = 1 / R2; proj[10] = -2 / (ff - n); proj[14] = -(ff + n) / (ff - n); proj[15] = 1;
+    m4mul(S2.vp, proj, view);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.shF2);
+    gl.viewport(0, 0, N, N);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+    gl.disable(gl.CULL_FACE);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2.0, 4.0);
+    const P = this.P.shadowCut;
+    gl.useProgram(P.p);
+    gl.uniformMatrix4fv(P.u.uVP, false, S2.vp);
+    gl.uniformMatrix4fv(P.u.uModel, false, this.ident);
+    if (P.u.uTex) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.texArr); gl.uniform1i(P.u.uTex, 0); }
+    const pl = frustumPlanes(S2.vp, new Float32Array(24));
+    for (const ch of this.chunks) {
+      const m = ch.far2 || ch.far;
+      if (!m || !aabbVisible(pl, ch.x0, ch.y0, ch.z0, ch.x1, ch.y1, ch.z1)) continue;
+      drawMesh(gl, m);
+    }
+    gl.disable(gl.POLYGON_OFFSET_FILL);
+    gl.enable(gl.CULL_FACE);
+    S2.ok = true;
   }
 
   _post(p, W, H) {
