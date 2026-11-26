@@ -491,6 +491,8 @@ function meleeHit(S, w, a, ev) {
   if (wh && wh.t0 < bt) {
     const x = eye[0] + dx * wh.t0, y = eye[1] + dy * wh.t0, z = eye[2] + dz * wh.t0;
     if (wh.kind === 'bar') bashBar(S, w, wh.bar, y, ev, a.id);
+    // 大規模戦の窓ガラス: 殴ると割れる（11-26 の指摘: 前は作戦・対戦のガラスの割り方を呼んでいて、割れなかった）
+    else if (w.war && wh.kind === 'box' && wh.mat === M.GLASS) { const gb = w.boxes[wh.id]; if (gb && gb.kind === 'glass') shatter(S, w, gb, ev, x, y, z); }
     else if (wh.mat === M.GLASS) breakGlass(S, w, Object.assign({}, wh, { by: a.id }), ev);
     ev.push({ e: 'meleehit', id: a.id, k: wh.kind === 'bar' ? 'bar' : wh.kind === 'door' ? 'door' : 'wall', m: wh.mat, x, y, z });
     if (wh.kind === 'door') ev.push({ e: 'door', d: wh.id, k: 'knock', id: a.id, loud: 0.45 });

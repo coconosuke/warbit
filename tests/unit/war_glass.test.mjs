@@ -37,3 +37,20 @@ test('弾が当たると割れて、弾はそのまま通る', async () => {
   ok(!b.alive, 'ガラスが割れた');
   ok(ev.some(e => e.e === 'wglass'), '知らせ');
 });
+test('殴る・大ハンマーで割れる', async () => {
+  const G = game(), S = G.S, w = G.w, me = S.actors[0];
+  for (const [label, act] of [['殴る', { a: 'melee' }], ['大ハンマー', null]]) {
+    const b = panes(w).find(q => q.alive && q.y0 - 0 < 1e9 && !q._used); b._used = true;
+    const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, cz = (b.z0 + b.z1) / 2, thinX = b.x1 - b.x0 < b.z1 - b.z0;
+    // ガラスの前 0.8m・目の高さがガラスのまん中
+    me.x = cx - (thinX ? 0.8 : 0); me.z = cz - (thinX ? 0 : 0.8); me.y = cy - 1.55; me.vy = 0;
+    me.yaw = Math.atan2(cx - me.x, cz - me.z); me.pitch = 0;
+    const evs = [];
+    if (act) { for (let i = 0; i < 40 && b.alive; i++) { me.x = cx - (thinX ? 0.8 : 0); me.z = cz - (thinX ? 0 : 0.8); me.y = cy - 1.55; me.vy = 0; evs.push(...step(G, { [me.id]: { mx: 0, mz: 0, yaw: me.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: i === 0 ? [act] : null } })); } }
+    else {
+      const { hammerHitForTest } = await import('../../src/engine/interact.js');
+      if (hammerHitForTest) hammerHitForTest(S, w, me, evs);
+    }
+    ok(!b.alive, label + 'で割れた');
+  }
+});

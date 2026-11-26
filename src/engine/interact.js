@@ -9,7 +9,7 @@ import { eyeOf, dropWeapon, capsOf, wristsOf, startMelee } from './combat.js';
 import { throwNade, launchNade, launchRocket } from './nades.js';
 import { pvpDamage, hurt } from './combat.js';
 import { rayCapsule } from './pose.js';
-import { carve } from '../war/destruct.js';
+import { carve, shatter } from '../war/destruct.js';
 import { placeBar, clearBar, bashBar } from './barricade.js';
 import { curW } from './actor.js';
 import { startReload, switchTo, m320Next, cancelReload } from './weapon.js';
@@ -943,6 +943,8 @@ function hammerHit(S, w, a, ev) {
   if (!hw) { ev.push({ e: 'hammer', id: a.id, k: 'air' }); return; }
   const hx = eye[0] + dx * hw.t0, hy = eye[1] + dy * hw.t0, hz = eye[2] + dz * hw.t0;
   ev.push({ e: 'hammer', id: a.id, k: 'wall', x: hx, y: hy, z: hz, m: hw.mat, nx: hw.nx, ny: hw.ny, nz: hw.nz });
+  // 大規模戦の窓ガラス: 1回で割れる
+  if (w.war && hw.kind === 'box' && hw.mat === M.GLASS) { const gb = w.boxes[hw.id]; if (gb && gb.kind === 'glass') shatter(S, w, gb, ev, hx, hy, hz); return; }
   // 大規模戦の壁・床: 同じ箱を決まった回数叩くと穴
   if (w.war && hw.kind === 'box') {
     const b = w.boxes[hw.id];
@@ -1147,3 +1149,4 @@ function detonateMine(S, w, a, ev) {
   if (!any) ev.push({ e: 'deny', id: a.id, why: 'nodet' });
 }
 export { launchNade };
+export { hammerHit as hammerHitForTest };
