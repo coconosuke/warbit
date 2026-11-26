@@ -78,7 +78,14 @@ export class Input {
   }
   // 投げ物を持っている時の射撃の指（11-26 22:21 の指示）: 押して離すと上投げ、押したまま一定の距離（UNDER_D）より外へずらして離すと下投げ。
   //  投げ物を持っている間は、射撃の指をずらしても見回さない（ずらすのは下投げの選び）。game.js が nadeHeld を毎こま入れる
-  _underOf(p, sx, sy) { return Math.hypot(sx - p.x0, sy - p.y0) > UNDER_D; }
+  //  境目の輪は、押した所ではなく射撃ボタンのまん中が起点（11-26 22:50）。半径はボタンより一回り大きく
+  _underOf(p, sx, sy) { return Math.hypot(sx - (p.ux ?? p.x0), sy - (p.uy ?? p.y0)) > (p.ur || UNDER_D); }
+  _underOrigin(p, el) {
+    try {
+      const r = el.getBoundingClientRect(), [cx, cy] = this.stage.toStage(r.left + r.width / 2, r.top + r.height / 2), [ex] = this.stage.toStage(r.right, r.top + r.height / 2);
+      p.ux = cx; p.uy = cy; p.ur = Math.max(UNDER_D, Math.abs(ex - cx) + 24);
+    } catch (e) { p.ux = p.x0; p.uy = p.y0; p.ur = UNDER_D; }
+  }
   _btnOf(e) { let t = e.target; while (t && t !== this.area) { if (t.dataset && t.dataset.btn && !t.classList.contains('hidden')) return t; t = t.parentNode; } return null; }
   _bind() {
     const a = this.area;
@@ -96,8 +103,8 @@ export class Input {
         const b = el.dataset.btn;
         // 時刻は出来事の起きた時（重いこまで処理が遅れても、短く押したのを長押しにしない）
         const p = { kind: 'btn', btn: b, el, x: sx, y: sy, x0: sx, y0: sy, t0: evT(e), tp: performance.now(), moved: 0, long: false, pt: e.pointerType, nade: (b === 'fire' || b === 'fireL') && !!this.nadeHeld };
-        // 投げ物を持って射撃を押した: 下投げになる境目の輪を、指を置いた所に出す（11-26 22:29）
-        if (p.nade && this.onUnderRing) this.onUnderRing({ x: sx, y: sy, r: UNDER_D, arm: false });
+        // 投げ物を持って射撃を押した: 下投げになる境目の輪を出す（11-26 22:29。起点は射撃ボタンのまん中）
+        if (p.nade) { this._underOrigin(p, el); if (this.onUnderRing) this.onUnderRing({ x: p.ux, y: p.uy, r: p.ur, arm: this._underOf(p, sx, sy) }); }
         this.ptr.set(e.pointerId, p);
         if (this.sprintLock && !KEEP_LOCK.has(b)) { this.sprintLock = false; this.sprintArm = false; if (this.onStick) this.onStick(null); }
         this.hold.add(b); el.classList.add('down');
@@ -144,7 +151,7 @@ export class Input {
         if (!this.radial && !p.dragged && p.moved > 16 && this.onDragMenu && DRAG_MENU.has(p.btn)) { p.dragged = true; this.onDragMenu(p.btn, e.pointerId, p.x0, p.y0); }
         if (this.radial && this.radial.pid === e.pointerId) { this._radialMove(sx, sy); }
         else if (p.btn === 'fire' || p.btn === 'fireL') {
-          if (p.nade) { p.x = sx; p.y = sy; const u = this._underOf(p, sx, sy); if (u !== !!this.underArm) { this.underArm = u; if (this.onUnderArm) this.onUnderArm(u); if (this.onUnderRing) this.onUnderRing({ x: p.x0, y: p.y0, r: UNDER_D, arm: u }); } return; }
+          if (p.nade) { p.x = sx; p.y = sy; const u = this._underOf(p, sx, sy); if (u !== !!this.underArm) { this.underArm = u; if (this.onUnderArm) this.onUnderArm(u); if (this.onUnderRing) this.onUnderRing({ x: p.ux, y: p.uy, r: p.ur, arm: u }); } return; }
           if (this.S.fireLook !== false) { this._lookAdd(e, p, sx, sy); return; }
         }
         p.x = sx; p.y = sy;
@@ -292,19 +299,28 @@ export class Input {
     // 11-26: 指がもう離れている（重いこまで、長押しの知らせを読む前に離した）なら開かない。
     //  前は離した指の番号で開いて、その指の「離した」が二度と来ないので開いたままになった
     if (pid != null && !this.ptr.has(pid)) return;
-    // ox, oy: 指を置いた所（選ぶ向きはここから測る。円の絵は画面の端で内側へずらすので、絵の中心とは違うことがある）
-    this.radial = { btn, items, pid, x: cx, y: cy, ox: cx, oy: cy, sel: -1, tapMode: pid == null, t0: performance.now() };
+    // ox, oy: 選ぶ向きを測る起点。ボタンから開いたときはボタンのまん中（11-26 22:51: 下投げの輪と同じく、押した所ではなくボタンが起点）。
+    //  円の絵もボタンのまん中に出す（hud.js）。dz: ここより外へずらすと選ぶ（ボタンの縁）
+    let ox = cx, oy = cy, dz = 22, anchor = false;
+    const pp = pid != null ? this.ptr.get(pid) : null;
+    if (pp && pp.el) {
+      try {
+        const r = pp.el.getBoundingClientRect(), [bx, by] = this.stage.toStage(r.left + r.width / 2, r.top + r.height / 2), [ex] = this.stage.toStage(r.right, r.top + r.height / 2);
+        ox = bx; oy = by; dz = Math.max(22, Math.abs(ex - bx)); anchor = true;
+      } catch (e) { /* なし */ }
+    }
+    this.radial = { btn, items, pid, x: ox, y: oy, ox, oy, dz, anchor, sel: -1, tapMode: pid == null, t0: performance.now() };
     if (this.onRadial) this.onRadial(this.radial);
   }
   closeRadial() { this.radial = null; if (this.onRadial) this.onRadial(null); }
   _radialMove(sx, sy) {
     const r = this.radial; if (!r) return;
-    // 11-26 22:28: 指を置いた所から少し（22 点）ずらすだけで、その向きの物を選ぶ（前は円の絵の中心から 34 点×大きさで、
-    //  画面の端で円がずれると名前の所までずらさないと選べなかった）。タップで選ぶ方式は今までどおり円の中心から
+    // 11-26 22:28 / 22:51: ボタンのまん中から測り、ボタンの縁（dz）より外へずらすだけで、その向きの物を選ぶ
+    //  （前は円の絵の中心から 34 点×大きさで、画面の端で円がずれると名前の所までずらさないと選べなかった）。タップで選ぶ方式は今までどおり円の中心から
     const fx = r.tapMode ? r.x : r.ox ?? r.x, fy = r.tapMode ? r.y : r.oy ?? r.y;
     const dx = sx - fx, dy = sy - fy, d = Math.hypot(dx, dy);
     const n = r.items.length;
-    if (d < (r.tapMode ? 34 * Math.max(0.8, r.scale || 1) : 22)) r.sel = -1;
+    if (d < (r.tapMode ? 34 * Math.max(0.8, r.scale || 1) : (r.dz || 22))) r.sel = -1;
     else { let a = Math.atan2(dx, -dy); if (a < 0) a += Math.PI * 2; r.sel = Math.floor((a + Math.PI / n) / (Math.PI * 2 / n)) % n; if (!r.items[r.sel]) r.sel = -1; }
     if (this.onRadial) this.onRadial(r);
   }

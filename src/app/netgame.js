@@ -115,7 +115,8 @@ export function netMixin(Match) {
       if (cmd.act) for (const ac of cmd.act) {
         sess.pushAct(ac);
         if (LOCAL_ACTS.has(ac.a)) { try { doAction(S, this.w, me, ac, ev); } catch (e) { /* なし */ } }
-        else if (ac.a === 'vault') { try { if (!tryVault(S, this.w, me) && ac.jump && S.war) tryJump(S, this.w, me); } catch (e) { /* なし */ } } // 乗り越え・飛び降りも手元で先に（ホストと同じ計算）
+        else if (ac.a === 'vault') { try { if (!tryVault(S, this.w, me, undefined, ac.over ? { noHop: true } : undefined) && ac.jump && S.war) tryJump(S, this.w, me); } catch (e) { /* なし */ } }
+        else if (ac.a === 'jump' && S.war) { try { if (!tryVault(S, this.w, me, undefined, { hopOnly: true })) tryJump(S, this.w, me); } catch (e) { /* なし */ } } // 乗り越え・飛び降りも手元で先に（ホストと同じ計算）
       }
       const dc = this.droneId != null ? this._droneCmd(inp) : null;
       if (dc && this.droneId != null) sess.setInput({ mx: r2(dc.mx), mz: r2(dc.mz), y: r4(dc.yaw), p: r4(dc.pitch), f: dc.fire ? 1 : 0, j: dc.jump ? 1 : 0, s: cmd.stance, dr: 1 });

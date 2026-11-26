@@ -453,7 +453,8 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-ammo .cnt b.lname { font-size: 15px; letter-spacing: .02em; }
 .hud-mirror.on { display: block; } .hud-mirror b { color: var(--accent2); margin-right: 8px; } .hud-mirror .bad { color: #ff9a8e; font-weight: 800; }
 /* スコア表（対戦） */
-.hud-board { position: absolute; inset: 0; display: none; z-index: 25; pointer-events: none; }
+/* スコア表: 出撃の画面（z 40）の上にも出す（11-26。出撃の画面のスコアのボタン） */
+.hud-board { position: absolute; inset: 0; display: none; z-index: 45; pointer-events: none; }
 .hud-board.on { display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.35); pointer-events: auto; }
 .hud-board .bd { background: rgba(8,12,18,.94); border: 1px solid var(--line2); border-radius: 8px; padding: 8px 10px 10px; max-width: min(96%, 760px); max-height: 92%; overflow: auto; font-family: var(--f-body); }
 .hud-board .bh { font-weight: 800; font-size: 13px; text-align: center; margin-bottom: 6px; }
@@ -488,6 +489,7 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-radial .ri small { display: block; font-size: max(11px, calc(11px * var(--rs, 1))); color: var(--sub); font-weight: 500; }
 .hud-radial .ri.sel { background: var(--accent); color: #111; border-color: var(--accent2); } .hud-radial .ri.sel small { color: #3b2c0e; }
 .hud-radial .ri.dis { opacity: .35; }
+.hud-radial .dz { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; border: 1.5px dashed rgba(255,255,255,.45); pointer-events: none; }
 .hud-editbar { position: absolute; left: 50%; top: calc(var(--st) + 6px); transform: translateX(-50%); display: none; align-items: center; gap: 8px; background: rgba(8,12,18,.95); border: 1px solid var(--line2); border-radius: 8px; padding: 6px 10px; pointer-events: auto; font-family: var(--f-body); font-size: 11px; z-index: 5; white-space: nowrap; }
 #hud.editing .hud-editbar { display: flex; }
 /* 11-19 23:27: 細くして（3段）、上下の HUD のすき間に置けるように。段ごとに並べる（文字が変わってもボタンが動かない） */
@@ -535,6 +537,8 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .dps-t span { font: 800 11px var(--f-head); letter-spacing: .1em; color: #aab4bd; overflow: hidden; text-overflow: ellipsis; }
 .dps-score { flex: 1; display: flex; justify-content: center; min-width: 0; }
 .dps-menu { flex: none; width: 40px; height: 32px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); }
+.dps-sb { flex: none; height: 32px; padding: 0 12px; display: flex; align-items: center; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.18); border-radius: 4px; font: 800 12px var(--f-body); color: #eef2f5; letter-spacing: .04em; }
+.dps-sb:active { background: rgba(255,255,255,.16); }
 .dps-menu i { display: block; width: 16px; height: 2px; background: #eef2f5; }
 .dps-mapw { position: absolute; left: 0; right: 0; top: calc(var(--st) + 38px); bottom: calc(var(--sb) + 60px); overflow: hidden; }
 .dps-cv { position: absolute; left: 0; top: 0; }
@@ -542,6 +546,11 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .dps-p { position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
 .dps-p b { display: flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 4px; box-sizing: border-box; font: 900 13px var(--f-head); color: #fff; background: rgba(46,120,214,.92); border: 2px solid #eaf4ff; box-shadow: 0 1px 4px rgba(0,0,0,.6); }
 .dps-p.hq b { min-width: 34px; font-size: 11px; letter-spacing: .06em; }
+/* 分隊の仲間（その人のそばに出る）とビーコン（11-26） */
+.dps-p.mate { z-index: 0; width: auto; min-width: 34px; height: 34px; margin: 0; transform: translate(-50%, -50%); } .dps-p:not(.mate) { z-index: 1; }
+.dps-p b { flex: none; }
+.dps-p.mate b { border-radius: 13px; font: 800 11px var(--f-body); background: rgba(58,150,82,.94); border-color: #e6ffe9; white-space: nowrap; }
+.dps-p.bcn b { font: 800 11px var(--f-body); background: rgba(58,150,82,.94); border-color: #e6ffe9; }
 .dps-p.on b { background: #f2b33d; color: #17120a; border-color: #fff; box-shadow: 0 0 0 4px rgba(242,179,61,.35), 0 1px 4px rgba(0,0,0,.6); }
 .dps-p.down b { transform: scale(.92); }
 .dps-sq, .dps-card { position: absolute; top: calc(var(--st) + 46px); background: rgba(17,21,25,.9); border: 1px solid rgba(255,255,255,.1); padding: 7px 8px; box-sizing: border-box; }
@@ -598,3 +607,11 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 /* 上の帯（ドミネーション・TDM: 真ん中に残り時間と目標） */
 .hud-obj .wb .wt, .dps-score .wb .wt { display: flex; flex-direction: column; align-items: center; font: 800 14px/1.05 var(--f-head); font-variant-numeric: tabular-nums; margin: 0 4px; }
 .hud-obj .wb .wt small, .dps-score .wb .wt small { font: 700 11px var(--f-head); letter-spacing: .04em; color: #cfd6dc; }
+
+/* リロードの進み（11-26） */
+.hb .rl-prog { position: absolute; left: -12%; top: -12%; width: 124%; height: 124%; pointer-events: none; display: none; overflow: visible; }
+.hb.rl-on .rl-prog { display: block; }
+.hb .rl-prog circle { fill: none; stroke-width: 3.2; }
+.hb .rl-prog .t { stroke: rgba(255,255,255,.16); }
+.hb .rl-prog .f { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 113.1; }
+.hb .rl-prog .h path { fill: var(--accent); }

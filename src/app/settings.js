@@ -13,7 +13,7 @@ export const DEFAULTS = {
   // 操作
   reloadDrop: false, // 大規模戦: 1回押しのリロードで弾倉を落とす（速い）。2回押しはいつも落とす
   adsMode: 'tap', // tap（押すたび切替）| hold（押している間）| mixed（短く押すと切替・長く押すと押している間）
-  leanMode: 'toggle', breathMode: 'toggle', stickMode: 'float', stickSprint: true, handed: 'right', leftFire: true, stickLock: false, radialScale: 1, confirm: 'auto',
+  leanMode: 'toggle', breathMode: 'toggle', adsBreath: true, breathBtn: true, jumpBtn: false, fineAim: 'mid', stickMode: 'float', stickSprint: true, handed: 'right', leftFire: true, stickLock: false, radialScale: 1, confirm: 'auto',
   // HUD
   hud: {}, hudOpacity: 0.85, hudScale: 1.0, crosshair: 'cross', crossColor: '#ffffff', minimap: true, subtitles: true, subBg: 0.42, hitMarker: true,
   // BattleBit のゲームの設定に合わせて足した物（11-20）: 照準の大きさ・濃さ、ヒットマーカーの色（体・頭・防具・倒した）、倒れたら自動で出撃、描画距離
@@ -56,6 +56,17 @@ export function sensForZoom(st, z) {
   const Z = st.sensZ || DEFAULTS.sensZ, keys = Object.keys(Z).map(Number).sort((a, b) => a - b);
   let k = keys[0]; for (const q of keys) if (q <= z + 1e-6) k = q;
   return (Z[k] ?? DEFAULTS.sensZ[k]) * Math.min(1.25, k / Math.max(1, z));
+}
+// スコープの細かい操作（11-26 22:48: 高い倍率で遠くを狙うと、細かい指の動きが思うように効かない）:
+//  3倍以上をのぞいている間、指をゆっくり動かした分だけ見回しを細かくする（速く動かすと今までどおり）。
+//  v: 指の速さ（画面の点/秒）、zoom: 倍率、lv: 'off' | 'weak' | 'mid' | 'strong'。戻り値は感度にかける数
+export const FINE_AIM = { off: 0, weak: 0.3, mid: 0.45, strong: 0.6 };
+export function fineAimK(v, zoom, lv = 'mid') {
+  const d = FINE_AIM[lv] ?? FINE_AIM.mid;
+  if (!d || zoom < 3) return 1;
+  const zk = Math.min(1, (zoom - 3) / 3 + 0.4); // 3倍で 4 割・6倍以上で全部
+  const t = Math.max(0, Math.min(1, (v - 40) / 320)), u = t * t * (3 - 2 * t);
+  return 1 - d * zk * (1 - u);
 }
 // 横の視野角（16:9の画面で）→ 縦の視野角（ラジアン）。横に長い画面ほど横が広く見える
 export function vfovOf(hfovDeg) { return 2 * Math.atan(Math.tan((hfovDeg || 82) * Math.PI / 360) * 9 / 16); }

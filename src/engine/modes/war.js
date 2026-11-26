@@ -11,7 +11,7 @@ import { killActor, eyeOf } from '../combat.js';
 import { los as warLos } from '../../war/world.js';
 import { smokeBetween } from '../nades.js';
 import { groundAt, pushOut } from '../world.js';
-import { heightAt, groundAt as wGround } from '../../war/world.js';
+import { heightAt, groundAt as wGround, ceilAt as wCeil } from '../../war/world.js';
 import { warThink, warPrep, botSpawnPoint, goalOf, SQUAD } from '../../war/ai.js';
 import { CLASSES, classLoadout, classGuns } from '../../war/classes.js';
 import { hrand } from '../rng.js';
@@ -102,28 +102,75 @@ const SQ_EN = [['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF',
 export const squadName = (sq, t = 0) => { const L = SQ_NAME[t ? 1 : 0]; return L[sq % L.length] + (sq >= L.length ? Math.floor(sq / L.length) + 1 : ''); };
 export const squadEn = (sq, t = 0) => { const L = SQ_EN[t ? 1 : 0]; return L[sq % L.length] + (sq >= L.length ? ' ' + (Math.floor(sq / L.length) + 1) : ''); };
 
+// 立って出られる所か（11-26 22:35: 変な隙間に出て、伏せ・しゃがみから始まることがあった）:
+//  頭の上 1.95m まで何もない・体（半径 0.38）が物にめり込まない・急な斜面でない・ほかの人と重ならない・建物の中でない（out: false で建物の中も可）
+const _po = [0, 0, 0];
+export function standOK(S, w, x, z, y, o = {}) {
+  if (!isFinite(y)) return false;
+  if (o.out !== false && (w.blds || []).some(b => x > b.rect[0] - 0.5 && x < b.rect[2] + 0.5 && z > b.rect[1] - 0.5 && z < b.rect[3] + 0.5)) return false;
+  if (wCeil(w, x, z, y + 0.2) - y < 1.95) return false;
+  pushOut(w, x, z, y + 0.25, y + 1.9, 0.38, null, -1, _po);
+  if (_po[2]) return false;
+  // 足もとの段差（隙間にはまる）: まわり 0.5m の地面の高さが大きく違わない
+  for (const [dx, dz] of [[0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]]) { const g = groundAt(w, x + dx, z + dz, y + 0.6); if (!isFinite(g) || Math.abs(g - y) > 0.45) return false; }
+  for (const b of S.actors) if (b.alive && b.id !== o.skip && Math.hypot(b.x - x, b.z - z) < 0.8 && Math.abs(b.y - y) < 1.5) return false;
+  return true;
+}
+// (x, z) のまわりで立って出られる所を探す（まず r の中を乱数で、なければ外へ渦巻きに 40m まで）
+function safeAround(S, w, cx, cz, r, seed, k, o = {}) {
+  const tryAt = (x, z) => { const g = heightAt(w, x, z), y = groundAt(w, x, z, g + 0.3); if (y > g + 0.5) return null; return standOK(S, w, x, z, y, o) ? { x, z, y } : null; };
+  // まず決まった所（本陣の並び）そのもの。立てるならそこ
+  if (o.center) { const q = tryAt(cx, cz); if (q) return q; }
+  for (let t = 0; t < 24; t++) {
+    const a = hrand(seed, k * 13 + t, 71) * Math.PI * 2, rr = r * (0.2 + 0.6 * hrand(seed, k * 13 + t, 72));
+    const q = tryAt(cx + Math.cos(a) * rr, cz + Math.sin(a) * rr); if (q) return q;
+  }
+  for (let ring = 1; ring <= 20; ring++) {
+    const R = r + ring * 2, n = 8 + ring * 2;
+    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + hrand(seed, k, 75 + ring); const q = tryAt(cx + Math.cos(a) * R, cz + Math.sin(a) * R); if (q) return q; }
+  }
+  return null;
+}
 // 本陣のまわりの出撃位置（チーム t、k 番目）
 export function hqSpot(S, w, t, k) {
   const [hx, hz] = S.m.hq[t];
   const toward = S.m.hq[1 - t][0] > hx ? 1 : -1; // 本陣から戦場の向き（x）
   const a = (k * 2.399) % (Math.PI * 2), r = 3 + (k % 9) * 1.5;
   const x = hx + Math.cos(a) * r + toward * 4, z = hz + Math.sin(a) * r;
-  return { x, z, y: groundAt(w, x, z, heightAt(w, x, z) + 0.3), yaw: toward > 0 ? Math.PI / 2 : -Math.PI / 2 };
+  const yaw = toward > 0 ? Math.PI / 2 : -Math.PI / 2;
+  const q = (S.actors ? safeAround(S, w, x, z, 2, t * 17 + 3, k, { center: true }) : null);
+  return q ? { ...q, yaw } : { x, z, y: groundAt(w, x, z, heightAt(w, x, z) + 0.3), yaw };
 }
-// (x, z) のまわり r の中で、物にめり込まない外の所
-const _po = [0, 0, 0];
+// (x, z) のまわり r の中で、立って出られる所（建物の外）
 export function freeSpot(S, w, cx, cz, r, seed, k) {
-  for (let t = 0; t < 12; t++) {
-    const a = hrand(seed, k * 13 + t, 71) * Math.PI * 2, rr = r * (0.2 + 0.6 * hrand(seed, k * 13 + t, 72));
-    const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr, g = heightAt(w, x, z);
-    const y = groundAt(w, x, z, g + 0.3);
-    if (y > g + 0.5) continue; // 箱の上（屋根など）
-    pushOut(w, x, z, y + 0.4, y + 1.8, 0.3, null, -1, _po);
-    if (_po[2]) continue;
-    if ((w.blds || []).some(b => x > b.rect[0] - 0.5 && x < b.rect[2] + 0.5 && z > b.rect[1] - 0.5 && z < b.rect[3] + 0.5)) continue;
-    return { x, z, y, yaw: hrand(seed, k, 73) * Math.PI * 2 };
-  }
+  const q = safeAround(S, w, cx, cz, r, seed, k);
+  if (q) return { ...q, yaw: hrand(seed, k, 73) * Math.PI * 2 };
   return { x: cx, z: cz, y: groundAt(w, cx, cz, heightAt(w, cx, cz) + 0.3), yaw: 0 };
+}
+// 分隊の仲間の上に出撃（11-26。本家: 分隊の仲間か出撃ビーコンの上に出られる。撃ち合いの最中の仲間には出られない）
+//  撃ち合いの最中: 6 秒以内に撃った・撃たれた、または 25m 以内に見える敵がいる
+export const SQ_SPAWN_CALM = 6;
+export function canSpawnOn(S, a, b) {
+  if (!b || b === a || !b.alive || b.down || b.team !== a.team || b.squad !== a.squad || S.m.mode === 'range' || S.m.mode === 'tdm') return false;
+  const calm = Math.round(SQ_SPAWN_CALM / S.dt);
+  if (b.lastHit && S.t - b.lastHit.t < calm) return false;
+  if (b.ws && b.ws.lastShot != null && b.ws.lastShot >= 0 && S.t - b.ws.lastShot < calm) return false; // -99 はまだ撃っていない
+  if (b.vault || b.air) return false;
+  for (const e of S.actors) if (e.alive && !e.down && e.team !== b.team && e.team >= 0 && Math.hypot(e.x - b.x, e.z - b.z) < 25) return false;
+  return true;
+}
+// 仲間の後ろ（1.5〜3m）で、仲間が見える立てる所。無ければ仲間のまわり
+function mateSpot(S, w, b, k) {
+  for (let i = 0; i < 16; i++) {
+    const an = b.yaw + Math.PI + (hrand(b.id, k, 81 + i) - 0.5) * 2.2, d = 1.4 + hrand(b.id, k, 91 + i) * 1.8;
+    const x = b.x + Math.sin(an) * d, z = b.z + Math.cos(an) * d, y = groundAt(w, x, z, b.y + 0.6);
+    if (!isFinite(y) || Math.abs(y - b.y) > 0.8) continue;
+    if (!standOK(S, w, x, z, y, { out: false, skip: b.id })) continue;
+    if (!warLos(w, b.x, b.y + 1.2, b.z, x, y + 1.2, z)) continue;
+    return { x, z, y, yaw: b.yaw };
+  }
+  const q = safeAround(S, w, b.x, b.z, 3, b.id, k, { out: false });
+  return q ? { ...q, yaw: b.yaw } : null;
 }
 export const flagSpot = (S, w, f, k) => freeSpot(S, w, f.x, f.z, f.r, f.id.charCodeAt(0), k);
 // ドミネーション・TDM: 出撃の場所の候補から、敵が近くにいない所（ボットは分隊の目標に近い所、人は少しばらつく）
@@ -159,16 +206,20 @@ function redeploy(S, w, a, at) {
   let p;
   if (a.dummy) p = { x: a.dummy.x, z: a.dummy.z, y: groundAt(w, a.dummy.x, a.dummy.z, heightAt(w, a.dummy.x, a.dummy.z) + 0.3), yaw: a.dummy.yaw };
   else if (at === 'rally' && rallyOf(S, a.team, a.squad)) p = rallySpot(S, w, rallyOf(S, a.team, a.squad), k);
+  else if (typeof at === 'string' && at.startsWith('sq:') && canSpawnOn(S, a, S.byId[+at.slice(3)])) p = mateSpot(S, w, S.byId[+at.slice(3)], k);
+  if (!p && typeof at === 'string' && at.startsWith('sq:')) at = 'hq';
+  if (p) { /* 決まった */ }
   else if (m.mode === 'conquest') {
     const f = at && at !== 'hq' ? m.flags.find(q => q.id === at) : null;
     p = f && canSpawnAt(S, f, a.team) ? flagSpot(S, w, f, k) : hqSpot(S, w, a.team, k);
   } else p = zoneSpot(S, w, a, k);
+  const onMate = typeof at === 'string' && at.startsWith('sq:') && p && canSpawnOn(S, a, S.byId[+at.slice(3)]);
   const C = CLASSES[a.warCls] || CLASSES.assault;
   Object.assign(a, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: 0, vx: 0, vy: 0, vz: 0, alive: true, dead: false, down: false, dbno: 0, dbnoCount: 0, hp: C.hp, maxHp: C.hp, oob: 0,
     stun: 0, flash: 0, gas: 0, tased: 0, deaf: 0, supp: 0, bleed: 0, flinch: 0, act: null, st: 0, stance: 0, vault: null, air: false, airTop: null, lean: 0, ads: 0, low: 0, adsOn: false, lowOn: false, sprint: false, sprT: 0, fat: 0, peek: null, melee: null, gest: null, spot: 0,
     inj: { arm: 0, leg: 0, head: 0 }, spawnProt: 2, stateT: 0, dmgBy: {}, lastHit: null, deployAt: null, deployed: true });
-  // 向き: 敵の本陣の方
-  const eh = m.hq[1 - a.team]; a.yaw = Math.atan2(eh[0] - a.x, eh[1] - a.z);
+  // 向き: 敵の本陣の方（仲間の上に出た時は仲間と同じ向き）
+  const eh = m.hq[1 - a.team]; a.yaw = onMate ? p.yaw : Math.atan2(eh[0] - a.x, eh[1] - a.z);
   const lo = a.warLo || classLoadout('assault');
   a.inv = makeInventory(lo); a.armor = makeArmor(lo);
   a.ws = { slot: a.inv.w[0] ? 0 : 1, next: -1, st: 'draw', t: 0.4, cd: 0, trigWas: false, rp: 0, ry: 0, bloom: 0, shots: 0, lastShot: -99, rk: null, rd: 0, gear: -1, pumpNeed: false, barrel: 0 };
@@ -223,16 +274,16 @@ export function placeRally(S, w, a, ev) {
 }
 // 集合地点の近くの空いた所（集合地点のまわり 1.5〜3m）
 function rallySpot(S, w, r, k) {
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 16; i++) {
     const an = hrand(r.id, k, 81 + i) * Math.PI * 2, d = 1.5 + hrand(r.id, k, 91 + i) * 1.5;
     const x = r.x + Math.sin(an) * d, z = r.z + Math.cos(an) * d, y = groundAt(w, x, z, r.y + 0.6);
     if (!isFinite(y) || Math.abs(y - r.y) > 1.2) continue;
-    pushOut(w, x, z, y + 0.4, y + 1.8, 0.3, null, -1, _po);
-    if (_po[2]) continue;
+    if (!standOK(S, w, x, z, y, { out: false })) continue;
     if (!warLos(w, r.x, r.y + 0.6, r.z, x, y + 0.6, z)) continue;
     return { x, z, y, yaw: r.yaw };
   }
-  return { x: r.x, z: r.z, y: r.y, yaw: r.yaw };
+  const q = safeAround(S, w, r.x, r.z, 3, r.id, k, { out: false });
+  return q ? { ...q, yaw: r.yaw } : { x: r.x, z: r.z, y: r.y, yaw: r.yaw };
 }
 function sqPoints(S, team, sq, pts, why, ev, f) {
   const m = S.m, key = team + ':' + sq, P = m.sqp || (m.sqp = {});

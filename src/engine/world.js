@@ -493,7 +493,9 @@ export function glassPane(w, k) {
 // mode: 1 = 宙にいる（2階より上の何もないマスは空気。飛び降りの最中・乗り越えの見込み）、2 = 窓のバリケードも当たり（乗り越えの見込み）、
 //       4 = 割れていないガラスも通れる（乗り越えの見込み。越えるときに割る）
 export function pushOut(w, x, z, y0, y1, r, doorsState, ignoreProp = -1, out = [0, 0, 0], mode = 0) {
-  if (w.war) return wPushOut(w, x, z, y0, y1, r, out);
+  // 大規模戦: 呼ぶ側の y0 は「当たりの帯の下」（足＋段差）。war の押し出しは y0 を足とみなして段差の分を足すので、引いて渡す
+  //  （11-26: 段差が二重に効いて、0.4〜0.7m の木箱・土のう・低い塀を歩いて通り抜けていた）
+  if (w.war) return wPushOut(w, x, z, y0 - STEP, y1, r, out);
   let px = x, pz = z, hit = 0, pm = 0, pass = 0;
   const i0 = Math.floor((x - r - 0.3) / CS), i1 = Math.floor((x + r + 0.3) / CS);
   const j0 = Math.floor((z - r - 0.3) / CS), j1 = Math.floor((z + r + 0.3) / CS);

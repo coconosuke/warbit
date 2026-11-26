@@ -32,10 +32,10 @@ export class DeployScreen {
   // d: game.js の _warDeployData()
   update(d) {
     const C = this.cache;
-    const k1 = d.title + '|' + d.mode + '|' + d.scoreKey;
+    const k1 = d.title + '|' + d.mode + '|' + d.scoreKey + '|' + (d.board ? 1 : 0);
     if (C.top !== k1) {
       C.top = k1;
-      this.top.innerHTML = `<div class="dps-t"><b>${esc(d.title)}</b><span>${esc(d.mode)}</span></div><div class="dps-score">${d.scoreHtml}</div><div class="dps-menu" data-btn="pause" role="button" aria-label="メニュー"><i></i><i></i><i></i></div>`;
+      this.top.innerHTML = `<div class="dps-t"><b>${esc(d.title)}</b><span>${esc(d.mode)}</span></div><div class="dps-score">${d.scoreHtml}</div>${d.board ? '<div class="dps-sb" data-btn="board" role="button" aria-label="スコア表">スコア</div>' : ''}<div class="dps-menu" data-btn="pause" role="button" aria-label="メニュー"><i></i><i></i><i></i></div>`;
     }
     const k2 = d.squad.name + '|' + d.squad.list.map(m => m.name + m.cls + m.st).join(',') + '|' + !!d.noSquad;
     if (C.sq !== k2) {
@@ -125,10 +125,21 @@ export class DeployScreen {
       }
     }
     // 出撃の場所の印（押せる）は、場所と選び方が変わったときだけ作り直す（押している間に消えないように）
+    //  仲間の印は動くので、作り直さずに位置だけ動かす（11-27: 仲間が動くたびに作り直して、本陣を押した指が消えた印に当たり、
+    //  重なった仲間の印が選ばれて本陣から離れた所に出ていた）。仲間の印は下に（本陣・拠点・ビーコンの印が上で、押せる）
     const k2 = W + 'x' + H + '|' + L + '|' + Rx + '|' + d.rect.join(',') + '|' + d.opts.map(o => o.id + (o.id === d.sel ? '*' : '')).join(',');
+    const ord = d.opts.filter(o => o.mate).concat(d.opts.filter(o => !o.mate));
     if (this.cache.pts !== k2) {
       this.cache.pts = k2;
-      this.pts.innerHTML = d.opts.map(o => { const [x, y] = toXY(o.x, o.z); return `<div class="dps-p${o.id === d.sel ? ' on' : ''}${o.hq ? ' hq' : ''}" data-btn="dsel" data-sub="${o.id}" role="button" style="left:${x}px;top:${y}px"><b>${esc(o.label)}</b></div>`; }).join('');
+      this.pts.innerHTML = ord.map(o => { const [x, y] = toXY(o.x, o.z); return `<div class="dps-p${o.id === d.sel ? ' on' : ''}${o.hq ? ' hq' : ''}${o.mate ? ' mate' : ''}${o.id === 'rally' ? ' bcn' : ''}" data-btn="dsel" data-sub="${o.id}" role="button" style="left:${x}px;top:${y}px"><b>${esc(o.label)}</b></div>`; }).join('');
+    } else {
+      for (const o of ord) {
+        if (!o.mate) continue;
+        const e = this.pts.querySelector(`[data-sub="${o.id}"]`); if (!e) continue;
+        const [x, y] = toXY(o.x, o.z), l = Math.round(x) + 'px', t = Math.round(y) + 'px';
+        if (e.style.left !== l) e.style.left = l;
+        if (e.style.top !== t) e.style.top = t;
+      }
     }
   }
 }

@@ -38,7 +38,11 @@ function bldTops(ww) {
   if (ww._bldTop) return ww._bldTop;
   const m = new Map();
   for (const bd of ww.blds || []) m.set(bd.id, { ...bd, top: bd.y });
-  for (const b of ww.boxes) if (b.bld >= 0 && b.kind === 'floor') { const q = m.get(b.bld); if (q) q.top = Math.max(q.top, b.y1); }
+  for (const q of m.values()) { q.lv = [q.y]; q.cv = []; }
+  for (const b of ww.boxes) if (b.bld >= 0 && b.kind === 'floor') { const q = m.get(b.bld); if (q) { q.top = Math.max(q.top, b.y1); q.lv.push(b.y1); q.cv.push(b.y0); } }
+  // 床の上面・床板の下面（天井）の高さ（中の壁の床ぎわ・天井ぎわを暗くするのに使う）。近いものはまとめる
+  const uniq = (a) => { a.sort((x, y) => x - y); const o = []; for (const v of a) if (!o.length || v - o[o.length - 1] > 0.3) o.push(v); return o; };
+  for (const q of m.values()) { q.lv = uniq(q.lv); q.cv = uniq(q.cv); }
   // 切妻の屋根（坂の板）: 屋根裏まで中
   for (const r of ww.ramps) if (r.bld >= 0 && r.kind === 'roof') { const q = m.get(r.bld); if (q) q.top = Math.max(q.top, Math.min(r.y0, r.y1) + 0.5); }
   ww._bldTop = m;
@@ -532,10 +536,35 @@ function boxMesh(B, ww, b, tops, near) {
     if (bit === 8 && onGround) continue;
     const inside = q && insideBld(q, pts[f][0], pts[f][1], pts[f][2]);
     B.room = inside ? 0 : 1;
-    const ao = inside ? (b.mat === M.DRYWALL || b.kind === 'floor' ? 0.62 : 0.52) : 1;
+    // 中の面（11-26: 屋内が暗く平らで、階段で向きがわからなかった）: 前より明るく（0.52〜0.62 → 0.66〜0.74）、
+    //  壁は床ぎわ・天井ぎわを暗くする（接する所の陰）。床の上面は明るめ、天井（床板の下面）は暗め（光は窓と床の照り返しから）
+    const ao = inside ? (b.mat === M.DRYWALL || b.kind === 'floor' ? 0.74 : 0.66) * (f === 3 ? 0.82 : 1) : 1;
+    if (inside && near && f !== 2 && f !== 3 && b.y1 - b.y0 > 0.5) { bandWall(B, b, bit, layer, col, ao, q); continue; }
     B.box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, layer, col, { faces: bit, uv: 0.5, aoTop: ao, aoBottom: inside ? ao * 0.8 : (onGround && f !== 2 ? 0.85 : 1) });
   }
   B.room = 1;
+}
+// 中の壁の面を高さで区切って、床ぎわ（下 0.45m）・天井ぎわ（上 0.35m）を暗くする（区切りの点ごとの暗さを、間はなめらかに）
+const _bw = [];
+function bandWall(B, b, bit, layer, col, ao, q) {
+  const y0 = b.y0, y1 = b.y1, ys = _bw; ys.length = 0; ys.push(y0, y1);
+  for (const F of q.lv) if (F > y0 - 0.5 && F < y1) ys.push(F, F + 0.15, F + 0.45);
+  for (const C of q.cv) if (C > y0 && C < y1 + 0.4) ys.push(C, C - 0.12, C - 0.35);
+  ys.sort((a, c) => a - c);
+  const aoAt = (y) => {
+    let k = 1;
+    for (const F of q.lv) if (y >= F - 0.01 && y < F + 0.45) k = Math.min(k, 0.6 + 0.4 * sstep(F, F + 0.45, y));
+    for (const C of q.cv) if (y <= C + 0.01 && y > C - 0.35) k = Math.min(k, 0.74 + 0.26 * sstep(C, C - 0.35, y));
+    return ao * k;
+  };
+  let ya = y0, aa = aoAt(y0);
+  for (const y of ys) {
+    if (y <= ya + 0.02 || y > y1 + 1e-4) continue;
+    const ab = aoAt(y);
+    B.box(b.x0, ya, b.z0, b.x1, y, b.z1, layer, col, { faces: bit, uv: 0.5, aoBottom: aa, aoTop: ab });
+    ya = y; aa = ab;
+  }
+  if (ya < y1 - 1e-4) B.box(b.x0, ya, b.z0, b.x1, y1, b.z1, layer, col, { faces: bit, uv: 0.5, aoBottom: aa, aoTop: aoAt(y1) });
 }
 // 車輪（横向きの円筒。近くは12角でホイールの円盤とハブ、遠くは8角）
 function wheelMesh(B, b, col, near) {
@@ -598,6 +627,10 @@ function rampMesh(B, rp, r, tops) {
   const ao = q ? 0.6 : 1;
   if (rp.smooth) { B.room = 1; smoothRamp(B, rp, col, rp.layer); B.room = 1; return; }
   const len = rp.dir === 'n' || rp.dir === 's' ? rp.z1 - rp.z0 : rp.x1 - rp.x0, n = Math.max(2, Math.round((rp.y1 - rp.y0) / 0.25));
+  // 面ごとの色（box の並び 0:+x 1:-x 2:+y 3:-y 4:+z 5:-z）: 踏む面 1.06 倍・けこみ（下り側の面）0.78 倍
+  const riser = rp.dir === 'n' ? 4 : rp.dir === 's' ? 5 : rp.dir === 'e' ? 1 : 0, stepCols = [];
+  for (let f = 0; f < 6; f++) stepCols.push(f === 2 ? mulc(col, 1.06) : f === riser ? mulc(col, 0.78) : col);
+  const nose = mulc(col, 0.5);
   for (let k = 0; k < n; k++) {
     const t0 = k / n, t1 = (k + 1) / n, y = rp.y0 + (rp.y1 - rp.y0) * (k + 1) / n;
     let x0 = rp.x0, x1 = rp.x1, z0 = rp.z0, z1 = rp.z1;
@@ -605,7 +638,15 @@ function rampMesh(B, rp, r, tops) {
     else if (rp.dir === 's') { z0 = rp.z0 + len * t0; z1 = rp.z0 + len * t1; }
     else if (rp.dir === 'e') { x0 = rp.x0 + len * t0; x1 = rp.x0 + len * t1; }
     else { x1 = rp.x1 - len * t0; x0 = rp.x1 - len * t1; }
-    B.box(x0, y - 0.25, z0, x1, y, z1, LAYER.concrete, col, { uv: 0.5, aoTop: ao, aoBottom: ao * 0.8 });
+    // 段ごとに、踏む面は明るく・けこみ（段の正面）は暗く、踏む面の先に濃い色の縁（すべり止め）。上り下りの向きと段がわかるように（11-26）
+    B.box(x0, y - 0.25, z0, x1, y, z1, LAYER.concrete, col, { uv: 0.5, aoTop: ao * 1.12, aoBottom: ao * 0.8, cols: stepCols });
+    {
+      const e = 0.05, h = 0.012;
+      if (rp.dir === 'n') B.box(x0, y, z1 - e, x1, y + h, z1, LAYER.metal, nose, { faces: 63 & ~8, uv: 0.5, aoTop: ao, aoBottom: ao });
+      else if (rp.dir === 's') B.box(x0, y, z0, x1, y + h, z0 + e, LAYER.metal, nose, { faces: 63 & ~8, uv: 0.5, aoTop: ao, aoBottom: ao });
+      else if (rp.dir === 'e') B.box(x0, y, z0, x0 + e, y + h, z1, LAYER.metal, nose, { faces: 63 & ~8, uv: 0.5, aoTop: ao, aoBottom: ao });
+      else B.box(x1 - e, y, z0, x1, y + h, z1, LAYER.metal, nose, { faces: 63 & ~8, uv: 0.5, aoTop: ao, aoBottom: ao });
+    }
   }
   B.room = 1;
 }

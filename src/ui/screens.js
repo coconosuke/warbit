@@ -526,6 +526,9 @@ export class Screens {
       row('ADS', '照準ボタン', 'adsMode'); ch('adsMode', [['tap', '切替'], ['hold', '長押し'], ['mixed', '両方']]);
       row('リーン', '', 'leanMode'); ch('leanMode', [['toggle', '切替'], ['hold', '長押し']]);
       row('息止め', '大規模戦・構えている間', 'breathMode'); ch('breathMode', [['toggle', '切替'], ['hold', '長押し']]);
+      row('ADS 長押しで息止め', '構えのボタンを押したままにすると息を止める（離すと戻る。構えはそのまま）', 'adsBreath'); ch('adsBreath', [[true, 'オン'], [false, 'オフ']]);
+      row('息止めボタン', 'ADS 長押しだけで使うなら消せる', 'breathBtn'); ch('breathBtn', [[true, '表示'], [false, '非表示']]);
+      row('乗り越えとジャンプ', '本家は1つのボタン（越える物がなければ跳ぶ・跳んで届く低い台には乗る）。分けると乗り越えのボタンは越えるだけ、ジャンプのボタンが別に出る', 'jumpBtn'); ch('jumpBtn', [[false, 'まとめる'], [true, '分ける']]);
       row('移動スティック', '', 'stickMode'); ch('stickMode', [['float', '可変'], ['fixed', '固定']]);
       row('スティックでダッシュ', '上へ押し込む', 'stickSprint'); ch('stickSprint', [[true, 'オン'], [false, 'オフ']]);
       row('ダッシュの固定', 'ダッシュの所で指を離すと走り続ける（撃つ・構える・リーン・リロードの間は止まり、終わるとまた走る。スティックかほかのボタンでやめる）', 'stickLock'); ch('stickLock', [[false, 'オフ'], [true, 'オン']]);
@@ -539,6 +542,7 @@ export class Screens {
       // 倍率ごと（BattleBit のように倍率ごとに選べる。間の倍率は下の倍率の値を倍率で割る）
       for (const [z, lb] of [[2, '2倍'], [3, '3倍'], [4, '4倍'], [6, '6倍'], [8, '8倍以上']]) { row('スコープ ' + lb, z === 2 ? '構えている時（倍率ごと）' : '', 'sz' + z); sl('sz' + z, 0.05, 1.5, 0.01, pct, 'sensZ.' + z); }
       row('射撃中', '射撃ボタンで視点移動', 'sensFire'); sl('sensFire', 0.3, 1.5, 0.05, pct);
+      row('スコープの細かい操作', '3倍以上をのぞいている間、指をゆっくり動かすと細かく動く（速く動かすといつもの感度）', 'fineAim'); ch('fineAim', [['off', 'オフ'], ['weak', '弱'], ['mid', '中'], ['strong', '強']]);
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);
       row('エイムアシスト', '照準が敵の体の近くでゆっくりに・敵の動きに少しついていく（タッチだけ。引き寄せはしない）', 'aimAssist'); ch('aimAssist', [['off', 'オフ'], ['weak', '弱'], ['mid', '中'], ['strong', '強'], ['max', '最大']]);
       row('リロード（1回押し）', '2回押すと、いつも弾倉を落として速くリロード。落とした弾倉は上を歩くと拾える', 'reloadDrop'); ch('reloadDrop', [[false, '弾倉を残す'], [true, '弾倉を落とす（速い）']]);
@@ -584,7 +588,7 @@ export class Screens {
       row('敵の色', '地図・印・拠点', 'enemyCol'); ch('enemyCol', [['#ff4b3e', '赤'], ['#ff8a1e', '橙'], ['#ff5ad2', '桃'], ['#ffe14a', '黄']]);
       row('分隊の欄', '分隊の仲間の兵科・名前・体力・状態（位置は「配置を編集」で動かす）', 'squadList'); ch('squadList', [[false, '非表示'], [true, '表示']]);
       row('拠点の印の大きさ', '画面の上の A・B・C などの丸', 'flagMarkSize'); sl('flagMarkSize', 0.7, 1.6, 0.05, pct);
-      row('印の大きさ', '仲間・分隊・敵の印・集合地点・距離の札', 'markSize'); sl('markSize', 0.7, 1.6, 0.05, pct);
+      row('印の大きさ', '仲間・分隊・敵の印・ビーコン・距離の札', 'markSize'); sl('markSize', 0.7, 1.6, 0.05, pct);
       row('味方の名前の大きさ', '分隊の仲間の頭の上の名前（30m 以内）', 'nameSize'); sl('nameSize', 9, 16, 1, (v) => v + 'px');
       row('味方の印の濃さ', '仲間の頭の上の印と名前（照準の近くではさらに薄く）', 'markAlpha'); sl('markAlpha', 0.3, 1, 0.05, pct);
       row('敵の印', '分隊がつけた敵の印（赤い菱形）を出す', 'showPings'); ch('showPings', [[true, '表示'], [false, '非表示']]);

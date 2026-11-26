@@ -77,3 +77,12 @@ test('包帯がなければ起こせない', () => {
   step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'revive' }] }) });
   ok(!me.act, '始まらない');
 });
+
+test('倒れている間は見回しても体は回らない（頭＝目が大きく動いて壁に入らない）', () => {
+  const { G, S, me, mate } = setup('assault');
+  const y0 = mate.yaw, x0 = mate.x, z0 = mate.z;
+  for (let i = 0; i < 30; i++) step(G, { [me.id]: idle(me), [mate.id]: idle(mate, { yaw: y0 + 2.5 + i * 0.05 }) });
+  ok(mate.down, '倒れたまま');
+  ok(Math.abs(mate.yaw - y0) < 1e-6, '向きはそのまま ' + mate.yaw.toFixed(3) + ' / ' + y0.toFixed(3));
+  ok(Math.hypot(mate.x - x0, mate.z - z0) < 0.05, '動かない');
+});

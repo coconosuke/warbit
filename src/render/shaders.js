@@ -125,11 +125,35 @@ vec3 shade(vec3 p, vec3 n, vec3 alb, float room, float ao, out float outdoor){
     vec3 g0 = uSkyCol * (0.5 + 0.4 * max(n.y, 0.0) + 0.1 * max(-n.y, 0.0));
     if (uWar > 0.5) {
       // 大規模戦の世界: room = 日の当たり方（外 1・建物の中 0）。近くは太陽の影
-      float sv = clamp(room, 0.0, 1.0), nds0 = dot(n, uSunDir);
-      if (uShadowOn > 0.5 && nds0 > 0.0 && sv > 0.0) { float s = sunShadow(p, n); if (s >= 0.0) sv *= s; }
+      float inr = 1.0 - clamp(room, 0.0, 1.0), sv = 1.0 - inr, nds0 = dot(n, uSunDir);
+      if (uShadowOn > 0.5 && nds0 > 0.0) {
+        if (sv > 0.0) { float s = sunShadow(p, n); if (s >= 0.0) sv *= s; }
+        else {
+          // 建物の中（11-26）: 近くの影の地図の中だけ、窓・戸口・壊れた穴から差す日を入れる（床に日だまり。前は中は日がまったく当たらなかった）。
+          //  遠くの影の地図は粗く壁を抜けるので使わない。影の地図の縁へ向かって消す
+          vec4 c = uShadowVP * vec4(p + n * 0.04, 1.0); vec3 q = c.xyz * 0.5 + 0.5;
+          float e = min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y));
+          if (e > 0.0 && q.z < 1.0) {
+            float b = 0.0015, t = uShadowTexel, s = 0.0;
+            s += texture(uShadow, vec3(q.xy + vec2(-0.6, -0.6) * t, q.z - b));
+            s += texture(uShadow, vec3(q.xy + vec2(0.6, -0.6) * t, q.z - b));
+            s += texture(uShadow, vec3(q.xy + vec2(-0.6, 0.6) * t, q.z - b));
+            s += texture(uShadow, vec3(q.xy + vec2(0.6, 0.6) * t, q.z - b));
+            sv = s * 0.25 * 0.85 * smoothstep(0.0, 0.1, e);
+          }
+        }
+      }
       outdoor = mix(0.45, 1.0, clamp(room, 0.0, 1.0));
+      // 面の向きで空の光を変える（11-26: 建物の中や影の中で、どの壁も同じ明るさになり、向きや段がわからなかった）。
+      //  太陽の側を向く壁は明るく、反対は暗く（空の明るい側からの光）。東西と南北でも少し差をつける
+      vec2 sa = normalize(uSunDir.xz + vec2(1e-4, 0.0));
+      float sd = (1.0 - abs(n.y)) * (0.14 * dot(n.xz, sa) + 0.05 * n.x);
+      vec3 g1 = uSkyCol * (0.5 + 0.4 * max(n.y, 0.0) + 0.1 * max(-n.y, 0.0) + sd);
+      // 建物の中: 天井（下向きの面）は暗め。窓から入って床・壁に返った日の光を少し足す（BattleBit の屋内のように、暗すぎず形が読める明るさ）
+      g1 *= mix(1.0, 1.0 - 0.3 * max(-n.y, 0.0), inr);
+      vec3 bounce = uSunCol * (0.085 + 0.03 * n.y) * inr;
       // 影は BattleBit のように濃く（空の光を 0.84 倍。research の 20）
-      return alb * ((g0 * 0.84 + uAmbMin) * ao +uSunCol * max(nds0, 0.0) * 0.92 * sv + dynLights(p, n, 0.0));
+      return alb * ((g1 * 0.84 + uAmbMin + bounce) * ao +uSunCol * max(nds0, 0.0) * 0.92 * sv + dynLights(p, n, 0.0));
     }
     return alb * ((g0 + uAmbMin) * ao + uSunCol * max(dot(n, uSunDir), 0.0) * 0.92);
   }

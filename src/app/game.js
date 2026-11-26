@@ -1,15 +1,15 @@
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
-import { curWeapon, curW, ammoCount, makeWeapon } from '../engine/actor.js';
+import { curWeapon, curW, ammoCount, makeWeapon, magCap } from '../engine/actor.js';
 import { contextOf, OP_NAME, doorOps, personOps, personPoint } from '../engine/interact.js';
 import { WAR_DOWN_T } from '../engine/status.js';
 import { spreadDeg, magNear } from '../engine/weapon.js';
-import { vaultPlan } from '../engine/move.js';
+import { vaultPlan, PRONE_TURN } from '../engine/move.js';
 import { depSpot, DEP_WHY } from '../engine/deploy.js';
 import { raycast, CS, LH, levelOfY, los } from '../engine/world.js';
 import { smokeBetween, fuseOf } from '../engine/nades.js';
-import { sensForZoom } from './settings.js';
+import { sensForZoom, fineAimK } from './settings.js';
 import { TC } from '../ui/teamcol.js';
 // 大規模戦のエイムアシストの強さ: [体の上での見回しの速さ]（敵の見かけの動きには 1 - これ だけついていく）
 // 双眼鏡を構えている時の倍率（構えきるまでは 1）
@@ -32,8 +32,10 @@ import { vfovOf } from './settings.js';
 import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
 import { carve, breakPane, collapseBld } from '../war/destruct.js';
-import { los as warLos } from '../war/world.js';
-import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
+import { los as warLos, camClear } from '../war/world.js';
+// 目と壁の間（m）。近くを切る面（0.08m 先・画面の隅まで約 0.13m）が壁に入らないように
+const CAM_CLR = 0.16;
+import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel, canSpawnOn } from '../engine/modes/war.js';
 import { classGadgets, CLASSES, CLASS_LIST, classGuns, classSecs, classLoadout } from '../war/classes.js';
 import { WarFlags, FLAG_COL } from '../render/warflags.js';
 import { RALLY, rallyOf } from '../engine/rally.js';
@@ -212,6 +214,12 @@ export class Match {
     // タッチの見回し: 指の動きにそのまま比例（加速はしない）。なめらかさは入力の側で、指の位置を時刻で直線に求めて出す
     //  （11-19 23:27: 前の「20〜50ms のならし」は遅れ 7〜36ms・止めた後に尾。今は遅れ 2〜9ms・ぴたりと止まる。lookres.js）
     const rdx = inp.lookDX, rdy = inp.lookDY;
+    // 高い倍率: 指をゆっくり動かした分は細かく（設定「スコープの細かい操作」。11-26）
+    if (!inp.mouse && ads > 0.5 && zoom >= 3 && dt > 0) {
+      const v = Math.hypot(rdx, rdy) / dt;
+      this._fv = this._fv == null ? v : this._fv + (v - this._fv) * (1 - Math.exp(-dt / 0.06));
+      k *= fineAimK(this._fv, zoom, st.fineAim || 'mid');
+    } else this._fv = null;
     let dx = rdx * k * slow, dy = rdy * k * slow * 0.9;
     // ジャイロ
     const gy = st.gyro || 'off';
@@ -225,9 +233,16 @@ export class Match {
     }
     // のぞいている（ミラー・オプティワンド）: 見回すのはカメラだけ。体は動かない
     if (p.peek) { const mx = p.peek.max || 1; this.pkYaw = clamp(this.pkYaw - dx * 0.8, -mx, mx); this.pkPitch = clamp(this.pkPitch - dy * 0.8 * (st.invertY ? -1 : 1), -0.55, 0.7); return; }
-    this.yaw -= dx;
+    let dYaw = -dx;
     let dP = -dy * (st.invertY ? -1 : 1);
-    if (track) { this.yaw += track.dy; dP += track.dp; }
+    if (track) { dYaw += track.dy; dP += track.dp; }
+    // 大規模戦の伏せ: 向きを変える速さに上限（エンジンと同じ。BattleBit の 2024 の手直し）
+    if (this.S.war && p.alive && !p.down && p.st > 1.5 && dt > 0) {
+      const m = PRONE_TURN * dt; if (Math.abs(dYaw) > m) dYaw = Math.sign(dYaw) * m;
+      const d = Math.atan2(Math.sin(this.yaw - p.yaw), Math.cos(this.yaw - p.yaw)), lim = 0.25; // 体より先へ行きすぎない
+      if (Math.abs(d + dYaw) > lim && Math.sign(dYaw) === Math.sign(d + dYaw)) dYaw = Math.sign(dYaw) * Math.max(0, lim - Math.abs(d));
+    }
+    this.yaw += dYaw;
     // 反動の押さえ（大規模戦。BattleBit の 2024 の手直し・research の 19）: 反動で上がっている間に下へ引いた分は、
     //  まず反動の分から引く（体の向きは下げない）。あとで反動が戻るときに二重に下がらない。エンジンへは cmd.rc（度）で渡す
     if (this.S.war && dP < 0 && p.ws && p.alive) {
@@ -322,6 +337,14 @@ export class Match {
           if (p && p.ws && p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4') { if (k === 'down') this.acts.push({ a: 'c4det' }); this.adsOn = false; break; }
           const mode = st.adsMode || 'tap';
           if (e.mouse) { this.adsOn = k === 'down'; break; }
+          // ADS 長押しで息止め（11-26 の要望・大規模戦）: 押したままにすると息を止め、離すと戻る。構えは切替のまま残す。
+          //  切替: 構えている時に押すと、離した時（短押し）に構えをやめる（長押しなら息止めだけ）
+          if (this.S && this.S.war && st.adsBreath !== false) {
+            if (k === 'long') { this._adsBr = true; break; }
+            if (k !== 'down') this._adsBr = false;
+            if (mode === 'tap') { if (k === 'down') { this._adsPress = !this.adsOn; this.adsOn = true; } else if (k === 'tap' && !this._adsPress) this.adsOn = false; break; }
+            if (mode === 'hold') { this.adsOn = k === 'down'; break; }
+          }
           if (mode === 'hold') { if (k === 'down') this.adsOn = true; else if (k !== 'long') this.adsOn = false; }
           // 切替: 離したら切り替える（長めに押しても。重いこまで短押しが長押しに見えても切り替わる）
           // 切替: 押した瞬間に切り替える（離すのを待たない）
@@ -353,7 +376,9 @@ export class Match {
         // ダウン中にあきらめる（大規模戦）: 2.5 秒以内にもう一度押すと、倒れたことにして出撃の画面へ
         case 'giveup': if (k === 'down' && this.S.war && p.alive && p.down) { if (this.time - (this._guT ?? -99) < 2.5) { this.acts.push({ a: 'warRedeploy' }); this._guT = -99; } else this._guT = this.time; this.au.ui('tap'); } break;
         // 跳ぶ: しゃがみ・伏せの間は、まず立つ（11-20 の要望。跳ばない）
-        case 'vault': if (k === 'down') { if (this.stance > 0) { this.stance = 0; break; } this.acts.push(this.S && this.S.war ? { a: 'vault', jump: 1 } : { a: 'vault' }); } break;
+        // 乗り越え: 本家と同じく1つのボタン（越える物がなければ跳ぶ・跳んで届く物には乗る）。設定で「分ける」にすると乗り越えだけ（11-26）
+        case 'vault': if (k === 'down') { if (this.stance > 0) { this.stance = 0; break; } this.acts.push(this.S && this.S.war ? (st.jumpBtn ? { a: 'vault', over: 1 } : { a: 'vault', jump: 1 }) : { a: 'vault' }); } break;
+        case 'jump': if (k === 'down' && this.S && this.S.war) { if (this.stance > 0) { this.stance = 0; break; } this.acts.push({ a: 'jump' }); } break;
         // 息止め（11-19 13:31: 切り替えで）: 押すたびに入る・切れる。構えをやめる・息が切れると切れる（_command）
         case 'breath': if (k === 'down' && (st.breathMode || 'toggle') === 'toggle') { this.breathOn = !this.breathOn; this._brT = this.time; } break;
         case 'leanL': case 'leanR': {
@@ -408,7 +433,7 @@ export class Match {
         // 副の道具（LOADOUT の「道具」）
         case 'dgad': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(); (W.gad || (W.gad = {}))[this.dcls || 'assault'] = e.sub; this._warPickSave(); this.au.ui('tap'); } break;
         case 'datt': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(), d = this._warDeployData(), [kk, v] = String(e.sub).split(':'); const A = W.att[d.gun] || (W.att[d.gun] = {}); A[kk] = v; this._warPickSave(); this.au.ui('tap'); } break;
-        case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
+        case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' || String(this.dsel).startsWith('sq:') ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
         case 'pause': if (k === 'tap' || (k === 'down' && e.key)) this.app.pauseGame(); break;
         case 'drone': if (k === 'down') this._droneToggle(); break;
         case 'zone': if (k === 'down') this._zoneNext(); break;
@@ -436,7 +461,8 @@ export class Match {
     //  走り出した時だけ（ダッシュの固定の間にリーンを押したときは、前と同じく走りを止めてリーンする）
     if (inp.sprint && !this._sprWas && this.leanSide && !this.adsOn) this.leanSide = 0;
     this._sprWas = !!inp.sprint;
-    const brBtn = (this.app.settings.breathMode || 'toggle') === 'hold' ? inp.hold.has('breath') : !!this.breathOn;
+    if (this._adsBr && (!inp.hold.has('ads') || !this.adsOn)) this._adsBr = false;
+    const brBtn = ((this.app.settings.breathMode || 'toggle') === 'hold' ? inp.hold.has('breath') : !!this.breathOn) || !!this._adsBr;
     // 構える・構えをやめる: 銃を上げ下げする小さな音（自分だけ・大規模戦）
     if (this.adsOn !== this._adsWas) { if (this._adsWas != null && this.S && this.S.war && p && p.alive && !p.down) this.au.sfx('act', null, { vol: 0.1, rate: this.adsOn ? 1.4 : 1.2 }); this._adsWas = this.adsOn; }
     if (inp.under && !inp.fire) this._underUntil = performance.now() + 250;
@@ -475,6 +501,20 @@ export class Match {
   //  ・等倍の照準器: 揺れのうち銃が受け持つ分だけ、照準の点が画面の真ん中からずれる（弾が飛ぶ所）
   //  ・スコープ: 目に寄せる途中（構え 0.7〜0.95）で接眼レンズの像が大きくなりながら現れる。目と筒の軸のずれで、
   //    丸い視界が少しずれて縁が暗く・ぼやける（スコープの影）: 反動で跳ね、向きを速く変えると遅れ、歩くと揺れ、揺れにもついていく
+  // 目（カメラ）を壁から離す。起点: 体のまん中（足の上 = 体の当たりの円の中）を、目の高さで。ステップの間の補間も同じだけずらす
+  _camOff(p, cam, e, q, kk) {
+    const bx = q && kk > 0.001 ? p.x + (q[0] - p.x) * kk : p.x, bz = q && kk > 0.001 ? p.z + (q[2] - p.z) * kk : p.z;
+    const o = camClear(this.w, bx, cam.y, bz, cam.x, cam.y, cam.z, CAM_CLR, this._cc || (this._cc = [0, 0, 0]));
+    this.camPush = Math.hypot(o[0] - cam.x, o[1] - cam.y, o[2] - cam.z);
+    cam.x = o[0]; cam.y = o[1]; cam.z = o[2];
+  }
+  // リロードの進み（0〜1。していなければ null）: 弾倉の入れ替え・まとめは残り時間から、1発ずつ込める銃は込めた数から
+  _rlProg(p) {
+    const ws = p && p.alive && p.ws; if (!ws) return null;
+    if ((ws.st === 'reload' || ws.st === 'consol') && ws.rd > 0) return 1 - ws.t / ws.rd;
+    if (ws.st === 'shell') { const wi = curWeapon(p), W = curW(p); if (!wi || !W || !W.rl) return null; const cap = magCap(wi) || 1, sh = W.rl.shell || 0.5; return Math.min(1, (wi.mag + Math.max(0, 1 - ws.t / sh)) / cap); }
+    return null;
+  }
   _aimFx(p, wi, cam, kc, swx, swy, cyaw, cpitch, dt) {
     const H = this.app.stage ? this.app.stage.h : 390, Wd = this.app.stage ? this.app.stage.w : 844;
     const ppr = (H / 2) / Math.tan(cam.fov / 2); // 画面の真ん中あたりの、1ラジアンあたりの画素
@@ -973,9 +1013,9 @@ export class Match {
         case 'rally': {
           if (!S.war) break;
           const mine = e.team === p.team && e.sq === p.squad;
-          if (e.k === 'no' && e.by === me) { au.ui('back'); hud.feed(e.why === 'pts' ? `分隊ポイントが足りない（${RALLY.cost} 要る）` : e.why === 'cool' ? '集合地点はまだ置けない（壊されたばかり）' : e.why === 'ground' ? '地面に立って置く' : '集合地点は分隊長だけ', 'warn'); }
-          else if (e.k === 'place') { if (mine) hud.feed('集合地点を置いた（分隊はここから出撃できる）', 'ok'); au.sfx('pump', [e.x, e.y + 0.3, e.z], { vol: 0.6, rate: 1.4 }); }
-          else if (e.k === 'gone') { if (mine) hud.feed('集合地点が壊された', 'warn'); fx.debris(e.x, e.y + 0.35, e.z, [0.29, 0.32, 0.21]); au.sfx('impMetal', [e.x, e.y + 0.3, e.z], { vol: 1 }); }
+          if (e.k === 'no' && e.by === me) { au.ui('back'); hud.feed(e.why === 'pts' ? `分隊ポイントが足りない（${RALLY.cost} 要る）` : e.why === 'cool' ? 'ビーコンはまだ置けない（壊されたばかり）' : e.why === 'ground' ? '地面に立って置く' : 'ビーコンは分隊長だけ', 'warn'); }
+          else if (e.k === 'place') { if (mine) hud.feed('ビーコンを置いた（分隊はここから出撃できる）', 'ok'); au.sfx('pump', [e.x, e.y + 0.3, e.z], { vol: 0.6, rate: 1.4 }); }
+          else if (e.k === 'gone') { if (mine) hud.feed('ビーコンが壊された', 'warn'); fx.debris(e.x, e.y + 0.35, e.z, [0.29, 0.32, 0.21]); au.sfx('impMetal', [e.x, e.y + 0.3, e.z], { vol: 1 }); }
           break;
         }
         case 'revive': if (this._downBy) this._downBy.delete(e.id); hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
@@ -1167,6 +1207,12 @@ export class Match {
       // 目の位置もステップの間を補間（大きく飛んだときはそのまま）
       const e = q && kk > 0.001 && Math.hypot(q[0] - p.x, q[2] - p.z) < 1 ? [e0[0] + (q[0] - p.x) * kk, e0[1] + (q[1] - p.y) * kk, e0[2] + (q[2] - p.z) * kk] : e0;
       // 向きは指の動きをすぐ映す（エンジンのステップを待たない）。体が勝手に向く状態（テーザー・拘束）だけは体の向き
+      // 大規模戦で倒れている間（11-26）: 体は倒れた時の向きのまま。首を回せる分だけ見回せる（左右 ±75°・上下 -30°〜+40°）
+      if (p.down && S.war) {
+        const lim = 1.3; let d = Math.atan2(Math.sin(this.yaw - p.yaw), Math.cos(this.yaw - p.yaw));
+        if (Math.abs(d) > lim) this.yaw = p.yaw + Math.sign(d) * lim;
+        this.pitch = Math.max(-0.52, Math.min(0.7, this.pitch));
+      }
       const lookFree = !p.tased && !p.cuffed && !p.vault;
       const cyaw = lookFree ? this.yaw : p.yaw, cpitch = lookFree ? Math.max(-1.45, Math.min(1.45, this.pitch)) : p.pitch;
       const W = curW(p), wi = curWeapon(p);
@@ -1193,6 +1239,13 @@ export class Match {
         fov: 2 * Math.atan(Math.tan(fov0 / 2) / z),
       };
       this._aimFx(p, wi, cam, kc, swx, swy, cyaw, cpitch, dt);
+      // 大規模戦: 目を壁・天井から離す（壁にくっつく・リーン・伏せで、近くを切る面が壁に入り、中や向こう側が見えていた。11-26）。
+      //  起点は体のまん中（壁の外）の目の高さ。伏せは頭が体の前に出るので、腰の上から
+      if (S.war && this.w && this.w.war) {
+        // 倒れている: 目は地面から 0.3m より下げない（頭が地面・歩道の縁に入らないように）
+        if (p.down) cam.y = Math.max(cam.y, p.y + 0.3);
+        this._camOff(p, cam, e, q, kk);
+      }
       if (!this.av.hidden.has(p.id)) this.av.hidden.add(p.id);
     } else {
       // 倒れた: 味方を見る（PvE は隊員、PvP は味方）
@@ -1202,6 +1255,7 @@ export class Match {
       if (t) {
         const e = eyeOf(S, t);
         cam = { x: e[0] - Math.sin(t.yaw) * 1.6, y: e[1] + 0.35, z: e[2] - Math.cos(t.yaw) * 1.6, yaw: t.yaw, pitch: t.pitch - 0.1, roll: 0, fov: 60 * DEG };
+        if (this.w && this.w.war) { const o = camClear(this.w, e[0], e[1], e[2], cam.x, cam.y, cam.z, CAM_CLR); cam.x = o[0]; cam.y = o[1]; cam.z = o[2]; }
       } else { const e = eyeOf(S, p); cam = { x: e[0], y: e[1] + 1.2, z: e[2], yaw: p.yaw, pitch: -0.6, roll: 0, fov: 60 * DEG }; }
       this.av.hidden.delete(p.id);
     }
@@ -1511,7 +1565,7 @@ export class Match {
     if (this.ctxT <= 0) {
       this.ctxT = 0.12; this.ctx = p.alive && !S.war ? contextOf(S, this.w, p) : null;
       // 乗り越えられるか（ボタンを明るくするだけ。文字は出さない）
-      const vp = p.alive && !p.vault ? vaultPlan(S, this.w, p, this._vp || (this._vp = {})) : null;
+      const vp = p.alive && !p.vault ? vaultPlan(S, this.w, p, this._vp || (this._vp = {}), S.war && this.app.settings.jumpBtn ? { noHop: true } : undefined) : null;
       this.vaultOK = !!vp;
       // 置く物を手に持っている: 前に置けるか
       const hg = p.alive && p.ws && p.ws.slot === 2 && p.ws.gear && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'deploy' ? GEAR[p.ws.gear] : null;
@@ -1534,7 +1588,7 @@ export class Match {
       c4: !!(p.alive && !p.down && p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4'), c4left: (p.inv.gear.find(g => g.id === 'c4') || { n: 0 }).n,
       spread: wi ? spreadDeg(S, p, WEAPONS[wi.id], wi) : 2,
       giveup: S.war && S.m.mode !== 'range' && p.alive && p.down ? (this.time - (this._guT ?? -99) < 2.5 ? 2 : 1) : 0,
-      optic: p.ws && p.ws.slot === 2 && p.ws.gear === 'binoc' ? BINOC_OPTIC : null, canVault: this.vaultOK !== false, rally: this._rallyBtn(),
+      optic: p.ws && p.ws.slot === 2 && p.ws.gear === 'binoc' ? BINOC_OPTIC : null, canVault: this.vaultOK !== false, rally: this._rallyBtn(), rl: this._rlProg(p),
       ctxLabel: c && !tooFar(c) ? (c.def.far ? '回り込む' : (OP_NAME[c.def.op] || c.def.op)) : '',
       cmdLabel: '命令', mmZoom: this.mmZoom,
       droneOK: S.pvp && S.m.kind !== 'tdm' && p.team === S.m.att && (S.m.phase === 'prep' ? !!p.staged : S.m.phase === 'action' && p.alive && !p.down) && ((p.dronesLeft ?? 2) > 0 || S.actors.some(d => d.isDrone && d.owner === p.id && d.alive)),
@@ -1650,7 +1704,7 @@ export class Match {
       if (rl.team !== my || rl.sq !== p.squad) continue;
       const d = Math.hypot(rl.x - cam.x, rl.z - cam.z); if (d > 300) continue;
       const q = proj(rl.x, rl.y + 1.4, rl.z); if (!q || q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) continue;
-      list.push({ k: 'sign', x: q[0], y: q[1], t: '集合 ' + Math.round(d) + 'm', d });
+      list.push({ k: 'sign', x: q[0], y: q[1], t: 'ビーコン ' + Math.round(d) + 'm', d });
     }
     if (this.w.signs) {
       const put = [];
@@ -1719,7 +1773,7 @@ export class Match {
     // 倒れたら自動で出撃（設定。BattleBit の Auto Ready When Dead）: 時間が来たら前に選んだ場所から出る（場所・兵科は変えられる）
     if (this.app.settings.autoDeploy && !p.deployAt && !m.over && m.mode !== 'range' && !(m.mode === 'conquest' && m.tickets[p.team] <= 0) && this._adT !== this.kiaT) {
       this._adT = this.kiaT;
-      this.acts.push({ a: 'warDeploy', at: m.mode === 'conquest' || this.dsel === 'rally' ? (this.dsel || 'hq') : 'auto', ...this._warPick() });
+      this.acts.push({ a: 'warDeploy', at: m.mode === 'conquest' || this.dsel === 'rally' || String(this.dsel).startsWith('sq:') ? (this.dsel || 'hq') : 'auto', ...this._warPick() });
     }
     this.hud.deploy(this._warDeployData());
   }
@@ -1728,7 +1782,7 @@ export class Match {
     const S = this.S, p = this.p, m = S.m;
     if (!S.war || !m || m.mode === 'range' || m.mode === 'tdm' || p.sqIdx !== 0 || !p.alive || p.down) return null;
     const key = p.team + ':' + p.squad, pts = (m.sqp || {})[key] || 0, cd = m.rallyCd && m.rallyCd[key] > S.t ? Math.ceil((m.rallyCd[key] - S.t) * S.dt) : 0;
-    return { ok: pts >= RALLY.cost && !cd, lb: cd ? cd + 's' : rallyOf(S, p.team, p.squad) ? '置き直す' : '集合' };
+    return { ok: pts >= RALLY.cost && !cd, lb: cd ? cd + 's' : rallyOf(S, p.team, p.squad) ? '置き直す' : 'ビーコン' };
   }
   // LOADOUT の付属品の行: 照準器・銃口・下・横。付けられる物だけ（attachOptions）。選んでいなければ makeWeapon の既定
   _attRows(gun, A) {
@@ -1752,11 +1806,20 @@ export class Match {
       opts.push({ id: 'hq', label: 'HQ', x: m.hq[p.team][0], z: m.hq[p.team][1], hq: true });
       for (const f of m.flags) if (canSpawnAt(S, f, p.team)) opts.push({ id: f.id, label: f.id, x: f.x, z: f.z });
     }
+    // 本家と同じく、分隊のビーコン（分隊長が置く）と、撃ち合いの最中でない分隊の仲間の上からも出られる（11-26 22:35）
     const rl = m.mode !== 'tdm' && m.mode !== 'range' ? rallyOf(S, p.team, p.squad) : null;
-    if (rl) {
-      if (!opts.length) { const sp = m.spawns && m.spawns[p.team]; if (sp && sp.length) opts.push({ id: 'hq', label: '自陣', x: sp.reduce((s, q) => s + q[0], 0) / sp.length, z: sp.reduce((s, q) => s + q[1], 0) / sp.length, hq: true }); }
-      opts.push({ id: 'rally', label: '集合', x: rl.x, z: rl.z });
+    const mates = m.mode !== 'range' && m.mode !== 'tdm' ? S.actors.filter(b => b !== p && b.team === p.team && b.squad === p.squad && b.alive && !b.down).sort((x, y) => (x.sqIdx || 0) - (y.sqIdx || 0)) : [];
+    const mateOK = mates.filter(b => canSpawnOn(S, p, b));
+    if ((rl || mateOK.length) && !opts.length) { const sp = m.spawns && m.spawns[p.team]; if (sp && sp.length) opts.push({ id: 'hq', label: '自陣', x: sp.reduce((s, q) => s + q[0], 0) / sp.length, z: sp.reduce((s, q) => s + q[1], 0) / sp.length, hq: true }); }
+    if (rl) opts.push({ id: 'rally', label: 'ビーコン', x: rl.x, z: rl.z });
+    // 仲間の印は、本陣・拠点・ビーコンの近く（40m）と、ほかの仲間の印の近く（12m）には出さない（11-27: 出撃のはじめは仲間が本陣に固まり、印が重なって読めなかった）
+    const fixed = opts.slice();
+    for (const b of mateOK) {
+      if (fixed.some(o => Math.hypot(o.x - b.x, o.z - b.z) < 40)) continue;
+      if (opts.some(o => o.mate && Math.hypot(o.x - b.x, o.z - b.z) < 12)) continue;
+      opts.push({ id: 'sq:' + b.id, label: b.name || '仲間', x: b.x, z: b.z, mate: true });
     }
+    // 選んでいた仲間が撃ち合いを始めた・倒れた: 選びを戻す（出撃の時もエンジンが確かめ、だめなら本陣から）
     if (opts.length && !opts.some(o => o.id === this.dsel)) this.dsel = 'hq';
     const W = this._warPrefs(), cls = this.dcls || 'assault', C = CLASSES[cls];
     const CAT = { rifle: 'RIFLE', sniper: 'SNIPER', smg: 'SMG', shotgun: 'SHOTGUN', pistol: 'PISTOL' };
@@ -1775,13 +1838,14 @@ export class Match {
     const ob = this._objectives();
     const tick = Math.floor(this.time * 2);
     return {
+      board: m.mode !== 'range',
       title: (WAR_MAPS[this.w.mapId] || WAR_MAPS.riverbend).en, mode: m.mode === 'range' ? 'TRAINING' : `${MD.en} · ${sizeLabel(m.per)}`, scoreHtml: m.mode === 'range' ? '' : ob.html, scoreKey: m.mode === 'range' ? '' : ob.key, noSquad: m.mode === 'range',
       img: this.hud.plan && this.hud.plan.img, rect: m.rect, m, myTeam: p.team, mapKey: tick + '|' + m.flags.map(f => f.owner).join(','),
       opts, sel: this.dsel, dots, squad: { name: squadEn(p.squad, p.team), list: squad },
       cls, classes: CLASS_LIST.map(id => ({ id, en: CLASSES[id].en, short: CLASSES[id].short, name: CLASSES[id].name, hp: CLASSES[id].hp, desc: CLASSES[id].desc, tools: CLASSES[id].tools.join('・'), long: toolTxt(CLASSES[id], id), ok: canPick(p, id) })),
       lo: !!this.dlo, loTab: this.dloTab || 'gun', guns, secs, gun, sec, att: this._attRows(gun, W.att[gun] || {}), gad: this._gadRow(cls, (W.gad || {})[cls]), gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.filter(([id]) => isThrow(id)).map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
       left, queued: !!p.deployAt, canGo: !(m.mode === 'conquest' && m.tickets[p.team] <= 0),
-      msg: m.mode === 'range' ? '射台から' : m.mode === 'conquest' ? (m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
+      msg: m.mode === 'range' ? '射台から' : m.mode === 'conquest' && m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'rally' ? 'ビーコンから' : String(this.dsel).startsWith('sq:') ? `${(S.byId[+String(this.dsel).slice(3)] || {}).name || '仲間'} のそばから` : m.mode === 'conquest' ? (this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
     };
   }
   _visCache(a) {

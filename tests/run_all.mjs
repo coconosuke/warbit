@@ -325,7 +325,14 @@ try {
     await page.waitForFunction(() => { const s = window.__app.game.p.ws.st; return s === 'reload' || s === 'shell'; }, null, { timeout: 15000 }).catch(() => {});
     const rl = await page.evaluate(() => window.__app.game.p.ws.st);
     rec('操作', 'リロードのボタンで弾倉を替え始める', rl === 'reload' || rl === 'shell', `状態 ${rl}`);
+    // リロードの進み（11-26 22:56）: ボタンのまわりの輪が、終わるまでに満ちていく（時間は銃ごと）。終わると消える
+    const rp = [];
+    for (let k = 0; k < 4; k++) { rp.push(await page.evaluate(() => { const b = document.querySelector('#hud [data-btn="reload"]'), f = b.querySelector('.rl-prog .f'); return b.classList.contains('rl-on') ? +(1 - parseFloat(f.style.strokeDashoffset || '113.1') / 113.1).toFixed(2) : -1; })); await page.waitForTimeout(250); }
     await page.waitForFunction(() => window.__app.game.p.ws.st === 'ready', null, { timeout: 90000 }).catch(() => {});
+    await page.waitForTimeout(200);
+    const rpOff = await page.evaluate(() => !document.querySelector('#hud [data-btn="reload"]').classList.contains('rl-on'));
+    const on = rp.filter(x => x >= 0);
+    rec('操作', 'リロード中はリロードのボタンに進みの輪が出て満ちていき、終わると消える', on.length >= 2 && on.every((x, i) => i === 0 || x >= on[i - 1]) && on[on.length - 1] > on[0] && rpOff, `進み ${rp.join(' → ')}・終わると ${rpOff ? '消える' : '残る'}`);
     // リロードの2回押し（11-20。BattleBit に合わせる）: すばやく2回押すと、弾倉を落とす速いリロードに
     {
       await holdAt(await btn('fire'), 400, 121);
@@ -381,7 +388,9 @@ try {
     const wf = (fn, t = 60000) => page.waitForFunction(fn, null, { timeout: t }).then(() => true).catch(() => false);
     const at = (dy, id = 41) => ({ x: 150, y: 290 - dy, id });
     const push = async (id) => { await touch('touchStart', [at(0, id)]); for (let k = 1; k <= 20; k++) { await touch('touchMove', [at(k * 5, id)]); await page.waitForTimeout(30); } };
-    const tapWith = async (b, id, sid = 41) => { await touch('touchStart', [at(100, sid), { x: b.x, y: b.y, id }]); await page.waitForTimeout(80); await touch('touchEnd', [{ x: b.x, y: b.y, id }]); await page.waitForTimeout(150); };
+    // 押す・離すを 80ms あけて送る（受け取りを待たない。tapAt と同じ）。描画の遅い環境で押したのを受け取るまで待つと、
+    //  その間（1こま 1〜2 秒）押していたことになり、短く押したのが長押し（ADS なら息止め）になる
+    const tapWith = async (b, id, sid = 41) => { const a = touch('touchStart', [at(100, sid), { x: b.x, y: b.y, id }]); await new Promise(r => setTimeout(r, 80)); const c = touch('touchEnd', [{ x: b.x, y: b.y, id }]); await Promise.all([a, c]); await page.waitForTimeout(150); };
     // 描画が遅い環境では、押し込み直す前にリロードが終わってしまうので長くしておく（やめるのを確かめる）
     const longReload = () => page.evaluate(() => { const ws = window.__app.game.p.ws; ws.t = 30; ws.rd = 30; });
     const R = await btn('reload'), A = await btn('ads'), LR = await btn('leanR'), F = await btn('fire');
@@ -519,6 +528,22 @@ try {
       const b4 = await page.evaluate(() => !window.__app.game.p.ws.holding && !window.__app.game.breathOn);
       rec('操作', '息止めは切り替え: 押して離しても止めたまま・もう1回で戻す・構えをやめると切れる', b1 && b2 && b3 && b4, JSON.stringify({ b1, b2, b3, b4 }));
     }
+    // ADS 長押しで息止め（11-26 の要望）: 押したままなら息を止め、離すと戻る（構えは残る）。構えている時の短押しで構えをやめる。息止めボタンは設定で消せる
+    {
+      await page.waitForFunction(() => window.__app.game.p.ws.br > 0.5, null, { timeout: 15000 }).catch(() => {});
+      await page.evaluate(() => { window.__app.game.adsOn = true; });
+      const A = await btn('ads');
+      const pr = page.evaluate(async () => { const g = window.__app.game; let h = false; for (let i = 0; i < 40; i++) { await new Promise(r => setTimeout(r, 30)); if (g.p.ws.holding) h = true; } return h; });
+      await holdAt(A, 1100, 73);
+      const h1 = await pr;
+      await page.waitForTimeout(250);
+      const after = await page.evaluate(() => ({ hold: !!window.__app.game.p.ws.holding, ads: window.__app.game.adsOn }));
+      await tapAt(A, 74);
+      await page.waitForTimeout(150);
+      const off = await page.evaluate(() => !window.__app.game.adsOn);
+      const hid = await page.evaluate(() => { const a = window.__app; a.settings.breathBtn = false; a.applySettings(false); a.game.adsOn = true; return new Promise(r => setTimeout(() => { const e = document.querySelector('[data-btn="breath"]'); r(!e || e.classList.contains('hidden') || getComputedStyle(e).display === 'none'); a.settings.breathBtn = true; a.applySettings(false); a.game.adsOn = false; }, 300)); });
+      rec('操作', 'ADS 長押しで息止め: 押している間だけ止め、離すと戻って構えは残る・短押しで構えをやめる・息止めボタンを設定で消せる', h1 && !after.hold && after.ads && off && hid, JSON.stringify({ h1, after, off, hid }));
+    }
     // 反動の押さえ（research の 19）: 反動で上がっている間に下へ引いた分は反動から引き、体の向きは下げない。上がっていなければ向きが下がる
     {
       const rc = await page.evaluate(() => {
@@ -643,21 +668,21 @@ try {
     await touch('touchEnd', []);
     const got = await page.waitForFunction(() => { const g = window.__app.game; return g.p.ws.gear === 'smoke' && g.nadeSel === 'smoke'; }, null, { timeout: 15000 }).then(() => true).catch(() => false);
     rec('射撃場', '投げ物・包帯・道具のボタン: 前の装備のボタンは出ない。投げ物を指でずらすと離す前に円が出て、下へずらすと発煙弾を持つ', vis === 'gear:0,nade:1,heal:1,gad:1' && rad && rad.btn === 'nade' && rad.n === 4 && got, `${vis}・円 ${rad ? rad.labels.join('/') : 'なし'}・発煙 ${got ? '○' : '×'}`);
-    // 円の選び（11-26 22:28）: 指を置いた所から少し（30 点）ずらしただけで、その向きの物を選べる（名前の所までずらさなくてよい）
+    // 円の選び（11-26 22:28・22:51）: ボタンのまん中から測り、縁から少し（30 点）ずらしただけで、その向きの物を選べる（名前の所までずらさなくてよい）
     { const nb3 = await btn('nade');
       await touch('touchStart', [{ x: nb3.x, y: nb3.y, id: 77 }]);
       await touch('touchMove', [{ x: nb3.x, y: nb3.y + 18, id: 77 }]);
       await touch('touchMove', [{ x: nb3.x, y: nb3.y + 30, id: 77 }]);
       await page.waitForTimeout(120);
-      const sel = await page.evaluate(() => { const r = window.__app.input.radial; return r ? { sel: r.sel, lb: r.sel >= 0 && r.items[r.sel] ? r.items[r.sel].label : '' } : null; });
+      const sel = await page.evaluate(() => { const r = window.__app.input.radial; if (!r) return null; const c = document.querySelector('#hud .hud-radial .rc').getBoundingClientRect(), b = document.querySelector('#hud [data-btn="nade"]').getBoundingClientRect(); return { sel: r.sel, lb: r.sel >= 0 && r.items[r.sel] ? r.items[r.sel].label : '', ctr: Math.round(Math.hypot(c.x + c.width / 2 - (b.x + b.width / 2), c.y + c.height / 2 - (b.y + b.height / 2))), dz: !!document.querySelector('#hud .hud-radial .dz') }; });
       await touch('touchEnd', []);
       await page.waitForTimeout(200);
-      rec('射撃場', '投げ物の円: 指を少し（30 点）下へずらすだけで下の物（発煙）を選ぶ', !!sel && sel.sel >= 0 && /発煙/.test(sel.lb), JSON.stringify(sel)); }
+      rec('射撃場', '投げ物の円: 円はボタンのまん中に出て、ボタンの縁（点線）から少し（30 点）下へずらすだけで下の物（発煙）を選ぶ', !!sel && sel.sel >= 0 && /発煙/.test(sel.lb) && sel.ctr <= 3 && sel.dz, JSON.stringify(sel)); }
     // 投げ物のボタンを長押しして、動かさずに離す: 円は閉じる（11-26 22:23: 前は真ん中で離すと出たままになっていた）
     { const nb2 = await btn('nade');
       await touch('touchStart', [{ x: nb2.x, y: nb2.y, id: 76 }]);
-      await page.waitForTimeout(700);
-      const opened = await page.evaluate(() => !!window.__app.input.radial);
+      // 長押しの知らせはこまごとに読む。描画の遅い環境（ソフトウェア描画）でも開くまで待つ（決まった 0.7 秒では足りないことがあった）
+      const opened = await page.waitForFunction(() => !!window.__app.input.radial, null, { timeout: 6000 }).then(() => true).catch(() => false);
       await touch('touchEnd', []);
       await page.waitForTimeout(250);
       const closed = await page.evaluate(() => !window.__app.input.radial && !document.querySelector('#hud .hud-radial.on, #hud .radial.on'));
@@ -671,9 +696,10 @@ try {
     // 前に撃った RPG のロケットなどは数えない（これから投げる発煙弾だけ）
     await page.evaluate(() => { const g = window.__app.game, me = g.p, old = new Set(g.S.nades.map(q => q.id)); window.__nadeSeen = null; const f = () => { const n = g.S.nades.find(q => q.by === me.id && !old.has(q.id) && q.type === 'smoke'); if (n && !window.__nadeSeen) window.__nadeSeen = { sp: Math.hypot(n.vx, n.vz), dy: n.y - me.y }; if (!window.__nadeSeen) requestAnimationFrame(f); }; requestAnimationFrame(f); });
     const yaw0 = await page.evaluate(() => window.__app.game.yaw);
-    await touch('touchStart', [{ x: fb.x, y: fb.y, id: 75 }]);
+    // ボタンの端寄りを押しても、輪はボタンのまん中が起点（11-26 22:50）
+    await touch('touchStart', [{ x: fb.x + 12, y: fb.y + 8, id: 75 }]);
     await page.waitForTimeout(400);
-    const pin = await page.evaluate(() => { const g = window.__app.game, r = document.querySelector('#hud .hud-under'); return !window.__nadeSeen && g.p.ws.cook != null && !!r && r.classList.contains('on') && !r.classList.contains('arm'); });
+    const pin = await page.evaluate(() => { const g = window.__app.game, r = document.querySelector('#hud .hud-under'), f = document.querySelector('#hud [data-btn="fire"]'); if (!r) return false; const a = r.getBoundingClientRect(), b = f.getBoundingClientRect(); const ctr = Math.hypot(a.x + a.width / 2 - (b.x + b.width / 2), a.y + a.height / 2 - (b.y + b.height / 2)) < 3 && a.width > b.width; return !window.__nadeSeen && g.p.ws.cook != null && r.classList.contains('on') && !r.classList.contains('arm') && ctr; });
     for (let k = 1; k <= 6; k++) await touch('touchMove', [{ x: fb.x - 14 * k, y: fb.y - 6 * k, id: 75 }]);
     await page.waitForTimeout(150);
     const armed = await page.evaluate(() => { const e = document.querySelector('#hud [data-btn="fire"]'), r = document.querySelector('#hud .hud-under'); return e.classList.contains('under') && /下投げ/.test(e.textContent) && r.classList.contains('arm'); });
@@ -681,7 +707,7 @@ try {
     const seen = await page.waitForFunction(() => window.__nadeSeen, null, { timeout: 8000 }).then(h => h.jsonValue()).catch(() => null);
     const yawMoved = await page.evaluate((y0) => Math.abs(window.__app.game.yaw - y0), yaw0);
     const ringOff = await page.evaluate(() => !document.querySelector('#hud .hud-under.on'));
-    rec('射撃場', '下投げ: 投げ物を持つと射撃のボタンの絵が変わる。押すと境目の輪が出て、押しただけでは投げず、輪の外へずらして離すと腰の高さから軽く放る（ずらしても見回さない）', fnade && pin && armed && ringOff && !!seen && seen.sp < 10 && seen.dy < 1.2 && yawMoved < 0.02, `絵 ${fnade ? '○' : '×'}・押すと ${pin ? '輪・投げない' : '×'}・離すと輪 ${ringOff ? '消える' : '残る'}・ずらすと ${armed ? '下投げの絵' : '×'}・速さ ${seen ? seen.sp.toFixed(1) : '-'}m/s・高さ ${seen ? seen.dy.toFixed(2) : '-'}m・向き ${yawMoved.toFixed(3)}`);
+    rec('射撃場', '下投げ: 投げ物を持つと射撃のボタンの絵が変わる。押すと射撃ボタンのまん中を起点に境目の輪が出て、押しただけでは投げず、輪の外へずらして離すと腰の高さから軽く放る（ずらしても見回さない）', fnade && pin && armed && ringOff && !!seen && seen.sp < 10 && seen.dy < 1.2 && yawMoved < 0.02, `絵 ${fnade ? '○' : '×'}・押すと ${pin ? '輪・投げない' : '×'}・離すと輪 ${ringOff ? '消える' : '残る'}・ずらすと ${armed ? '下投げの絵' : '×'}・速さ ${seen ? seen.sp.toFixed(1) : '-'}m/s・高さ ${seen ? seen.dy.toFixed(2) : '-'}m・向き ${yawMoved.toFixed(3)}`);
   } catch (e) { rec('射撃場', '射撃場だけの物', false, e.message.slice(0, 200)); }
 
   // ---- WAR BIT: タイトル → PLAY → コンクエスト 16 vs 16 → 出撃の画面 → 兵科を選んで出る → 撃つ → 倒れて出撃し直す → 勝ち → 結果 → もう一度
@@ -701,6 +727,13 @@ try {
     await shot('WAR-出撃の画面');
     const dp = await page.evaluate(() => { const g = window.__app.game; return { alive: g.p.alive, cls: document.querySelectorAll('#hud .dps-c').length, sq: document.querySelectorAll('#hud .dps-m').length, pts: [...document.querySelectorAll('#hud .dps-p')].map(e => e.dataset.sub), n: g.S.actors.length, bots: g.S.actors.filter(a => a.ai).length }; });
     rec('WAR BIT', '試合は出撃の画面から始まる（兵科6つ・分隊8人・地図の出撃の場所・ボット31体）', !dp.alive && dp.cls === 6 && dp.sq === 8 && dp.pts.includes('hq') && dp.n === 32 && dp.bots === 31, JSON.stringify(dp));
+    // 出撃の画面のスコアのボタン（11-26 22:33）: 押すとスコア表が出撃の画面の上に出て、表を押すと閉じる
+    { await tapAt(await center('#hud .hud-deploy .dps-sb'), 82);
+      const on1 = await page.waitForFunction(() => document.querySelector('#hud .hud-board.on tr'), null, { timeout: 5000 }).then(() => true).catch(() => false);
+      const top = await page.evaluate(() => { const b = document.querySelector('#hud .hud-board.on .bd'); if (!b) return false; const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + 12); return !!(e && e.closest('.hud-board')); });
+      await tapAt(await center('#hud .hud-board.on .bd'), 83);
+      const off = await page.waitForFunction(() => !document.querySelector('#hud .hud-board.on'), null, { timeout: 5000 }).then(() => true).catch(() => false);
+      rec('WAR BIT', '出撃の画面からスコア表を見られる（出撃の画面の上に出て、押すと閉じる）', on1 && top && off, `出る ${on1 ? '○' : '×'}・上 ${top ? '○' : '×'}・閉じる ${off ? '○' : '×'}`); }
     await tapAt(await center('#hud .dps-c[data-sub="support"]'), 72);
     await page.waitForFunction(() => window.__app.game.dcls === 'support', null, { timeout: 15000 }).catch(() => {});
     await tapAt(await center('#hud .dps-lo'), 73);
@@ -765,8 +798,8 @@ try {
     await page.evaluate(() => { const g = window.__app.game, p = g.p, r = g.S.m.rect; p.x = r[0] - 25; p.oob = 9.95; });
     await page.waitForFunction(() => document.querySelector('#hud .hud-deploy.on .dps-go'), null, { timeout: 90000 }).catch(() => {});
     const wait = await page.evaluate(() => (document.querySelector('#hud .dps-go b') || {}).textContent || '');
-    const rallyOpt = await page.evaluate(() => [...document.querySelectorAll('#hud .dps-p b')].some(e => e.textContent === '集合'));
-    rec('WAR BIT', '集合地点があると出撃の画面に「集合」が出る', rallyOpt, String(rallyOpt));
+    const rallyOpt = await page.evaluate(() => [...document.querySelectorAll('#hud .dps-p b')].some(e => e.textContent === 'ビーコン'));
+    rec('WAR BIT', 'ビーコン（集合地点）があると出撃の画面に「ビーコン」が出る', rallyOpt, String(rallyOpt));
     await shot('WAR-倒れた後の出撃の画面');
     await tapAt(await center('#hud .dps-go'), 77);
     await page.waitForFunction(() => window.__app.game.p.alive, null, { timeout: 90000 }).catch(() => {});
@@ -819,12 +852,15 @@ try {
   await page.waitForTimeout(500);
   // メニューの再出撃（11-19 18:16）: 生きている間は REDEPLOY がある
   {
-    await page.evaluate(() => window.__app.pauseGame());
-    await page.waitForTimeout(300);
+    const t0 = await page.evaluate(() => { window.__app.pauseGame(); return window.__app.game.S.t; });
+    await page.waitForTimeout(800);
     const hasRd = await page.evaluate(() => !!document.querySelector('[data-a="redeploy"]'));
+    const t1 = await page.evaluate(() => window.__app.game.S.t);
     await page.evaluate(() => window.__app.resumeGame());
     await page.waitForTimeout(300);
     rec('画面', '大規模戦の一時停止に REDEPLOY（再出撃）がある', hasRd, String(hasRd));
+    // 11-26 22:33: メニューを開いても試合は止まらない（オンラインと同じ）
+    rec('画面', '大規模戦: メニューを開いても試合は進む（止まらない）', t1 > t0 + 5, `${t0} → ${t1}`);
   }
   // ダウン中にあきらめる（11-19 18:16）: GIVE UP を2回押すとすぐ出撃の画面へ
   {

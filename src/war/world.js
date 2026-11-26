@@ -273,6 +273,37 @@ export function rayBoxF(ox, oy, oz, dx, dy, dz, x0, y0, z0, x1, y1, z1) {
   if (tmax < 0) return null;
   return [Math.max(0, tmin), tmax, nx, ny, nz];
 }
+// 目（カメラ）を壁・天井・地面から r 離す（11-26: 壁にくっつく・リーン・伏せで、近くの面が切れて壁の中や向こう側が見えていた）。
+// 体のまん中（壁の外）bx,by,bz から目 ex,ey,ez への線が、r だけ太らせた箱に入る手前で止める。体のまん中がもう太らせた箱の中なら、その箱は見ない
+export function camClear(ww, bx, by, bz, ex, ey, ez, r, out = [0, 0, 0]) {
+  const dx = ex - bx, dy = ey - by, dz = ez - bz;
+  let t = 1;
+  if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) > 1e-5) {
+    const i0 = Math.max(0, Math.floor((Math.min(bx, ex) - r) / G)), i1 = Math.min(ww.GW - 1, Math.floor((Math.max(bx, ex) + r) / G));
+    const j0 = Math.max(0, Math.floor((Math.min(bz, ez) - r) / G)), j1 = Math.min(ww.GD - 1, Math.floor((Math.max(bz, ez) + r) / G));
+    ww.stampN++;
+    const st = ww.stamp, sn = ww.stampN;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      for (const id of ww.cellBox[j * ww.GW + i]) {
+        if (st[id] === sn) continue; st[id] = sn;
+        const b = ww.boxes[id];
+        if (!b.alive || b.hide) continue;
+        const X0 = b.x0 - r, X1 = b.x1 + r, Y0 = b.y0 - r, Y1 = b.y1 + r, Z0 = b.z0 - r, Z1 = b.z1 + r;
+        if (bx > X0 && bx < X1 && by > Y0 && by < Y1 && bz > Z0 && bz < Z1) continue;
+        const h = rayBoxF(bx, by, bz, dx, dy, dz, X0, Y0, Z0, X1, Y1, Z1);
+        if (h && h[0] < t) t = h[0];
+      }
+    }
+  }
+  t = Math.max(0, t - 1e-3);
+  const x = bx + dx * t, z = bz + dz * t;
+  let y = by + dy * t;
+  const c = ceilAt(ww, x, z, y - 0.6);
+  if (c < 1e8 && y > c - r) y = Math.max(by - 0.6, c - r);
+  if (inWorld(ww, x, z)) { const g = heightAt(ww, x, z); if (y < g + r) y = g + r; }
+  out[0] = x; out[1] = y; out[2] = z;
+  return out;
+}
 // 地形との交点（t0..t1 の間で、光線が地面の下に入る所）。なければ -1
 function rayTerrain(ww, ox, oy, oz, dx, dy, dz, ta, tb) {
   const step = ww.hs * 0.5;

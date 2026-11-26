@@ -163,7 +163,8 @@ class App {
     const dt = Math.min(0.1, raw);
     if (this.mode === 'game' && !this.paused && raw < 0.5) this._dynStep(raw);
     try {
-      const netRun = this.game && this.game.net && !this.game.done && (this.mode === 'game' || this.mode === 'pause');
+      // オンライン・大規模戦: メニューを開いても試合は止めない（11-26 22:33。手元の操作だけ止める）
+      const netRun = this.game && (this.game.net || this._liveMenu()) && !this.game.done && (this.mode === 'game' || this.mode === 'pause');
       const tf = performance.now();
       if (netRun) this.game.frame(dt, { input: this.mode === 'game' });
       else if (this.mode === 'game' && this.game && !this.paused) this.game.frame(dt);
@@ -281,15 +282,17 @@ class App {
   pauseGame() {
     if (!this.game || this.game.done) return;
     if (this.game.intro > 0) { this.game.intro = 0; this.fade(0); }
-    this.paused = !this.game.net; this.mode = 'pause';
+    this.paused = !this.game.net && !this._liveMenu(); this.mode = 'pause';
     this.audio.loop('heart', false, { fade: 0.3 }); this.audio.setHurt(0);
     this.input.enabled = false; this.input.reset();
     if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) { /* なし */ } }
     this.hud.show(false);
-    if (!this.game.net) this._releaseWake();
+    if (!this.game.net && !this._liveMenu()) this._releaseWake();
     this.screens.reset('pause');
   }
   resumeGame() { if (this.game) this._play(); }
+  // メニューの間も試合が進むか: オンラインと大規模戦（ボットとの試合も、オンラインと同じく止まらない）。射撃場は止める
+  _liveMenu() { const g = this.game; return !!(g && g.S && g.S.war && g.S.m && g.S.m.mode !== 'range'); }
   openTablet() { if (!this.game) return; this.pauseGame(); this.screens.open('tablet'); }
   abortMission() {
     if (!this.game) return;

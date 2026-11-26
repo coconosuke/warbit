@@ -103,7 +103,9 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
     const fat = a.fat || 0;
     const A = swayOf(W) * a.ads * a.ads * (a.st > 1.5 ? 0.25 : a.st > 0.5 ? 0.5 : 1) * (1 + Math.min(1.5, (a.spd || 0) / 2.4) * 1.5) * (a.inj && a.inj.arm ? 1.8 : 1)
       * (Math.abs(a.lean || 0) > 0.3 ? 1.15 : 1) * (1 + 0.4 * fat) * (1 - 0.3 * ws.calm)
-      * (1 - 0.9 * (ws.hold || 0)) * (1 + 0.9 * Math.min(1, (ws.gasp || 0) / 2.5));
+      * (1 - 0.9 * (ws.hold || 0)) * (1 + 0.9 * Math.min(1, (ws.gasp || 0) / 2.5))
+      // 高い倍率では揺れの角度を少し小さく（11-26 22:48: 8倍で揺れが細かい狙いを押し流していた。4倍 0.83・8倍 0.63・12倍 0.5）
+      * (S.war ? 1 / (1 + 0.1 * Math.max(0, zoomOf(curWeapon(a)) - 2)) : 1);
     const t = S.t * S.dt + a.id * 7.3;
     // 息: ふだんは 1.55 rad/秒（約4秒）。走ったあとは大きく、速い息（2.7 rad/秒）が混ざる
     const br = 0.55 * (1 + 1.2 * fat) * Math.sin(t * 1.55) + 0.75 * fat * Math.sin(t * 2.7 + 0.5);

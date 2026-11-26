@@ -7,8 +7,10 @@ export const BTN = {
   ads: { name: '構える（ADS）', ax: 'r', ay: 'b', x: 178, y: 68, s: 58, icon: 'ads' },
   reload: { name: 'リロード', ax: 'r', ay: 'b', x: 36, y: 205, s: 50, icon: 'reload' },
   crouch: { name: 'しゃがむ（長押しで伏せ）', ax: 'r', ay: 'b', x: 36, y: 40, s: 50, icon: 'crouch' },
-  breath: { name: '息止め（構えている間）', ax: 'r', ay: 'b', x: 240, y: 126, s: 50, icon: 'breath', warOnly: true, adsOnly: true },
+  breath: { name: '息止め（構えている間）', ax: 'r', ay: 'b', x: 240, y: 126, s: 50, icon: 'breath', warOnly: true, adsOnly: true, opt: 'breathBtn' },
   vault: { name: '乗り越え・跳ぶ', ax: 'r', ay: 'b', x: 160, y: 200, s: 48, icon: 'jump' },
+  // ジャンプ（設定で乗り越えと分けた時だけ出る。11-26）
+  jump: { name: 'ジャンプ（乗り越えと分けた時）', ax: 'r', ay: 'b', x: 110, y: 26, s: 44, icon: 'jump', warOnly: true, optOn: 'jumpBtn' },
   // 近接: 上のライトのボタンと重なっていたので、構えるボタンの左へ（11-19）
   melee: { name: '近接（銃床で殴る）', ax: 'r', ay: 'b', x: 252, y: 30, s: 44, icon: 'melee' },
   leanL: { name: '左にリーン', ax: 'l', ay: 'b', x: 36, y: 168, s: 48, icon: 'leanL' },
@@ -27,7 +29,7 @@ export const BTN = {
   pick: { name: '拾う（近くに落ちた弾倉がある間）', ax: 'r', ay: 'b', x: 250, y: 196, s: 46, icon: 'pick', warOnly: true },
   fmode: { name: '射撃モード', ax: 'r', ay: 't', x: 214, y: 92, s: 36, icon: 'fmode' },
   spot: { name: '敵に印（分隊に知らせる）', ax: 'l', ay: 't', x: 170, y: 40, s: 40, icon: 'spot', warOnly: true },
-  rally: { name: '集合地点を置く（分隊長・分隊ポイント 200）', ax: 'l', ay: 't', x: 218, y: 40, s: 40, icon: 'rally', warOnly: true },
+  rally: { name: 'ビーコンを置く（分隊長・分隊ポイント 200）', ax: 'l', ay: 't', x: 218, y: 40, s: 40, icon: 'rally', warOnly: true },
   zoom: { name: 'スコープの倍率', ax: 'r', ay: 't', x: 258, y: 92, s: 36, icon: 'zoom', zoomOnly: true },
   light: { name: 'ライト', ax: 'r', ay: 't', x: 170, y: 92, s: 36, icon: 'light' },
   nvg: { name: '暗視装置', ax: 'r', ay: 't', x: 126, y: 92, s: 36, icon: 'nvg', noWar: true },

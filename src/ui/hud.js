@@ -81,6 +81,8 @@ export class Hud {
       this.btn[id] = e;
     }
     this.btn.team.querySelector('.lb').textContent = '全員';
+    // リロードの進み（11-26 22:56）: ボタンのまわりの矢印の輪が、リロードが終わるまでに一周する（銃・リロードの種類ごとの時間どおり）
+    this.btn.reload.insertAdjacentHTML('beforeend', '<svg class="rl-prog" viewBox="-3 -3 46 46" aria-hidden="true"><circle cx="20" cy="20" r="18" class="t"/><circle cx="20" cy="20" r="18" class="f" transform="rotate(-90 20 20)"/><g class="h"><path d="M24.6 2 L19.4 -1.6 L19.4 5.6z"/></g></svg>');
     // 編集の道具
     this.editBar = el('div', 'hud-editbar', `<div class="r1"><div class="grip" role="button" aria-label="この欄を動かす"><i></i><i></i><i></i></div><div class="nm">項目を選択</div><button data-a="hide">隠す</button></div>
       <div class="r2"><label>大きさ <input type="range" min="0.6" max="1.8" step="0.05" data-k="s"></label>
@@ -134,7 +136,7 @@ export class Hud {
       if (def.rangeOnly && !this.mode.range) hide = true;
       if (def.warOnly && !this.mode.war) hide = true;
       // 設定で消したボタン（左の射撃）: 配置を動かしたことがあっても消す（動かすと設定が効かなくなっていた）
-      const offBySetting = def.opt === 'leftFire' && this.S.leftFire === false;
+      const offBySetting = (!!def.opt && this.S[def.opt] === false) || (!!def.optOn && this.S[def.optOn] !== true); // 左の射撃・息止め・ジャンプ（11-26）
       if (offBySetting) hide = true;
       // 編集のときも、このモードで使わないボタン（大規模戦の 警告・調べる・暗視 など）は出さない（11-19 14:03）
       // 11-19 23:27: 編集の時もここで隠す（前は薄くなるだけで、監視カメラ・命令・警告などが出ていた）。
@@ -232,14 +234,16 @@ export class Hud {
     r.scale = k * rs;
     e.classList.add('on');
     let cx = r.x, cy = r.y;
-    cx = Math.max(R + 40, Math.min(this.stage.w - R - 40, cx)); cy = Math.max(R + 30, Math.min(this.stage.h - R - 30, cy));
-    if (r.x !== cx || r.y !== cy) { r.x = cx; r.y = cy; }
-    const n = r.items.length;
-    let h = `<div class="rc" style="left:${cx}px;top:${cy}px;width:${R * 2}px;height:${R * 2}px;--rs:${(k * rs).toFixed(3)}"><div class="mid">${r.title || ''}</div>`;
+    // ボタンから開いた円（11-26 22:51）: 円はボタンのまん中に置いたまま（選ぶ向きもそこから測るので、ずらさない）。名前の札だけ画面の内へ寄せる。
+    //  タップで選ぶ円（ボタン以外から開く）は今までどおり円ごと画面の内へ
+    if (!r.anchor) { cx = Math.max(R + 40, Math.min(this.stage.w - R - 40, cx)); cy = Math.max(R + 30, Math.min(this.stage.h - R - 30, cy)); if (r.x !== cx || r.y !== cy) { r.x = cx; r.y = cy; } }
+    const n = r.items.length, W = this.stage.w, Hh = this.stage.h;
+    let h = `<div class="rc" style="left:${cx}px;top:${cy}px;width:${R * 2}px;height:${R * 2}px;--rs:${(k * rs).toFixed(3)}">${r.anchor && r.dz ? `<i class="dz" style="width:${r.dz * 2}px;height:${r.dz * 2}px"></i>` : ''}<div class="mid">${r.title || ''}</div>`;
     r.items.forEach((it, i) => {
       if (!it) return; // 空きの場所（並びを決めた円で、その物を持っていない）
       const a = (i / n) * Math.PI * 2;
-      const x = Math.sin(a) * R * 0.86, y = -Math.cos(a) * R * 0.86;
+      let x = Math.sin(a) * R * 0.86, y = -Math.cos(a) * R * 0.86;
+      if (r.anchor) { x = Math.max(46 * k * rs, Math.min(W - 46 * k * rs, cx + x)) - cx; y = Math.max(20 * k * rs, Math.min(Hh - 20 * k * rs, cy + y)) - cy; }
       h += `<div class="ri${i === r.sel ? ' sel' : ''}${it.disabled ? ' dis' : ''}" style="left:${R + x}px;top:${R + y}px">${it.label}${it.sub ? `<small>${it.sub}</small>` : ''}</div>`;
     });
     h += '</div>';
@@ -444,8 +448,19 @@ export class Hud {
         }
       }
       if (this.btn.rally) { const rk = (v.rally ? 1 : 0) + '|' + (v.rally && v.rally.ok ? 1 : 0) + '|' + (v.rally ? v.rally.lb : ''); if (this.cache.rally !== rk) { this.cache.rally = rk; this.btn.rally.classList.toggle('na', !v.rally); this.btn.rally.classList.toggle('dis', !!v.rally && !v.rally.ok); this.btn.rally.querySelector('.lb').textContent = v.rally ? v.rally.lb : ''; } }
-      this.btn.vault.classList.toggle('dis', !v.canVault && !this.mode.war); // 乗り越えのボタンは文字を出さない（11-12 の要望）。大規模戦は越える物がなくても跳ぶ
+      // 乗り越えのボタンは文字を出さない（11-12 の要望）。大規模戦は越える物がなくても跳ぶ。
+      //  ジャンプを分けた時（11-26）: 乗り越えのボタンは乗り越えの絵で、越える物がない間は薄く
+      const split = this.mode.war && this.S.jumpBtn === true;
+      if (this.cache.vaultSplit !== split) { this.cache.vaultSplit = split; const sv = this.btn.vault.querySelector('svg'); if (sv) sv.innerHTML = ICONS[split ? 'vault' : 'jump'] || ''; }
+      this.btn.vault.classList.toggle('dis', !v.canVault && (!this.mode.war || split));
       this.btn.reload.classList.toggle('dis', false);
+      {
+        const f = v.rl == null ? -1 : Math.max(0, Math.min(1, v.rl)), key = f < 0 ? -1 : Math.round(f * 200);
+        if (this.cache.rl !== key) {
+          this.cache.rl = key; this.btn.reload.classList.toggle('rl-on', f >= 0);
+          if (f >= 0) { const e = this.btn.reload.querySelector('.rl-prog'); e.querySelector('.f').style.strokeDashoffset = (113.1 * (1 - f)).toFixed(1); e.querySelector('.h').setAttribute('transform', `rotate(${(f * 360).toFixed(1)} 20 20)`); }
+        }
+      }
       // 調べる: その時できること
       const ukey = v.ctxLabel || '';
       if (this.cache.use !== ukey) { this.cache.use = ukey; this.btn.use.querySelector('.lb').textContent = ukey ? ukey.split('|')[0] : ''; this.btn.use.classList.toggle('dis', !ukey); }

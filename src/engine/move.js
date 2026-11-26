@@ -19,6 +19,8 @@ export const SPEED = { walk: 2.4, crouch: 1.2, prone: 0.45, low: 1.2, ads: 0.7, 
 // BattleBit のように、まっすぐ走り続けると数秒で少し速くなる（sprintUp 秒で sprint → sprint2）
 export const WAR_SPEED = { walk: 3.3, crouch: 2.0, prone: 0.8, ads: 0.52, sprint: 5.9, sprint2: 6.6, sprintUp: 3.0, back: 0.75, side: 0.9 };
 export const RADIUS = 0.28;
+// 大規模戦の伏せの向きを変える速さの上限（rad/s）。BattleBit の 2024 の手直し「伏せの回る速さに上限」（research の 19・63。数字は推測: 120°/s）
+export const PRONE_TURN = 2.1;
 const _po = [0, 0, 0], _pb = [0, 0, 0];
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
 const _pv = [0, 0, 0, 0];
@@ -28,7 +30,8 @@ const _pv = [0, 0, 0, 0];
 //  向こうに降りる所がなければ（壁ぎわの机・カウンター・車の屋根など）、物の上に乗る（天井が低ければかがむ）。
 //  窓のガラスは割って越える（smash 秒かかる）。板を打った窓（バリケード）は崩れるまで越えられない。
 //  高い壁・フェンス（tall m 以上。物の上に乗っても）の上は越えない。少し斜め・少しずれて立っていても、近くの通れる線を探す
-export const VAULT = { lo: 0.4, hi: 1.45, reach: 1.0, far: 2.6, band: 0.85, tall: 1.9, smash: 0.22, onto: 1.4 };
+// hop: 大規模戦で、これより低い物（上に立てる広さがあるもの）は越えずに跳んで上に乗る（跳ぶ高さ 約 0.66m＋段差）
+export const VAULT = { lo: 0.4, hi: 1.45, reach: 1.0, far: 2.6, band: 0.85, tall: 1.9, smash: 0.22, onto: 1.4, hop: 0.8 };
 // 落下: safe m までは何もない。そこからは k×(高さ−safe)^p の傷（1階分≒3mで約15、5mで約58、7mで約114）。
 // かがんで着地（受け身）すると傷と怯みが roll 倍。3.5mより高いと脚を痛める（遅くなる）。
 // 重い防具ほど傷が大きい（対戦: 軽0.9・中1・重1.15倍。作戦: ベストなし0.9・軽1・重1.12倍、鋼の板はさらに1.06倍）
@@ -88,8 +91,14 @@ function accelOf(S, a) {
 export function moveActor(S, w, a, inp, dt, ev) {
   if (!a.alive && !a.dead) return;
   // 向き（死んでいたら動かない）
-  if (!a.dead && !a.tased && !(a.down && !S.pvp)) {
-    a.yaw = inp.yaw; a.pitch = Math.max(-1.45, Math.min(1.45, inp.pitch));
+  // 大規模戦で倒れている間も体は回さない（11-26: 見回すと横たわった体が足を中心に回り、頭＝目が大きく動いて壁や地面に入っていた）
+  if (!a.dead && !a.tased && !(a.down && (!S.pvp || S.war))) {
+    let ny = inp.yaw;
+    if (S.war && a.st > 1.5 && Number.isFinite(a.yaw) && Number.isFinite(ny)) {
+      const d = Math.atan2(Math.sin(ny - a.yaw), Math.cos(ny - a.yaw)), m = PRONE_TURN * dt;
+      if (Math.abs(d) > m) ny = a.yaw + Math.sign(d) * m;
+    }
+    a.yaw = ny; a.pitch = Math.max(-1.45, Math.min(1.45, inp.pitch));
   }
   if (a.dead) { settle(S, w, a, dt); a.stateT += dt; return; }
   // 姿勢（家具の上で天井が低いときは、かがむ・伏せる）
@@ -289,7 +298,7 @@ function overTall(w, x, z, yb) {
   return !above && topY - base >= VAULT.tall;
 }
 // 線（始まり sx,sz・向き fx,fz）に沿って調べる
-function planAlong(S, w, a, sx, sz, fx, fz, out) {
+function planAlong(S, w, a, sx, sz, fx, fz, out, o = {}) {
   const y = a.y;
   // 1) 前の物（割れていないガラスは越えるときに割るので、無いものとして見る）
   let d0 = -1;
@@ -310,8 +319,23 @@ function planAlong(S, w, a, sx, sz, fx, fz, out) {
   }
   if (top < 0) return false;
   // 3) 越えた先
-  let far = -1, y1 = y, drop = 0, onto = 0, crouch = 0, blocked = 1e9, ox = 0, oz = 0;
-  for (let d = d0 + 0.2; d <= d0 + VAULT.far + 1e-6; d += 0.1) {
+  let far = -1, y1 = y, drop = 0, onto = 0, crouch = 0, blocked = 1e9, ox = 0, oz = 0, hop = 0;
+  // 大規模戦: 跳んで届く低い物（てっぺんが足から VAULT.hop まで）で、上に立てる広さ（奥へ 0.5m 以上続く）があれば、越えずに上に乗る
+  //  （11-26 22:40: ジャンプで上に乗りたい時でも向こうへ越えてしまう。本家も跳んで届く高さは跳んで乗る）
+  if (w.war && top <= VAULT.hop && !o.noHop) {
+    for (let d = d0 + 0.22; d <= d0 + 0.9; d += 0.08) {
+      const x = sx + fx * d, z = sz + fz * d, g = standAt(w, x, z, y + top - STEP + 0.04);
+      if (g < y + VAULT.lo - 0.1 || g > y + top + 0.06) continue;
+      const xd = sx + fx * (d + 0.5), zd = sz + fz * (d + 0.5);
+      if (Math.abs(standAt(w, xd, zd, g - STEP + 0.04) - g) > 0.05) break; // 薄い（塀・柵）: 越える
+      if (ceilAt(w, x, z, g) - g < 1.84 || !freeAt(S, w, x, z, g + STEP, g + 1.8, RADIUS, 6)) break;
+      far = d; y1 = g; onto = 1; hop = 1; ox = x; oz = z;
+      break;
+    }
+  }
+  // ジャンプのボタン（乗り越えと分けた時）: 跳んで乗れる時だけ
+  if (o.hopOnly && !hop) return false;
+  for (let d = d0 + 0.2; far < 0 && d <= d0 + VAULT.far + 1e-6; d += 0.1) {
     const x = sx + fx * d, z = sz + fz * d;
     if (!freeAt(S, w, x, z, y + top, y + top + VAULT.band, 0.2, 7)) { blocked = d; break; } // 越える途中でつかえる（低い天井・壁）
     // 同じ高さの床（越えた物の上には降りない）
@@ -360,30 +384,33 @@ function planAlong(S, w, a, sx, sz, fx, fz, out) {
   }
   out.top = y + top; out.far = far; out.x1 = sx + fx * (far + 0.05); out.z1 = sz + fz * (far + 0.05); out.y1 = y1; out.drop = drop;
   if (onto) { out.x1 = ox; out.z1 = oz; }
-  out.onto = onto; out.crouch = crouch; out.gk = gk; out.sx = sx; out.sz = sz;
-  out.dur = 0.5 + top * 0.25 + 0.12 * Math.max(0, far - d0 - 0.8) + (gk >= 0 ? VAULT.smash : 0);
+  out.onto = onto; out.crouch = crouch; out.gk = gk; out.sx = sx; out.sz = sz; out.hop = hop;
+  // 跳んで乗る: 乗り越えより速い（跳ぶのと同じくらい）
+  out.dur = hop ? 0.3 + top * 0.2 : 0.5 + top * 0.25 + 0.12 * Math.max(0, far - d0 - 0.8) + (gk >= 0 ? VAULT.smash : 0);
   return true;
 }
 // まず向いている線、だめなら左右に少しずらした線、それでもだめなら少し斜めの線
 const VLAT = [0, 0.15, -0.15, 0.3, -0.3, 0.45, -0.45], VYAW = [0, 0.3, -0.3];
-export function vaultPlan(S, w, a, out = _vp) {
+// o.noHop: 乗り越えだけ（跳んで乗らない）。o.hopOnly: 跳んで乗る時だけ（ジャンプのボタン）
+export function vaultPlan(S, w, a, out = _vp, o = {}) {
   if (a.vault || a.st > 1.2 || a.down || a.comply || a.cuffed || !a.ground || a.air || a.isDrone || a.dead) return null;
   for (const dy of VYAW) {
     const yaw = a.yaw + dy, fx = Math.sin(yaw), fz = Math.cos(yaw), rx = -fz, rz = fx;
     for (const lat of dy ? [0] : VLAT) {
       const sx = a.x + rx * lat, sz = a.z + rz * lat;
       if (lat && !freeAt(S, w, sx, sz, a.y + STEP, a.y + 1.2, RADIUS - 0.06, 0)) continue;
-      if (planAlong(S, w, a, sx, sz, fx, fz, out)) return out;
+      if (planAlong(S, w, a, sx, sz, fx, fz, out, o)) return out;
     }
   }
   return null;
 }
-export function tryVault(S, w, a, ev) {
+export function tryVault(S, w, a, ev, o = {}) {
   // 大規模戦: 前の窓ガラス（胸の高さ・0.9m 先まで）は、乗り越えるときに割る（11-20。割れるまでは通れない）
-  if (w.war && !S.predict && ev) { const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw); shatterNear(S, w, a.x + fx * 0.55, a.y + 1.1, a.z + fz * 0.55, 0.45, ev, a.y + 0.3, a.y + 2.2); }
-  const p = vaultPlan(S, w, a);
+  if (w.war && !S.predict && ev && !o.hopOnly) { const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw); shatterNear(S, w, a.x + fx * 0.55, a.y + 1.1, a.z + fz * 0.55, 0.45, ev, a.y + 0.3, a.y + 2.2); }
+  const p = vaultPlan(S, w, a, _vp, o);
   if (!p) return false;
-  a.vault = { t: 0, dur: p.dur, x0: a.x, z0: a.z, sx: p.sx, sz: p.sz, y0: a.y, x1: p.x1, z1: p.z1, top: p.top, y1: p.y1, drop: p.drop > 0 ? 1 : 0, onto: p.onto, crouch: p.crouch, pre: p.gk >= 0 ? VAULT.smash : 0 };
+  a.vault = { t: 0, dur: p.dur, x0: a.x, z0: a.z, sx: p.sx, sz: p.sz, y0: a.y, x1: p.x1, z1: p.z1, top: p.top, y1: p.y1, drop: p.drop > 0 ? 1 : 0, onto: p.onto, crouch: p.crouch, pre: p.gk >= 0 ? VAULT.smash : 0, hop: p.hop || 0 };
+  if (p.hop && ev) ev.push({ e: 'jump', id: a.id });
   a.vx = a.vz = 0; a.sprint = false;
   // 窓のガラスを割る（手元の先読みでは割らない。ホストが割って知らせる）
   if (p.gk >= 0 && !S.predict && ev) breakGlass(S, w, { k: p.gk, q: 1, x: p.x1, by: a.id }, ev);
