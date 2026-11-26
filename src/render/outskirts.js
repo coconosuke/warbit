@@ -402,7 +402,7 @@ function house(B, s, ta, tb, da, db, R, night, row) {
 const NOG = new MeshBuilder(); // ガラスを使わない小物の受け皿
 function tree(B, p, R, row) {
   const sc = 0.8 + R() * 0.6;
-  if (row === 1) { NOG.v.length = 0; NOG.i.length = 0; NOG.n = 0; buildProp(B, NOG, { type: 'tree', x: p[0], y: 0, z: p[1], rot: Math.floor(R() * 4), sx: sc, sy: sc, sz: sc, opt: {}, id: 1 }, null); return; }
+  if (row === 1) { NOG.reset(); buildProp(B, NOG, { type: 'tree', x: p[0], y: 0, z: p[1], rot: Math.floor(R() * 4), sx: sc, sy: sc, sz: sc, opt: {}, id: 1 }, null); return; }
   // 遠くの木は簡単に（幹と葉のかたまり1つ）
   B.cyl(p[0], p[1], 0, 2.2 * sc, 0.16 * sc, 0.1 * sc, 5, LAYER.wood, COL.trunk, { capT: false });
   B.loft([{ y: 1.8 * sc, rx: 0.6 * sc, rz: 0.6 * sc, cx: p[0], cz: p[1] }, { y: 3.2 * sc, rx: 1.7 * sc, rz: 1.6 * sc, cx: p[0], cz: p[1] }, { y: 5.0 * sc, rx: 0.4 * sc, rz: 0.4 * sc, cx: p[0], cz: p[1] }], 6, LAYER.leaves, mixc(COL.leaf, COL.leafD, R()), { capTop: true, capBot: true });

@@ -866,7 +866,7 @@ export class Match {
         case 'wglass': {
           let ks = e.ks || [];
           if (this.w && this.w.war) { const gb = this.w.boxes[e.id]; if (gb && gb.alive && gb.kind === 'glass') ks = breakPane(this.w, gb); }
-          this.r.rebuildWarChunks && this.r.rebuildWarChunks(ks);
+          this.r.rebuildWarChunks && this.r.rebuildWarChunks(ks, 'glass');
           if (fx.glassBreak) fx.glassBreak(e.cx ?? e.x, (e.cy ?? e.y) - 0.6, e.cz ?? e.z);
           au.sfx('glass', [e.x, e.y, e.z], { vol: 0.85 });
           break;

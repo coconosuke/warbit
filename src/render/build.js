@@ -4,7 +4,23 @@
 export const WV = 15;
 
 export class MeshBuilder {
-  constructor() { this.v = []; this.i = []; this.n = 0; this.room = 0; this.emit = 0; this.xf = null; }
+  // 頂点は伸びる Float32Array に直接書く（11-26: 普通の配列へ 15 個ずつ push すると、町の塊1つで数十 ms と大きなゴミが出て、
+  //  歩いて塊が切り替わるたび・壁が壊れるたびにカクついていた）。使っている長さは n * WV
+  constructor() { this.v = new Float32Array(WV * 64); this.i = []; this.n = 0; this.room = 0; this.emit = 0; this.xf = null; }
+  _grow(k) {
+    const need = (this.n + k) * WV; if (need <= this.v.length) return;
+    let cap = this.v.length * 2; while (cap < need) cap *= 2;
+    const nv = new Float32Array(cap); nv.set(this.v.subarray(0, this.n * WV)); this.v = nv;
+  }
+  // 空にする（同じビルダーを使い回す時）
+  reset() { this.n = 0; this.i.length = 0; return this; }
+  // 頂点 t を写して、高さだけ dy ずらした頂点を足す（地形のすそ）
+  dupVert(t, dy) {
+    this._grow(1);
+    const V = this.v, o = this.n * WV, s = t * WV;
+    V.copyWithin(o, s, s + WV); V[o + 1] += dy;
+    return this.n++;
+  }
   // 変換（行列3x4: [ax,ay,az, bx,by,bz, cx,cy,cz, tx,ty,tz] = 列 X Y Z と移動）
   setXf(m) { this.xf = m; return this; }
   _p(x, y, z) {
@@ -17,8 +33,18 @@ export class MeshBuilder {
     const l = Math.hypot(a, b, c) || 1; return [a / l, b / l, c / l];
   }
   vert(p, n, u, v, layer, col, ao = 1) {
-    const P = this._p(p[0], p[1], p[2]), N = this._n(n[0], n[1], n[2]);
-    this.v.push(P[0], P[1], P[2], N[0], N[1], N[2], u, v, layer, col[0], col[1], col[2], ao, this.room, this.emit);
+    if ((this.n + 1) * WV > this.v.length) this._grow(1);
+    let px = p[0], py = p[1], pz = p[2], nx = n[0], ny = n[1], nz = n[2];
+    const m = this.xf;
+    if (m) {
+      const x = px, y = py, z = pz;
+      px = m[0] * x + m[3] * y + m[6] * z + m[9]; py = m[1] * x + m[4] * y + m[7] * z + m[10]; pz = m[2] * x + m[5] * y + m[8] * z + m[11];
+      const a = m[0] * nx + m[3] * ny + m[6] * nz, b = m[1] * nx + m[4] * ny + m[7] * nz, c = m[2] * nx + m[5] * ny + m[8] * nz, l = Math.hypot(a, b, c) || 1;
+      nx = a / l; ny = b / l; nz = c / l;
+    }
+    const V = this.v, o = this.n * WV;
+    V[o] = px; V[o + 1] = py; V[o + 2] = pz; V[o + 3] = nx; V[o + 4] = ny; V[o + 5] = nz; V[o + 6] = u; V[o + 7] = v; V[o + 8] = layer;
+    V[o + 9] = col[0]; V[o + 10] = col[1]; V[o + 11] = col[2]; V[o + 12] = ao; V[o + 13] = this.room; V[o + 14] = this.emit;
     return this.n++;
   }
   // 4点の面（法線の側から見て反時計回り: p0→p1→p2→p3）
@@ -58,50 +84,49 @@ export class MeshBuilder {
     if (!(r > 1e-4)) return this.box(x0, y0, z0, x1, y1, z1, layer, col, o);
     const f = o.faces ?? 63, s = o.uv ?? 1, cols = o.cols || null;
     const ao0 = o.aoBottom ?? 1, ao1 = o.aoTop ?? 1;
-    const aoY = (y) => ao0 + (ao1 - ao0) * ((y - y0) / dy);
-    const lo = [x0, y0, z0], hi = [x1, y1, z1], ilo = [x0 + r, y0 + r, z0 + r], ihi = [x1 - r, y1 - r, z1 - r];
-    // 面 a の、角 sg（各軸の±）の点
-    const P = (a, sg) => [0, 1, 2].map(k => k === a ? (sg[k] > 0 ? hi[k] : lo[k]) : (sg[k] > 0 ? ihi[k] : ilo[k]));
+    // 面 a の、角 g（各軸の±）の点（a の軸は外の面、ほかの軸は面取りの内側）
+    const P = (a, g) => [a === 0 ? (g[0] > 0 ? x1 : x0) : (g[0] > 0 ? x1 - r : x0 + r), a === 1 ? (g[1] > 0 ? y1 : y0) : (g[1] > 0 ? y1 - r : y0 + r), a === 2 ? (g[2] > 0 ? z1 : z0) : (g[2] > 0 ? z1 - r : z0 + r)];
     const bitOf = (a, sgn) => (a === 0 ? (sgn > 0 ? 1 : 2) : a === 1 ? (sgn > 0 ? 4 : 8) : (sgn > 0 ? 16 : 32));
     const faceCol = (a, sgn) => (cols && cols[a * 2 + (sgn > 0 ? 0 : 1)]) || col; // box と同じ並び: 0:+x 1:-x 2:+y 3:-y 4:+z 5:-z
-    const uvOf = (p, n) => {
-      const ax = Math.abs(n[0]), ay = Math.abs(n[1]), az = Math.abs(n[2]);
-      if (ay >= ax && ay >= az) return [p[0] * s, p[2] * s];
-      if (ax >= az) return [(n[0] > 0 ? -p[2] : p[2]) * s, p[1] * s];
-      return [(n[2] > 0 ? p[0] : -p[0]) * s, p[1] * s];
-    };
     const poly = (pts, n, c) => {
-      // 法線の側から見て反時計回りにそろえる
-      const e1 = [pts[1][0] - pts[0][0], pts[1][1] - pts[0][1], pts[1][2] - pts[0][2]], e2 = [pts[2][0] - pts[0][0], pts[2][1] - pts[0][1], pts[2][2] - pts[0][2]];
-      const cr = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-      if (cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0) pts = pts.slice().reverse();
-      const b = this.n;
-      for (const p of pts) { const uv = uvOf(p, n); this.vert(p, n, uv[0], uv[1], layer, c, aoY(p[1])); }
-      if (pts.length === 4) this.i.push(b, b + 1, b + 2, b, b + 2, b + 3); else this.i.push(b, b + 1, b + 2);
+      // 法線の側から見て反時計回りにそろえる（逆なら並びを逆に書く）
+      const A = pts[0], B1 = pts[1], C = pts[2];
+      const e1x = B1[0] - A[0], e1y = B1[1] - A[1], e1z = B1[2] - A[2], e2x = C[0] - A[0], e2y = C[1] - A[1], e2z = C[2] - A[2];
+      const rev = (e1y * e2z - e1z * e2y) * n[0] + (e1z * e2x - e1x * e2z) * n[1] + (e1x * e2y - e1y * e2x) * n[2] < 0;
+      const ax = Math.abs(n[0]), ay = Math.abs(n[1]), az = Math.abs(n[2]), m = ay >= ax && ay >= az ? 1 : ax >= az ? 0 : 2;
+      const b = this.n, L = pts.length;
+      for (let q = 0; q < L; q++) {
+        const p = pts[rev ? L - 1 - q : q];
+        const u = m === 1 ? p[0] * s : m === 0 ? (n[0] > 0 ? -p[2] : p[2]) * s : (n[2] > 0 ? p[0] : -p[0]) * s, v = m === 1 ? p[2] * s : p[1] * s;
+        this.vert(p, n, u, v, layer, c, ao0 + (ao1 - ao0) * ((p[1] - y0) / dy));
+      }
+      if (L === 4) this.i.push(b, b + 1, b + 2, b, b + 2, b + 3); else this.i.push(b, b + 1, b + 2);
     };
+    const g = [0, 0, 0], n = [0, 0, 0];
     // 6つの面（内側の四角）
-    for (let a = 0; a < 3; a++) for (const sg of [1, -1]) {
+    for (let a = 0; a < 3; a++) for (let sg = 1; sg >= -1; sg -= 2) {
       if (!(f & bitOf(a, sg))) continue;
       const u = (a + 1) % 3, v = (a + 2) % 3;
-      const pts = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([su, sv]) => { const g = [0, 0, 0]; g[a] = sg; g[u] = su; g[v] = sv; return P(a, g); });
-      const n = [0, 0, 0]; n[a] = sg;
-      poly(pts, n, faceCol(a, sg));
+      g[a] = sg;
+      g[u] = -1; g[v] = -1; const p0 = P(a, g); g[u] = 1; const p1 = P(a, g); g[v] = 1; const p2 = P(a, g); g[u] = -1; const p3 = P(a, g);
+      n[0] = n[1] = n[2] = 0; n[a] = sg;
+      poly([p0, p1, p2, p3], n, faceCol(a, sg));
     }
     // 12の縁（2つの面のあいだの斜めの帯）
-    for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) for (const sa of [1, -1]) for (const sb of [1, -1]) {
+    for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) for (let sa = 1; sa >= -1; sa -= 2) for (let sb = 1; sb >= -1; sb -= 2) {
       if (!(f & bitOf(a, sa)) && !(f & bitOf(b, sb))) continue;
       const c = 3 - a - b;
-      const pts = [];
-      for (const sc of [-1, 1]) { const g = [0, 0, 0]; g[a] = sa; g[b] = sb; g[c] = sc; pts.push(P(a, g)); }
-      for (const sc of [1, -1]) { const g = [0, 0, 0]; g[a] = sa; g[b] = sb; g[c] = sc; pts.push(P(b, g)); }
-      const n = [0, 0, 0]; n[a] = sa * 0.7071; n[b] = sb * 0.7071;
-      poly(pts, n, mixc(faceCol(a, sa), faceCol(b, sb), 0.5));
+      g[a] = sa; g[b] = sb;
+      g[c] = -1; const p0 = P(a, g); g[c] = 1; const p1 = P(a, g); const p2 = P(b, g); g[c] = -1; const p3 = P(b, g);
+      n[0] = n[1] = n[2] = 0; n[a] = sa * 0.7071; n[b] = sb * 0.7071;
+      const ca = faceCol(a, sa), cb = faceCol(b, sb);
+      poly([p0, p1, p2, p3], n, ca === cb ? ca : mixc(ca, cb, 0.5));
     }
     // 8つの角（3つの面の角を結ぶ三角）
-    for (const sx of [1, -1]) for (const sy of [1, -1]) for (const sz of [1, -1]) {
+    for (let sx = 1; sx >= -1; sx -= 2) for (let sy = 1; sy >= -1; sy -= 2) for (let sz = 1; sz >= -1; sz -= 2) {
       if (!(f & bitOf(0, sx)) && !(f & bitOf(1, sy)) && !(f & bitOf(2, sz))) continue;
-      const g = [sx, sy, sz];
-      const n = [sx * 0.5774, sy * 0.5774, sz * 0.5774];
+      g[0] = sx; g[1] = sy; g[2] = sz;
+      n[0] = sx * 0.5774; n[1] = sy * 0.5774; n[2] = sz * 0.5774;
       poly([P(0, g), P(1, g), P(2, g)], n, faceCol(1, sy));
     }
   }
@@ -211,11 +236,11 @@ export class MeshBuilder {
     if (o.capBot) { const R = rings[0], c = this.n; this.vert([R.cx || 0, R.y, R.cz || 0], [0, -1, 0], 0, 0, layer, R.col || col); for (let k = 0; k <= seg; k++) { const t = (k / seg) * Math.PI * 2 + (o.rot || 0); this.vert([(R.cx || 0) + Math.cos(t) * R.rx, R.y, (R.cz || 0) + Math.sin(t) * R.rz], [0, -1, 0], 0, 0, layer, R.col || col); } for (let k = 0; k < seg; k++) this.i.push(c, c + 1 + k, c + 2 + k); }
   }
   get count() { return this.n; }
-  arrays() { return { v: new Float32Array(this.v), i: this.n > 65535 ? new Uint32Array(this.i) : new Uint16Array(this.i) }; }
+  arrays() { return { v: this.v.subarray(0, this.n * WV), i: this.n > 65535 ? new Uint32Array(this.i) : new Uint16Array(this.i) }; }
   // 別のビルダーの中身を足す
   append(b) {
     const off = this.n;
-    for (let k = 0; k < b.v.length; k++) this.v.push(b.v[k]);
+    this._grow(b.n); this.v.set(b.v.subarray(0, b.n * WV), off * WV);
     for (let k = 0; k < b.i.length; k++) this.i.push(b.i[k] + off);
     this.n += b.n;
   }

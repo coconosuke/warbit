@@ -8,7 +8,7 @@ import { prepareLevel, buildChunk, doorLeafMesh, barPanelMesh, CHUNK } from './l
 import { WV, MeshBuilder, hex } from './build.js';
 import { bakeLight } from '../engine/light.js';
 import { CS, LH, CEIL, NB, DSHIELD } from '../engine/world.js';
-import { buildWarFar, buildWarFarChunk, buildWarNear, buildWarNearBoxes, buildWarGrass, buildWarGlass } from '../war/render.js';
+import { buildWarFar, buildWarFarChunk, buildWarFar2Chunk, buildWarNear, buildWarNearJob, buildWarNearBoxes, buildWarGrass, buildWarGlass } from '../war/render.js';
 
 // 大規模戦の空（もやを薄く、遠くまで見える。日は少し低めで影が長い）
 export const WAR_SKY = { sky: [0.54, 0.66, 0.88], ground: [0.3, 0.29, 0.24], sun: [2.75, 2.52, 2.15], sunDir: (() => { const v = [0.5, 0.64, 0.36], l = Math.hypot(...v); return v.map(x => x / l); })(), fog: [0.64, 0.74, 0.87], fogD: 0.00072, amb: 0.03, exposure: 0.8, zenith: [0.17, 0.39, 0.84], horizon: [0.58, 0.71, 0.9], night: 0 };
@@ -278,7 +278,7 @@ export class Renderer {
   }
   clearMap() {
     const gl = this.gl;
-    for (const ch of this.chunks || []) { if ('far' in ch) { delMesh(gl, ch.far); delMesh(gl, ch.near); delMesh(gl, ch.nearBox); delMesh(gl, ch.nearGlass); delMesh(gl, ch.grass); } else { delMesh(gl, ch.mesh); delMesh(gl, ch.glass); } }
+    for (const ch of this.chunks || []) { if ('far' in ch) { delMesh(gl, ch.far); delMesh(gl, ch.far2); delMesh(gl, ch.near); delMesh(gl, ch.nearBox); delMesh(gl, ch.nearGlass); delMesh(gl, ch.grass); } else { delMesh(gl, ch.mesh); delMesh(gl, ch.glass); } }
     this.war = null;
     for (const d of this.doorMeshes || []) { for (const m of d.leaves) delMesh(gl, m); }
     for (const b of this.barMeshes || []) if (b) delMesh(gl, b.mesh);
@@ -313,31 +313,50 @@ export class Renderer {
     this.dlrData = new Uint8Array(MAX_DL);
     this.dlr = tex2D(gl, 1, MAX_DL, { internal: gl.R8, format: gl.RED, data: this.dlrData, filter: gl.NEAREST });
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
-    this.chunks = buildWarFar(ww).map(c => { const m = makeWorldMesh(gl, c.B); return { k: c.k, x0: c.x0, z0: c.z0, x1: c.x1, z1: c.z1, y0: c.y0, y1: c.y1, far: m, farTris: m ? m.n / 3 : 0, near: null, nearTris: 0, grass: null, grassTris: 0, mesh: m, glass: null, tris: m ? m.n / 3 : 0, d: 1e9 }; });
+    this._job = null; this._dirty = null;
+    this.chunks = buildWarFar(ww).map(c => { const m = makeWorldMesh(gl, c.B); return { k: c.k, x0: c.x0, z0: c.z0, x1: c.x1, z1: c.z1, y0: c.y0, y1: c.y1, far: m, farTris: m ? m.n / 3 : 0, far2: null, far2Tris: 0, lod2: false, near: null, nearTris: 0, grass: null, grassTris: 0, mesh: m, glass: null, tris: m ? m.n / 3 : 0, d: 1e9 }; });
     this.doorMeshes = []; this.barMeshes = []; this.outer = null;
     this.roofY = 1e9;
     this.buildMs = performance.now() - t0;
   }
-  // 大規模戦の壁・床が壊れた: その塊の近い形（建物の箱の部分だけ）を作り直す（ks: 塊の番号）。
+  // 大規模戦の壁・床が壊れた: その塊の近い形（建物の箱の部分だけ）を作り直す（ks: 塊の番号。what='glass' は窓ガラスだけ）。
+  // 11-26: すぐには作らず印だけ付け、次に描く前に塊ごと1回だけ作る（爆発・散弾で同じ塊が1こまに何度も壊れても1回）。
   // 遠い形は、近い形を使っている間は作り直さず印だけ付け（farDirty）、遠い形に切り替わる前に作り直す（壊すたびに止まらないように）
-  rebuildWarChunks(ks) {
+  rebuildWarChunks(ks, what) {
     if (!this.war || !this.chunks) return;
+    const D = this._dirty || (this._dirty = new Map());
+    for (const k of ks || []) { if (what === 'glass') { if (!D.has(k)) D.set(k, 'glass'); } else D.set(k, 'all'); }
+  }
+  _flushDirty() {
+    const D = this._dirty; if (!D || !D.size) return;
     const gl = this.gl;
-    for (const k of ks) {
+    for (const [k, what] of D) {
       const ch = this.chunks.find(c => c.k === k); if (!ch || !('far' in ch)) continue;
-      if (ch.near) { ch.farDirty = true; const was = ch.mesh2 === ch.nearBox; delMesh(gl, ch.nearBox); ch.nearBox = makeWorldMesh(gl, buildWarNearBoxes(this.war, k, { lite: this.warLite })); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); if (was) ch.mesh2 = ch.nearBox; const wg = ch.glass === ch.nearGlass; delMesh(gl, ch.nearGlass); ch.nearGlass = makeWorldMesh(gl, buildWarGlass(this.war, k)); if (wg) ch.glass = ch.nearGlass; }
-      else this._rebuildFar(ch);
+      // 作っている途中の近い形は古い世界で作っているので捨てて作り直す
+      if (what !== 'glass' && this._job && this._job.ch === ch) this._job = null;
+      if (ch.near) {
+        if (what !== 'glass') {
+          ch.farDirty = true;
+          const was = ch.mesh2 === ch.nearBox; delMesh(gl, ch.nearBox); ch.nearBox = makeWorldMesh(gl, buildWarNearBoxes(this.war, k, { lite: this.warLite })); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); if (was) ch.mesh2 = ch.nearBox;
+        }
+        const wg = ch.glass === ch.nearGlass; delMesh(gl, ch.nearGlass); ch.nearGlass = makeWorldMesh(gl, buildWarGlass(this.war, k)); if (wg) ch.glass = ch.nearGlass;
+      } else if (what !== 'glass') this._rebuildFar(ch);
     }
+    D.clear();
   }
   _rebuildFar(ch) {
     const gl = this.gl, m = makeWorldMesh(gl, buildWarFarChunk(this.war, ch.k).B);
     if (ch.mesh === ch.far) ch.mesh = m;
     delMesh(gl, ch.far); ch.far = m; ch.farTris = m ? m.n / 3 : 0; ch.farDirty = false;
+    // 2段目の遠い形も古い: 捨てて、使う時にまた作る
+    if (ch.far2) { if (ch.mesh === ch.far2) ch.mesh = m; delMesh(gl, ch.far2); ch.far2 = null; ch.far2Tris = 0; }
   }
-  // 近い形を作る・捨てる。budget: 1こまで作る数（-1 で全部）。
-  // 町の塊は1つ作るのに数十 ms かかるので、作った時間の分だけ次を待つ（重いこまが続かない。歩いて町に入るときにカクつかない）
+  // 近い形を作る・捨てる。budget: -1 で全部すぐ作る（出撃のとき）。
+  // 11-26: 近い形は少しずつ作る（buildWarNearJob）。1こまに使う時間は 3ms（いちばん近い必要な塊が 70m 以内なら 8ms）。
+  //  遠い形の2段目（far2）は描画距離の半分より遠い塊で使い、1こまに 1つずつ作る（スコープで拡大している間は遠くまで普通の遠い形）
   _warSelect(c, budget = 2) {
     const gl = this.gl, N = this.nearDist * ((this.dynLite || 0) >= 2 ? 0.75 : 1);
+    this._flushDirty();
     const want = [];
     for (const ch of this.chunks) {
       ch.d = Math.hypot((ch.x0 + ch.x1) / 2 - c.x, (ch.z0 + ch.z1) / 2 - c.z);
@@ -347,18 +366,26 @@ export class Renderer {
       if (ch.farDirty && (!ch.near || ch.d >= N + 30)) this._rebuildFar(ch);
     }
     want.sort((a, b) => a.d - b.d);
-    const all = budget < 0;
-    this._buildWait = Math.max(0, (this._buildWait || 0) - 1);
-    let nb = all ? want.length : this._buildWait > 0 && !(want.length && want[0].d < 70) ? 0 : Math.min(want.length, 1);
-    for (let k = 0; k < nb; k++) {
-      const t0 = performance.now(), ch = want[k], r = buildWarNear(this.war, ch.k, { lite: this.warLite, split: true });
-      ch.near = makeWorldMesh(gl, r.B); ch.nearBox = makeWorldMesh(gl, r.BX); ch.nearGlass = makeWorldMesh(gl, buildWarGlass(this.war, ch.k)); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0);
-      if (!all) this._buildWait = Math.min(12, Math.floor((performance.now() - t0) / 8));
+    const done = (ch, r) => { ch.near = makeWorldMesh(gl, r.B); ch.nearBox = makeWorldMesh(gl, r.BX); ch.nearGlass = makeWorldMesh(gl, buildWarGlass(this.war, ch.k)); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); };
+    let used = 0;
+    if (budget < 0) { this._job = null; for (const ch of want) done(ch, buildWarNear(this.war, ch.k, { lite: this.warLite, split: true })); }
+    else {
+      const J = this._job;
+      // もう要らない（離れた・もうできている）、またはずっと近い塊が要る時は、作りかけを捨てる
+      if (J && (J.ch.near || J.ch.d > N + 60 || (want.length && want[0] !== J.ch && want[0].d + 40 < J.ch.d))) this._job = null;
+      if (!this._job && want.length) this._job = { ch: want[0], g: buildWarNearJob(this.war, want[0].k, { lite: this.warLite, split: true }) };
+      if (this._job) {
+        const t0 = performance.now(), lim = this._job.ch.d < 70 ? 8 : 3;
+        let r;
+        do r = this._job.g.next(); while (!r.done && performance.now() - t0 < lim);
+        if (r.done) { done(this._job.ch, r.value); this._job = null; }
+        used = performance.now() - t0;
+      }
     }
-    // 草（近い塊だけ。塊の中心から grassD＋45m 以内）
+    // 草（近い塊だけ。塊の中心から grassD＋45m 以内）。近い形で時間を使ったこまは作らない
     const G = (this.dynLite || 0) >= 1 ? 0 : this.grassD;
     if (G > 0) {
-      let gb = budget < 0 ? 1e9 : 1;
+      let gb = budget < 0 ? 1e9 : used > 2 ? 0 : 1;
       const gw = [];
       for (const ch of this.chunks) {
         if (ch.d < G + 45 && !ch.grass) gw.push(ch);
@@ -367,9 +394,16 @@ export class Renderer {
       gw.sort((a, b) => a.d - b.d);
       for (const ch of gw) { if (gb-- <= 0) break; ch.grass = makeWorldMesh(gl, buildWarGrass(this.war, ch.k, this.grassDens)); ch.grassTris = ch.grass ? ch.grass.n / 3 : 0; }
     }
+    // 遠い形の2段目: 描画距離の半分（近い形の外 120m より手前にはしない）より遠い塊。拡大している時はその倍だけ遠くから
+    const L2 = Math.max(N + 120, this.viewDist * 0.5) * (this.zoomK || 1);
+    const t2 = performance.now(), lim2 = used > 2 ? 0 : 1.5;
     for (const ch of this.chunks) {
-      const useNear = ch.near && ch.d < N + 40;
-      ch.mesh = useNear ? ch.near : ch.far; ch.mesh2 = useNear ? ch.nearBox : null; ch.tris = useNear ? ch.nearTris : ch.farTris;
+      if (!ch.lod2 && ch.d > L2 + 15) ch.lod2 = true; else if (ch.lod2 && ch.d < L2 - 15) ch.lod2 = false;
+      if (ch.lod2 && !ch.far2 && ch.d < this.viewDist + 46 && performance.now() - t2 < lim2) { ch.far2 = makeWorldMesh(gl, buildWarFar2Chunk(this.war, ch.k).B); ch.far2Tris = ch.far2 ? ch.far2.n / 3 : 0; }
+    }
+    for (const ch of this.chunks) {
+      const useNear = ch.near && ch.d < N + 40, use2 = !useNear && ch.lod2 && ch.far2;
+      ch.mesh = useNear ? ch.near : use2 ? ch.far2 : ch.far; ch.mesh2 = useNear ? ch.nearBox : null; ch.tris = useNear ? ch.nearTris : use2 ? ch.far2Tris : ch.farTris;
       // 窓ガラス（近い形の間だけ。透けるので最後に奥から）
       ch.glass = useNear ? ch.nearGlass : null;
     }
@@ -467,7 +501,13 @@ export class Renderer {
     m4invert(this.invVP, this.vp);
     frustumPlanes(this.vp, this.planes);
     this._setLights(f.lights || []);
-    if (this.war) this._warSelect(c);
+    // 拡大の倍率（スコープ・狙い。70° を等倍）: 遠い形の2段目を使い始める距離をその分だけ遠くする
+    if (this.war) {
+      const fz = (fv) => Math.tan(35 * Math.PI / 180) / Math.tan(Math.max(0.01, fv) / 2);
+      let zk = fz(c.fov); if (f.pip && f.pip.r > 8 && f.pip.fov) zk = Math.max(zk, fz(f.pip.fov));
+      this.zoomK = zk >= 1.5 ? zk : 1;
+      this._warSelect(c);
+    }
     // 影
     this.shadowOn = false;
     if (this.q.shadow && this.sky.night < 0.5 && f.shadows !== false && !(this.war && (this.dynLite || 0) >= 2)) this._shadowPass(c);

@@ -266,7 +266,7 @@ function terrainMesh(B, ww, x0, z0, x1, z1, step, skirt) {
   for (let a = 0; a <= nx; a++) { edges[0].push(base + a); edges[1].push(base + nz * W1 + a); }
   for (let b = 0; b <= nz; b++) { edges[2].push(base + b * W1); edges[3].push(base + b * W1 + nx); }
   for (const E of edges) {
-    const low = E.map(t => { const o = t * 15, v = B.v.slice(o, o + 15); v[1] -= skirt; for (const x of v) B.v.push(x); return B.n++; });
+    const low = E.map(t => B.dupVert(t, -skirt));
     for (let s = 0; s + 1 < E.length; s++) {
       const a = E[s], b2 = E[s + 1], la = low[s], lb = low[s + 1];
       B.i.push(a, la, b2, b2, la, lb, a, b2, la, b2, lb, la);
@@ -694,25 +694,100 @@ export function buildWarFarChunk(ww, k) {
     return { k, x0, z0, x1, z1, y0: y0 - 7, y1: y1 + 1, B };
   }
 }
+// 遠い形の2段目（11-26。描画距離の半分より遠い塊）: 遠い形の三角形の多くは 400m 先の、画面で数画素の木・小物。
+//  木と大きい茂みは葉のかたまり1つ（葉の板なし: 抜きのある板は iPhone の GPU で特に重い）・角を落とした小物はただの箱・
+//  岩は面の少ない塊・薄い飾りの箱と車輪は省く・地形は 16m 格子。建物の外側・屋根・坂・切妻はそのまま（形と隠れ場所は変えない）
+export function buildWarFar2Chunk(ww, k) {
+  prepGround(ww);
+  const tops = bldTops(ww), { NX, it } = sortIn(ww);
+  const cx = k % NX, cz = Math.floor(k / NX), x0 = cx * CH, z0 = cz * CH, x1 = Math.min(ww.sx, x0 + CH), z1 = Math.min(ww.sz, z0 + CH);
+  const B = new MeshBuilder();
+  terrainMesh(B, ww, x0, z0, x1, z1, 16, 6);
+  const BR = bldRects(ww);
+  for (const b of it[k].boxes) {
+    if ((b.kind === 'crate' || b.kind === 'rail' || b.detail) && !b.far || b.kind === 'glass' || b.hide) continue;
+    if (b.bld >= 0 && b.kind !== 'roof') { const r = BR.get(b.bld); if (r && b.x0 > r[0] + 0.5 && b.x1 < r[2] - 0.5 && b.z0 > r[1] + 0.5 && b.z1 < r[3] - 0.5) continue; }
+    if (b.shape === 'wheelX' || b.shape === 'wheelZ') continue;
+    if (b.kind === 'trim' && Math.min(b.x1 - b.x0, b.z1 - b.z0) < 0.3) continue;
+    if (b.kind === 'rock') { rockMesh2(B, b); continue; }
+    if (b.bev && b.bld < 0) {
+      const col = jitter(hex(b.col || MATCOL[b.mat] || '#a0a0a0'), mulberry(1000 + b.id * 13), 0.05), gy = heightAt(ww, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
+      B.room = 1;
+      B.box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, b.layer ?? (MATLAYER[b.mat] ?? LAYER.concrete), col, { faces: b.y0 <= gy + 0.05 ? 63 & ~8 : 63, uv: 0.5 });
+      continue;
+    }
+    boxMesh(B, ww, b, tops, false);
+  }
+  for (const rp of it[k].ramps) if (rp.kind === 'roof' || rp.kind === 'bridge') smoothRamp(B, rp, hex(rp.col || '#8d8a84'), rp.layer ?? LAYER.concrete);
+  for (const c of it[k].cyls) if (c.far) { B.room = 1; facetCyl(B, c.x, c.z, c.y0, c.y1, c.r, c.r1 ?? c.r, Math.min(c.seg || 8, 5), c.layer ?? LAYER.metal, hex(c.col), { capT: true, shade: true, rot: c.rot || 0 }); }
+  for (const d of it[k].decos) if (d.far) decoMesh(B, d, tops);
+  for (const t of it[k].trees) treeMesh2(B, t);
+  for (const b of it[k].bushes) if (b.h > 1.45 && b.r > 1.25) { const r = mulberry(7000 + Math.round(b.x * 13 + b.z * 7)), c0 = b.col ? hex(b.col) : jitter(BUSH[Math.floor(r() * BUSH.length)], r, 0.07); B.room = 1; bipyr(B, b.x, b.y + b.h * 0.42, b.z, b.r * 0.95, b.h * 0.55, mulc(c0, 0.9), r); }
+  return { k, B };
+}
+// 葉のかたまりの低い形（5角の両錐。10面）。下半分は平たく、上の面ほど明るい
+function bipyr(B, x, y, z, rw, rh, col, r) {
+  const n = 5, rot = r() * 6.28, ring = [];
+  for (let q = 0; q < n; q++) { const a = rot + q / n * Math.PI * 2, f = 0.9 + r() * 0.2; ring.push([x + Math.cos(a) * rw * f, y + (r() - 0.5) * rh * 0.2, z + Math.sin(a) * rw * f]); }
+  const top = [x, y + rh, z], bot = [x, y - rh * 0.55, z];
+  B.room = 1;
+  for (let q = 0; q < n; q++) {
+    const A = ring[q], Bv = ring[(q + 1) % n];
+    let nt = triN(A, top, Bv); if (nt[1] < 0) nt = nt.map(v => -v);
+    B.poly([A, Bv, top], nt, LAYER.leaves, mulc(col, 0.82 + 0.26 * nt[1]));
+    let nb = triN(A, Bv, bot); if (nb[1] > 0) nb = nb.map(v => -v);
+    B.poly([A, bot, Bv], nb, LAYER.leaves, mulc(col, 0.62));
+  }
+}
+// 遠い形の2段目の木: 針葉樹は星形のかさ1段、広葉樹・白樺は両錐1つ（色は遠い形の葉の平均くらい）
+function treeMesh2(B, t) {
+  const r = mulberry(5000 + (t.cyl ?? Math.round(t.x * 31 + t.z * 17)) * 7);
+  const s = t.s, x = t.x, z = t.z, y = t.y, rot = r() * 6.28;
+  B.room = 1;
+  if (t.kind === 'pine') { const c = jitter(PINE[Math.floor(r() * PINE.length)], r, 0.06); pineTier(B, x, z, y + 1.4 * s, y + 7.2 * s, 2.0 * s, 4, c, r, rot, false); return; }
+  if (((t.cyl ?? 0) * 7919) % 100 < 22) { const c = jitter(hex('#6d7a45'), r, 0.08), lean = [(r() - 0.5) * 0.5 * s, (r() - 0.5) * 0.5 * s]; bipyr(B, x + lean[0], y + 4.6 * s, z + lean[1], 1.45 * s, 1.7 * s, mulc(c, 0.86), r); return; }
+  const c = jitter(OAK[Math.floor(r() * OAK.length)], r, 0.06), lx = (r() - 0.5) * 0.5 * s, lz = (r() - 0.5) * 0.5 * s;
+  bipyr(B, x + lx, y + 4.3 * s, z + lz, 2.4 * s, 1.95 * s, mulc(c, 0.86), r);
+}
+// 遠い形の2段目の岩: 5角の下の輪・上の輪・頂点（15面）
+function rockMesh2(B, b) {
+  const r = mulberry(3000 + b.id * 7), col = jitter(hex(b.col || MATCOL[b.mat] || '#a0a0a0'), mulberry(1000 + b.id * 13), 0.05);
+  const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, rx = (b.x1 - b.x0) / 2, rz = (b.z1 - b.z0) / 2, H = b.y1 - b.y0, n = 5, rot = r() * 6.28;
+  const ring = (t, s) => Array.from({ length: n }, (_, k) => { const a = rot + (k / n) * Math.PI * 2; return [cx + Math.cos(a) * rx * s, b.y0 + H * t, cz + Math.sin(a) * rz * s]; });
+  const R0 = ring(0, 0.95), R1 = ring(0.7, 0.8), peak = [cx, b.y1, cz];
+  const tri = (a, b2, c) => { let nn = triN(a, b2, c); const mx = (a[0] + b2[0] + c[0]) / 3 - cx, mz = (a[2] + b2[2] + c[2]) / 3 - cz, my = (a[1] + b2[1] + c[1]) / 3 - (b.y0 + H * 0.4); if (nn[0] * mx + nn[1] * my + nn[2] * mz < 0) nn = nn.map(q => -q); B.poly([a, b2, c], nn, LAYER.concrete, mulc(col, 0.86 + 0.22 * Math.max(0, nn[1]))); };
+  B.room = 1;
+  for (let k = 0; k < n; k++) { const k1 = (k + 1) % n; tri(R0[k], R0[k1], R1[k1]); tri(R0[k], R1[k1], R1[k]); tri(R1[k], R1[k1], peak); }
+}
 // 近い形（1つの塊）
 // o.lite: 画質「低」。窓の桟・扉の板などの描くだけの細かい面と電線は省く
 // o.split: 地形・木など（B）と、建物の箱・坂・柱・描くだけの面（BX）を分けて返す { B, BX }。壁が壊れた時は BX だけ作り直す
 //  （塊の時間のほとんどは地形と木。箱は数 ms）
 export function buildWarNear(ww, k, o = {}) {
+  const g = buildWarNearJob(ww, k, o);
+  let r; do r = g.next(); while (!r.done);
+  return r.value;
+}
+// 近い形を少しずつ作る（11-26: 町の塊は1つ作るのに iPhone で数十 ms かかり、歩いて塊が切り替わるたびにこまが止まっていた）。
+//  描く側は、1こまで数 ms だけ next() を呼び、作り終わったら（done）使う。途中で世界が壊れた塊は作り直す（描く側で捨てる）
+export function* buildWarNearJob(ww, k, o = {}) {
   prepGround(ww);
   const { NX } = sortIn(ww);
   const cx = k % NX, cz = Math.floor(k / NX), x0 = cx * CH, z0 = cz * CH, x1 = Math.min(ww.sx, x0 + CH), z1 = Math.min(ww.sz, z0 + CH);
   const B = new MeshBuilder();
   terrainMesh(B, ww, x0, z0, x1, z1, ww.hs, 1.5);
+  yield;
   roadMesh(B, ww, ww._roadPieces[k] || []);
   xwalkMesh(B, ww, ww._xwalkPieces ? ww._xwalkPieces[k] || [] : []);
   walkMesh(B, ww, ww._walkPieces ? ww._walkPieces[k] || [] : []);
   for (const pr of ww.paved || []) pavedMesh(B, ww, pr, x0, z0, x1, z1);
+  yield;
   const BX = o.split ? new MeshBuilder() : B;
-  buildWarNearBoxes(ww, k, o, BX);
+  yield* nearBoxesJob(ww, k, o, BX);
   const { it } = sortIn(ww);
-  for (const t of it[k].trees) treeMesh(B, t, false);
-  for (const b of it[k].bushes) bushMesh(B, b, false);
+  let c = 0;
+  for (const t of it[k].trees) { treeMesh(B, t, false); if (++c % 4 === 0) yield; }
+  for (const b of it[k].bushes) { bushMesh(B, b, false); if (++c % 8 === 0) yield; }
   // 電線: たるんだ線（8つに分けた細い三角の筒）
   if (!o.lite) for (const wi of it[k].wires) {
     const N = 8, P = (t) => [wi.a[0] + (wi.b[0] - wi.a[0]) * t, wi.a[1] + (wi.b[1] - wi.a[1]) * t - 4 * wi.sag * t * (1 - t), wi.a[2] + (wi.b[2] - wi.a[2]) * t];
@@ -722,13 +797,19 @@ export function buildWarNear(ww, k, o = {}) {
 }
 // 近い形のうち、建物の箱・坂・柱・描くだけの面（壊れると作り直す）
 export function buildWarNearBoxes(ww, k, o = {}, BX = new MeshBuilder()) {
+  const g = nearBoxesJob(ww, k, o, BX);
+  while (!g.next().done);
+  return BX;
+}
+function* nearBoxesJob(ww, k, o, BX) {
   const tops = bldTops(ww), { it } = sortIn(ww);
-  for (const b of it[k].boxes) if (b.kind !== 'glass') boxMesh(BX, ww, b, tops, true);
+  let c = 0;
+  for (const b of it[k].boxes) { if (b.kind !== 'glass') boxMesh(BX, ww, b, tops, true); if (++c % 32 === 0) yield; }
   const rr = mulberry(8000 + k);
   for (const rp of it[k].ramps) rampMesh(BX, rp, rr, tops);
-  for (const c of it[k].cyls) cylMesh(BX, c);
+  for (const cy of it[k].cyls) cylMesh(BX, cy);
   for (const d of it[k].decos) if (d.far || !o.lite) decoMesh(BX, d, tops);
-  return BX;
+  yield;
 }
 // 窓ガラス（近い形だけ。透ける板は描く側がガラスの描き方で、奥から順に重ねる）
 export function buildWarGlass(ww, k) {

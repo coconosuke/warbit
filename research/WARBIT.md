@@ -464,3 +464,8 @@
 
 ## 54. 窓ガラス（2026-11-26）
 - BattleBit の窓ガラス（割れるか・弾が通るか）の資料は見つからなかった（Steam の話し合い・wiki に書かれていない）。このゲームの作り（0.1.51）は推測: 外壁の窓に透ける板。弾・爆発・乗り越えで割れる。割れるまでは通れない
+
+## 55. 遠くの物の細かさ（LOD）と描画距離（2026-11-26）
+- 設定の解説記事（videogamer・thenerdstash）によると、BattleBit のグラフィック設定には「LOD Quality」（数値。軽さ重視で 200、見た目重視で 400 が勧められている）と「Render Distance」（記事の表では 4000）、「Shadow Distance」（100）がある。記事は、重さに一番効くのは解像度・シェーダーの品質・影の品質だと書いている。LOD Quality が具体的に何を変えるかの説明はない。
+- WAR BIT の対応: 描画距離は設定（近い・標準・遠い・最大）。遠くの形を3段にする（近い形 → 遠い形 → 描画距離の半分より先は「遠い形の2段目」: 木は葉のかたまり1つ・小物はただの箱）。スコープで拡大している間は倍率の分だけ遠くまで細かい段を使う（遠くを狙う時に形が粗く見えないように）。数値は BattleBit のものではなく、iPhone の重さに合わせて決めた。
+- 出典: https://www.videogamer.com/guides/battlebit-remastered-best-graphics-settings ・ https://thenerdstash.com/battlebit-remastered-best-settings-guide
