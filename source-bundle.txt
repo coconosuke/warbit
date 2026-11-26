@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-26T08:23:30.071Z）
+HARD ENTRY ソース一式（2026-11-26T08:48:28.514Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 159899
+@@@@ FILE DESIGN.md text 161038
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -393,6 +393,7 @@ HARD ENTRY ソース一式（2026-11-26T08:23:30.071Z）
 - 11-20 WAR BIT 0.1.49（足音・動きの音）: 12:37 の要望。走って跳ぶと宙でも走る足音が鳴っていた → 宙にいる間は足を運ばず足音も出さない（跳ぶ音と着地の音だけ）。走りの足音が 1 歩 0.95m で 1 秒に 7 歩近く、細かく速すぎた → 大規模戦の1歩の長さを速さから（0.42 + 0.24×速さ、0.6〜2.05m）: 歩き約 2.7・しゃがみ約 2.2・全力約 3.2 歩/秒（足の動き・画面の揺れも同じ歩みに）。ほかの人の軽い着地も近く（22m）なら聞こえる。ヘルメット・顔の盾ではじいた金属の高い音・防弾板の鈍い音・リロードを途中でやめた音。立つ・しゃがむ・伏せるときの服のこすれ（伏せは低く重め。ほかの人のは伏せ 14m・しゃがむ/立つ 8m まで）と、構える・構えをやめるときの小さな音（自分だけ）。構えの知らせは engine の e.s（知らせの通し番号）とぶつからないよう pose に。単体テスト war_steps
 - 11-20 WAR BIT 0.1.50（レーザー・落ちた弾倉・手の持ち方・味方の印・ボットの目）: 12:44・12:12・17:19 の要望。レーザーの向き: 銃が照準に近い間（6° まで）は弾の飛ぶ向き、走る・リロード・持ち替えで銃を横や下へ向けたら銃の向きへ（11° まで、なめらかに。前は銃を横にしても線と点が正面を向いた）。線の始まりを、一人称の銃の画角から世界の画角へ移して銃口に合わせる。落ちた弾倉: 足の高さに置いていて坂や段で地面に埋まった → 手の高さから真下のいちばん上の面へ（前の 0.5m が壁の向こうなら足もと寄り）。「拾う」ボタン（近く 2m に拾える弾倉がある間だけ出る・キーボードは V）: 空きがあれば足す、いっぱいなら少ない弾倉と取り替える（取り替えた弾倉はその場に）、射撃場は拾うだけ（前は射撃場では弾倉が減らないので、上を歩いても拾えなかった）。手の持ち方: 両手とも甲が真上（手のひらが下）で、握りの上に平たい箱が載ったように見えた → 右手は握りを横から包む（甲は右上）。左手は、拳銃は右手の下から包む（甲は左下）・縦のグリップは縦に握る・ほかは前の筒を左下から支えて指が右へ回る。リロードで弾倉を持つ間は手のひらを上へ。拳銃は手首を握りの後ろへ（前は手が握りの左右に離れて浮いていた）。レーザー: 線が数 m 先で画素より細くなり消える・ちらつく → 区切って、どこも 1 画素より細くしない（太くした分だけ暗く・出る所から離れるほど薄く）。点は遠くても数画素・面に埋まらないよう手前へ・白っぽい芯。何にも当たらないと 60m 先の宙に点が浮いていた → 出さない。届く距離 150m（大規模戦）。ほかの人のレーザーは 45m・先に見つけた 8 人 → 120m・近い順に 10 人。緑のレーザーを足した（BattleBit は赤と緑）。味方の頭の上の印を小さく（分隊でない味方は BattleBit のような小さな点・分隊は山形 最大 14px → 11px 幅）・黒い細い縁・名前は 10px に縁取り。「味方の印の濃さ」の設定（既定 80%）と、照準の近く（70px）の味方の印は薄く（狙う相手を隠さない）。ボットの目: 木の葉のかさ（だ円の玉）の向こうは見えにくい・胸が隠れていても頭が出ていれば見つける（見つけにくい）・視野の端（60〜100°）は走っている相手にだけ気づく・明るい外から屋根の下の相手は見えにくい・撃たれて頭を下げていると見回しが鈍る。撃たれたときは撃った向きをおおよそ（±4〜11°・距離 ±20%）しか知らない（前は撃った相手のちょうどの位置を知り、分隊にも伝えていた）。倒した相手の武器を拾うのは BattleBit にない（research 51）。アタッチメントの段階で忘れずに: 二脚（BattleBit の表の数字は research 50）と 16 倍より上のスコープ（20 倍・PTR-40 Hunter）。単体テスト war_vision
 - 11-26 WAR BIT 0.1.51（窓ガラス・弾で崩れる壁・選ぶ円が開いたまま・重さ・しゃがみとリーン・タッチの記録・ほかの人の音）: 11-20 17:45〜・11-26 16:20 の要望。窓ガラス: 外壁の窓（床から上・高さ 0.9m 以上）に板（透ける・見通しはふさがない・弾は通って少し弱まる）。弾が当たる・爆発（届く距離の 0.8 倍）・乗り越え（前の 0.9m）で割れる。割れるまでは通れない。オンラインの参加側は 'wglass' の知らせで同じ板を割る。描き方は近い形の塊ごとの透ける面（ガラスの描き方・奥から）。選ぶ円（投げ物・道具）が開いたままになる: 重いこまで長押しの知らせを読む前に指を離すと、離した指の番号で開いて、その指の「離した」が二度と来なかった → 指がもういなければ開かない・開いた指がいなくなったら閉じる・タップで選ぶ方式のまま 4 秒触らなければ閉じる。重さ: エンジンが時々 12〜50ms 止まっていた → 最初に敵を見つけた時に作っていた木の葉・茂みの表を試合の始めに作る・ボットが道を作るのを 1 ステップ 16000 マスまでに（超えた分は次のステップ）・見通しの結果を 0.3 秒使い回す・250m より遠い人の銃口の光は出さない。fps の表示に 1 こまの内訳（動き＝エンジンと回数・音と効果・描く・HUD）。しゃがみ・伏せでジャンプを押すと立つ（跳ばない）。リーン中に走り出すとリーンをやめる（構えている間の Shift は除く）。タッチ: 遊んでいる間の指の動きはページの側で使うと伝える（touchstart・touchmove を止める。出撃の画面・成績表は除く）・fps の表示に指の取り消しの回数。弾でも、れんが・木・石膏の壁は当たった所（0.75m の升目）に弾の強さがたまり、0.7m 四方の穴（れんが 小銃 60 発・木 18・石膏 10。research 52。コンクリート・鉄・土のうは弾では崩れない）。オンラインの参加側は 'carve' の知らせで同じ穴を開ける（爆発・ハンマーと同じ）。ほかの人のリロードの差す音（18m）・弾を込める音（14m）・持ち替え（10m）・ライトの切り替え（6m）・包帯（8m）・息が切れた音（7m）も近くなら聞こえる（前は抜く音だけ。抜く音も 20m までに）。単体テスト war_wallshot
+- 11-26 WAR BIT 0.1.52（建物が崩れる）: 12:12 の「建築物の破壊の仕方を BattleBit に」。BattleBit: 太い柱・はりを RPG・C4 で壊すと建物が崩れ、中の人はがれきで死ぬ。大きい建物は崩れない（research 52）。ここでは建物ごとに「構造の傷み」をためる: 建物の中か壁から 1.5m までの重い爆発（C4 1・RPG 0.7。手榴弾・弾・ハンマーは数えない）。崩れる量: 家 3・平屋 2・店 3・納屋 2.5・礼拝堂 4・見張り塔 2・廃墟 2・ガソリンスタンド 3（推測）。集合住宅・事務所・倉庫・トーチカは崩れない。崩れると建物の箱・段・描くだけの面が消え、がれきの山（4〜12・高さ 0.4〜1.2m・乗れる・建物の番号で同じ位置）が残る。中の人（床から屋根まで・壁から 0.3m まで）は死ぬ（崩した人の倒した数）。土ぼこり・がれき・低いとどろき・近いと画面が揺れる。オンラインの参加側は 'collapse' の知らせで同じに崩す。試合のあとは元に戻す。単体テスト war_collapse
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -548,7 +549,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 156865
+@@@@ FILE src/app/game.js text 157984
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -581,7 +582,7 @@ import { LINES } from '../audio/lines.js';
 import { vfovOf } from './settings.js';
 import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
-import { carve, breakPane } from '../war/destruct.js';
+import { carve, breakPane, collapseBld } from '../war/destruct.js';
 import { los as warLos } from '../war/world.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
 import { classGadgets, CLASSES, CLASS_LIST, classGuns, classSecs, classLoadout } from '../war/classes.js';
@@ -1401,6 +1402,17 @@ export class Match {
         }
         case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', fullhp: '体力が満タン', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
         case 'nade': { if (e.type === 'frag' || e.type === 'impact') break; if (e.type === 'smoke') { for (let i = 0; i < 6; i++) fx.smoke(e.x, e.y + 0.5, e.z, 0.9, [0.62, 0.63, 0.64], 0.6, 3); au.sfx('gasPop', [e.x, e.y, e.z], { rate: 0.8 }); break; } if (e.type === 'cs') { for (let i = 0; i < 8; i++) fx.smoke(e.x, e.y + 0.4, e.z, 1.2, [0.85, 0.85, 0.8], 0.5, 6); au.sfx('gasPop', [e.x, e.y, e.z]); } else { fx.explosion(e.x, e.y, e.z, 3, e.type === 'flash' ? 'flash' : 'stinger'); au.sfx(e.type === 'flash' ? 'flashbang' : 'stinger', [e.x, e.y, e.z]); } const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 10) * 0.6); break; }
+        // 建物が崩れた（大規模戦）: オンラインの参加側は自分の世界でも崩す。土ぼこり・がれき・低いとどろき・近いと揺れる
+        case 'collapse': {
+          let ks = e.ks || [];
+          if (this.w && this.w.war) { const bd = (this.w.blds || []).find(q => q.id === e.bld); if (bd && !bd.down) ks = collapseBld(this.w, bd); }
+          this.r.rebuildWarChunks && this.r.rebuildWarChunks(ks);
+          const n = Math.min(14, Math.max(6, Math.round((e.w * e.d) / 10)));
+          for (let i = 0; i < n; i++) { const x = e.x + (Math.random() - 0.5) * e.w, z = e.z + (Math.random() - 0.5) * e.d; fx.debris(x, e.y + 0.5 + Math.random() * 3, z, [0.55, 0.5, 0.45]); for (let q = 0; q < 2; q++) fx.smoke(x, e.y + 1 + Math.random() * 3, z, 2.2, [0.62, 0.58, 0.52], 0.55, 6); }
+          au.boom([e.x, e.y + 2, e.z], { size: 1.3 }); au.sfx('wallBreak', [e.x, e.y + 1, e.z], { vol: 1, rate: 0.6 });
+          const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 40) * 0.8);
+          break;
+        }
         // 大規模戦の窓ガラスが割れた（オンラインの参加側は、自分の世界でも同じ板を割る）
         case 'wglass': {
           let ks = e.ks || [];
@@ -7608,7 +7620,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.51';
+export const VERSION = '0.1.52';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -13890,7 +13902,7 @@ function pushLeaves(S, w, a, vx, vz, dt) {
   }
 }
 
-@@@@ FILE src/engine/nades.js text 17497
+@@@@ FILE src/engine/nades.js text 18577
 // 投げ物と爆発: 閃光・スティンガー・CSガス・罠（破片）・C2・壁用の爆破薬。ガスの雲。
 import { raycast, los, CS, LH, levelOfY, NB } from './world.js';
 import { hrand } from './rng.js';
@@ -13901,7 +13913,7 @@ import { blastBars } from './barricade.js';
 import { blastDeps } from './deploy.js';
 import { blastRallies } from './rally.js';
 import { GEAR } from './data/equipment.js';
-import { carve, shatterNear } from '../war/destruct.js';
+import { carve, shatterNear, structHit, collapseBld, bldTop } from '../war/destruct.js';
 import { blastMines } from './mines.js';
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
@@ -14105,6 +14117,17 @@ export function stepClouds(S, w, dt, ev) {
 }
 
 // 爆発（罠・C2・壁の爆破薬）: 見通しのある人にダメージ、石膏の壁を壊す
+// 建物が崩れる（大規模戦・11-26）: 中の人（床から屋根まで・壁から 0.3m まで）はがれきで死ぬ。オンラインの参加側は 'collapse' の知らせで同じに崩す
+function collapseWar(S, w, bd, by, ev) {
+  const ks = collapseBld(w, bd); if (!ks.length) return;
+  const [x0, z0, x1, z1] = bd.rect, top = bldTop(bd);
+  for (const a of S.actors) {
+    if (!a.alive || a.x < x0 - 0.3 || a.x > x1 + 0.3 || a.z < z0 - 0.3 || a.z > z1 + 0.3 || a.y < bd.y - 0.8 || a.y > top) continue;
+    if (S.pvp) pvpDamage(S, a, 500, by, 'chest', 0, 0, ev, 'blast'); else hurt(S, w, a, 500, 'chest', by, null, 0, 0, ev, 'blast');
+    if (a.alive && a.down) killActor(S, a, by, ev, 'blast');
+  }
+  ev.push({ e: 'collapse', bld: bd.id, ks, x: (x0 + x1) / 2, y: bd.y, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0 });
+}
 export function stepBlasts(S, w, dt, ev) {
   for (let i = S.blasts.length - 1; i >= 0; i--) {
     const b = S.blasts[i];
@@ -14150,6 +14173,8 @@ export function stepBlasts(S, w, dt, ev) {
       const c4 = b.kind === 'c4', R = c4 ? 1.0 : 1.3, o = c4 ? { force: true, w: GEAR.c4.hole, h: GEAR.c4.hole, floor: GEAR.c4.hole } : {};
       const ks = carve(w, b.x, b.y, b.z, R, o);
       if (ks.length) { (S.carves || (S.carves = [])).push([b.x, b.y, b.z, R, c4 ? 2 : 0]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: b.x, y: b.y, z: b.z, r: R, ks, cn: w._carveN, o }); }
+      // 建物の構造の傷み（C4 1・RPG 0.7）。決まった量で崩れる（war/destruct.js の STRUCT）
+      for (const bd of structHit(w, b.x, b.y, b.z, c4 ? 1 : 0.7)) collapseWar(S, w, bd, by, ev);
     }
     // 大規模戦: 爆発のまわりの窓ガラスは割れる（届く距離の 0.8 倍まで）
     if (w.war) shatterNear(S, w, b.x, b.y, b.z, Math.max(2.5, (b.r || 4) * 0.8), ev);
@@ -29101,7 +29126,7 @@ export function classLoadout(cls, gun, sec, att, gad) {
   return { war: true, primary: prim, secondary: { id: s, ammo: 'ap' }, long: C.long || 'none', gear, vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
 }
 
-@@@@ FILE src/war/destruct.js text 9843
+@@@@ FILE src/war/destruct.js text 12983
 // 大規模戦の壁と床を壊す（BattleBit の破壊: HEAT のロケットは壁と床に穴を開ける。research/WARBIT.md の 37・38）。
 // 爆発の点のまわり（R）にある薄い壁（kind 'wall'・厚み 0.5m まで）と床（kind 'floor'）に、四角い穴を開ける。
 //   壁: 幅 1.5m・高さ 1.6m（爆発の高さが中心）。床: 1.4m 四方。穴は箱を最大4つに分けて作る（元の箱は alive=false で残す）。
@@ -29158,13 +29183,15 @@ function cut(ww, b, hx0, hy0, hz0, hx1, hy1, hz1, ax) {
   return made;
 }
 // 試合で変えた物の記録（マップの形は試合をまたいで使い回すので、次の試合の前に戻す）
-function mods(ww) { return ww._mods || (ww._mods = { base: ww.boxes.length, dead: [], dmg: [], decos: [] }); }
+function mods(ww) { return ww._mods || (ww._mods = { base: ww.boxes.length, dead: [], dmg: [], decos: [], ramps: [], blds: [] }); }
 export function restoreWorld(ww) {
   if (ww) { ww._carveN = 0; ww._bdmg = null; }
   const m = ww && ww._mods; if (!m) return false;
   for (const b of m.dead) b.alive = true;
   for (const b of m.dmg) { b.dmg = 0; b.chip = false; }
   for (const d of m.decos) d.hide = false;
+  for (const r of m.ramps || []) r.dead = false;
+  for (const bd of m.blds || []) { bd.down = false; bd.sdmg = 0; }
   if (ww.boxes.length > m.base) { ww.boxes.length = m.base; for (const c of ww.cellBox) for (let i = c.length - 1; i >= 0; i--) if (c[i] >= m.base) c.splice(i, 1); }
   ww._mods = null; ww._chunkItems = null;
   return true;
@@ -29216,6 +29243,47 @@ export function carve(ww, x, y, z, R = 1.2, o = {}) {
   }
   fixItems(ww, gone, made, hid);
   return [...changed];
+}
+// ---- 建物が崩れる（11-26）。BattleBit: 太い柱・はり（構造の部分）を RPG・C4 で壊すと建物が崩れ、中の人はがれきで死ぬ。
+//  大きい建物（集合住宅・事務所・倉庫）と、トーチカは崩れない（research の 52）。ここでは建物ごとの「構造の傷み」を、
+//  建物の中か壁から 1.5m までの重い爆発（C4 1・RPG 0.7）でためて、決まった量で崩す。量は推測
+export const STRUCT = { house: 3, bungalow: 2, shop: 3, barn: 2.5, chapel: 4, tower: 2, ruin: 2, gas: 3 };
+export function bldTop(bd) { return bd.y + (bd.floors || 1) * 3.2 + 3; }
+// 爆発（x,y,z・重さ k）がかかる建物を探して傷みをためる。崩れた建物の一覧を返す
+export function structHit(ww, x, y, z, k) {
+  const out = [];
+  for (const bd of ww.blds || []) {
+    const hp = STRUCT[bd.kind]; if (!hp || bd.down) continue;
+    const [x0, z0, x1, z1] = bd.rect;
+    if (x < x0 - 1.5 || x > x1 + 1.5 || z < z0 - 1.5 || z > z1 + 1.5 || y < bd.y - 1 || y > bldTop(bd)) continue;
+    if (!bd.sdmg) mods(ww).blds.push(bd);
+    bd.sdmg = (bd.sdmg || 0) + k;
+    if (bd.sdmg >= hp) out.push(bd);
+  }
+  return out;
+}
+// 崩す: 建物の箱・段（坂）・描くだけの面を消し、がれきの山（低い箱。乗れる）を置く。戻り値: 変わった描く塊
+export function collapseBld(ww, bd) {
+  if (!bd || bd.down) return [];
+  const m = mods(ww); bd.down = true; if (!m.blds.includes(bd)) m.blds.push(bd);
+  const ks = new Set(), id = bd.id;
+  for (const b of ww.boxes) if (b.alive && b.bld === id) { b.alive = false; m.dead.push(b); ks.add(chunkOf(ww, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2)); }
+  for (const r of ww.ramps) if (r.bld === id && !r.dead) { r.dead = true; m.ramps.push(r); }
+  for (const d of ww.decos || []) if (d.bld === id && !d.hide) { d.hide = true; m.decos.push(d); }
+  // がれき: 床の広さに合わせて 4〜12 の山（高さ 0.4〜1.2m。位置は建物の番号で決まる＝オンラインの全員で同じ）
+  const [x0, z0, x1, z1] = bd.rect, W = x1 - x0, D = z1 - z0;
+  let s = (id * 2654435761) >>> 0; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const n = Math.max(4, Math.min(12, Math.round(W * D / 14)));
+  const col = (ww.boxes.find(b => b.bld === id && b.kind === 'wall') || {}).col || '#8d8a84';
+  for (let i = 0; i < n; i++) {
+    const cx = x0 + 0.8 + rnd() * Math.max(0.1, W - 1.6), cz = z0 + 0.8 + rnd() * Math.max(0.1, D - 1.6);
+    const sx = 0.8 + rnd() * 1.4, sz = 0.8 + rnd() * 1.4, h = 0.4 + rnd() * 0.8, gy = heightAt(ww, cx, cz);
+    const nb = addBox(ww, { x0: cx - sx, z0: cz - sz, x1: cx + sx, z1: cz + sz, y0: gy - 0.3, y1: gy + h, mat: M.CONCRETE, kind: 'rubble', bld: -1, col, layer: 1 });
+    reindexBox(ww, nb); ks.add(chunkOf(ww, cx, cz));
+  }
+  for (const [ax, az] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) ks.add(chunkOf(ww, ax, az));
+  ww._chunkItems = null;
+  return [...ks];
 }
 // 窓ガラスを割る（11-20）: 箱を消す（元に戻すときは restoreWorld）。戻り値: 変わった描く塊
 export function breakPane(ww, b) {
@@ -30810,7 +30878,7 @@ export function bin(ww, x, z, o = {}) {
   addCyl(ww, { x, z, r: 0.26, r1: 0.24, y0: y - 0.02, y1: y + 0.9, mat: M.METAL, kind: 'cover', col: o.col || '#3d5c48', seg: 8, layer: 10 });
 }
 
-@@@@ FILE src/war/render.js text 54975
+@@@@ FILE src/war/render.js text 54989
 // WAR BIT の世界の形（描く物）。64m の塊ごとに:
 //   遠い形（いつも持つ）: 地形 8m ごと＋すそ（つなぎ目のすき間を隠す）・簡単な木・箱（建物・塀・岩）
 //   近い形（近づいたときだけ作る）: 地形 2m ごと・道の帯（アスファルトと中央線）・細かい木・箱・階段
@@ -31457,7 +31525,7 @@ function sortIn(ww) {
   const it = Array.from({ length: NX * NZ }, () => ({ boxes: [], ramps: [], trees: [], cyls: [], decos: [], bushes: [], wires: [] }));
   const ck = (x, z) => Math.min(NZ - 1, Math.max(0, Math.floor(z / CH))) * NX + Math.min(NX - 1, Math.max(0, Math.floor(x / CH)));
   for (const b of ww.boxes) if (b.alive) it[ck((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2)].boxes.push(b);
-  for (const rp of ww.ramps) it[ck((rp.x0 + rp.x1) / 2, (rp.z0 + rp.z1) / 2)].ramps.push(rp);
+  for (const rp of ww.ramps) if (!rp.dead) it[ck((rp.x0 + rp.x1) / 2, (rp.z0 + rp.z1) / 2)].ramps.push(rp);
   for (const t of ww.trees || []) it[ck(t.x, t.z)].trees.push(t);
   for (const c of ww.cyls) if (c.col && c.alive) it[ck(c.x, c.z)].cyls.push(c);
   for (const d of ww.decos || []) { if (d.hide) continue; let x = 0, z = 0; for (const p of d.pts) { x += p[0]; z += p[2]; } it[ck(x / d.pts.length, z / d.pts.length)].decos.push(d); }
@@ -31573,7 +31641,7 @@ export function buildWarGrass(ww, k, dens = 1) {
   return B;
 }
 
-@@@@ FILE src/war/world.js text 19784
+@@@@ FILE src/war/world.js text 19865
 // WAR BIT の世界: 地形（hs m ごとの高さの格子）＋箱（壁・床・屋根・塀・岩など。材質と耐久つき）＋坂の板（階段）＋円柱（木・柱）。
 // G m の格子（引き出し）で引く。弾・視線（raycast）・足もと（groundAt）・天井（ceilAt）・体の押し出し（pushOut）はみなここ。
 // 0.5m のマスの建物（engine/world.js）とは別物。engine/world.js の関数は w.war のときここへ回す。
@@ -31723,6 +31791,7 @@ export function groundAt(ww, x, z, y) {
   }
   for (const id of ww.cellRamp[k]) {
     const r = ww.ramps[id];
+    if (r.dead) continue;
     if (x < r.x0 || x > r.x1 || z < r.z0 || z > r.z1) continue;
     const h = rampH(r, x, z);
     if (h <= y + STEP + 0.02 && h > best) best = h;
@@ -31741,6 +31810,7 @@ export function ceilAt(ww, x, z, y) {
   }
   for (const id of ww.cellRamp[k]) {
     const r = ww.ramps[id];
+    if (r.dead) continue;
     if (x < r.x0 || x > r.x1 || z < r.z0 || z > r.z1) continue;
     const h = rampH(r, x, z) - r.th;
     if (h > y + 0.1 && h < best) best = h;
@@ -31910,7 +31980,7 @@ export function raycast(ww, ox, oy, oz, dx, dy, dz, max, opt = {}) {
     }
     for (const id of ww.cellRamp[k]) {
       if (sr[id] === sn) continue; sr[id] = sn;
-      const rr = ww.ramps[id], r = rayRamp(ox, oy, oz, dx, dy, dz, rr, stopAt);
+      const rr = ww.ramps[id]; if (rr.dead) continue; const r = rayRamp(ox, oy, oz, dx, dy, dz, rr, stopAt);
       if (r && r[0] < stopAt) { hits.push({ t0: r[0], t1: r[1], kind: 'stair', mat: rr.mat, id, nx: r[2], ny: r[3], nz: r[4] }); if (opt.stopOpaque) stopAt = r[0]; }
     }
     for (const id of ww.cellCyl[k]) {
@@ -35180,6 +35250,52 @@ test('C4 をいくつも貼ってから、まとめて起爆する（BattleBit �
   step(G, { [me.id]: idle(me, { fire: true }) });
   for (let i = 0; i < 5; i++) step(G, { [me.id]: idle(me) });
   eq(S.nades.filter(q => q.type === 'c4' && q.by === me.id).length, 0, '4つまとめて爆発');
+});
+
+@@@@ FILE tests/unit/war_collapse.test.mjs text 3041
+// 11-26: 建物が崩れる（BattleBit: 構造を RPG・C4 で壊すと崩れ、中の人はがれきで死ぬ。大きい建物は崩れない）
+import { test, ok, eq } from '../lib/t.mjs';
+import { createGame, step } from '../../src/engine/engine.js';
+import { groundAt } from '../../src/war/world.js';
+import { STRUCT, structHit, collapseBld, restoreWorld } from '../../src/war/destruct.js';
+
+function game() { return createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false }); }
+test('家は C4 3 個で崩れ（2 個では崩れない）、箱と段が消えてがれきが残る。元に戻せる', () => {
+  const G = game(), w = G.w, bd = w.blds.find(b => b.kind === 'house');
+  ok(bd, '家がある');
+  const cx = (bd.rect[0] + bd.rect[2]) / 2, cz = (bd.rect[1] + bd.rect[3]) / 2;
+  eq(structHit(w, cx, bd.y + 1, cz, 1).length, 0, '1 個');
+  eq(structHit(w, cx, bd.y + 1, cz, 1).length, 0, '2 個');
+  const hit = structHit(w, cx, bd.y + 1, cz, 1);
+  eq(hit.length, 1, '3 個で崩れる');
+  const nb = w.boxes.filter(b => b.bld === bd.id && b.alive).length;
+  const ks = collapseBld(w, bd);
+  ok(ks.length > 0 && bd.down, '崩れた');
+  eq(w.boxes.filter(b => b.bld === bd.id && b.alive).length, 0, '建物の箱は残らない（前は ' + nb + '）');
+  ok(w.ramps.filter(r => r.bld === bd.id).every(r => r.dead), '段も消える');
+  ok(w.boxes.some(b => b.kind === 'rubble' && b.alive), 'がれき');
+  restoreWorld(w);
+  ok(!bd.down && w.boxes.filter(b => b.bld === bd.id && b.alive).length === nb && !w.boxes.some(b => b.kind === 'rubble'), '元に戻る');
+});
+test('集合住宅・事務所・倉庫は崩れない', () => {
+  for (const k of ['apartment', 'office', 'warehouse', 'bunker']) ok(!STRUCT[k], k);
+  const G = game(), w = G.w, bd = w.blds.find(b => b.kind === 'apartment');
+  if (!bd) return;
+  const cx = (bd.rect[0] + bd.rect[2]) / 2, cz = (bd.rect[1] + bd.rect[3]) / 2;
+  for (let i = 0; i < 20; i++) eq(structHit(w, cx, bd.y + 1, cz, 1).length, 0, 'C4 ' + (i + 1));
+});
+test('C4 の爆発で崩れると、中の人は死ぬ（外の人は無事）', () => {
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: true, per: 2 }), S = G.S, w = G.w, bd = w.blds.find(b => b.kind === 'house');
+  const [x0, z0, x1, z1] = bd.rect, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  const me = S.actors[0], [a, b] = S.actors.filter(q => q !== me && q.ai);
+  a.x = cx; a.z = cz; a.y = groundAt(w, cx, cz, bd.y + 1.5); a.team = 1;
+  b.x = x1 + 6; b.z = cz; b.y = groundAt(w, b.x, b.z, bd.y + 1.5); b.team = 1;
+  for (const q of [a, b]) { q.alive = true; q.dead = false; q.hp = 100; q.deployed = true; }
+  const evs = [];
+  for (let i = 0; i < 3; i++) { S.blasts.push({ x: x0 + 0.6, y: bd.y + 1, z: z0 + 0.6, r: 1.5, dmg: 1, kind: 'c4', by: me.id, t: 0 }); evs.push(...step(G, {})); }
+  ok(bd.down && evs.some(e => e.e === 'collapse' && e.bld === bd.id), '崩れた');
+  ok(!a.alive || a.down, '中の人');
+  ok(b.alive && !b.down, '外の人は無事');
 });
 
 @@@@ FILE tests/unit/war_destruct.test.mjs text 5947
