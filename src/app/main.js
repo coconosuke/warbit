@@ -52,6 +52,10 @@ class App {
       D.i++; D.cool = 3; D.slowT = 0; D.fastT = 0; D.ema = 0; this._resize();
     } else if (D.fastT > 20 && D.i > 0 && !(D.noUpUntil && D.t < D.noUpUntil)) { D.i--; D.cool = 5; D.fastT = 0; D.upAt = D.t; this._resize(); }
   }
+  // 1こまの内訳（動き＝エンジン×回数・音と効果・描く・HUD。ms）
+  _profTxt() { const P = this.game && this.game.prof; if (!P) return ''; const f = (v) => v.toFixed(1); return `（動き${f(P.sim)}・${P.n.toFixed(1)}回 音${f(P.ev)} 描${f(P.rd)} 表${f(P.hud)}）`; }
+  // タッチの取り消しなど（あれば fps の表示に。指 取消 a/b・外れ c・残り d）
+  _touchDiag() { const d = this.input && this.input.diag; if (!d || !(d.cancel + d.tcancel + d.lost + d.stale)) return ''; return ` · 指 取消${d.cancel}/${d.tcancel} 外れ${d.lost} 残り${d.stale}`; }
   renderScale() { return (this.settings.scale || 1) * DYN[this.dyn.i][0]; }
   fpsCap() { return this.dyn.cap ? Math.min(this.dyn.cap, this.settings.fps) : this.settings.fps; }
   _dynReset() { this.dyn = { i: 0, ema: 0, slowT: 0, fastT: 0, cool: 1, cap: 0 }; }
@@ -168,7 +172,7 @@ class App {
     } catch (e) { console.error(e); this._lastErr = String(e && e.stack || e); }
     if (this.settings.showFps) {
       this.fpsN++; this.fpsT += raw;
-      if (this.fpsT > 0.5) { const r = this.renderer.stats; this.fpsEl.textContent = `${Math.round(this.fpsN / this.fpsT)}fps · CPU ${(this.cpuMs || 0).toFixed(1)}ms · ${r.draws} · ${(r.tris / 1000).toFixed(0)}k · ${Math.round(DYN[this.dyn.i][0] * 100)}%${DYN[this.dyn.i][1] ? ' 軽' + DYN[this.dyn.i][1] : ''}${this.dyn.cap ? ' · 上限' + this.dyn.cap : ''}`; this.fpsN = 0; this.fpsT = 0; }
+      if (this.fpsT > 0.5) { const r = this.renderer.stats; this.fpsEl.textContent = `${Math.round(this.fpsN / this.fpsT)}fps · CPU ${(this.cpuMs || 0).toFixed(1)}ms${this._profTxt()} · ${r.draws} · ${(r.tris / 1000).toFixed(0)}k · ${Math.round(DYN[this.dyn.i][0] * 100)}%${DYN[this.dyn.i][1] ? ' 軽' + DYN[this.dyn.i][1] : ''}${this.dyn.cap ? ' · 上限' + this.dyn.cap : ''}${this._touchDiag()}`; this.fpsN = 0; this.fpsT = 0; }
     }
   };
 

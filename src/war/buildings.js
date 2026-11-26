@@ -47,6 +47,7 @@ export function wallX(B, x0, x1, z, y0, y1, ops = [], o = {}) {
     const a = x0 + p.at - p.w / 2, b = x0 + p.at + p.w / 2, zf = o.out < 0 ? z : z + T, d = o.out;
     trim(B, (u0, u1, v0, v1, w0, w1) => box(B, u0, v0, Math.min(zf + d * w0, zf + d * w1), u1, v1, Math.max(zf + d * w0, zf + d * w1), { kind: 'trim', detail: true, walk: false, col: B.trimCol, mat: B.mat }), a, b, y0, p);
     frameDeco(B, (u, v, w) => { const [wx, wz] = xf(B, u, w === 'mid' ? z + T / 2 : zf + d * w); return [wx, B.y + v, wz]; }, nrm(B, 0, d), nrm(B, 1, 0), a, b, y0, p);
+    if (hasGlass(p, a, b, x0, x1)) { const gz = z + T / 2 + d * 0.04; box(B, a + 0.02, y0 + p.y0 + 0.02, gz - 0.012, b - 0.02, y0 + p.y1 - 0.02, gz + 0.012, GLASS_O); }
   }
 }
 export function wallZ(B, z0, z1, x, y0, y1, ops = [], o = {}) {
@@ -55,8 +56,13 @@ export function wallZ(B, z0, z1, x, y0, y1, ops = [], o = {}) {
     const a = z0 + p.at - p.w / 2, b = z0 + p.at + p.w / 2, xf0 = o.out < 0 ? x : x + T, d = o.out;
     trim(B, (u0, u1, v0, v1, w0, w1) => box(B, Math.min(xf0 + d * w0, xf0 + d * w1), v0, u0, Math.max(xf0 + d * w0, xf0 + d * w1), v1, u1, { kind: 'trim', detail: true, walk: false, col: B.trimCol, mat: B.mat }), a, b, y0, p);
     frameDeco(B, (u, v, w) => { const [wx, wz] = xf(B, w === 'mid' ? x + T / 2 : xf0 + d * w, u); return [wx, B.y + v, wz]; }, nrm(B, d, 0), nrm(B, 0, 1), a, b, y0, p);
+    if (hasGlass(p, a, b, z0, z1)) { const gx = x + T / 2 + d * 0.04; box(B, gx - 0.012, y0 + p.y0 + 0.02, a + 0.02, gx + 0.012, y0 + p.y1 - 0.02, b - 0.02, GLASS_O); }
   }
 }
+// 窓ガラス（11-20）: 外壁の窓（床から上・高さ 0.9m 以上。のぞき穴・鐘の部屋の開口は除く）。透けて見え、弾は通る（当たると割れる）。
+//  割れるまでは通れない（乗り越えると割る）。壁の厚みの真ん中より少し外（窓の桟と重ならない）
+const GLASS_O = { kind: 'glass', mat: M.GLASS, col: '#a9c2cc', opaque: false, walk: false, detail: true, layer: 0 };
+function hasGlass(p, a, b, s0, s1) { return p.glass !== false && p.y0 > 0.05 && p.y1 - p.y0 >= 0.9 && a > s0 + 0.05 && b < s1 - 0.05; }
 // 窓と扉の枠の縦の帯（外の面の少し前）と、窓の十字の桟（壁の厚みの真ん中）。描くだけ（当たりなし・近くだけ）。
 // P(線にそった位置, 高さ, 面からの出 か 'mid') → 世界の点
 function frameDeco(B, P, n, nu, a, b, y0, p) {

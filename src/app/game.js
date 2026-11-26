@@ -30,7 +30,7 @@ import { LINES } from '../audio/lines.js';
 import { vfovOf } from './settings.js';
 import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
-import { carve } from '../war/destruct.js';
+import { carve, breakPane } from '../war/destruct.js';
 import { los as warLos } from '../war/world.js';
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel } from '../engine/modes/war.js';
 import { classGadgets, CLASSES, CLASS_LIST, classGuns, classSecs, classLoadout } from '../war/classes.js';
@@ -132,6 +132,7 @@ export class Match {
     const ev = [];
     const hostNet = this.net && this.net.role === 'host';
     const waiting = hostNet && this.netWaiting();
+    const tS = performance.now();
     while (this.acc >= step0 && n < 4) {
       const cmd = this._command(inp);
       if (waiting) { this.acc -= step0; n++; continue; }
@@ -144,6 +145,7 @@ export class Match {
       if (this.S.m && this.S.m.phase === 'end') break;
     }
     if (n === 4) this.acc = 0;
+    const tE = performance.now();
     // 描くのは「1ステップ前とこのステップの間」（こまの速さとエンジンの 60 回/秒 がずれても、動きがカクつかない）
     this._alpha = Math.max(0, Math.min(1, this.acc / step0));
     if (hostNet) this.netAfterSteps(ev);
@@ -154,8 +156,13 @@ export class Match {
     if (ws && A && kk > 0.001 && !this.done) { keep = [ws.sx, ws.sy, ws.ry, ws.rp]; ws.sx = (ws.sx || 0) + (A[0] - (ws.sx || 0)) * kk; ws.sy = (ws.sy || 0) + (A[1] - (ws.sy || 0)) * kk; ws.ry = (ws.ry || 0) + (A[2] - (ws.ry || 0)) * kk; ws.rp = (ws.rp || 0) + (A[3] - (ws.rp || 0)) * kk; }
     // まだエンジンに渡していない反動の押さえも、描く向きには先に入れる（指を引いた分がすぐ映るように）
     if (ws && this.rcComp > 0 && !this.done) { if (!keep) keep = [ws.sx, ws.sy, ws.ry, ws.rp]; ws.rp = Math.max(0, (ws.rp || 0) - this.rcComp); }
+    const tR = performance.now();
     try { this._render(dt, inp); } finally { if (keep) { ws.sx = keep[0]; ws.sy = keep[1]; ws.ry = keep[2]; ws.rp = keep[3]; } }
+    const tH = performance.now();
     this._hud(dt);
+    // 1こまの時間の内訳（fps の表示に出す。重い原因を探す）: 動き（エンジン、こまあたり）・回数・出来事（音・効果）・描く・HUD
+    { const P = this.prof || (this.prof = { sim: 0, n: 0, ev: 0, rd: 0, hud: 0 }), k = 0.1, tN = performance.now();
+      P.sim += (tE - tS - P.sim) * k; P.n += (n - P.n) * k; P.ev += (tR - tE - P.ev) * k; P.rd += (tH - tR - P.rd) * k; P.hud += (tN - tH - P.hud) * k; }
     // 終わり
     const m = this.S.m;
     if (m && (m.phase === 'end' || m.over) && !this.done) {
@@ -341,7 +348,8 @@ export class Match {
         // 乗り越え・跳ぶ（大規模戦。BattleBit と同じく1つのボタン。越える物がなければ跳ぶ）
         // ダウン中にあきらめる（大規模戦）: 2.5 秒以内にもう一度押すと、倒れたことにして出撃の画面へ
         case 'giveup': if (k === 'down' && this.S.war && p.alive && p.down) { if (this.time - (this._guT ?? -99) < 2.5) { this.acts.push({ a: 'warRedeploy' }); this._guT = -99; } else this._guT = this.time; this.au.ui('tap'); } break;
-        case 'vault': if (k === 'down') this.acts.push(this.S && this.S.war ? { a: 'vault', jump: 1 } : { a: 'vault' }); break;
+        // 跳ぶ: しゃがみ・伏せの間は、まず立つ（11-20 の要望。跳ばない）
+        case 'vault': if (k === 'down') { if (this.stance > 0) { this.stance = 0; break; } this.acts.push(this.S && this.S.war ? { a: 'vault', jump: 1 } : { a: 'vault' }); } break;
         // 息止め（11-19 13:31: 切り替えで）: 押すたびに入る・切れる。構えをやめる・息が切れると切れる（_command）
         case 'breath': if (k === 'down' && (st.breathMode || 'toggle') === 'toggle') { this.breathOn = !this.breathOn; this._brT = this.time; } break;
         case 'leanL': case 'leanR': {
@@ -419,6 +427,10 @@ export class Match {
       const ws = p && p.ws;
       if (this.breathOn && (!this.adsOn || !p || !p.alive || p.down || (ws && ws.gasp > 0) || (!(ws && ws.holding) && this.time - (this._brT || 0) > 0.35))) this.breathOn = false;
     }
+    // 走り出したらリーンをやめる（11-20 の要望。前はリーンしている間は走れず、スティックを押し込んでも歩いたまま）。
+    //  走り出した時だけ（ダッシュの固定の間にリーンを押したときは、前と同じく走りを止めてリーンする）
+    if (inp.sprint && !this._sprWas && this.leanSide && !this.adsOn) this.leanSide = 0;
+    this._sprWas = !!inp.sprint;
     const brBtn = (this.app.settings.breathMode || 'toggle') === 'hold' ? inp.hold.has('breath') : !!this.breathOn;
     // 構える・構えをやめる: 銃を上げ下げする小さな音（自分だけ・大規模戦）
     if (this.adsOn !== this._adsWas) { if (this._adsWas != null && this.S && this.S.war && p && p.alive && !p.down) this.au.sfx('act', null, { vol: 0.1, rate: this.adsOn ? 1.4 : 1.2 }); this._adsWas = this.adsOn; }
@@ -496,7 +508,7 @@ export class Match {
     const items = c.ops.map(o => ({ label: OP_NAME[o.op] || o.op, sub: o.far ? (o.why === 'block' ? '間に物' : '') : o.t ? o.t.toFixed(1) + '秒' : '', disabled: !!o.far, go: () => this.acts.push({ a: 'op', k: c.k, id: c.id, op: o.op }) }));
     if (!items.length) return;
     this.app.input.openRadial('use', items, e.pid, e.x, e.y);
-    this.app.input.radial.title = c.k === 'door' ? '扉' : c.k === 'person' ? '人' : c.k === 'item' ? '物' : '';
+    if (this.app.input.radial) this.app.input.radial.title = c.k === 'door' ? '扉' : c.k === 'person' ? '人' : c.k === 'item' ? '物' : '';
   }
 
   // ---- 命令（RoN）
@@ -590,7 +602,7 @@ export class Match {
       ];
     }
     this.app.input.openRadial('cmd', items, e.pid, e.x, e.y);
-    this.app.input.radial.title = `<span style="color:${TEAMCOL[this.team]}">${{ gold: '全員', red: '赤', blue: '青' }[this.team]}</span>へ命令`;
+    if (this.app.input.radial) this.app.input.radial.title = `<span style="color:${TEAMCOL[this.team]}">${{ gold: '全員', red: '赤', blue: '青' }[this.team]}</span>へ命令`;
   }
   _methodMenu(door, nade, e) {
     const S = this.S;
@@ -623,7 +635,7 @@ export class Match {
     }
     if (!items.length) return;
     this.app.input.openRadial('gear', items, e.pid, e.x, e.y);
-    this.app.input.radial.title = '装備';
+    if (this.app.input.radial) this.app.input.radial.title = '装備';
   }
   // ---- 大規模戦の投げ物・道具のボタン
   // 円の並びの1つ（設定の radNade・radGad の文字）→ 持っている物 { id, n, lb }（持っていなければ null）。
@@ -676,7 +688,7 @@ export class Match {
     });
     if (!items.some(Boolean)) return;
     this.app.input.openRadial(kind, items, pid, x, y);
-    this.app.input.radial.title = kind === 'nade' ? '投げ物' : '道具';
+    if (this.app.input.radial) this.app.input.radial.title = kind === 'nade' ? '投げ物' : '道具';
   }
   // HUD のボタンの表示
   _slotView() {
@@ -743,6 +755,8 @@ export class Match {
           const W = WEAPONS[e.wid];
           let mz;
           if (a === p && this.vm.on) { mz = this.vm.out.muzzle; fx.muzzle(mz[0], mz[1], mz[2], this.vm.out.fwd[0], this.vm.out.fwd[1], this.vm.out.fwd[2], W.cat === 'pistol' ? 0.7 : 1, e.supp); const ej = this.vm.out.eject, r = this.vm.out.right; if (W.cat !== 'shotgun' && !W.revolver && !W.bolt) fx.shell(ej[0], ej[1], ej[2], -r[0] * 1.6 + this.vm.out.up[0], 1.4, -r[2] * 1.6 + this.vm.out.up[2], W.cal === '762x51' || W.cal === '762x39'); }
+          // 遠い人（250m より先）の銃口の光は見えないので、銃の形を探さず、光も出さない（11-26: 大人数の撃ち合いで重かった）
+          else if (Math.hypot(a.x - this.cam.x, a.z - this.cam.z) > 250) mz = [e.x, e.y + 1.4, e.z];
           else { const g = this._gunFrame(a); if (g) { const L = gunModel(e.wid, (curWeapon(a) || {}).att || {}); const ml = L ? L.len : 0.4; mz = [g.p[0] + g.f[0] * ml, g.p[1] + g.f[1] * ml, g.p[2] + g.f[2] * ml]; fx.muzzle(mz[0], mz[1], mz[2], g.f[0], g.f[1], g.f[2], 1, e.supp); } else mz = [e.x, e.y + 1.4, e.z]; }
           // 大規模戦: 遠い銃声（700m より先）は鳴らさず、遠くの銃声は 0.25 秒に 10 発まで（大人数で音が詰まらないように）
           let hear = true;
@@ -836,27 +850,37 @@ export class Match {
         }
         case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', fullhp: '体力が満タン', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
         case 'nade': { if (e.type === 'frag' || e.type === 'impact') break; if (e.type === 'smoke') { for (let i = 0; i < 6; i++) fx.smoke(e.x, e.y + 0.5, e.z, 0.9, [0.62, 0.63, 0.64], 0.6, 3); au.sfx('gasPop', [e.x, e.y, e.z], { rate: 0.8 }); break; } if (e.type === 'cs') { for (let i = 0; i < 8; i++) fx.smoke(e.x, e.y + 0.4, e.z, 1.2, [0.85, 0.85, 0.8], 0.5, 6); au.sfx('gasPop', [e.x, e.y, e.z]); } else { fx.explosion(e.x, e.y, e.z, 3, e.type === 'flash' ? 'flash' : 'stinger'); au.sfx(e.type === 'flash' ? 'flashbang' : 'stinger', [e.x, e.y, e.z]); } const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 10) * 0.6); break; }
+        // 大規模戦の窓ガラスが割れた（オンラインの参加側は、自分の世界でも同じ板を割る）
+        case 'wglass': {
+          let ks = e.ks || [];
+          if (this.w && this.w.war) { const gb = this.w.boxes[e.id]; if (gb && gb.alive && gb.kind === 'glass') ks = breakPane(this.w, gb); }
+          this.r.rebuildWarChunks && this.r.rebuildWarChunks(ks);
+          if (fx.glassBreak) fx.glassBreak(e.cx ?? e.x, (e.cy ?? e.y) - 0.6, e.cz ?? e.z);
+          au.sfx('glass', [e.x, e.y, e.z], { vol: 0.85 });
+          break;
+        }
         case 'carve': {
           // オンラインの参加側（エンジンを回していない）: 自分の世界にも同じ穴を開ける
           let ks = e.ks || [];
           if (this.w && this.w.war && (this.w._carveN || 0) < (e.cn || 0)) { ks = carve(this.w, e.x, e.y, e.z, e.r || 1.3, e.o || (e.ham ? { force: true, w: 1.1, h: 1.3, floor: 1.1 } : {})); this.w._carveN = e.cn; }
-          this.r.rebuildWarChunks && this.r.rebuildWarChunks(ks); const mat = [0.36, 0.31, 0.26]; if (fx.debris) for (let i = 0; i < (e.ham ? 1 : 3); i++) fx.debris(e.x + (Math.random() - 0.5) * 1.2, e.y + (Math.random() - 0.5) * 1.0, e.z + (Math.random() - 0.5) * 1.2, mat); au.sfx('barricade', [e.x, e.y, e.z], { vol: 1, rate: 0.7 }); break; }
+          this.r.rebuildWarChunks && this.r.rebuildWarChunks(ks); const mat = [0.36, 0.31, 0.26]; if (fx.debris) for (let i = 0; i < (e.ham || e.shot ? 1 : 3); i++) fx.debris(e.x + (Math.random() - 0.5) * (e.shot ? 0.5 : 1.2), e.y + (Math.random() - 0.5) * (e.shot ? 0.4 : 1.0), e.z + (Math.random() - 0.5) * (e.shot ? 0.5 : 1.2), mat); au.sfx(e.shot ? 'wallBreak' : 'barricade', [e.x, e.y, e.z], { vol: e.shot ? 0.7 : 1, rate: e.shot ? 1.1 : 0.7 }); break; }
         case 'boom': case 'c2': { fx.explosion(e.x, e.y, e.z, Math.min(5, e.r || 3), e.kind || 'c2'); au.boom([e.x, e.y, e.z], { size: e.kind === 'frag' ? 1 : e.kind === 'rpg' ? 1.2 : e.kind === 'c4' ? 1.35 : 1.1 }); const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 18)); this._heatUp(0.5 * Math.max(0, 1 - d / 40)); break; }
         case 'flashed': if (e.id === me) { this.flashW = Math.max(this.flashW, Math.min(1, 0.4 + e.k * 1.2)); au.deafen(2 + 4 * e.k); } break;
         case 'stung': if (e.id === me) { this.shake = 1; this.blurK = Math.max(this.blurK, 0.8); } break;
         case 'tase': au.sfx('taser', S.byId[e.id] ? [S.byId[e.id].x, S.byId[e.id].y + 1, S.byId[e.id].z] : null); break;
         case 'spray': au.sfx('spray', S.byId[e.id] ? [S.byId[e.id].x, S.byId[e.id].y + 1.5, S.byId[e.id].z] : null); break;
-        case 'reload': if (e.id === me) au.sfx(e.k === 'shell' ? 'shellStart' : 'magOut', null, { vol: 0.7 }); else { const a = S.byId[e.id]; if (a && a.kind === 'swat' && !S.pvp && Math.random() < 0.5) this._say(a, 'swat_reload'); if (a) au.sfx('magOut', [a.x, a.y + 1.2, a.z], { vol: 0.5 }); } break;
-        case 'reloaded': if (e.id === me) au.sfx('magIn', null, { vol: 0.75 }); break;
-        case 'shell': if (e.id === me) au.sfx('shellIn', null, { vol: 0.7 }); break;
+        case 'reload': if (e.id === me) au.sfx(e.k === 'shell' ? 'shellStart' : 'magOut', null, { vol: 0.7 }); else { const a = S.byId[e.id]; if (a && a.kind === 'swat' && !S.pvp && Math.random() < 0.5) this._say(a, 'swat_reload'); if (a && this._nearCam(a, 20)) au.sfx('magOut', [a.x, a.y + 1.2, a.z], { vol: 0.5 }); } break;
+        // ほかの人のリロード・持ち替え・ライトの音も近くなら聞こえる（11-20: 前は抜く音だけで、差す音・弾を込める音・持ち替えは自分だけ）
+        case 'reloaded': if (e.id === me) au.sfx('magIn', null, { vol: 0.75 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 18)) au.sfx('magIn', [a.x, a.y + 1.2, a.z], { vol: 0.45 }); } break;
+        case 'shell': if (e.id === me) au.sfx('shellIn', null, { vol: 0.7 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 14)) au.sfx('shellIn', [a.x, a.y + 1.2, a.z], { vol: 0.4 }); } break;
         case 'pumped': { const a = S.byId[e.id], wb = a && curWeapon(a); if (wb && WEAPONS[wb.id] && WEAPONS[wb.id].bolt) break; /* ボルトの音は 'bolt' で鳴らした */ if (e.id === me) au.sfx('pump', null, { vol: 0.75 }); else if (a) au.sfx('pump', [a.x, a.y + 1.2, a.z], { vol: 0.5 }); break; }
         // ボルトの操作の音（起こす・引く・押す・倒す。音の中の間合いは見た目の動きと同じ）
         case 'bolt': if (e.id === me) au.sfx('bolt', null, { vol: 0.8 }); else { const a = S.byId[e.id]; if (a) au.sfx('bolt', [a.x, a.y + 1.2, a.z], { vol: 0.55 }); } break;
         case 'zoom': if (e.id === me) { au.sfx('fmode', null, { vol: 0.5 }); if (!S.war) hud.showBanner(e.binoc ? `双眼鏡 ${e.z}倍` : e.sight === 'mag3' ? (e.z <= 1 ? 'ブースターを倒した（等倍）' : 'ブースター 3倍') : e.z <= 1 ? 'スコープ 等倍' : `スコープ ${e.z}倍`, 800); } break;
         case 'dry': if (e.id === me) au.sfx('dry', null, { vol: 0.6 }); break;
-        case 'draw': if (e.id === me) au.sfx('draw', null, { vol: 0.45 }); break;
+        case 'draw': if (e.id === me) au.sfx('draw', null, { vol: 0.45 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 10)) au.sfx('draw', [a.x, a.y + 1.1, a.z], { vol: 0.3 }); } break;
         case 'fmode': if (e.id === me) { au.sfx('fmode', null, { vol: 0.5 }); if (!S.war) hud.showBanner(S.war ? (e.m === 'auto' ? 'AUTO' : e.m === 'burst' ? 'BURST' : 'SEMI') : e.m === 'auto' ? '連射' : '単発', 700); } break;
-        case 'lightsw': if (e.id === me) au.sfx('click', null, { vol: 0.4 }); break;
+        case 'lightsw': if (e.id === me) au.sfx('click', null, { vol: 0.4 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 6)) au.sfx('click', [a.x, a.y + 1.3, a.z], { vol: 0.25 }); } break;
         case 'step': { const a = S.byId[e.id]; if (a && a !== p) au.step(e.f, [e.x, e.y, e.z], e.loud); else if (a === p) au.step(e.f, null, e.loud * 0.6); break; }
         case 'shout': { const a = S.byId[e.id]; if (a) this._say(a, e.line > -1 || typeof e.line === 'string' ? e.line : 'swat_police', a === p); break; }
         case 'cmd': {
@@ -919,8 +943,9 @@ export class Match {
           break;
         }
         case 'revive': if (this._downBy) this._downBy.delete(e.id); hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
-        case 'bandaged': if (e.id === me) au.sfx('bandage', null); break;
-        case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); break;
+        case 'bandaged': if (e.id === me) au.sfx('bandage', null); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 8)) au.sfx('bandage', [a.x, a.y + 0.9, a.z], { vol: 0.35 }); } break;
+        // 息が切れた（あえぐ）: 近くの人にも小さく聞こえる
+        case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 7)) au.sfx('gasp', [a.x, a.y + 1.5, a.z], { vol: 0.3 }); } break;
         case 'exhale': if (e.id === me) au.sfx('exhale', null, { vol: 0.6 }); break;
         case 'inhale': if (e.id === me) au.sfx('inhale', null, { vol: 0.6 }); break;
         case 'jump': { const a = S.byId[e.id]; if (a) au.sfx('land', a === p ? null : [a.x, a.y + 0.2, a.z], { vol: a === p ? 0.3 : 0.25, rate: 1.5 }); break; }
@@ -1317,6 +1342,8 @@ export class Match {
   }
   // レーザー: 赤は誰にでも見える。赤外線は暗視装置を着けているときだけ見える
   // 自分の点は弾の向き（反動込み）の先、ほかの人は銃の向きの先
+  // 人がカメラから R m 以内（ほかの人の小さな音を近くだけ鳴らす）
+  _nearCam(a, R) { const c = this.cam; return !!c && Math.hypot(a.x - c.x, a.z - c.z) < R && Math.abs(a.y - c.y) < 6; }
   _lasers(fp, cam) {
     const S = this.S, p = this.p, fx = this.fx;
     const nvg = !!(this.nvgOn && fp);

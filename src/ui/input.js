@@ -58,6 +58,8 @@ export class Input {
     this.gyro = { on: false, ok: false, x: 0, y: 0, last: 0 };
     this.onStick = null; this.onRadial = null; this.onBtn = null; this.onDragMenu = null;
     this.radial = null; // 開いている円形メニュー {btn, x, y, items, sel, pid}
+    // タッチの記録（fps の表示）: cancel 指の取り消し・tcancel タッチの取り消し・lost つかみが外れた・stale 離したのが届かず捨てた
+    this.diag = { cancel: 0, tcancel: 0, lost: 0, stale: 0 };
     this.getStickHome = null;
     this._bind();
   }
@@ -139,7 +141,7 @@ export class Input {
     };
     window.addEventListener('pointermove', onMove, { passive: false, capture: true });
     // つかみが外れた: スティック・見回しの指はつかみ直す（外れたままだと、area の外の部品へ出来事が行く）
-    a.addEventListener('lostpointercapture', (e) => { const p = this.ptr.get(e.pointerId); if (p && (p.kind === 'stick' || p.kind === 'look')) { try { a.setPointerCapture(e.pointerId); } catch (er) { /* 離した後 */ } } });
+    a.addEventListener('lostpointercapture', (e) => { const p = this.ptr.get(e.pointerId); if (p && (p.kind === 'stick' || p.kind === 'look')) { this.diag.lost++; try { a.setPointerCapture(e.pointerId); } catch (er) { /* 離した後 */ } } });
     const up = (e, cancel) => {
       unlock();
       if (!this.enabled) return;
@@ -159,7 +161,7 @@ export class Input {
       if (this.radial && this.radial.pid === e.pointerId) {
         // 円形メニュー: 離した所を選ぶ（真ん中ならタップで選ぶ方式に切り替え）
         if (cancel) { this.closeRadial(); return; }
-        if (this.radial.sel < 0 && !this.radial.tapMode && p.moved < 14) { this.radial.tapMode = true; this.radial.pid = null; if (this.onRadial) this.onRadial(this.radial); return; }
+        if (this.radial.sel < 0 && !this.radial.tapMode && p.moved < 14) { this.radial.tapMode = true; this.radial.pid = null; this.radial.t0 = performance.now(); if (this.onRadial) this.onRadial(this.radial); return; }
         this._radialPick(false);
         return;
       }
@@ -171,7 +173,14 @@ export class Input {
       if (this.onBtn) this.onBtn(p.btn, k, p);
     };
     window.addEventListener('pointerup', (e) => up(e, false), { capture: true });
-    window.addEventListener('pointercancel', (e) => up(e, true), { capture: true });
+    // 取り消し（端末やアプリが指を横取りした）の回数: 画面の右上の fps の表示に出す（タッチが切れる原因を探す）
+    window.addEventListener('pointercancel', (e) => { if (this.enabled && this.ptr.has(e.pointerId)) this.diag.cancel++; up(e, true); }, { capture: true });
+    // 11-20: iOS（Claude アプリの中の画面・Safari）: 遊んでいる間の指は、ページの側で使うと伝える（親の画面のスクロール・
+    //  アプリのスワイプ・ブラウザの戻る操作・長押しの拡大鏡に指を取られて、見回しやスティックが途中で切れないように）。
+    //  ボタンは pointer の出来事で受けるので、touchstart を止めても効く。出撃の画面・成績表・文字の欄は除く（スクロール・入力）
+    const own = (e) => this.enabled && e.cancelable && !(e.target && e.target.closest && e.target.closest('.hud-deploy, .hud-board, input, textarea, select'));
+    a.addEventListener('touchstart', (e) => { if (own(e)) e.preventDefault(); }, { passive: false });
+    a.addEventListener('touchmove', (e) => { if (own(e)) e.preventDefault(); }, { passive: false });
     // 触れている指の数（タッチの出来事から）。指が全部離れたのに残っている指の記録は、少し待ってから捨てる
     //  （「離した」の出来事が届かなかった時の救い。スティックが残って効かなくなるのを防ぐ）
     this._touchN = 0;
@@ -185,7 +194,7 @@ export class Input {
       setTimeout(() => { if (this._touchN === 0 && (this._touchT || 0) < t0) this._dropStale(); }, 120);
     };
     window.addEventListener('touchend', (e) => { unlock(); tend(e); }, { passive: true, capture: true });
-    window.addEventListener('touchcancel', tend, { passive: true, capture: true });
+    window.addEventListener('touchcancel', (e) => { if (this.enabled) this.diag.tcancel++; tend(e); }, { passive: true, capture: true });
     window.addEventListener('click', () => unlock(), true);
     // キーボード（パソコン）
     window.addEventListener('keydown', (e) => {
@@ -220,7 +229,7 @@ export class Input {
     for (const [pid, p] of this.ptr) {
       if (p.pt !== 'touch') continue;
       if (kind && p.kind !== kind) continue;
-      this.ptr.delete(pid);
+      this.ptr.delete(pid); this.diag.stale++;
       if (p.kind === 'btn') { this.hold.delete(p.btn); if (p.el) p.el.classList.remove('down'); this.edges.push({ b: p.btn, k: 'cancel', sub: p.el ? p.el.dataset.sub || null : null }); if (this.onBtn) this.onBtn(p.btn, 'cancel', p); }
       if (p.kind === 'radialTap' || (this.radial && this.radial.pid === pid)) this.closeRadial();
     }
@@ -252,7 +261,10 @@ export class Input {
   }
   // ---- 円形メニュー
   openRadial(btn, items, pid, cx, cy) {
-    this.radial = { btn, items, pid, x: cx, y: cy, sel: -1, tapMode: pid == null };
+    // 11-26: 指がもう離れている（重いこまで、長押しの知らせを読む前に離した）なら開かない。
+    //  前は離した指の番号で開いて、その指の「離した」が二度と来ないので開いたままになった
+    if (pid != null && !this.ptr.has(pid)) return;
+    this.radial = { btn, items, pid, x: cx, y: cy, sel: -1, tapMode: pid == null, t0: performance.now() };
     if (this.onRadial) this.onRadial(this.radial);
   }
   closeRadial() { this.radial = null; if (this.onRadial) this.onRadial(null); }
@@ -297,6 +309,10 @@ export class Input {
   }
   // 1こま分を取り出す
   take() {
+    // 開いたままの円形メニューを閉じる（11-26）: 開いた指がもういない（取り消し・捨てた）か、
+    //  タップで選ぶ方式のまま 4 秒触らない
+    const r = this.radial;
+    if (r && ((r.pid != null && !this.ptr.has(r.pid)) || (r.pid == null && performance.now() - (r.t0 || 0) > 4000 && ![...this.ptr.values()].some(q => q.kind === 'radialTap')))) this.closeRadial();
     let mx = this.mx, mz = this.mz;
     if (this.sprintLock) { mx = 0; mz = 1; }
     const K = this.keys;

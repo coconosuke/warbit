@@ -149,6 +149,11 @@ function coverAgainst(nav, cv, k, tx, tz) {
 }
 function bushAt(nav, cv, k) { return cv.bush[k] / 10; }
 
+// 試合の始めに作っておく表（重い物。最初の見回しで作ると、そのステップが止まる）
+export function warPrep(S, w) {
+  const nav = buildWarNav(w, S.m.rect); coverOf(w, nav);
+  treeGrid(w); bushGrid(w);
+}
 // ---- 1ステップ: 全部のボットの入力
 export function warThink(S, w, dt) {
   const out = {};
@@ -164,7 +169,9 @@ export function warThink(S, w, dt) {
   // 味方から離れるための近所の表（4m のマス。毎ステップ1回）
   const near = [new Map(), new Map()];
   for (let t = 0; t < 2; t++) for (const b of live[t]) { const k = Math.floor(b.x / 4) * 8192 + Math.floor(b.z / 4); let L = near[t].get(k); if (!L) near[t].set(k, L = []); L.push(b); }
-  const ctx = { nav, cv, live, near, paths: 4, covers: 6 };
+  // 道を作る予算（11-26）: 1 ステップで調べるマスは合わせて 16000 まで（前は 4 本まで・1 本 24000 マスで、長い道が重なると
+  //  1 ステップ 12〜24ms 止まった。予算を超えた分は次のステップへ回す）
+  const ctx = { nav, cv, live, near, paths: 4, pathBudget: 16000, covers: 6 };
   for (const a of S.actors) {
     if (a.pid != null || !a.ai || a.ai.type !== 'war') continue;
     if (!a.alive) continue;
@@ -570,9 +577,10 @@ function separate(S, a, inp, ctx, R = 3) {
 function moveToPoint(S, w, a, inp, to, ctx, sk, dt, o = {}) {
   const ai = a.ai;
   const need = !ai.path || !ai.pathTo || Math.hypot(ai.pathTo[0] - to[0], ai.pathTo[1] - to[1]) > 4 || S.t - ai.pathT > 900 || ai.repath;
-  if (need && ctx.paths > 0) {
+  if (need && ctx.paths > 0 && ctx.pathBudget > 1500) {
     ctx.paths--;
-    ai.path = findWarPath(ctx.nav, a.x, a.z, to[0], to[1]) || [to]; ai.pi = 0; ai.pathTo = to.slice(); ai.pathT = S.t; ai.repath = false;
+    ai.path = findWarPath(ctx.nav, a.x, a.z, to[0], to[1], Math.min(24000, ctx.pathBudget)) || [to]; ai.pi = 0; ai.pathTo = to.slice(); ai.pathT = S.t; ai.repath = false;
+    ctx.pathBudget -= ctx.nav.lastExp || 0;
   }
   const P = ai.path || [to];
   while (ai.pi < P.length - 1 && Math.hypot(P[ai.pi][0] - a.x, P[ai.pi][1] - a.z) < 2.0) ai.pi++;
@@ -612,19 +620,26 @@ function scan(S, w, a, ctx, sk) {
     if (ang > fov && d > 20 && !heard && !edge) continue;
     n++;
     const by = b.y + (b.st > 1.5 ? 0.35 : b.st > 0.5 ? 0.95 : 1.35);
+    const mem = ai.seen || (ai.seen = {});
+    const r = mem[b.id] || (mem[b.id] = { det: 0, t: -1e9 });
     // 胸が隠れていても、頭が出ていれば（低い壁・窓の下・土のうの向こう）見える。体の一部だけなので見つけにくい（11-20）
-    let part = 1;
-    if (!wLos(w, e[0], e[1], e[2], b.x, by, b.z)) {
-      const hy = b.y + (b.st > 1.5 ? 0.45 : b.st > 0.5 ? 1.15 : 1.62);
-      if (!wLos(w, e[0], e[1], e[2], b.x, hy, b.z)) continue;
-      part = 0.45;
+    //  見通しの結果は 0.3 秒・どちらも 0.6m 動かない間は使い回す（11-26: 撃ち合いの間、同じ相手を何度も遠くまで調べて重かった）
+    let part;
+    const L = r.los;
+    if (L && S.t - L.t < 18 && Math.abs(L.ax - a.x) + Math.abs(L.az - a.z) < 0.6 && Math.abs(L.bx - b.x) + Math.abs(L.bz - b.z) < 0.6 && L.st === b.st && L.ast === a.st) part = L.part;
+    else {
+      part = 1;
+      if (!wLos(w, e[0], e[1], e[2], b.x, by, b.z)) {
+        const hy = b.y + (b.st > 1.5 ? 0.45 : b.st > 0.5 ? 1.15 : 1.62);
+        part = wLos(w, e[0], e[1], e[2], b.x, hy, b.z) ? 0.45 : 0;
+      }
+      r.los = { t: S.t, ax: a.x, az: a.z, bx: b.x, bz: b.z, st: b.st, ast: a.st, part };
     }
+    if (!part) continue;
     // 煙（発煙弾）の向こうは見えない。薄いところは見つけにくい（11-19 18:16）
     const sm = smokeBetween(S, e[0], e[1], e[2], b.x, by, b.z);
     if (sm >= 0.6) continue;
     // 遠い・伏せ・しゃがみ・茂みの向こう・麦畑の伏せは見つけにくい（見ている時間をためる）
-    const mem = ai.seen || (ai.seen = {});
-    const r = mem[b.id] || (mem[b.id] = { det: 0, t: -1e9 });
     let k = (d < 30 ? 1 : d < 100 ? 0.6 : 0.35) * (b.st > 1.5 ? 0.45 : b.st > 0.5 ? 0.75 : 1) * ((b.spd || 0) > 1 ? 1.3 : 1) * ((b.fireK || 0) > 0.2 ? 2 : 1) * (ang < 0.5 ? 1 : ang <= fov || heard ? 0.6 : 0.35) * part;
     if (d > 12 && (b.fireK || 0) < 0.2) {
       const ck = concealK(w, e, b, by); if (ck < 0.07) continue; k *= ck;

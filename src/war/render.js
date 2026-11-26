@@ -671,7 +671,7 @@ export function buildWarFarChunk(ww, k) {
     terrainMesh(B, ww, x0, z0, x1, z1, 8, 6);
     let y0 = 1e9, y1 = -1e9;
     for (let j = Math.floor(z0 / ww.hs); j <= Math.min(ww.HD - 1, Math.ceil(z1 / ww.hs)); j++) for (let i = Math.floor(x0 / ww.hs); i <= Math.min(ww.HW - 1, Math.ceil(x1 / ww.hs)); i++) { const hv = ww.h[j * ww.HW + i]; if (hv < y0) y0 = hv; if (hv > y1) y1 = hv; }
-    for (const b of it[k].boxes) { if ((b.kind === 'crate' || b.kind === 'rail' || b.detail) && !b.far) continue; boxMesh(B, ww, b, tops, false); y1 = Math.max(y1, b.y1); y0 = Math.min(y0, b.y0); }
+    for (const b of it[k].boxes) { if ((b.kind === 'crate' || b.kind === 'rail' || b.detail) && !b.far || b.kind === 'glass') continue; boxMesh(B, ww, b, tops, false); y1 = Math.max(y1, b.y1); y0 = Math.min(y0, b.y0); }
     for (const rp of it[k].ramps) if (rp.kind === 'roof' || rp.kind === 'bridge') { smoothRamp(B, rp, hex(rp.col || '#8d8a84'), rp.layer ?? LAYER.concrete); y1 = Math.max(y1, rp.y1); }
     for (const c of it[k].cyls) if (c.far) { cylMesh(B, c); y1 = Math.max(y1, c.y1); }
     for (const d of it[k].decos) if (d.far) { decoMesh(B, d, tops); for (const p of d.pts) y1 = Math.max(y1, p[1]); }
@@ -710,12 +710,18 @@ export function buildWarNear(ww, k, o = {}) {
 // 近い形のうち、建物の箱・坂・柱・描くだけの面（壊れると作り直す）
 export function buildWarNearBoxes(ww, k, o = {}, BX = new MeshBuilder()) {
   const tops = bldTops(ww), { it } = sortIn(ww);
-  for (const b of it[k].boxes) boxMesh(BX, ww, b, tops, true);
+  for (const b of it[k].boxes) if (b.kind !== 'glass') boxMesh(BX, ww, b, tops, true);
   const rr = mulberry(8000 + k);
   for (const rp of it[k].ramps) rampMesh(BX, rp, rr, tops);
   for (const c of it[k].cyls) cylMesh(BX, c);
   for (const d of it[k].decos) if (d.far || !o.lite) decoMesh(BX, d, tops);
   return BX;
+}
+// 窓ガラス（近い形だけ。透ける板は描く側がガラスの描き方で、奥から順に重ねる）
+export function buildWarGlass(ww, k) {
+  const { it } = sortIn(ww), G = new MeshBuilder(), c = hex('#a9c2cc');
+  for (const b of it[k].boxes) if (b.kind === 'glass' && b.alive) G.box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, LAYER.plain, c);
+  return G;
 }
 // 草（見る位置のまわりの塊だけ）: 地面の草の生え方（gw）に合わせて、細い葉3〜4枚の株を散らす。麦畑は高い金色の株。
 // 頂点の emit = -1 が草のしるし（シェーダーで遠い所から少しずつ消す・裏も同じ明るさ）

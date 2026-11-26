@@ -8,7 +8,7 @@ import { blastBars } from './barricade.js';
 import { blastDeps } from './deploy.js';
 import { blastRallies } from './rally.js';
 import { GEAR } from './data/equipment.js';
-import { carve } from '../war/destruct.js';
+import { carve, shatterNear } from '../war/destruct.js';
 import { blastMines } from './mines.js';
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
@@ -258,6 +258,8 @@ export function stepBlasts(S, w, dt, ev) {
       const ks = carve(w, b.x, b.y, b.z, R, o);
       if (ks.length) { (S.carves || (S.carves = [])).push([b.x, b.y, b.z, R, c4 ? 2 : 0]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: b.x, y: b.y, z: b.z, r: R, ks, cn: w._carveN, o }); }
     }
+    // 大規模戦: 爆発のまわりの窓ガラスは割れる（届く距離の 0.8 倍まで）
+    if (w.war) shatterNear(S, w, b.x, b.y, b.z, Math.max(2.5, (b.r || 4) * 0.8), ev);
     // 壁（石膏・木）を壊す
     if (!w.war && (b.kind === 'c2' || b.kind === 'frame' || b.kind === 'frag')) {
       const R = b.kind === 'frame' ? 1.4 : b.kind === 'c2' ? 0.9 : 0.6;

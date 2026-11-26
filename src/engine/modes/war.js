@@ -12,7 +12,7 @@ import { los as warLos } from '../../war/world.js';
 import { smokeBetween } from '../nades.js';
 import { groundAt, pushOut } from '../world.js';
 import { heightAt, groundAt as wGround } from '../../war/world.js';
-import { warThink, botSpawnPoint, goalOf, SQUAD } from '../../war/ai.js';
+import { warThink, warPrep, botSpawnPoint, goalOf, SQUAD } from '../../war/ai.js';
 import { CLASSES, classLoadout, classGuns } from '../../war/classes.js';
 import { hrand } from '../rng.js';
 import { WEAPONS } from '../data/weapons.js';
@@ -381,6 +381,8 @@ export default {
         a.ws.slot = a.inv.w[0] ? 0 : 1; a.hp = a.maxHp = 100; a.ai = null; a.deployed = true;
       }
     }
+    // ボットの目で使う表（木の葉・茂み・道）を最初に作る（11-26: 前は最初に敵を見つけた時に作って、そのステップが 25〜50ms 止まった）
+    if (S.m.mode !== 'range') warPrep(S, w);
   },
   canDown() { return true; },
   think(S, w, dt, ev) { return S.m.mode === 'range' ? {} : warThink(S, w, dt, ev); },

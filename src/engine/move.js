@@ -9,6 +9,7 @@ import { attMods, canAim } from './weapon.js';
 import { PLATE, LONG } from './data/equipment.js';
 import { FLOORS, F as FF } from './data/materials.js';
 import { heightAt, raycast as wRaycast } from '../war/world.js';
+import { shatterNear } from '../war/destruct.js';
 import { DEP, wireAt, stepWire } from './deploy.js';
 
 // 撃つのをやめてから、また走れるまで（秒。続けて撃つ間に銃が下がらないように）
@@ -378,6 +379,8 @@ export function vaultPlan(S, w, a, out = _vp) {
   return null;
 }
 export function tryVault(S, w, a, ev) {
+  // 大規模戦: 前の窓ガラス（胸の高さ・0.9m 先まで）は、乗り越えるときに割る（11-20。割れるまでは通れない）
+  if (w.war && !S.predict && ev) { const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw); shatterNear(S, w, a.x + fx * 0.55, a.y + 1.1, a.z + fz * 0.55, 0.45, ev, a.y + 0.3, a.y + 2.2); }
   const p = vaultPlan(S, w, a);
   if (!p) return false;
   a.vault = { t: 0, dur: p.dur, x0: a.x, z0: a.z, sx: p.sx, sz: p.sz, y0: a.y, x1: p.x1, z1: p.z1, top: p.top, y1: p.y1, drop: p.drop > 0 ? 1 : 0, onto: p.onto, crouch: p.crouch, pre: p.gk >= 0 ? VAULT.smash : 0 };

@@ -11,6 +11,7 @@ import { hrand } from './rng.js';
 import { hitBar, bashBar } from './barricade.js';
 import { meleeDeps } from './deploy.js';
 import { warGun, warFall } from '../war/guns.js';
+import { carve, shatter } from '../war/destruct.js';
 import { RALLY, hitRally } from './rally.js';
 
 const G = 9.81;
@@ -186,6 +187,8 @@ function stepBullet(S, w, b, dt, ev) {
     const mat = MATS[h.mat];
     if (!mat) continue;
     if (h.kind === 'edge') return false;
+    // 大規模戦の窓ガラス: 当たると割れて、弾はそのまま通る（少し弱まる）
+    if (w.war && h.kind === 'box' && h.mat === M.GLASS) { const gb = w.boxes[h.id]; if (gb && gb.kind === 'glass') shatter(S, w, gb, ev, hx, hy, hz); b.pen -= 30; b.k = Math.max(0.05, b.pen / b.pen0); if (b.pen <= 0) return false; continue; }
     // 割れる物
     if (h.mat === M.GLASS) {
       // 同じ弾がもう割った板（1枚ぜんぶ割れる）は素通り
@@ -195,6 +198,8 @@ function stepBullet(S, w, b, dt, ev) {
     if (h.mat === M.GLASSBROKEN) continue;
     if (h.kind === 'bar') hitBar(S, w, h.bar, h.pc, b.pellet ? 2 : 1, ev, { x: hx, y: hy, z: hz, by: b.owner });
     if (h.kind === 'block' && mat.hp > 0 && b.pellet && b.dist < 6) { damageBlock(S, w, h.k, h.q, 8, ev); }
+    // 大規模戦: れんが・木・石膏の壁は、弾でも少しずつ崩れる（BattleBit: 撃ち続けると、れんがの壁は壊れる。research の 52）
+    if (w.war && h.kind === 'box' && !b.less) wallShot(S, w, h, hx, hy, hz, b, ev);
     const thick = Math.min(1.5, Math.max(0.01, h.t1 - h.t0));
     const cost = h.kind === 'slab' || h.kind === 'stair' ? 1e9 : mat.pen * thick;
     const stop = b.less || cost >= b.pen;
@@ -213,6 +218,23 @@ function stepBullet(S, w, b, dt, ev) {
   return true;
 }
 
+// 弾で壁が崩れる（11-20）: 当たった所（0.75m の升目）に弾の強さをためて、決まった量で 0.7m 四方の穴。
+//  強さ: 5.56mm 1・7.62×51 約 1.8・拳銃 約 0.3〜0.5・散弾は 1 粒 0.35 倍。崩れるまで: れんが 60・木 18・石膏 10（数は推測）。
+//  コンクリート・鉄・土のうは弾では崩れない（爆発物・ハンマー）
+const WALL_HP = { [M.BRICK]: 60, [M.WOOD]: 18, [M.DRYWALL]: 10 };
+export function wallShot(S, w, h, hx, hy, hz, b, ev) {
+  const bx = w.boxes[h.id]; if (!bx || !bx.alive || bx.kind !== 'wall') return;
+  const hp = WALL_HP[bx.mat]; if (!hp) return;
+  const k = Math.min(3, Math.max(0.15, (b.pen0 || 700) / 700)) * (b.pellet ? 0.35 : 1);
+  const D = w._bdmg || (w._bdmg = new Map());
+  const key = Math.floor(hx / 0.75) + ',' + Math.floor(hy / 0.75) + ',' + Math.floor(hz / 0.75);
+  const v = (D.get(key) || 0) + k;
+  if (v < hp) { D.set(key, v); return; }
+  D.delete(key);
+  const o = { w: 0.7, h: 0.7, floor: 0.7, only: bx.id };
+  const ks = carve(w, hx, hy, hz, 0.35, o);
+  if (ks.length) { (S.carves || (S.carves = [])).push([hx, hy, hz, 0.35, 3]); w._carveN = (w._carveN || 0) + 1; ev.push({ e: 'carve', x: hx, y: hy, z: hz, r: 0.35, ks, cn: w._carveN, shot: 1, o }); }
+}
 // 盾の板（中心 p、前 f、上 u、左 l）と線の交わり。前から当たったときだけ
 function rayShield(ox, oy, oz, dx, dy, dz, maxT, sf) {
   const n = sf.f, den = dx * n[0] + dy * n[1] + dz * n[2];

@@ -8,7 +8,7 @@ import { prepareLevel, buildChunk, doorLeafMesh, barPanelMesh, CHUNK } from './l
 import { WV, MeshBuilder, hex } from './build.js';
 import { bakeLight } from '../engine/light.js';
 import { CS, LH, CEIL, NB, DSHIELD } from '../engine/world.js';
-import { buildWarFar, buildWarFarChunk, buildWarNear, buildWarNearBoxes, buildWarGrass } from '../war/render.js';
+import { buildWarFar, buildWarFarChunk, buildWarNear, buildWarNearBoxes, buildWarGrass, buildWarGlass } from '../war/render.js';
 
 // 大規模戦の空（もやを薄く、遠くまで見える。日は少し低めで影が長い）
 export const WAR_SKY = { sky: [0.54, 0.66, 0.88], ground: [0.3, 0.29, 0.24], sun: [2.75, 2.52, 2.15], sunDir: (() => { const v = [0.5, 0.64, 0.36], l = Math.hypot(...v); return v.map(x => x / l); })(), fog: [0.64, 0.74, 0.87], fogD: 0.00072, amb: 0.03, exposure: 0.8, zenith: [0.17, 0.39, 0.84], horizon: [0.58, 0.71, 0.9], night: 0 };
@@ -278,7 +278,7 @@ export class Renderer {
   }
   clearMap() {
     const gl = this.gl;
-    for (const ch of this.chunks || []) { if ('far' in ch) { delMesh(gl, ch.far); delMesh(gl, ch.near); delMesh(gl, ch.nearBox); delMesh(gl, ch.grass); } else { delMesh(gl, ch.mesh); delMesh(gl, ch.glass); } }
+    for (const ch of this.chunks || []) { if ('far' in ch) { delMesh(gl, ch.far); delMesh(gl, ch.near); delMesh(gl, ch.nearBox); delMesh(gl, ch.nearGlass); delMesh(gl, ch.grass); } else { delMesh(gl, ch.mesh); delMesh(gl, ch.glass); } }
     this.war = null;
     for (const d of this.doorMeshes || []) { for (const m of d.leaves) delMesh(gl, m); }
     for (const b of this.barMeshes || []) if (b) delMesh(gl, b.mesh);
@@ -325,7 +325,7 @@ export class Renderer {
     const gl = this.gl;
     for (const k of ks) {
       const ch = this.chunks.find(c => c.k === k); if (!ch || !('far' in ch)) continue;
-      if (ch.near) { ch.farDirty = true; const was = ch.mesh2 === ch.nearBox; delMesh(gl, ch.nearBox); ch.nearBox = makeWorldMesh(gl, buildWarNearBoxes(this.war, k, { lite: this.warLite })); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); if (was) ch.mesh2 = ch.nearBox; }
+      if (ch.near) { ch.farDirty = true; const was = ch.mesh2 === ch.nearBox; delMesh(gl, ch.nearBox); ch.nearBox = makeWorldMesh(gl, buildWarNearBoxes(this.war, k, { lite: this.warLite })); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); if (was) ch.mesh2 = ch.nearBox; const wg = ch.glass === ch.nearGlass; delMesh(gl, ch.nearGlass); ch.nearGlass = makeWorldMesh(gl, buildWarGlass(this.war, k)); if (wg) ch.glass = ch.nearGlass; }
       else this._rebuildFar(ch);
     }
   }
@@ -342,7 +342,7 @@ export class Renderer {
     for (const ch of this.chunks) {
       ch.d = Math.hypot((ch.x0 + ch.x1) / 2 - c.x, (ch.z0 + ch.z1) / 2 - c.z);
       if (ch.d < N && !ch.near) want.push(ch);
-      else if (ch.near && ch.d > N + 110) { delMesh(gl, ch.near); delMesh(gl, ch.nearBox); ch.near = null; ch.nearBox = null; ch.nearTris = 0; }
+      else if (ch.near && ch.d > N + 110) { delMesh(gl, ch.near); delMesh(gl, ch.nearBox); delMesh(gl, ch.nearGlass); ch.near = null; ch.nearBox = null; ch.nearGlass = null; ch.nearTris = 0; }
       // 壊れた所の遠い形: 遠い形に切り替わる前に作り直す
       if (ch.farDirty && (!ch.near || ch.d >= N + 30)) this._rebuildFar(ch);
     }
@@ -352,7 +352,7 @@ export class Renderer {
     let nb = all ? want.length : this._buildWait > 0 && !(want.length && want[0].d < 70) ? 0 : Math.min(want.length, 1);
     for (let k = 0; k < nb; k++) {
       const t0 = performance.now(), ch = want[k], r = buildWarNear(this.war, ch.k, { lite: this.warLite, split: true });
-      ch.near = makeWorldMesh(gl, r.B); ch.nearBox = makeWorldMesh(gl, r.BX); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0);
+      ch.near = makeWorldMesh(gl, r.B); ch.nearBox = makeWorldMesh(gl, r.BX); ch.nearGlass = makeWorldMesh(gl, buildWarGlass(this.war, ch.k)); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0);
       if (!all) this._buildWait = Math.min(12, Math.floor((performance.now() - t0) / 8));
     }
     // 草（近い塊だけ。塊の中心から grassD＋45m 以内）
@@ -370,6 +370,8 @@ export class Renderer {
     for (const ch of this.chunks) {
       const useNear = ch.near && ch.d < N + 40;
       ch.mesh = useNear ? ch.near : ch.far; ch.mesh2 = useNear ? ch.nearBox : null; ch.tris = useNear ? ch.nearTris : ch.farTris;
+      // 窓ガラス（近い形の間だけ。透けるので最後に奥から）
+      ch.glass = useNear ? ch.nearGlass : null;
     }
   }
   // 見る位置のまわりの近い形を先に全部作る（出撃のとき）

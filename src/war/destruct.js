@@ -56,7 +56,7 @@ function cut(ww, b, hx0, hy0, hz0, hx1, hy1, hz1, ax) {
 // 試合で変えた物の記録（マップの形は試合をまたいで使い回すので、次の試合の前に戻す）
 function mods(ww) { return ww._mods || (ww._mods = { base: ww.boxes.length, dead: [], dmg: [], decos: [] }); }
 export function restoreWorld(ww) {
-  if (ww) ww._carveN = 0;
+  if (ww) { ww._carveN = 0; ww._bdmg = null; }
   const m = ww && ww._mods; if (!m) return false;
   for (const b of m.dead) b.alive = true;
   for (const b of m.dmg) { b.dmg = 0; b.chip = false; }
@@ -112,6 +112,30 @@ export function carve(ww, x, y, z, R = 1.2, o = {}) {
   }
   fixItems(ww, gone, made, hid);
   return [...changed];
+}
+// 窓ガラスを割る（11-20）: 箱を消す（元に戻すときは restoreWorld）。戻り値: 変わった描く塊
+export function breakPane(ww, b) {
+  if (!b || !b.alive || b.kind !== 'glass') return [];
+  b.alive = false; mods(ww).dead.push(b);
+  fixItems(ww, [b], [], []);
+  return [chunkOf(ww, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2)];
+}
+// 割って知らせる（エンジンの側。オンラインの参加側は 'wglass' の知らせで同じ板を割る）
+export function shatter(S, ww, b, ev, x, y, z) {
+  const ks = breakPane(ww, b); if (!ks.length) return false;
+  const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, cz = (b.z0 + b.z1) / 2;
+  if (ev) ev.push({ e: 'wglass', id: b.id, x: x ?? cx, y: y ?? cy, z: z ?? cz, cx, cy, cz, ks });
+  return true;
+}
+// 点のまわり R の窓ガラスをまとめて割る（爆発・乗り越え）。y0..y1: 高さの範囲（なければ全部）
+export function shatterNear(S, ww, x, y, z, R, ev, y0 = -1e9, y1 = 1e9) {
+  if (!ww || !ww.war || !ww.cellBox) return 0;
+  let n = 0;
+  for (const b of nearBoxes(ww, x, z, R + 1)) {
+    if (!b.alive || b.kind !== 'glass' || b.y1 < y0 || b.y0 > y1 || boxDist(b, x, y, z) > R) continue;
+    if (shatter(S, ww, b, ev)) n++;
+  }
+  return n;
 }
 // 描く塊ごとの物の表（render.js の sortIn）を、変わった物だけ直す（全部を作り直すと、穴を開けるたびに数十 ms 止まる）
 function fixItems(ww, gone, made, hid) {

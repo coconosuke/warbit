@@ -71,6 +71,7 @@ export function nearestOpen(nav, x, z, r = 6) {
 
 // A*。戻り値: 点の列 [[x,z], ...]（短縮ずみ）。届かなければ一番近づける所まで。max: 展開の上限
 export function findWarPath(nav, sx, sz, tx, tz, max = 24000) {
+  nav.lastExp = 0;
   let s = navCellOf(nav, sx, sz), t = navCellOf(nav, tx, tz);
   if (s < 0 || nav.block[s]) s = nearestOpen(nav, sx, sz, 4);
   if (t < 0 || nav.block[t]) t = nearestOpen(nav, tx, tz, 8);
@@ -102,6 +103,7 @@ export function findWarPath(nav, sx, sz, tx, tz, max = 24000) {
       seen[q] = gen; g[q] = ng; from[q] = k; push(q, ng + hOf(q));
     }
   }
+  nav.lastExp = exp; // 調べたマスの数（ai.js が 1 ステップの予算から引く）
   // 道をたどる
   const cells = [];
   for (let k = best; k >= 0 && cells.length < 5000; k = from[k]) cells.push(k);
