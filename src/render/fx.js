@@ -225,14 +225,30 @@ export class FX {
       put(q, nB++);
     }
     // レーザー（細い線は薄く、点は明るく）
+    //  線: 同じ太さの1本だと、数 m 先で画素より細くなって消えたり、ちらついたりした → 区切って、どこも 1 画素より細くしない
+    //  （太くした分だけ暗くして、見た目の明るさは同じ）。出る所から離れるほど薄く（空気のちりで光るのは手前ほど強い）
+    //  点: 遠くても数画素は残す。面に半分埋まらないようカメラ側へ少し出し、まん中に白っぽい芯
+    const pxK = 2 / (Math.max(0.2, r.proj[5] || 1.5) * Math.max(1, r.canvas ? r.canvas.height : 720));
     for (const b of this.beams) {
-      if (nB >= MAXP - 2) break;
-      const L = Math.hypot(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
-      if (L > 0.05) put({ x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2, z: (b.z0 + b.z1) / 2, dir: [b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0], t: 0, life: 1, s0: 0.0032, s1: 0.0032, c: [b.col[0] * 0.22, b.col[1] * 0.22, b.col[2] * 0.22, 1], sh: SH.streak, add: true, stretch: L / 2 }, nB++);
+      if (nB >= MAXP - 12) break;
+      const dx = b.x1 - b.x0, dy = b.y1 - b.y0, dz = b.z1 - b.z0, L = Math.hypot(dx, dy, dz);
+      if (L > 0.05) {
+        const n = Math.min(8, 1 + Math.floor(L / 3));
+        for (let k = 0; k < n; k++) {
+          const am = (k + 0.5) / n, mx = b.x0 + dx * am, my = b.y0 + dy * am, mz = b.z0 + dz * am;
+          const d = Math.hypot(mx - cam[0], my - cam[1], mz - cam[2]);
+          const hw = Math.max(0.0032, d * pxK * 0.6), kk = 0.24 * (0.0032 / hw) / (1 + am * L / 30);
+          put({ x: mx, y: my, z: mz, dir: [dx, dy, dz], t: 0, life: 1, s0: hw, s1: hw, c: [b.col[0] * kk, b.col[1] * kk, b.col[2] * kk, 1], sh: SH.streak, add: true, stretch: L / (2 * n) }, nB++);
+        }
+      }
       if (b.dot) {
-        const d = Math.hypot(b.x1 - r.camPos[0], b.y1 - r.camPos[1], b.z1 - r.camPos[2]);
-        const s0 = Math.max(0.012, d * 0.0035);
-        put({ x: b.x1, y: b.y1, z: b.z1, t: 0, life: 1, s0, s1: s0, c: [b.col[0], b.col[1], b.col[2], 1], sh: SH.soft, add: true }, nB++);
+        let ex = cam[0] - b.x1, ey = cam[1] - b.y1, ez = cam[2] - b.z1;
+        const d = Math.hypot(ex, ey, ez) || 1, back = Math.min(0.04, d * 0.02); ex /= d; ey /= d; ez /= d;
+        const x = b.x1 + ex * back, y = b.y1 + ey * back, z = b.z1 + ez * back;
+        const s0 = Math.max(0.012, d * 0.0035, d * pxK * 2.2);
+        put({ x, y, z, t: 0, life: 1, s0, s1: s0, c: [b.col[0], b.col[1], b.col[2], 1], sh: SH.soft, add: true }, nB++);
+        const m = Math.max(b.col[0], b.col[1], b.col[2]) * 0.18, s1 = s0 * 0.38;
+        put({ x, y, z, t: 0, life: 1, s0: s1, s1, c: [b.col[0] * 0.25 + m, b.col[1] * 0.25 + m, b.col[2] * 0.25 + m, 1], sh: SH.soft, add: true }, nB++);
       }
     }
     this.beams.length = 0;

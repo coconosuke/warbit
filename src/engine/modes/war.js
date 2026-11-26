@@ -11,7 +11,7 @@ import { killActor, eyeOf } from '../combat.js';
 import { los as warLos } from '../../war/world.js';
 import { smokeBetween } from '../nades.js';
 import { groundAt, pushOut } from '../world.js';
-import { heightAt } from '../../war/world.js';
+import { heightAt, groundAt as wGround } from '../../war/world.js';
 import { warThink, botSpawnPoint, goalOf, SQUAD } from '../../war/ai.js';
 import { CLASSES, classLoadout, classGuns } from '../../war/classes.js';
 import { hrand } from '../rng.js';
@@ -22,6 +22,18 @@ import { stepAmmo, placeAmmo } from '../ammobox.js';
 import { stepMines } from '../mines.js';
 
 export const OUT_LIMIT = 10;
+// 落ちた弾倉の落ちる先（11-20）: 前は落とした人の足の高さに置いていて、坂や段の上では地面に埋まった。
+//  手の高さから真下のいちばん上の面（地面・床・台）へ。前の 0.5m が壁の向こうなら、足もと寄りへ
+function settleDrops(S, w) {
+  for (const d of S.mdrops) {
+    if (d.gy) continue;
+    d.gy = 1;
+    const o = S.byId[d.by], hy = d.y0 != null ? d.y0 : d.y + 1.15;
+    if (o && !warLos(w, o.x, hy - 0.4, o.z, d.x, hy - 0.4, d.z)) { d.x = o.x + (d.x - o.x) * 0.2; d.z = o.z + (d.z - o.z) * 0.2; }
+    const g = wGround(w, d.x, d.z, hy - 0.3);
+    if (g > -50) d.y = g;
+  }
+}
 // 点（自分の点。BattleBit に合わせる: 敵を倒すと 200。頭への一発は上乗せ（長距離の狙撃で 400 の例。距離で増える形は推測）。
 // 支援・起こす・拠点は BattleBit の数字が見つからないので仮。research/WARBIT.md §25）
 export const PTS = { kill: 200, assist: 100, revive: 100, cap: 200, neut: 100 };
@@ -404,7 +416,7 @@ export default {
     if (m.over) return;
     if (m.spots && m.spots.length && S.t % 30 === 0) m.spots = m.spots.filter(q => q.until > S.t && S.byId[q.id] && S.byId[q.id].alive && !S.byId[q.id].down);
     stepFlags(S, w, dt, ev);
-    if (S.mdrops && S.mdrops.length) pickMags(S, ev);
+    if (S.mdrops && S.mdrops.length) { settleDrops(S, w); pickMags(S, ev); }
     if (S.ammo && S.ammo.length) stepAmmo(S, ev, (a, pts, why, ex) => award(S, a, pts, why, ev, ex));
     if (S.mines && S.mines.length) stepMines(S, ev);
     // ボットの衛生: 近く（2.5m）の仲間の人が傷ついていて、敵を追っていない時に医療キットで治す（1 秒に 20。持ち替えの見た目は省く）

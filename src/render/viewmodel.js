@@ -289,6 +289,8 @@ export class ViewModel {
     const toW = (p) => [org[0] - gR[0] * p[0] + gU[0] * p[1] + gF[0] * p[2], org[1] - gR[1] * p[0] + gU[1] * p[1] + gF[1] * p[2], org[2] - gR[2] * p[0] + gU[2] * p[1] + gF[2] * p[2]];
     const camP = (x, y, z) => [cx + R[0] * x + U[0] * y + F[0] * z, cy + R[1] * x + U[1] * y + F[1] * z, cz + R[2] * x + U[2] * y + F[2] * z];
     this.out.muzzle = toW([0, 0, P.muzzle]); this.out.fwd = gF; this.out.right = gR; this.out.up = gU;
+    // カメラの軸（一人称の銃の点を、世界の画角で同じ画面の位置に移すため。game.js のレーザー）
+    const oc = this.out.cam || (this.out.cam = {}); oc.x = cx; oc.y = cy; oc.z = cz; oc.R = R; oc.U = U; oc.F = F; oc.fov = o.vmFov || 54 * Math.PI / 180;
     this.out.eject = toW([-0.02, 0.025, 0.02]);
     // スコープの後ろのレンズの、画面の上の位置（u・v は 0〜1、下が 0）と半径（縦の半分に対する割合）。向きは銃の向き
     this.out.lens = null;
@@ -384,8 +386,24 @@ export class ViewModel {
       }
       if (kind !== 'hammer') { this.nadeM = this.Mm; this.Mm.set([-qR[0], -qR[1], -qR[2], 0, qU[0], qU[1], qU[2], 0, qF[0], qF[1], qF[2], 0, mAt[0], mAt[1], mAt[2], 1]); }
     } else {
-      hR = toW(P.gripR);
-      hL = toW(P.gripL);
+      // 拳銃（11-20）: 手首を握りの後ろへ（手の箱は手首から前へ伸びるので、前は手が握りの前の引き金の下に浮いていた）。
+      //  右手は手のひらが握りの背に当たり指が前へ回る。左手は右手の左下から包む（右手の指の上に左の指）
+      const GR = pistol ? [P.gripR[0] - 0.004, P.gripR[1] - 0.004, P.gripR[2] - 0.03] : P.gripR;
+      const GL = pistol ? [P.gripL[0] + 0.022, P.gripL[1] - 0.014, P.gripL[2] - 0.024] : P.gripL;
+      hR = toW(GR);
+      hL = toW(GL);
+      // 手の甲の向き（11-20）: 前は両手とも甲が真上（手のひらが下）で、握りの上に平たい箱が載ったように見えた。
+      //  右手は握り（縦の柄）を横から包む（甲は右・少し上）。左手: 拳銃は右手の指の上から包む（甲は左下・親指は前へ）、
+      //  縦のグリップは右手と同じに縦に握る、ほかは前の筒を左下から支える（甲は左下・指は右の側へ回る）
+      if (!P.rocket && !P.heavy) {
+        const mix = (a, ka, b, kb, c, kc) => norm3([a[0] * ka + b[0] * kb + c[0] * kc, a[1] * ka + b[1] * kb + c[1] * kc, a[2] * ka + b[2] * kb + c[2] * kc]);
+        const bR = mix(gR, 0.9, gU, 0.42, gF, 0);
+        let bL = pistol ? mix(gR, -0.82, gU, -0.5, gF, 0.08) : P.vgrip ? mix(gR, -0.92, gU, 0.2, gF, 0) : mix(gR, -0.55, gU, -0.84, gF, 0);
+        // リロードで弾倉を持つ間の左手は、手のひらを上へ（下から差し込む。甲は下）
+        const rk = rel >= 0 && !P.tube ? (rel < 0.12 ? sm(rel / 0.12) : rel < 0.75 ? 1 : 1 - sm((rel - 0.75) / 0.2)) : 0;
+        if (rk > 0) { const dn = mix(gR, -0.3, gU, -0.95, gF, 0); bL = norm3([bL[0] + (dn[0] - bL[0]) * rk, bL[1] + (dn[1] - bL[1]) * rk, bL[2] + (dn[2] - bL[2]) * rk]); }
+        handUp = [bR, bL];
+      }
       if (rel >= 0 && P.rocket) {
         // 左手: 前の握り → ポーチ（左下）→ 弾頭を持って筒の先へ → 押し込む → 前の握りへ
         const pouch = camP(-0.14, -0.4, 0.16), tip = toW([P.rocketX || 0, -0.01, 0.6 + pumpOff]);
@@ -393,7 +411,7 @@ export class ViewModel {
         else if (rel < 0.32) hL = pouch;
         else if (rel < 0.55) hL = lerpV(pouch, tip, sm((rel - 0.32) / 0.23));
         else if (rel < 0.85) hL = tip;
-        else hL = lerpV(tip, toW(P.gripL), sm((rel - 0.85) / 0.15));
+        else hL = lerpV(tip, toW(GL), sm((rel - 0.85) / 0.15));
       } else if (rel >= 0 && !P.tube) {
         const well = toW(P.magWell || [0, -0.08, 0.04]);
         const pouch = camP(-0.12, -0.42, 0.18);
@@ -402,8 +420,8 @@ export class ViewModel {
         else if (rel < 0.35) hL = mag2;
         else if (rel < 0.58) hL = lerpV(mag2, pouch, sm((rel - 0.35) / 0.1) - sm((rel - 0.48) / 0.1));
         else if (rel < 0.75) hL = mag2;
-        else hL = lerpV(well, toW(P.gripL), sm((rel - 0.75) / 0.2));
-        if (pistol) hR = toW(P.gripR);
+        else hL = lerpV(well, toW(GL), sm((rel - 0.75) / 0.2));
+        if (pistol) hR = toW(GR);
       } else if (rel >= 0 && P.tube) {
         const port = toW(P.magWell || [0, -0.04, 0.05]);
         const below = [port[0] - gU[0] * 0.12, port[1] - gU[1] * 0.12, port[2] - gU[2] * 0.12];

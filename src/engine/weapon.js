@@ -131,6 +131,7 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
     //  古い手元（'mode' に zoom: true）も受ける
     else if ((ac.a === 'zoom' || (ac.a === 'mode' && ac.zoom === true)) && W && wi && zoomsOf(wi.att)) { const zs = zoomsOf(wi.att); wi.zi = ((wi.zi || 0) + 1) % zs.length; ev.push({ e: 'zoom', id: a.id, z: zs[wi.zi], sight: wi.att.sight }); }
     else if (ac.a === 'mode' && W && wi && W.modes.length > 1 && ws.st === 'ready') { wi.mode = (wi.mode + 1) % W.modes.length; ev.push({ e: 'fmode', id: a.id, m: W.modes[wi.mode] }); }
+    else if (ac.a === 'pickmag') pickMagNear(S, a, ev);
     else if (ac.a === 'light' && wi && (wi.att.light || wi.att.laser)) { wi.lightOn = !wi.lightOn; ev.push({ e: 'lightsw', id: a.id, on: wi.lightOn }); }
   }
   // a.light: ライトが点いている（レーザーだけなら false）。a.laser: レーザーが点いている
@@ -258,12 +259,47 @@ export function pickMags(S, ev) {
     for (const a of S.actors) {
       if (a.pid == null || !a.alive || a.down || (a.id === d.by && !d.away) || Math.abs(a.y - d.y) > 1.5 || Math.hypot(a.x - d.x, a.z - d.z) > 0.9) continue;
       const wi = a.inv && a.inv.w && a.inv.w.find(w => w && w.id === d.wid && w.mags);
-      if (!wi || wi.mags.length >= (wi.spare0 || 0)) continue;
-      wi.mags.push(d.n); L.splice(i, 1);
+      // 射撃場（弾が減らない）は、弾倉がいっぱいでも拾う（拾えるのを確かめられるように。弾倉はリロードで満タンに戻る）
+      const inf = infAmmo(S, a);
+      if (!wi || (wi.mags.length >= (wi.spare0 || 0) && !inf)) continue;
+      if (wi.mags.length < (wi.spare0 || 0)) wi.mags.push(d.n);
+      L.splice(i, 1);
       if (ev) ev.push({ e: 'magPick', id: a.id, n: d.n });
       break;
     }
   }
+}
+// 拾うボタン（11-20）: 近く（2m）の、弾の残った弾倉（持っている銃と同じ物）。落とした本人もすぐ拾える
+export function magNear(S, a, R = 2) {
+  const L = S.mdrops; if (!L || !L.length || !a || !a.alive || a.down) return null;
+  let best = null, bd = R;
+  for (const d of L) {
+    if (d.n <= 0 || Math.abs(a.y - d.y) > 1.5) continue;
+    const dd = Math.hypot(a.x - d.x, a.z - d.z); if (dd > bd) continue;
+    if (!(a.inv && a.inv.w && a.inv.w.some(w => w && w.id === d.wid && w.mags))) continue;
+    bd = dd; best = d;
+  }
+  return best;
+}
+// 拾う: 弾倉に空きがあれば足す。いっぱいなら、いちばん少ない弾倉と取り替える（取り替えた弾倉はその場に置く）。射撃場は拾うだけ
+export function pickMagNear(S, a, ev) {
+  const d = magNear(S, a); if (!d) return false;
+  const wi = a.inv.w.find(w => w && w.id === d.wid && w.mags), L = S.mdrops;
+  if (infAmmo(S, a) || wi.mags.length < (wi.spare0 || 0)) {
+    if (wi.mags.length < (wi.spare0 || 0)) wi.mags.push(d.n);
+    L.splice(L.indexOf(d), 1);
+    if (ev) ev.push({ e: 'magPick', id: a.id, n: d.n });
+    return true;
+  }
+  let lo = -1; for (let k = 0; k < wi.mags.length; k++) if (lo < 0 || wi.mags[k] < wi.mags[lo]) lo = k;
+  if (lo >= 0 && wi.mags[lo] < d.n) {
+    const old = wi.mags[lo]; wi.mags[lo] = d.n;
+    d.n = old; d.t = S.t; d.by = a.id; d.away = false; d.y0 = d.y;
+    if (ev) ev.push({ e: 'magPick', id: a.id, n: wi.mags[lo], swap: old });
+    return true;
+  }
+  if (ev) ev.push({ e: 'magFull', id: a.id });
+  return false;
 }
 export function startReload(S, a, fast, ev) {
   const ws = a.ws, wi = curWeapon(a), W = curW(a);

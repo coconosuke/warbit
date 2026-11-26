@@ -20,7 +20,9 @@ export const DEFAULTS = {
   crossSize: 1, crossOpacity: 1, hitCol: { body: '#ffffff', head: '#ffe600', armor: '#3d7dff', kill: '#ff2a1f' }, autoDeploy: false, viewDistSel: 'auto', allyCol: '#4aa8ff', enemyCol: '#ff4b3e', flagMarkSize: 1, markSize: 1, squadList: false, contrast: 1,
   // 11-20 続き（BattleBit の Friendly Name Tag Size・Show Pings・Screen Shake・2回押しのリロードの間）: 味方の名前の大きさ（文字の px）、
   //  敵の印を出す、画面の揺れ（0〜1。前の「画面の揺れ」標準／弱 は効いていなかった）、リロードの2回押しとみなす間（秒）
-  nameSize: 11, showPings: true, shakeK: 1, rlDbl: 0.4,
+  nameSize: 10, showPings: true, shakeK: 1, rlDbl: 0.4,
+  // 味方の印・名前の濃さ（0.3〜1。11-20。照準の近くにいる味方の印は、さらに薄くして狙う相手を隠さない）
+  markAlpha: 0.8,
   // 大規模戦の 投げ物・道具 のボタンの円の並び（上・右・下・左。'' は空き）。数が変わっても場所は変わらない（11-20）
   //  投げ物: frag 破片・impact 衝撃・smoke 発煙・flash 閃光。道具: tool 兵科の道具（弾薬箱・医療キット・双眼鏡）・gad 副の道具（C4・地雷）・hammer ハンマー・long RPG など
   radNade: ['frag', 'impact', 'smoke', 'flash'], radGad: ['tool', 'gad', 'hammer', 'long'],

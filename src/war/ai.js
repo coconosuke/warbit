@@ -10,7 +10,7 @@
 import { baseInput, pushAct, steerToward, turnToward, trigger, SKILL, angDiff, yawTo } from '../engine/ai/common.js';
 import { eyeAI } from '../engine/combat.js';
 import { curW, curWeapon, ammoCount } from '../engine/actor.js';
-import { los as wLos, heightAt } from './world.js';
+import { los as wLos, heightAt, ceilAt } from './world.js';
 import { buildWarNav, findWarPath, navCellOf, navCenter, NS } from './nav.js';
 import { hrand } from '../engine/rng.js';
 import { smokeBetween, ROCKET } from '../engine/nades.js';
@@ -208,7 +208,16 @@ function think(S, w, a, dt, ctx) {
   if (a.lastHit && a.lastHit.by >= 0 && S.t - a.lastHit.t < 3 && ai.hitSeen !== a.lastHit.t) {
     ai.hitSeen = a.lastHit.t;
     const b = S.byId[a.lastHit.by];
-    if (b && b.team !== a.team) { ai.threat = { x: b.x, z: b.z, y: b.y, t: S.t }; ai.wantCover = true; tellSquad(S, a, b); if (!tgt) { ai.look = [b.x, b.y + 1.3, b.z]; ai.lookT = S.t; } }
+    if (b && b.team !== a.team) {
+      // 人は撃たれた向きはおおよそ分かるが、居場所までは分からない（11-20。前は撃った相手のちょうどの位置を知り、分隊にも伝えていた）。
+      //  向きは ±4〜11°（遠いほどずれる）、距離は ±20% ずれた所を「あのあたり」として見る・遮蔽物を選ぶ・分隊に伝える
+      const dd = Math.hypot(b.x - a.x, b.z - a.z), err = (hrand(a.id, S.t, 41) - 0.5) * (0.14 + Math.min(0.24, dd / 400));
+      const ang = yawTo(b.x - a.x, b.z - a.z) + err, r0 = dd * (0.8 + 0.4 * hrand(a.id, S.t, 42));
+      const gx = a.x + Math.sin(ang) * r0, gz = a.z + Math.cos(ang) * r0;
+      ai.threat = { x: gx, z: gz, y: b.y, t: S.t }; ai.wantCover = true;
+      S.m.intel[a.team].set(b.id, { x: gx, z: gz, y: b.y, t: S.t, sq: a.squad });
+      if (!tgt) { ai.look = [gx, b.y + 1.3, gz]; ai.lookT = S.t; }
+    }
   }
   // 弾倉（敵が見えていないときに込める）
   const wi = curWeapon(a);
@@ -598,18 +607,32 @@ function scan(S, w, a, ctx, sk) {
     const ang = Math.abs(angDiff(yawTo(b.x - a.x, b.z - a.z), a.yaw));
     const heard = (b.fireK || 0) > 0.2 && d < 90;
     const fov = ai.tgt === b.id ? 2.0 : 1.05;
-    if (ang > fov && d > 20 && !heard) continue;
+    // 視野の端（60°〜100°）: 走っている相手の動きだけ目に入る（人の目は端で動きに気づく。見つけるのは遅い。11-20）
+    const edge = ang > fov && ang < 1.75 && d < 60 && (b.spd || 0) > 2.5;
+    if (ang > fov && d > 20 && !heard && !edge) continue;
     n++;
     const by = b.y + (b.st > 1.5 ? 0.35 : b.st > 0.5 ? 0.95 : 1.35);
-    if (!wLos(w, e[0], e[1], e[2], b.x, by, b.z)) continue;
+    // 胸が隠れていても、頭が出ていれば（低い壁・窓の下・土のうの向こう）見える。体の一部だけなので見つけにくい（11-20）
+    let part = 1;
+    if (!wLos(w, e[0], e[1], e[2], b.x, by, b.z)) {
+      const hy = b.y + (b.st > 1.5 ? 0.45 : b.st > 0.5 ? 1.15 : 1.62);
+      if (!wLos(w, e[0], e[1], e[2], b.x, hy, b.z)) continue;
+      part = 0.45;
+    }
     // 煙（発煙弾）の向こうは見えない。薄いところは見つけにくい（11-19 18:16）
     const sm = smokeBetween(S, e[0], e[1], e[2], b.x, by, b.z);
     if (sm >= 0.6) continue;
     // 遠い・伏せ・しゃがみ・茂みの向こう・麦畑の伏せは見つけにくい（見ている時間をためる）
     const mem = ai.seen || (ai.seen = {});
     const r = mem[b.id] || (mem[b.id] = { det: 0, t: -1e9 });
-    let k = (d < 30 ? 1 : d < 100 ? 0.6 : 0.35) * (b.st > 1.5 ? 0.45 : b.st > 0.5 ? 0.75 : 1) * ((b.spd || 0) > 1 ? 1.3 : 1) * ((b.fireK || 0) > 0.2 ? 2 : 1) * (ang < 0.5 ? 1 : 0.6);
-    if (d > 12 && (b.fireK || 0) < 0.2) { const ck = concealK(w, e, b, by); if (ck < 0.07) continue; k *= ck; }
+    let k = (d < 30 ? 1 : d < 100 ? 0.6 : 0.35) * (b.st > 1.5 ? 0.45 : b.st > 0.5 ? 0.75 : 1) * ((b.spd || 0) > 1 ? 1.3 : 1) * ((b.fireK || 0) > 0.2 ? 2 : 1) * (ang < 0.5 ? 1 : ang <= fov || heard ? 0.6 : 0.35) * part;
+    if (d > 12 && (b.fireK || 0) < 0.2) {
+      const ck = concealK(w, e, b, by); if (ck < 0.07) continue; k *= ck;
+      // 明るい外から、屋根の下（建物の中の影）にいる相手は見えにくい（撃てば光で分かる）
+      if (d > 8 && underRoof(w, b.x, b.y, b.z) && !underRoof(w, a.x, a.y, a.z)) k *= 0.55;
+    }
+    // 撃たれて頭を下げている（制圧）と、見回しが鈍る
+    k *= 1 - 0.5 * Math.min(1, a.supp || 0);
     k *= 1 - sm;
     r.det = Math.min(1.5, r.det + k * SCAN_EVERY * S.dt * 2.4);
     r.t = S.t;
@@ -621,9 +644,34 @@ function scan(S, w, a, ctx, sk) {
     tellSquad(S, a, found);
   }
 }
-// 隠れ具合（1 は丸見え）: 間の茂み（目の高さの線が茂みを通る）・麦畑で伏せ・しゃがみ
+// 屋根の下（頭の上 4m までに天井・床がある）
+function underRoof(w, x, y, z) { return ceilAt(w, x, z, y + 0.5) < y + 4; }
+// 隠れ具合（1 は丸見え）: 間の茂み（目の高さの線が茂みを通る）・木の葉のかさ（11-20）・麦畑で伏せ・しゃがみ
 function concealK(w, e, b, by) {
   let k = 1;
+  // 木の葉のかさ（だ円の玉で見る。まん中を通ると葉が厚く、ほぼ見えない・縁は半分）。幹は見通し（los）がふさぐ
+  const T = w.trees;
+  if (T && T.length) {
+    const gi = treeGrid(w), dx = b.x - e[0], dy = by - e[1], dz = b.z - e[2], L = Math.hypot(dx, dz);
+    const n = Math.max(1, Math.ceil(L / 8));
+    const seen = new Set();
+    for (let s = 0; s <= n; s++) {
+      const key = Math.floor((e[0] + dx * s / n) / 16) + ',' + Math.floor((e[2] + dz * s / n) / 16);
+      const L2 = gi.get(key); if (!L2) continue;
+      for (const q of L2) {
+        if (seen.has(q)) continue; seen.add(q);
+        const c = crownOf(q);
+        // だ円をまるい玉にのばした空間で、線分のいちばん近い所
+        const ox = (e[0] - c[0]) / c[3], oy = (e[1] - c[1]) / c[4], oz = (e[2] - c[2]) / c[3];
+        const ux = dx / c[3], uy = dy / c[4], uz = dz / c[3], uu = ux * ux + uy * uy + uz * uz;
+        if (uu < 1e-9) continue;
+        const t = Math.max(0.03, Math.min(0.97, -(ox * ux + oy * uy + oz * uz) / uu));
+        const r = Math.hypot(ox + ux * t, oy + uy * t, oz + uz * t);
+        if (r < 0.75) k *= 0.15; else if (r < 1) k *= 0.5;
+        if (k < 0.05) return k;
+      }
+    }
+  }
   const B = w.bushes;
   if (B && B.length) {
     const gi = bushGrid(w), dx = b.x - e[0], dz = b.z - e[2], L = Math.hypot(dx, dz);
@@ -643,6 +691,32 @@ function concealK(w, e, b, by) {
   }
   if (b.st > 1.5 && w.fields) for (const f of w.fields) if (f.kind === 'wheat' && b.x > f.x0 && b.x < f.x1 && b.z > f.z0 && b.z < f.z1) { k *= 0.3; break; }
   return k;
+}
+// 木の葉のかさ [中心 x, y, z, 横の半径, 縦の半径]（render.js の遠くの形と同じ大きさ）
+const _crowns = new WeakMap();
+function crownOf(q) {
+  let c = _crowns.get(q);
+  if (c) return c;
+  const s = q.s || 1;
+  const birch = q.kind !== 'pine' && ((q.cyl ?? 0) * 7919) % 100 < 22;
+  c = q.kind === 'pine' ? [q.x, q.y + 4.0 * s, q.z, 1.6 * s, 3.0 * s] : birch ? [q.x, q.y + 4.6 * s, q.z, 1.6 * s, 1.9 * s] : [q.x, q.y + 4.3 * s, q.z, 2.6 * s, 2.1 * s];
+  _crowns.set(q, c);
+  return c;
+}
+function treeGrid(w) {
+  if (w._treeGrid) return w._treeGrid;
+  const m = new Map();
+  for (const q of w.trees || []) {
+    const c = crownOf(q);
+    for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const key = Math.floor((c[0] + ox * c[3]) / 16) + ',' + Math.floor((c[2] + oz * c[3]) / 16);
+      if (!m.has(key)) m.set(key, new Set());
+      m.get(key).add(q);
+    }
+  }
+  const out = new Map(); for (const [k, s] of m) out.set(k, [...s]);
+  w._treeGrid = out;
+  return out;
 }
 function bushGrid(w) {
   if (w._bushGrid) return w._bushGrid;

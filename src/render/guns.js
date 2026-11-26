@@ -832,7 +832,7 @@ function addSide(B, P, kind) {
     if (!P.rail2) return;
     const z = (P.rail2[0] + P.rail2[1]) / 2, y = (P.foreY ?? -0.02) - 0.018;
     if (kind === 'light') { sbx(B, 0.013, y - 0.012, z - 0.03, y + 0.012, z + 0.03, K.blk, LAYER.rubber); P.lightPt = [0, y, z + 0.03]; }
-    else if (kind === 'laser') { sbx(B, 0.011, y - 0.006, z - 0.024, y + 0.012, z + 0.022, K.blk, LAYER.rubber); B.tube([0, y + 0.002, z + 0.022], [0, y + 0.002, z + 0.025], 0.0035, 0.0035, 6, LAYER.metal, K.dg, { caps: true }); P.laserPt = [0, y + 0.002, z + 0.025]; }
+    else if (kind === 'laser' || kind === 'green') { sbx(B, 0.011, y - 0.006, z - 0.024, y + 0.012, z + 0.022, K.blk, LAYER.rubber); B.tube([0, y + 0.002, z + 0.022], [0, y + 0.002, z + 0.025], 0.0035, 0.0035, 6, LAYER.metal, K.dg, { caps: true }); P.laserPt = [0, y + 0.002, z + 0.025]; }
     else { sbx(B, 0.0135, y - 0.018, z - 0.032, y + 0.012, z + 0.032, K.blk, LAYER.rubber); P.lightPt = [0, y - 0.001, z + 0.032]; P.laserPt = [0.0, y - 0.013, z + 0.033]; }
     return;
   }
@@ -847,7 +847,7 @@ function addSide(B, P, kind) {
       B.tube([-0.03, y + 0.021, z + 0.032], [-0.03, y + 0.021, z + 0.036], 0.0035, 0.0035, 6, LAYER.metal, K.dg, { caps: true });
       P.laserPt = [-0.03, y + 0.021, z + 0.036];
     }
-  } else if (kind === 'laser') {
+  } else if (kind === 'laser' || kind === 'green') {
     bx(B, 0.02, y - 0.009, z - 0.026, 0.034, y + 0.009, z + 0.03, K.blk, LAYER.rubber);
     B.tube([0.027, y, z + 0.03], [0.027, y, z + 0.034], 0.0035, 0.0035, 6, LAYER.metal, K.dg, { caps: true });
     P.laserPt = [0.027, y, z + 0.034];

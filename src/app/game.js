@@ -3,7 +3,7 @@ import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
 import { curWeapon, curW, ammoCount, makeWeapon } from '../engine/actor.js';
 import { contextOf, OP_NAME, doorOps, personOps } from '../engine/interact.js';
-import { spreadDeg } from '../engine/weapon.js';
+import { spreadDeg, magNear } from '../engine/weapon.js';
 import { vaultPlan } from '../engine/move.js';
 import { depSpot, DEP_WHY } from '../engine/deploy.js';
 import { raycast, CS, LH, levelOfY, los } from '../engine/world.js';
@@ -352,7 +352,10 @@ export class Match {
         }
         case 'shout': if (k === 'down') this.acts.push({ a: 'shout', line: this._shoutLine() }); break;
         case 'peekx': if (k === 'tap' || k === 'down') this._peekQuit(); break;
+        // 落ちた弾倉を拾う（大規模戦。近くにある間だけボタンが出る。キーボードは V）
+        case 'pick': if (k === 'down') this.acts.push({ a: 'pickmag' }); break;
         case 'use':
+          if (this.S.war) { if (k === 'down' && magNear(this.S, p)) this.acts.push({ a: 'pickmag' }); break; }
           if (p.peek) { if (k === 'tap' || (k === 'down' && e.key)) this._peekQuit(); break; }
           if (k === 'tap' || (k === 'down' && e.key)) { if (!e.key || k === 'down') this._useDefault(); }
           else if (k === 'long') this._useMenu(e);
@@ -901,7 +904,8 @@ export class Match {
         case 'medkit': if (e.id === me) { au.sfx('bandage', null, { vol: 0.35, rate: 1.2 }); const t = S.byId[e.tgt]; hud.feed(t === p ? `自分を手当て（体力 ${e.hp}）` : `${t ? t.name : '仲間'} を手当て（体力 ${e.hp}）`, 'ok'); } else if (e.tgt === me) hud.feed(`${S.byId[e.id] ? S.byId[e.id].name : '衛生'} が手当てしている（体力 ${e.hp}）`, 'ok'); break;
         case 'resupply': if (e.id === me) { au.ui('pickup'); hud.feed(e.g ? `${e.g === 'rpg' ? 'RPG-7 の弾' : GEAR[e.g] ? GEAR[e.g].name.replace(/（.*）/, '') : ''}を補給した` : `弾倉を補給した（+${e.n}発）`, 'ok'); } break;
         case 'magDrop': au.sfx('magOut', [e.x, e.y + 0.1, e.z], { vol: 0.5, rate: 0.8 }); break;
-        case 'magPick': if (e.id === me) { au.ui('pickup'); hud.feed(`弾倉を拾った（${e.n}発）`, 'ok'); } break;
+        case 'magPick': if (e.id === me) { au.ui('pickup'); hud.feed(e.swap != null ? `弾倉を取り替えた（${e.swap}発 → ${e.n}発）` : `弾倉を拾った（${e.n}発）`, 'ok'); } break;
+        case 'magFull': if (e.id === me) { au.ui('deny'); hud.feed('弾倉はいっぱい（持っている弾倉の方が多い）'); } break;
         case 'consol': if (e.id === me) { au.sfx('magOut', null, { vol: 0.5 }); hud.feed('弾倉をまとめている…', 'ok'); } break;
         case 'consoled': if (e.id === me) { if (e.none) { au.ui('back'); hud.feed('まとめる弾倉がない（満タンでない弾倉が2本いる）', 'warn'); } else { au.ui('ok'); hud.feed('弾倉をまとめた', 'ok'); } } break;
         case 'order': if (S.war && e.team === p.team && e.sq === p.squad) { au.ui('spot'); hud.feed(`分隊の目標: 拠点 ${e.f} を${e.k === 'def' ? '守る' : '攻める'}`, 'ok'); } break;
@@ -1316,11 +1320,14 @@ export class Match {
   _lasers(fp, cam) {
     const S = this.S, p = this.p, fx = this.fx;
     const nvg = !!(this.nvgOn && fp);
-    const RED = [10, 0.35, 0.22], IR = [6, 6, 6];
+    // 色: 赤・緑（緑は目に明るく、昼でも見やすい）・赤外線（暗視装置でだけ白く）
+    const COL = { red: [10, 0.35, 0.22], green: [0.5, 9, 0.9], ir: [6, 6, 6] }, colOf = (k) => COL[k] || COL.red;
+    // 届く距離（何にも当たらなければ点は出さない。前は 60m 先の宙に点が浮いた）
+    const RANGE = S.war ? 150 : 60;
     const opt = this._lzOpt || (this._lzOpt = { stopOpaque: true, out: [], seenProp: new Set(), seenDoor: new Set() });
     const hitAt = (ox, oy, oz, dx, dy, dz, skip) => {
-      const hits = raycast(this.w, ox, oy, oz, dx, dy, dz, 60, S.doors, opt);
-      let t = 60;
+      const hits = raycast(this.w, ox, oy, oz, dx, dy, dz, RANGE, S.doors, opt);
+      let t = RANGE;
       for (const h of hits) { const m = MATS[h.mat]; if (m && m.see) continue; t = h.t0; break; }
       // 人: 立った円柱（しゃがみ・伏せで低く）
       const A = dx * dx + dz * dz;
@@ -1336,31 +1343,54 @@ export class Match {
       return t;
     };
     // 自分
-    if (fp && p.laser && this.vm.out.laser && (p.laser === 'red' || nvg)) {
+    if (fp && p.laser && this.vm.out.laser && (p.laser !== 'ir' || nvg)) {
       const yaw = this.yaw + p.ws.ry * DEG, pitch = Math.max(-1.45, Math.min(1.45, this.pitch)) + p.ws.rp * DEG;
-      const cp = Math.cos(pitch), dx = Math.sin(yaw) * cp, dy = Math.sin(pitch), dz = Math.cos(yaw) * cp;
-      const t = hitAt(cam.x, cam.y, cam.z, dx, dy, dz, p);
-      const hx = cam.x + dx * t, hy = cam.y + dy * t, hz = cam.z + dz * t;
-      // 線は銃の少し先から（一人称の銃は別の画角で描くので、根元は見せない）
+      const cp = Math.cos(pitch);
+      let dx = Math.sin(yaw) * cp, dy = Math.sin(pitch), dz = Math.cos(yaw) * cp, ox = cam.x, oy = cam.y, oz = cam.z;
+      // 向き: 銃が狙いの向き（照準）に近い間は、弾の飛ぶ向き（照準）。走る・リロード・持ち替えで銃を横や下へ向けたら、
+      //  銃の向きへ（11-20: 前は銃を横にしても線と点が正面を向いたまま）。6°〜11° の間でなめらかに移す
       const o = this.vm.out.laser, f = this.vm.out.fwd;
-      const sx = o[0] + f[0] * 0.35, sy = o[1] + f[1] * 0.35, sz = o[2] + f[2] * 0.35;
-      fx.beam(sx, sy, sz, hx, hy, hz, p.laser === 'ir' ? IR : RED, true);
+      {
+        const ca = Math.max(-1, Math.min(1, dx * f[0] + dy * f[1] + dz * f[2])), u = Math.max(0, Math.min(1, (Math.acos(ca) - 0.1) / 0.1)), k = u * u * (3 - 2 * u);
+        if (k > 0) {
+          dx += (f[0] - dx) * k; dy += (f[1] - dy) * k; dz += (f[2] - dz) * k;
+          const l = Math.hypot(dx, dy, dz) || 1; dx /= l; dy /= l; dz /= l;
+          ox += (o[0] - ox) * k; oy += (o[1] - oy) * k; oz += (o[2] - oz) * k;
+        }
+      }
+      const t = hitAt(ox, oy, oz, dx, dy, dz, p);
+      const hx = ox + dx * t, hy = oy + dy * t, hz = oz + dz * t;
+      // 線は銃の少し先から（根元は見せない）。一人称の銃は別の画角（狭い）で描くので、その点を世界の画角で同じ画面の位置に移す
+      //  （11-20: 前は線の始まりが銃から離れて見えた）
+      let sx = o[0] + f[0] * 0.35, sy = o[1] + f[1] * 0.35, sz = o[2] + f[2] * 0.35;
+      const C = this.vm.out.cam;
+      if (C && cam.fov) {
+        const kf = Math.tan(cam.fov / 2) / Math.tan(C.fov / 2), qx = sx - C.x, qy = sy - C.y, qz = sz - C.z;
+        const lx = (qx * C.R[0] + qy * C.R[1] + qz * C.R[2]) * kf, ly = (qx * C.U[0] + qy * C.U[1] + qz * C.U[2]) * kf, lz = qx * C.F[0] + qy * C.F[1] + qz * C.F[2];
+        sx = C.x + C.R[0] * lx + C.U[0] * ly + C.F[0] * lz; sy = C.y + C.R[1] * lx + C.U[1] * ly + C.F[1] * lz; sz = C.z + C.R[2] * lx + C.U[2] * ly + C.F[2] * lz;
+      }
+      fx.beam(sx, sy, sz, hx, hy, hz, colOf(p.laser), t < RANGE);
     }
-    // ほかの人（近い順に少しだけ）
-    let n = 0;
+    // ほかの人: 近い順に 10 人まで（大規模戦は 120m まで。赤い点と線は遠くからでも居場所が分かる）
+    const far = S.war ? 120 : 45, cand = this._lzCand || (this._lzCand = []);
+    cand.length = 0;
     for (const e2 of this.av.list) {
-      if (n >= 8 || e2.drone || !e2.gun || !e2.gun.wi || !e2.gun.wi.lightOn || !e2.gun.wi.att.laser) continue;
-      const kind = e2.gun.wi.att.laser;
-      if (kind === 'ir' && !nvg) continue;
-      if (Math.hypot(e2.x - cam.x, e2.z - cam.z) > 45) continue;
+      if (e2.drone || !e2.gun || !e2.gun.wi || !e2.gun.wi.lightOn || !e2.gun.wi.att.laser) continue;
+      if (e2.gun.wi.att.laser === 'ir' && !nvg) continue;
+      const d = Math.hypot(e2.x - cam.x, e2.z - cam.z);
+      if (d <= far) cand.push([d, e2]);
+    }
+    if (cand.length > 10) cand.sort((a, b) => a[0] - b[0]);
+    for (let i = 0; i < cand.length && i < 10; i++) {
+      const e2 = cand[i][1], kind = e2.gun.wi.att.laser;
       const g = e2.gun.f, gm = gunModel(e2.gun.wi.id, e2.gun.wi.att);
       const lp = gm && gm.pts.laserPt ? gm.pts.laserPt : [0, 0, 0.3];
       const ox = g.p[0] + g.l[0] * lp[0] + g.u[0] * lp[1] + g.f[0] * lp[2], oy = g.p[1] + g.l[1] * lp[0] + g.u[1] * lp[1] + g.f[1] * lp[2], oz = g.p[2] + g.l[2] * lp[0] + g.u[2] * lp[1] + g.f[2] * lp[2];
       const L = Math.hypot(g.f[0], g.f[1], g.f[2]) || 1, dx = g.f[0] / L, dy = g.f[1] / L, dz = g.f[2] / L;
       const t = hitAt(ox, oy, oz, dx, dy, dz, e2.a);
-      fx.beam(ox, oy, oz, ox + dx * t, oy + dy * t, oz + dz * t, kind === 'ir' ? IR : RED, true);
-      n++;
+      fx.beam(ox, oy, oz, ox + dx * t, oy + dy * t, oz + dz * t, colOf(kind), t < RANGE);
     }
+    cand.length = 0;
   }
   // カメラのまわり（5×5マス、床のマスだけ）の焼いた明るさの平均
   _localBright(cam) {
@@ -1428,7 +1458,7 @@ export class Match {
     if (this.gearSel === '@long' ? !(p.inv.long && p.inv.long !== 'none' && LONG[p.inv.long]) : this.gearSel && !p.inv.gear.some(g => g.id === this.gearSel)) this.gearSel = (p.inv.gear.find(g => GEAR[g.id].kind === 'nade') || p.inv.gear[0] || {}).id || null;
     if (S.war) this._fixSlots();
     const v = {
-      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null,
+      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null, pick: !!(S.war && magNear(S, p)),
       // ダッシュを押しているが、ほかの操作（構える・リーン・撃つ・リロード）が先で走っていない
       sprWait: !!(p.alive && !p.sprint && this.app.input && (this.app.input.sprintArm || this.app.input.sprintLock)), leanL: this.leanSide < 0, leanR: this.leanSide > 0, nvgOn: this.nvgOn, hasNvg: p.armor.head === 'nvg',
       gearSel: this.gearSel, gearId: p.ws.gear, team: this.team, c4n: S.war ? (S.nades || []).filter(n => n.type === 'c4' && n.by === p.id).length : 0,

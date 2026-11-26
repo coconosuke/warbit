@@ -260,6 +260,8 @@ export class Hud {
       this.cross.classList.toggle('dot', this.S.crosshair === 'dot');
     }
     { const gk = v.giveup || 0; if (this.cache.giveup !== gk) { this.cache.giveup = gk; this.giveup.classList.toggle('on', gk > 0); this.giveup.classList.toggle('arm', gk === 2); this.giveup.lastChild.textContent = gk === 2 ? 'もう一度押すと出撃の画面へ' : '出撃の画面へ'; } }
+    // 拾う: 近くに拾える弾倉がある間だけ出す
+    if (this.btn.pick) { const on = !!(v.pick && p && p.alive); if (this.cache.pickOn !== on && !this.editing) { this.cache.pickOn = on; this.btn.pick.classList.toggle('ads-off', !on); } }
     // 息止め: ボタンは構えている間だけ出す。息の残りの棒は、止めている間と戻るまで
     {
       const ws = p && p.ws, on = !!(p && p.alive && ads > 0.6);
@@ -535,7 +537,9 @@ export class Hud {
     // 印の大きさ（設定。BattleBit の旗・印・名前の大きさ）: 拠点の印と、ほかの印（仲間・敵・集合など）を別に
     const fS = this.S.flagMarkSize ?? 1, mS = this.S.markSize ?? 1;
     // 味方の名前の文字（px。印の大きさで縮めない）
-    this._nameF = `700 ${Math.round((this.S.nameSize ?? 11) / mS * 10) / 10}px "Noto Sans JP", sans-serif`;
+    this._nameF = `700 ${Math.round((this.S.nameSize ?? 10) / mS * 10) / 10}px "Noto Sans JP", sans-serif`;
+    // 味方の印の濃さ（設定）と、照準（画面のまん中）の近くで薄くする
+    this._mA = Math.max(0.3, Math.min(1, this.S.markAlpha ?? 0.8)); this._cx = st.w / 2; this._cy = st.h / 2;
     for (const m of list) {
       const sc = m.k === 'flag' ? fS : mS;
       if (sc !== 1) { c.save(); c.translate(m.x, m.y); c.scale(sc, sc); c.translate(-m.x, -m.y); }
@@ -574,12 +578,17 @@ export class Hud {
         c.beginPath(); c.moveTo(m.x, m.y - s); c.lineTo(m.x + s * 0.8, m.y); c.lineTo(m.x, m.y + s); c.lineTo(m.x - s * 0.8, m.y); c.closePath(); c.fill(); c.stroke();
         c.font = '700 10px Inter, sans-serif'; c.fillStyle = 'rgba(255,215,210,0.95)'; c.fillText(Math.round(m.d) + 'm', m.x, m.y - s - 7);
       } else {
-        // 味方: 頭の上の小さな山形（分隊は緑・ほかは青）。近いほど大きく
-        const s = Math.max(3.5, Math.min(7, 7 - (m.d || 0) / 40));
-        c.globalAlpha = m.k === 'enemy' ? 0.95 : 0.85;
-        c.fillStyle = m.col;
-        c.beginPath(); c.moveTo(m.x - s, m.y - s * 0.9); c.lineTo(m.x + s, m.y - s * 0.9); c.lineTo(m.x, m.y + s * 0.5); c.closePath(); c.fill();
-        if (m.t && (m.d || 0) < 30) { c.font = this._nameF || '700 11px "Noto Sans JP", sans-serif'; c.fillStyle = m.col; c.fillText(m.t, m.x, m.y - s - 7); }
+        // 味方: 頭の上の小さな山形（分隊は緑・ほかは青）。近いほど大きく（BattleBit の小さな印に合わせて 11-20 に小さく: 前は最大 14px 幅）
+        //  黒い細い縁で、明るい空や壁の前でも見える。照準の近く（まん中から 70px）の味方は薄く（その先の相手を隠さない）
+        const s = Math.max(3, Math.min(5.5, 5.5 - (m.d || 0) / 50));
+        let al = m.k === 'enemy' ? 0.95 : (this._mA ?? 0.8);
+        if (m.k !== 'enemy' && this._cx != null) { const r = Math.hypot(m.x - this._cx, m.y - this._cy); if (r < 70) al *= 0.35 + 0.65 * (r / 70); }
+        c.globalAlpha = al;
+        c.fillStyle = m.col; c.strokeStyle = 'rgba(0,0,0,0.55)'; c.lineWidth = 1;
+        // 分隊でない味方は小さな点（BattleBit の青い点。大人数でも画面がうるさくない）。分隊は山形と名前
+        if (m.k === 'ally') { c.beginPath(); c.arc(m.x, m.y - s * 0.3, Math.max(2, s * 0.5), 0, Math.PI * 2); c.fill(); c.stroke(); }
+        else { c.beginPath(); c.moveTo(m.x - s, m.y - s * 0.9); c.lineTo(m.x + s, m.y - s * 0.9); c.lineTo(m.x, m.y + s * 0.5); c.closePath(); c.fill(); c.stroke(); }
+        if (m.t && (m.d || 0) < 30) { c.font = this._nameF || '700 11px "Noto Sans JP", sans-serif'; c.lineWidth = 2.5; c.lineJoin = 'round'; c.strokeText(m.t, m.x, m.y - s - 6); c.fillStyle = m.col; c.fillText(m.t, m.x, m.y - s - 6); }
       }
     }
     c.globalAlpha = 1;

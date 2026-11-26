@@ -586,6 +586,7 @@ export class Screens {
       row('拠点の印の大きさ', '画面の上の A・B・C などの丸', 'flagMarkSize'); sl('flagMarkSize', 0.7, 1.6, 0.05, pct);
       row('印の大きさ', '仲間・分隊・敵の印・集合地点・距離の札', 'markSize'); sl('markSize', 0.7, 1.6, 0.05, pct);
       row('味方の名前の大きさ', '分隊の仲間の頭の上の名前（30m 以内）', 'nameSize'); sl('nameSize', 9, 16, 1, (v) => v + 'px');
+      row('味方の印の濃さ', '仲間の頭の上の印と名前（照準の近くではさらに薄く）', 'markAlpha'); sl('markAlpha', 0.3, 1, 0.05, pct);
       row('敵の印', '分隊がつけた敵の印（赤い菱形）を出す', 'showPings'); ch('showPings', [[true, '表示'], [false, '非表示']]);
       row('倒れたら自動で出撃', '出撃の画面で待たずに、時間が来たら前に選んだ場所から出る（場所と兵科は変えられる）', 'autoDeploy'); ch('autoDeploy', [[false, 'オフ'], [true, 'オン']]);
     } else if (tab === 'gfx') {

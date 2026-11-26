@@ -16,14 +16,14 @@ test('前の感度（スコープ 1つ）と同じ速さ（既定）', () => {
   const old = (z) => 0.45 * Math.min(1.6, 4 / z);
   for (const z of [2, 3, 4, 6, 8, 12]) ok(Math.abs(sensForZoom({ sensZ: DEFAULTS.sensZ }, z) - old(z)) < 0.002, z + '倍 ' + sensForZoom({ sensZ: DEFAULTS.sensZ }, z).toFixed(3) + ' / ' + old(z).toFixed(3));
 });
-test('前の「画面の揺れ: 弱」は揺れ 50% に移す。新しい項目の既定（名前 11px・敵の印あり・揺れ 100%・2回押し 0.4 秒）', async () => {
+test('前の「画面の揺れ: 弱」は揺れ 50% に移す。新しい項目の既定（名前 10px（11-20 に小さく）・味方の印の濃さ 80%・敵の印あり・揺れ 100%・2回押し 0.4 秒）', async () => {
   const { loadSettings } = await import('../../src/app/settings.js');
   const mem = {};
   const prev = globalThis.localStorage;
   globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; } };
   try {
     let s = loadSettings();
-    eq(s.nameSize, 11, '名前'); eq(s.showPings, true, '敵の印'); eq(s.shakeK, 1, '揺れ'); eq(s.rlDbl, 0.4, '2回押し');
+    eq(s.nameSize, 10, '名前'); eq(s.markAlpha, 0.8, '味方の印の濃さ'); eq(s.showPings, true, '敵の印'); eq(s.shakeK, 1, '揺れ'); eq(s.rlDbl, 0.4, '2回押し');
     mem['hardentry.v1.settings'] = JSON.stringify({ shake: false });
     s = loadSettings();
     eq(s.shakeK, 0.5, '弱 → 50%');

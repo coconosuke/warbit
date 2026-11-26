@@ -99,3 +99,28 @@ test('速いリロードで落とした弾倉は、その場に立っている�
   const e = S.mdrops[0]; me.x = e.x + 2; run(G, me, 5, {}); me.x = e.x; me.z = e.z; run(G, me, 5, {});
   eq(S.mdrops.length, 1, '空は拾わない');
 });
+
+// 11-20: 落ちた弾倉は手の高さから真下の面へ（前は足の高さに置いて坂で埋まった）。拾うボタン（2m）: 空きがあれば足す・いっぱいなら少ない弾倉と取り替える
+test('落ちた弾倉は地面の上に置かれ、拾うボタンで拾える（いっぱいなら少ない弾倉と取り替える）', async () => {
+  const { groundAt } = await import('../../src/war/world.js');
+  const G = game(), S = G.S, me = S.actors[0]; ready(G, me);
+  const wi = curWeapon(me), n0 = wi.mags.length;
+  wi.mag = 14;
+  run(G, me, 1, { act: [{ a: 'reload', fast: true }] }); ready(G, me);
+  const d = S.mdrops[0];
+  ok(d && Math.abs(d.y - groundAt(G.w, d.x, d.z, (d.y0 ?? d.y + 1.15) - 0.3)) < 1e-6, '地面の高さ ' + (d && d.y.toFixed(3)));
+  // 拾うボタン（落とした本人でもすぐ・2m 以内）
+  run(G, me, 1, { act: [{ a: 'pickmag' }] });
+  eq(S.mdrops.length, 0, '拾った');
+  eq(wi.mags.length, n0, '数が戻る');
+  // いっぱいのときは、少ない弾倉と取り替える（取り替えた弾倉はその場に）
+  S.mdrops.push({ id: 99, wid: wi.id, n: 25, x: me.x + 1, y: me.y, z: me.z, y0: me.y, yaw: 0, t: S.t, by: -1, away: true, gy: 1 });
+  wi.mags = wi.mags.map(() => 30); wi.mags[0] = 5;
+  const ev = []; for (let i = 0; i < 1; i++) ev.push(...step(G, { [me.id]: idle(me, { act: [{ a: 'pickmag' }] }) }));
+  ok(wi.mags.includes(25) && !wi.mags.includes(5), '25発と取り替えた ' + wi.mags.join(','));
+  ok(S.mdrops.length === 1 && S.mdrops[0].n === 5, '5発の弾倉が残る');
+  ok(ev.some(e => e.e === 'magPick' && e.swap === 5), '取り替えの知らせ');
+  // 5 発の弾倉より多い物しかなければ取り替えない
+  const ev2 = []; ev2.push(...step(G, { [me.id]: idle(me, { act: [{ a: 'pickmag' }] }) }));
+  ok(ev2.some(e => e.e === 'magFull'), 'いっぱいの知らせ');
+});
