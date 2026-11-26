@@ -6,7 +6,7 @@ import { M, MATS } from './data/materials.js';
 import { GEAR, LONG, HAND_LONG } from './data/equipment.js';
 import { doorOp, sideOf, isClosed, detonateC2, triggerTrap } from './doors.js';
 import { eyeOf, dropWeapon, capsOf, wristsOf, startMelee } from './combat.js';
-import { throwNade, launchNade, launchRocket } from './nades.js';
+import { throwNade, launchNade, launchRocket, fuseOf } from './nades.js';
 import { pvpDamage, hurt } from './combat.js';
 import { rayCapsule } from './pose.js';
 import { carve, shatter } from '../war/destruct.js';
@@ -857,6 +857,34 @@ function gearInHand(S, w, a, dt, ev) {
   if (GEAR[id].kind === 'medkit') { ws.gearTrig = !!inp.fire; if (inp.fire) medkitTick(S, a, dt, ev); else ws.healT = 0; return; }
   const press = !!inp.fire && !ws.gearTrig;
   ws.gearTrig = !!inp.fire;
+  // 投げ物（人）: 押すとピンを抜いて構え、離した時に投げる（11-26 の要望）。押している間は信管が進む（握って時間を合わせる）。
+  //  信管の時間を過ぎても握っていると手の中で爆発する。下投げ（inp.under: 下投げのボタンの上で離す）は近くへ軽く放る。
+  //  衝撃手榴弾は当たると爆発するので、握っても時間は進まない。ボット（pid なし）は今までどおり押した時に投げる
+  if (GEAR[id].kind === 'nade' && a.pid != null) {
+    const G = GEAR[id], cookable = !G.impact;
+    // 前のこまから続いていない（持ち替えた・倒れた・出撃し直した）握りは取り消す（ピンを戻す）
+    if (ws.cook != null && (ws.cookAt !== S.t - 1 || ws.cookId !== id)) ws.cook = null;
+    if (ws.cook == null) {
+      if (!press) return;
+      ws.cook = 0; ws.cookAt = S.t; ws.cookId = id; ws.nPow = inp.power ?? 0.75;
+      ev.push({ e: 'pin', id: a.id, g: id });
+      return;
+    }
+    ws.cookAt = S.t;
+    if (cookable) ws.cook += dt;
+    const fuse = fuseOf(S, id);
+    let n = null;
+    if (cookable && ws.cook >= fuse) {
+      // 握りすぎ: 手の中で爆発
+      g.n--; n = throwNade(S, a, id, 0, ev, { drop: true, cook: fuse });
+    } else if (!inp.fire) {
+      g.n--; n = throwNade(S, a, id, ws.nPow ?? 0.75, ev, { under: !!inp.under, cook: cookable ? ws.cook : 0 });
+    } else return;
+    ws.cook = null;
+    if (g.n > 0 && (inp.keepGear || S.war)) { ws.st = 'draw'; ws.t = 0.75; ws.gearTrig = true; }
+    else { ws.next = ws.prev >= 0 ? ws.prev : 0; ws.st = 'holster'; ws.t = 0.35; }
+    return;
+  }
   if (!press) return;
   if (GEAR[id].kind === 'nade') {
     g.n--;

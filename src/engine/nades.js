@@ -13,16 +13,32 @@ import { blastMines } from './mines.js';
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
 
-export function throwNade(S, a, type, power, ev) {
-  const eye = eyeOf(S, a);
-  // 大規模戦は遠くまで投げる（M67 は約35m。research/WARBIT.md の 6）
-  const pw = Math.max(0.15, Math.min(1, power)), cp = Math.cos(a.pitch + 0.12), v = S.war ? 6 + 12 * pw : 4 + 9 * pw;
-  const dx = Math.sin(a.yaw) * cp, dy = Math.sin(a.pitch + 0.12), dz = Math.cos(a.yaw) * cp;
+// 投げ物の信管（秒）。大規模戦の破片手榴弾は BattleBit の 5 秒（research/WARBIT.md の 56）
+export function fuseOf(S, type) {
   const G = GEAR[type] || {};
-  const n = { id: S.nextItem++, type, x: eye[0] + dx * 0.3, y: eye[1] - 0.1, z: eye[2] + dz * 0.3, vx: dx * v + a.vx * 0.5, vy: dy * v + 1.2, vz: dz * v + a.vz * 0.5, t: 0, fuse: G.fuse ?? (type === 'cs' ? 1.6 : 1.5), impact: !!G.impact, by: a.id, team: a.team, rest: false };
+  return (S && S.war && G.warFuse) || (G.fuse ?? (type === 'cs' ? 1.6 : 1.5));
+}
+// o.under: 下投げ（腰の高さから、低く短く放る）。o.cook: 握っていた秒（信管の残りから引く）。o.drop: 手の中で爆発（その場に落とす）
+export function throwNade(S, a, type, power, ev, o = {}) {
+  const eye = eyeOf(S, a);
+  const G = GEAR[type] || {};
+  const fuse = Math.max(0, fuseOf(S, type) - (o.cook || 0));
+  if (o.drop) {
+    // 手の中: 胸の前に置き、すぐ爆発
+    const n = { id: S.nextItem++, type, x: eye[0] + Math.sin(a.yaw) * 0.25, y: eye[1] - 0.45, z: eye[2] + Math.cos(a.yaw) * 0.25, vx: 0, vy: 0, vz: 0, t: 0, fuse: 0, impact: false, by: a.id, team: a.team, rest: false, hand: true };
+    S.nades.push(n);
+    ev.push({ e: 'throw', id: a.id, type, n: n.id, hand: true });
+    return n;
+  }
+  // 上投げ: 大規模戦は遠くまで投げる（M67 は約35m。research/WARBIT.md の 6）
+  // 下投げ: 腰の高さから 8m/s（狙った向きより 0.2 上へ）。足もとの近く（平らな所で 5〜8m）へ軽く放る（research/WARBIT.md の 56）
+  const pw = Math.max(0.15, Math.min(1, power)), up = o.under ? 0.2 : 0.12, cp = Math.cos(a.pitch + up), v = o.under ? (S.war ? 8 : 6) : S.war ? 6 + 12 * pw : 4 + 9 * pw;
+  const dx = Math.sin(a.yaw) * cp, dy = Math.sin(a.pitch + up), dz = Math.cos(a.yaw) * cp;
+  const y0 = o.under ? Math.max(a.y + 0.3, eye[1] - 0.75) : eye[1] - 0.1;
+  const n = { id: S.nextItem++, type, x: eye[0] + dx * 0.3, y: y0, z: eye[2] + dz * 0.3, vx: dx * v + a.vx * 0.5, vy: dy * v + (o.under ? 0.6 : 1.2), vz: dz * v + a.vz * 0.5, t: 0, fuse, impact: !!G.impact, by: a.id, team: a.team, rest: false };
   S.nades.push(n);
   a.throwT = 1;
-  ev.push({ e: 'throw', id: a.id, type, n: n.id });
+  ev.push({ e: 'throw', id: a.id, type, n: n.id, under: !!o.under });
   return n;
 }
 // M320 の弾: まっすぐ速く飛び、当たったら作動
@@ -158,10 +174,13 @@ function detonate(S, w, n, ev) {
     else S.clouds.push({ x: n.x, y: n.y + 1.1, z: n.z, r: 0.4, max: 3.2, t: 16, type: 'smoke', L: levelOfY(n.y) });
   } else if (n.type === 'frag') {
     // 大規模戦の M67: 5m でほぼ致命、15m まで（research/WARBIT.md の 6）。今までのモードの罠は 5m
-    if (S.war) S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 15, dmg: 250, fall: 2.2, kind: 'frag', by: n.by, t: 0 });
+    // 大規模戦: BattleBit の公式 wiki の値（人へ 150・半径 8m。research/WARBIT.md の 56）。弱まり方は wiki にないので推測（致命は約 3.5m まで）
+    if (S.war) S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 8, dmg: 150, fall: 0.7, kind: 'frag', by: n.by, t: 0 });
     else S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 5, dmg: 150, kind: 'frag', by: n.by, t: 0 });
   } else if (n.type === 'impact') {
-    S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 8, dmg: 170, fall: 1.9, kind: 'frag', by: n.by, t: 0 });
+    // 大規模戦: wiki の値（人へ 120・半径 6m）。弱まり方は破片手榴弾と同じ（推測。致命は約 1.4m まで）
+    if (S.war) S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 6, dmg: 120, fall: 0.7, kind: 'frag', by: n.by, t: 0 });
+    else S.blasts.push({ x: n.x, y: n.y + 0.2, z: n.z, r: 8, dmg: 170, fall: 1.9, kind: 'frag', by: n.by, t: 0 });
   } else if (n.type === 'rpg') {
     S.blasts.push({ x: n.x, y: n.y + 0.1, z: n.z, r: ROCKET.r, dmg: ROCKET.dmg, fall: ROCKET.fall, kind: 'rpg', by: n.by, t: 0 });
   } else if (n.type === 'c4') {

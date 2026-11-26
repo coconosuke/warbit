@@ -8,10 +8,11 @@ import { GEAR } from '../engine/data/equipment.js';
 export const CLASSES = {
   leader: {
     name: '分隊長', en: 'SQUAD LEADER', short: 'LEADER', hp: 100,
-    desc: '分隊を率いる。分隊の1人目だけが選べる。手榴弾と包帯が1つ多い。',
+    desc: '分隊を率いる。分隊の1人目だけが選べる。包帯が1つ多い。',
     guns: ['m4a1', 'hk416', 'akm', 'scarh', 'g36c', 'mini14', 'sks'],
     sec: ['m17', 'g19', 'm92'],
-    gear: [['frag', 2], ['smoke', 3], ['bandage', 4], ['binoc', 1], ['hammer', 1]],
+    // 手榴弾は1つ（BattleBit の公式 wiki: 援護だけ 2、ほかは 1。research/WARBIT.md の 56）
+    gear: [['frag', 1], ['smoke', 3], ['bandage', 4], ['binoc', 1], ['hammer', 1]],
     tools: [],
   },
   assault: {
@@ -19,7 +20,7 @@ export const CLASSES = {
     desc: '前に出て撃ち合う。リロードと持ち替えが 25%、近い照準器で構えるのが 20% 速い。破片と衝撃の手榴弾を持つ。',
     guns: ['m4a1', 'akm', 'hk416', 'mk18', 'aks74u', 'vz58', 'g36c', 'scarl', 'aug', 'tavor', 'mcx'],
     sec: ['m17', 'g17', 'm1911'],
-    gear: [['frag', 2], ['impact', 1], ['smoke', 2], ['bandage', 3], ['ammosmall', 1], ['hammer', 1]],
+    gear: [['frag', 1], ['impact', 1], ['smoke', 2], ['bandage', 3], ['ammosmall', 1], ['hammer', 1]],
     tools: [],
   },
   medic: {

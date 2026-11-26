@@ -262,6 +262,8 @@ export class Hud {
     { const gk = v.giveup || 0; if (this.cache.giveup !== gk) { this.cache.giveup = gk; this.giveup.classList.toggle('on', gk > 0); this.giveup.classList.toggle('arm', gk === 2); this.giveup.lastChild.textContent = gk === 2 ? 'もう一度押すと出撃の画面へ' : '出撃の画面へ'; } }
     // 拾う: 近くに拾える弾倉がある間だけ出す
     if (this.btn.pick) { const on = !!(v.pick && p && p.alive); if (this.cache.pickOn !== on && !this.editing) { this.cache.pickOn = on; this.btn.pick.classList.toggle('ads-off', !on); } }
+    // 下投げ: 投げ物を手に持っている間だけ出す（射撃のボタンから指をずらして上で離すか、このボタンを押して離す）
+    if (this.btn.under) { const on = !!v.under; if (this.cache.underOn !== on && !this.editing) { this.cache.underOn = on; this.btn.under.classList.toggle('ads-off', !on); } }
     // 息止め: ボタンは構えている間だけ出す。息の残りの棒は、止めている間と戻るまで
     {
       const ws = p && p.ws, on = !!(p && p.alive && ads > 0.6);
@@ -273,7 +275,7 @@ export class Hud {
       if (this.cache.brKey !== key) { this.cache.brKey = key; this.breathEl.classList.toggle('on', show); this.breathEl.classList.toggle('gasp', !!(ws && ws.gasp > 0)); if (show) this.breathEl.firstChild.style.width = (br * 100).toFixed(0) + '%'; }
     }
     const retOn = !!(optic && ads > 0.85 && !optic.scope);
-    this.reticle.className = 'hud-reticle' + (retOn ? ' on ' + optic.kind : '');
+    { const rc = 'hud-reticle' + (retOn ? ' on ' + optic.kind : ''); if (this.cache.retC !== rc) { this.cache.retC = rc; this.reticle.className = rc; } }
     // 等倍の照準器: 揺れのうち銃が受け持つ分だけ、点が真ん中からずれる（弾が飛ぶ所。game.js _aimFx）
     const ro = retOn && v.retOff ? 'translate(' + v.retOff[0].toFixed(1) + 'px,' + v.retOff[1].toFixed(1) + 'px)' : '';
     if (this.cache.retT !== ro) { this.cache.retT = ro; this.reticle.style.transform = ro; }
@@ -449,8 +451,14 @@ export class Hud {
     } else this.prog.classList.remove('on');
     // 方位
     const deg = (((Math.PI - (v.yaw || 0)) * 180 / Math.PI) % 360 + 360) % 360;
+    // 11-26: 目盛りの帯は一度だけ作り、向きが変わったら横にずらすだけ（前は向きが 0.5° 変わるたびに中身を作り直していた＝見回すあいだ毎こま）
     const ck = Math.round(deg * 2);
-    if (this.cache.comp !== ck) { this.cache.comp = ck; this.info.compass.firstChild.innerHTML = compassHTML(deg); }
+    if (this.cache.comp !== ck) {
+      this.cache.comp = ck;
+      const inn = this.info.compass.firstChild;
+      if (!this._compStrip) { inn.innerHTML = compassStrip(); this._compStrip = inn.firstChild; }
+      this._compStrip.style.transform = `translate3d(${(130 - (ck / 2 + 90) * 2).toFixed(0)}px,0,0)`;
+    }
     // 目的
     const ok = v.objKey || '';
     if (this.cache.obj !== ok) { this.cache.obj = ok; this.info.obj.innerHTML = v.objHTML || ''; }
@@ -460,7 +468,7 @@ export class Hud {
     // 被弾の向き
     const now = performance.now();
     this.dmgArcs = this.dmgArcs.filter(a => now - a.t < 1200);
-    const dk = this.dmgArcs.map(a => Math.round(a.ang * 10)).join(',') + '|' + Math.floor(now / 100);
+    const dk = this.dmgArcs.length ? this.dmgArcs.map(a => Math.round(a.ang * 10)).join(',') + '|' + Math.floor(now / 100) : '';
     if (this.cache.dmg !== dk) {
       this.cache.dmg = dk;
       this.dmg.innerHTML = this.dmgArcs.map(a => { const rel = a.ang - (v.yaw || 0); const op = 1 - (now - a.t) / 1200; return `<i style="transform:translate(-50%,-50%) rotate(${-rel}rad) translateY(-70px);opacity:${op}"></i>`; }).join('');
@@ -528,11 +536,14 @@ export class Hud {
   warMarks(list) {
     const cv = this.ov, st = this.stage, dpr = Math.min(2, devicePixelRatio || 1);
     const W = Math.round(st.w * dpr), H = Math.round(st.h * dpr);
-    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; cv.style.width = st.w + 'px'; cv.style.height = st.h + 'px'; }
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; cv.style.width = st.w + 'px'; cv.style.height = st.h + 'px'; this._ovEmpty = true; }
+    // 印が無く、もう空なら何もしない（画面いっぱいの絵を毎こま消して描き直さない）
+    if ((!list || !list.length) && this._ovEmpty) return;
     const c = this.ovCtx;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.clearRect(0, 0, st.w, st.h);
-    if (!list || !list.length) return;
+    this._ovEmpty = !list || !list.length;
+    if (this._ovEmpty) return;
     c.textAlign = 'center'; c.textBaseline = 'middle';
     // 印の大きさ（設定。BattleBit の旗・印・名前の大きさ）: 拠点の印と、ほかの印（仲間・敵・集合など）を別に
     const fS = this.S.flagMarkSize ?? 1, mS = this.S.markSize ?? 1;
@@ -790,16 +801,11 @@ export class Hud {
   }
 }
 
-function compassHTML(deg) {
-  // 幅 260px に ±65° を表示
-  const out = [];
-  const lbl = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' };
-  for (let a = Math.floor((deg - 70) / 15) * 15; a <= deg + 70; a += 15) {
-    const d = a - deg, x = 130 + d * 2;
-    const n = ((a % 360) + 360) % 360;
-    out.push(`<span style="left:${x}px" class="${lbl[n] ? (n % 90 ? 'm' : 'M') : ''}">${lbl[n] || '|'}</span>`);
-  }
-  return out.join('') + `<em>${Math.round(deg) % 360}°</em>`;
+// 方位の帯: -90°〜450° を 15° ごと（1° = 2px。帯の左端が -90°）。見る向き deg を真ん中（130px）に置くには translateX(130 - (deg + 90) * 2)
+function compassStrip() {
+  const out = [], lbl = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' };
+  for (let a = -90; a <= 450; a += 15) { const n = ((a % 360) + 360) % 360; out.push(`<span style="left:${(a + 90) * 2}px" class="${lbl[n] ? (n % 90 ? 'm' : 'M') : ''}">${lbl[n] || '|'}</span>`); }
+  return `<div class="hud-compass-strip">${out.join('')}</div>`;
 }
 
 // 見取り図（ミニマップと地図の画面で使う）: 1マス = s 画素

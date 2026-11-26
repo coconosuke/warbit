@@ -469,3 +469,12 @@
 - 設定の解説記事（videogamer・thenerdstash）によると、BattleBit のグラフィック設定には「LOD Quality」（数値。軽さ重視で 200、見た目重視で 400 が勧められている）と「Render Distance」（記事の表では 4000）、「Shadow Distance」（100）がある。記事は、重さに一番効くのは解像度・シェーダーの品質・影の品質だと書いている。LOD Quality が具体的に何を変えるかの説明はない。
 - WAR BIT の対応: 描画距離は設定（近い・標準・遠い・最大）。遠くの形を3段にする（近い形 → 遠い形 → 描画距離の半分より先は「遠い形の2段目」: 木は葉のかたまり1つ・小物はただの箱）。スコープで拡大している間は倍率の分だけ遠くまで細かい段を使う（遠くを狙う時に形が粗く見えないように）。数値は BattleBit のものではなく、iPhone の重さに合わせて決めた。
 - 出典: https://www.videogamer.com/guides/battlebit-remastered-best-graphics-settings ・ https://thenerdstash.com/battlebit-remastered-best-settings-guide
+
+## 56. 手榴弾（信管・威力・数・投げ方）（2026-11-26）
+- 公式 wiki（battlebit.wiki.gg）の破片手榴弾: 投げてから 5 秒で爆発する。人への威力 150、爆発の半径は人に 8（「Triggerable」4）。持てる数は分隊長・突撃・衛生・工兵・偵察が 1、援護が 2。補給の値段 10。
+- 同じ wiki の衝撃手榴弾: 人への威力 120、半径は人に 6（「Triggerable」3.9）。持てる数は 6 兵科とも 1。補給の値段 10。
+- 握って時間を合わせる（クッキング）: wiki は「投げてから 5 秒」とだけ書いている。Steam の掲示板では「手榴弾を握って時間を合わせられるようにしてほしい」という要望が出ていた（その時点では無かったと読める）。WAR BIT はユーザーの要望（11-26）で入れる（本家との違い）。
+- 下投げ: Game Rant の投げ物の記事に、衝撃手榴弾を下から放る絵の説明（「tossing it underhanded」）がある。操作（どのボタンか）は見つからなかった。WAR BIT は、投げ物を持つ間だけ射撃のボタンの近くに下投げのボタンを出し、射撃から指をずらしてその上で離すと近くへ軽く放る（ユーザーの案）。
+- 掲示板には、地面に転がった手榴弾を撃つとはじかれて動く、という話もある（WAR BIT は未対応）。
+- 弱まり方（中心から離れるとどれだけ減るか）は見つからなかった。WAR BIT は「致命は破片で約 3.5m・衝撃で約 1.4m」になる弱まり方にした（推測）。
+- 出典: https://battlebit.wiki.gg/wiki/Frag_Grenade ・ https://battlebit.wiki.gg/wiki/Impact_Grenade ・ https://steamcommunity.com/app/671860/discussions/4/6717729343879798931/ ・ https://steamcommunity.com/app/671860/discussions/4/3805028677410535659/ ・ https://steamcommunity.com/app/671860/discussions/4/3805028278538705497/ ・ https://gamerant.com/battlebit-remastered-best-throwables-ranked/

@@ -381,8 +381,8 @@ export function hurt(S, w, a, d, part, shooter, b, dx, dz, ev, kind) {
   if (shooter) { a.dmgBy[shooter.id] = (a.dmgBy[shooter.id] || 0) + d; shooter.stats.dmg += d; if (shooter.id !== a.id) shooter.stats.hi++; }
   a.lastHit = { by: shooter ? shooter.id : -1, t: S.t, part, kind };
   if (a.hp > 0) return;
-  // 倒れる向き: 弾の向き
-  a.fallYaw = Math.atan2(dx || 0, dz || 1) - a.yaw + (hrand(a.id, S.t, 9) - 0.5) * 0.8;
+  // 倒れる向き: 弾の向き（もう倒れている人は、倒れた向きのまま）
+  if (!a.down) a.fallYaw = Math.atan2(dx || 0, dz || 1) - a.yaw + (hrand(a.id, S.t, 9) - 0.5) * 0.8;
   const vital = part === 'head' || part === 'neck';
   if (a.kind === 'swat' && a.pid == null && !S.pvp) {
     // AI隊員: 行動不能（作戦の残りは動けない）
@@ -407,7 +407,10 @@ export function downActor(S, a, by, ev, permanent) {
 
 export function killActor(S, a, by, ev, kind = 'bullet', part = '') {
   if (a.dead) return;
-  a.alive = false; a.dead = true; a.down = false; a.stateT = a.down ? a.stateT : 0; a.comply = 0; a.hp = Math.min(0, a.hp);
+  // 倒れていた人（ダウン・行動不能）はそのまま横たわった姿で死ぬ（11-26: 前は a.down を先に消してから見ていて、
+  //  倒れる時間が 0 に戻り、死体が一度起き上がってから倒れ直していた）
+  const wasDown = a.down;
+  a.alive = false; a.dead = true; a.down = false; a.stateT = wasDown ? a.stateT : 0; a.comply = 0; a.hp = Math.min(0, a.hp);
   a.vx = a.vz = 0; if (a.act && a.act.k === 'restrain') { const b = S.byId[a.act.id]; if (b) { b.cuffBy = null; b.cuffYaw = null; b.cuffK = 0; } } a.act = null; a.ads = 0; a.dbno = 0;
   dropWeapon(S, a, ev);
   const killer = by && by.id !== a.id ? by : (a.lastHit && S.byId[a.lastHit.by]);
@@ -584,7 +587,7 @@ export function pvpDamage(S, a, d, shooter, part, dx, dz, ev, kind) {
   }
   a.hp -= d;
   if (a.hp > 0) return;
-  a.fallYaw = Math.atan2(dx || 0, dz || 1) - a.yaw;
+  if (!a.down) a.fallYaw = Math.atan2(dx || 0, dz || 1) - a.yaw;
   // ダウンできるか（モードの規則）
   const canDown = !!(S.rules.dbno && kind !== 'head' && kind !== 'blast' && a.dbnoCount < 1 && hooks.canDown && hooks.canDown(S, a));
   if (canDown) {

@@ -642,6 +642,24 @@ try {
     await touch('touchEnd', []);
     const got = await page.waitForFunction(() => { const g = window.__app.game; return g.p.ws.gear === 'smoke' && g.nadeSel === 'smoke'; }, null, { timeout: 15000 }).then(() => true).catch(() => false);
     rec('射撃場', '投げ物・包帯・道具のボタン: 前の装備のボタンは出ない。投げ物を指でずらすと離す前に円が出て、下へずらすと発煙弾を持つ', vis === 'gear:0,nade:1,heal:1,gad:1' && rad && rad.btn === 'nade' && rad.n === 4 && got, `${vis}・円 ${rad ? rad.labels.join('/') : 'なし'}・発煙 ${got ? '○' : '×'}`);
+    // 下投げ（0.1.58。11-26 の要望）: 投げ物を持っている間だけ下投げのボタンが出る。射撃のボタンを押しただけでは投げず（ピンを抜く）、
+    // 射撃のボタンから指をずらして下投げのボタンの上で離すと、腰の高さから軽く放る（上投げは 15m/s、下投げは 8m/s）
+    await page.waitForFunction(() => { const p = window.__app.game.p; return p.ws.slot === 2 && p.ws.st === 'gear'; }, null, { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(250);
+    const uv = await page.evaluate(() => { const e = document.querySelector('#hud [data-btn="under"]'); return !!e && !e.classList.contains('ads-off') && !e.classList.contains('hidden'); });
+    const fb = await btn('fire'), ub = await btn('under');
+    // 前に撃った RPG のロケットなどは数えない（これから投げる発煙弾だけ）
+    await page.evaluate(() => { const g = window.__app.game, me = g.p, old = new Set(g.S.nades.map(q => q.id)); window.__nadeSeen = null; const f = () => { const n = g.S.nades.find(q => q.by === me.id && !old.has(q.id) && q.type === 'smoke'); if (n && !window.__nadeSeen) window.__nadeSeen = { sp: Math.hypot(n.vx, n.vz), dy: n.y - me.y }; if (!window.__nadeSeen) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+    await touch('touchStart', [{ x: fb.x, y: fb.y, id: 75 }]);
+    await page.waitForTimeout(400);
+    const pin = await page.evaluate(() => { const g = window.__app.game; return !window.__nadeSeen && g.p.ws.cook != null; });
+    for (let k = 1; k <= 6; k++) await touch('touchMove', [{ x: fb.x + (ub.x - fb.x) * k / 6, y: fb.y + (ub.y - fb.y) * k / 6, id: 75 }]);
+    await page.waitForTimeout(60);
+    await touch('touchEnd', []);
+    const seen = await page.waitForFunction(() => window.__nadeSeen, null, { timeout: 5000 }).then(h => h.jsonValue()).catch(() => null);
+    await page.waitForTimeout(300);
+    const uv2 = await page.evaluate(() => { const e = document.querySelector('#hud [data-btn="under"]'); return !!e && !e.classList.contains('ads-off'); });
+    rec('射撃場', '下投げ: 投げ物を持つ間だけボタンが出る。押しただけでは投げず、射撃から指をずらして下投げの上で離すと腰の高さから軽く放る', uv && pin && !!seen && seen.sp < 10 && seen.dy < 1.2, `ボタン ${uv ? '○' : '×'}（投げた後 ${uv2 ? '残る' : '消える'}）・押しただけ ${pin ? '投げない' : '×'}・速さ ${seen ? seen.sp.toFixed(1) : '-'}m/s・高さ ${seen ? seen.dy.toFixed(2) : '-'}m`);
   } catch (e) { rec('射撃場', '射撃場だけの物', false, e.message.slice(0, 200)); }
 
   // ---- WAR BIT: タイトル → PLAY → コンクエスト 16 vs 16 → 出撃の画面 → 兵科を選んで出る → 撃つ → 倒れて出撃し直す → 勝ち → 結果 → もう一度

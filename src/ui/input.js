@@ -73,6 +73,13 @@ export class Input {
     if (this.onStick) this.onStick(null);
     for (const el of this.area.querySelectorAll('.down')) el.classList.remove('down');
   }
+  // 指が下投げのボタン（出ている時だけ）の上にあるか
+  _overUnder(e) {
+    const u = this._underEl || (this._underEl = this.area.querySelector('[data-btn="under"]'));
+    if (!u || !u.isConnected || u.classList.contains('ads-off') || u.classList.contains('hidden')) { if (u && !u.isConnected) this._underEl = null; return false; }
+    const r = u.getBoundingClientRect(), m = 6;
+    return e.clientX >= r.left - m && e.clientX <= r.right + m && e.clientY >= r.top - m && e.clientY <= r.bottom + m;
+  }
   _btnOf(e) { let t = e.target; while (t && t !== this.area) { if (t.dataset && t.dataset.btn && !t.classList.contains('hidden')) return t; t = t.parentNode; } return null; }
   _bind() {
     const a = this.area;
@@ -135,7 +142,11 @@ export class Input {
         // 投げ物・道具のボタン: 指をずらした時点で選ぶ円を出す（長押しを待たない。11-20 の要望）。円はその場ですぐ開き、続く動きで選ぶ
         if (!this.radial && !p.dragged && p.moved > 16 && this.onDragMenu && DRAG_MENU.has(p.btn)) { p.dragged = true; this.onDragMenu(p.btn, e.pointerId, p.x0, p.y0); }
         if (this.radial && this.radial.pid === e.pointerId) { this._radialMove(sx, sy); }
-        else if (p.btn === 'fire' || p.btn === 'fireL') { if (this.S.fireLook !== false) { this._lookAdd(e, p, sx, sy); return; } }
+        else if (p.btn === 'fire' || p.btn === 'fireL') {
+          // 下投げのボタンの上に来た指は見回さない（射撃のボタンから下投げへ指をずらす間に、狙いが動きすぎないように）
+          if (this._overUnder(e)) { p.x = sx; p.y = sy; return; }
+          if (this.S.fireLook !== false) { this._lookAdd(e, p, sx, sy); return; }
+        }
         p.x = sx; p.y = sy;
       }
     };
@@ -157,6 +168,8 @@ export class Input {
       if (p.kind === 'radialTap') { if (!cancel) this._radialPick(true); return; }
       if (p.kind !== 'btn') return;
       this.hold.delete(p.btn); p.el.classList.remove('down');
+      // 下投げ: 下投げのボタンを離した、または射撃の指を下投げのボタンの上で離した（取り消しは除く）
+      if (!cancel && (p.btn === 'under' || ((p.btn === 'fire' || p.btn === 'fireL') && this._overUnder(e)))) this._underRel = true;
       lastTapUp = performance.now();
       if (this.radial && this.radial.pid === e.pointerId) {
         // 円形メニュー: 離した所を選ぶ（真ん中ならタップで選ぶ方式に切り替え）
@@ -337,13 +350,15 @@ export class Input {
     const [tgx, tgy] = this.gk ? this.gk.take(performance.now()) : [0, 0];
     const out = {
       mx, mz, lookDX: this.lookDX + tlx, lookDY: this.lookDY + tly, gyroX: this.gyro.x + tgx, gyroY: this.gyro.y + tgy,
-      fire: this.hold.has('fire') || this.hold.has('fireL') || this.mouseBtn.l,
+      fire: this.hold.has('fire') || this.hold.has('fireL') || this.hold.has('under') || this.mouseBtn.l,
+      // 下投げ（11-26）: 下投げのボタンを押している・射撃の指を下投げのボタンの上で離した・右ボタンを押したまま左を離した
+      under: this._underRel || this.hold.has('under') || (this.mouseBtn.r && !this.mouseBtn.l),
       sprint: this.sprintArm || this.sprintLock || K.has('ShiftLeft') || this.hold.has('sprint'), sprPress: this.sprPress,
       hold: this.hold, edges: this.edges.slice(),
       mouse: !!document.pointerLockElement, touch: this.touchUsed,
     };
     this.lookDX = 0; this.lookDY = 0; this.gyro.x = 0; this.gyro.y = 0;
-    this.edges.length = 0; this.sprPress = 0;
+    this.edges.length = 0; this.sprPress = 0; this._underRel = false;
     // 長押しの判定（押している最中）。こまが大きく遅れたとき（0.25秒より長い）は次のこまで判定する
     // （遅れている間に指を離した出来事が待っているかもしれない。離していれば短押し）
     const now = performance.now();

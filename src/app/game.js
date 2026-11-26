@@ -7,7 +7,7 @@ import { spreadDeg, magNear } from '../engine/weapon.js';
 import { vaultPlan } from '../engine/move.js';
 import { depSpot, DEP_WHY } from '../engine/deploy.js';
 import { raycast, CS, LH, levelOfY, los } from '../engine/world.js';
-import { smokeBetween } from '../engine/nades.js';
+import { smokeBetween, fuseOf } from '../engine/nades.js';
 import { sensForZoom } from './settings.js';
 import { TC } from '../ui/teamcol.js';
 // 大規模戦のエイムアシストの強さ: [体の上での見回しの速さ]（敵の見かけの動きには 1 - これ だけついていく）
@@ -435,6 +435,7 @@ export class Match {
     const brBtn = (this.app.settings.breathMode || 'toggle') === 'hold' ? inp.hold.has('breath') : !!this.breathOn;
     // 構える・構えをやめる: 銃を上げ下げする小さな音（自分だけ・大規模戦）
     if (this.adsOn !== this._adsWas) { if (this._adsWas != null && this.S && this.S.war && p && p.alive && !p.down) this.au.sfx('act', null, { vol: 0.1, rate: this.adsOn ? 1.4 : 1.2 }); this._adsWas = this.adsOn; }
+    if (inp.under && !inp.fire) this._underUntil = performance.now() + 250;
     const cmd = {
       mx: inp.mx, mz: inp.mz, yaw: this.yaw, pitch: this.pitch,
       // ローレディは人の操作からはなくした（0.1.13。撃てなくなるだけで使う理由がない）。AI は今までどおり使う（銃を下げて歩く・投降など）
@@ -442,6 +443,8 @@ export class Match {
       // 息止め: ボタン（構えている間だけ出る。切替か長押し）か、構えているときの Shift（押している間。走りにはならない）
       breath: brBtn || (this.adsOn && !!(this.app.input.keys && this.app.input.keys.has('ShiftLeft'))),
       act: this.acts.length ? this.acts.splice(0) : null, power: 0.75,
+      // 下投げ: 離した後 0.25 秒は残す（オンラインで、離したのと一緒に届くように）
+      under: !!inp.under || performance.now() < (this._underUntil || 0),
       rc: this.rcComp > 0 ? this.rcComp : 0,
     };
     this.rcComp = 0;
@@ -993,7 +996,9 @@ export class Match {
           }
           break;
         }
-        case 'throw': { const a = S.byId[e.id]; au.sfx('throw', a === p ? null : [a.x, a.y + 1.5, a.z], { vol: 0.6 }); break; }
+        case 'throw': { if (e.hand) break; const a = S.byId[e.id]; au.sfx('throw', a === p ? null : [a.x, a.y + 1.5, a.z], { vol: e.under ? 0.4 : 0.6, rate: e.under ? 0.8 : 1 }); break; }
+        // ピンを抜いた（投げ物を握った）: 自分だけ小さな金属の音
+        case 'pin': if (e.id === me) au.sfx('click', null, { vol: 0.5, rate: 1.7 }); break;
         case 'bounce': if (e.v > 2) au.sfx('nadeBounce', [e.x, e.y, e.z], { vol: Math.min(1, e.v / 8) }); break;
         case 'launch': { const a = S.byId[e.id]; if (!a) break;
           if (e.type === 'rpg') {
@@ -1496,8 +1501,10 @@ export class Match {
     // 選んでいた物を持っていない（兵科を替えた・RPG のない兵科）: 投げ物の最初に戻す
     if (this.gearSel === '@long' ? !(p.inv.long && p.inv.long !== 'none' && LONG[p.inv.long]) : this.gearSel && !p.inv.gear.some(g => g.id === this.gearSel)) this.gearSel = (p.inv.gear.find(g => GEAR[g.id].kind === 'nade') || p.inv.gear[0] || {}).id || null;
     if (S.war) this._fixSlots();
+    // 投げ物を手に持っている（下投げのボタンを出す・握っている間の信管の輪）
+    const nadeHeld = !!(p.alive && !p.down && p.ws && p.ws.slot === 2 && p.ws.gear && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'nade');
     const v = {
-      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null, pick: !!(S.war && magNear(S, p)),
+      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null, pick: !!(S.war && magNear(S, p)), under: nadeHeld,
       // ダッシュを押しているが、ほかの操作（構える・リーン・撃つ・リロード）が先で走っていない
       sprWait: !!(p.alive && !p.sprint && this.app.input && (this.app.input.sprintArm || this.app.input.sprintLock)), leanL: this.leanSide < 0, leanR: this.leanSide > 0, nvgOn: this.nvgOn, hasNvg: p.armor.head === 'nvg',
       gearSel: this.gearSel, gearId: p.ws.gear, team: this.team, c4n: S.war ? (S.nades || []).filter(n => n.type === 'c4' && n.by === p.id).length : 0,
@@ -1520,6 +1527,8 @@ export class Match {
     if (c && !tooFar(c)) prompt = `${ctxName(c, S)}: ${OP_NAME[c.def.op] || c.def.op}` + (c.def.far ? '（間に物がある）' : c.ops.length > 1 ? '（長押し: メニュー）' : '');
     if (!c && this.depHint) prompt = this.depHint;
     if (p.act) { v.prog = Math.min(1, p.act.t / p.act.dur); v.progLabel = OP_NAME[p.act.k] || ''; prompt = ''; }
+    // 投げ物を握っている（ピンを抜いた）: 信管の残りを輪で（離すと投げる。0 で手の中で爆発）
+    else if (nadeHeld && p.ws.cook != null && !GEAR[p.ws.gear].impact) { const fz = fuseOf(S, p.ws.gear), left = Math.max(0, fz - p.ws.cook); v.prog = Math.min(1, p.ws.cook / fz); v.progLabel = `${left.toFixed(1)}秒`; }
     if (this.droneId != null) prompt = S.m && S.m.phase === 'prep' && p.staged ? 'ドローン ― 射撃: 敵にマーク／乗り越え: ジャンプ（準備が終わると出現地点に出る）' : 'ドローン ― 射撃: マーク／乗り越え: ジャンプ／ドローン: 戻る';
     else if (p.staged) prompt = '準備中 ― ドローンで偵察できる' + (v.zoneOK ? '（出現地点のボタンで出る場所を選ぶ）' : '');
     if (this.camView != null) prompt = `監視カメラ ${this.camView + 1}/${(S.cams || []).length} ― 射撃: 印をつける／カメラ: 次（長押し・動く: 戻る）`;

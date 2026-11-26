@@ -107,7 +107,7 @@ export class HostSession {
     G.input = {
       mx: isNum(i.mx) ? clamp(i.mx, -1, 1) : 0, mz: isNum(i.mz) ? clamp(i.mz, -1, 1) : 0,
       yaw: isNum(i.y) ? i.y : 0, pitch: isNum(i.p) ? clamp(i.p, -1.5, 1.5) : 0,
-      fire: !!i.f, ads: !!i.a, low: !!i.l, stance: [0, 1, 2].includes(i.s) ? i.s : 0, lean: isNum(i.ln) ? clamp(Math.round(i.ln), -1, 1) : 0, sprint: !!i.sp, breath: !!i.br, rcT: isNum(i.rc) && i.rc >= 0 ? i.rc : null, power: isNum(i.pw) ? clamp(i.pw, 0.1, 1) : 0.75,
+      fire: !!i.f, ads: !!i.a, low: !!i.l, stance: [0, 1, 2].includes(i.s) ? i.s : 0, lean: isNum(i.ln) ? clamp(Math.round(i.ln), -1, 1) : 0, sprint: !!i.sp, breath: !!i.br, rcT: isNum(i.rc) && i.rc >= 0 ? i.rc : null, power: isNum(i.pw) ? clamp(i.pw, 0.1, 1) : 0.75, under: !!i.un,
       jump: !!i.j, dr: !!i.dr,
     };
     G.inAt = nowMs();

@@ -116,26 +116,26 @@ test('war engine: ボットだけの 16対16 が2分動く（撃ち合い・拠�
   console.log(`  16対16 2分: 射撃${shots} キル${kills} 拠点${flags} チケット${G.S.m.tickets.map(t => t.toFixed(0)).join('/')} ${ms.toFixed(2)}ms/ステップ`);
 });
 
-test('war engine: 破片手榴弾（4秒・5mでほぼ致命・15mまで）と衝撃手榴弾（当たると爆発）', async () => {
+test('war engine: 破片手榴弾（BattleBit の wiki: 5秒・人へ 150・半径 8m。致命は約 3.5m）と衝撃手榴弾（当たると爆発）', async () => {
   const { throwNade } = await import('../../src/engine/nades.js');
   const G = game({ bots: true, per: 3 }), S = G.S, me = S.actors[0];
   const foes = S.actors.filter(b => b.team === 1);
   for (const b of S.actors) if (b !== me && !foes.includes(b)) { b.alive = false; b.dead = true; }
   for (const b of foes) b.ai = null;
-  // 平らな所（町の広場）で、敵を 3m と 11m に
+  // 平らな所（町の広場）で、敵を 3m と 6m に
   const cx = 790, cz = 705;
   const put = (b, x, z) => { b.x = x; b.z = z; b.y = heightAt(G.w, x, z); b.vx = b.vz = 0; };
   put(me, cx, cz - 20); me.yaw = 0; me.pitch = 0.25;
-  put(foes[0], cx + 3, cz); put(foes[1], cx + 11, cz); put(foes[2], cx - 40, cz);
+  put(foes[0], cx + 3, cz); put(foes[1], cx + 6, cz); put(foes[2], cx - 40, cz);
   for (let i = 0; i < 30; i++) step(G, inp(me, { yaw: 0, pitch: 0.25 }));
   // 投げる代わりに足もとへ置く（決まった所で爆発させる）
   const n = throwNade(S, me, 'frag', 0.5, []); n.x = cx; n.y = heightAt(G.w, cx, cz) + 0.1; n.z = cz; n.vx = n.vy = n.vz = 0; n.rest = true;
   let boom = -1, evs = [];
-  for (let i = 0; i < 60 * 5 && boom < 0; i++) { const e = step(G, inp(me, { yaw: 0, pitch: 0.25 })); evs.push(...e); if (e.some(x => x.e === 'boom')) boom = i; }
-  ok(boom >= 60 * 3.9 && boom <= 60 * 4.1 + 2, `約4秒で爆発 ${(boom / 60).toFixed(2)}秒`);
+  for (let i = 0; i < 60 * 6 && boom < 0; i++) { const e = step(G, inp(me, { yaw: 0, pitch: 0.25 })); evs.push(...e); if (e.some(x => x.e === 'boom')) boom = i; }
+  ok(boom >= 60 * 4.9 && boom <= 60 * 5.1 + 2, `約5秒で爆発 ${(boom / 60).toFixed(2)}秒`);
   const hp = foes.map(b => b.alive ? Math.round(b.hp) : (b.down ? 'down' : 'dead'));
   ok(!foes[0].alive || foes[0].down || foes[0].hp <= 0, `3m は倒れる ${hp[0]}`);
-  ok(foes[1].alive && foes[1].hp < foes[1].maxHp && foes[1].hp > foes[1].maxHp / 2, `11m は少し傷つく ${hp[1]}/${foes[1].maxHp}`);
+  ok(foes[1].alive && foes[1].hp < foes[1].maxHp && foes[1].hp > 10, `6m は傷つくが生きている ${hp[1]}/${foes[1].maxHp}`);
   ok(foes[2].hp === foes[2].maxHp, '40m は無傷');
   // 衝撃手榴弾: 地面に向けて投げる → 当たったら爆発（1秒以内）
   const G2 = game(), b = G2.S.actors[0];
