@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-26T09:38:03.112Z）
+HARD ENTRY ソース一式（2026-11-26T09:51:30.327Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 162482
+@@@@ FILE DESIGN.md text 162853
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -396,6 +396,7 @@ HARD ENTRY ソース一式（2026-11-26T09:38:03.112Z）
 - 11-26 WAR BIT 0.1.52（建物が崩れる）: 12:12 の「建築物の破壊の仕方を BattleBit に」。BattleBit: 太い柱・はりを RPG・C4 で壊すと建物が崩れ、中の人はがれきで死ぬ。大きい建物は崩れない（research 52）。ここでは建物ごとに「構造の傷み」をためる: 建物の中か壁から 1.5m までの重い爆発（C4 1・RPG 0.7。手榴弾・弾・ハンマーは数えない）。崩れる量: 家 3・平屋 2・店 3・納屋 2.5・礼拝堂 4・見張り塔 2・廃墟 2・ガソリンスタンド 3（推測）。集合住宅・事務所・倉庫・トーチカは崩れない。崩れると建物の箱・段・描くだけの面が消え、がれきの山（4〜12・高さ 0.4〜1.2m・乗れる・建物の番号で同じ位置）が残る。中の人（床から屋根まで・壁から 0.3m まで）は死ぬ（崩した人の倒した数）。土ぼこり・がれき・低いとどろき・近いと画面が揺れる。オンラインの参加側は 'collapse' の知らせで同じに崩す。試合のあとは元に戻す。単体テスト war_collapse
 - 11-26 WAR BIT 0.1.53（ボットの耳・軽く）: 12:12 の「人間らしい視覚・行動・判断」。見えないが聞こえた敵（壁・角の向こうの銃声 90m まで・走る足音 16m まで）の、おおよその向き（±8°〜。遠いほどずれる）へ振り向く。振り向いている間は、歩いても向きを道の向きで消さない（振り向いて見回しで見つける）。狙う相手がいるとき・振り向いて 1.5 秒の間はしない。軽く: 遠い形（遠くの塊）に、建物の中に収まる箱（仕切りの壁・段・家具。外から見えない）を入れない（遠い形の三角形 約 4% 減）。音ごとの響きへの送りの節を 2 つから 1 つに。単体テスト war_vision（壁の向こうの銃声）
 - 11-26 WAR BIT 0.1.54（狙いの精度）: 12:20 の「エイム操作の正確さ・緻密さ」。① 重いこまで指の動きがまとめて届いたとき、まとめられた一つ一つ（getCoalescedEvents。時刻つき）を見回しに足す（時刻で直線に求める lookres.js が、こまの間の指の動きを正しくたどる。動いた合計は同じ。使えない端末は前と同じ）。② 構えの途中（覗き込み 0.2〜0.8）は、腰だめと構えの感度の間をなめらかに移す（前は半分を超えた瞬間に感度が跳び、構えながら狙うと照準が急に遅くなった）
+- 11-26 WAR BIT 0.1.55（殴ってガラスを割る）: 18:30 の指摘「近接で窓ガラスが割れない」。殴ったときに当たったのが大規模戦の窓ガラスなら割る（前は作戦・対戦のガラスの割り方を呼んでいて、大規模戦の板には効かなかった）。大ハンマーも 1 回で割る。単体テスト war_glass
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -6692,7 +6693,7 @@ export function applyBarsNet(S, w, BR) {
   return changed;
 }
 
-@@@@ FILE src/engine/combat.js text 33466
+@@@@ FILE src/engine/combat.js text 33785
 // 弾と当たり: 弾丸は速さと重力を持ち、1ステップごとの線分で当たりを調べる。材質を貫通して弱まる（RoNの式）。
 // ダメージは PvE（RoN換算・防具・負傷・出血）と PvP（R6寄り・頭は即死・手足75%・ダウン）の2系統。
 import { raycast, CS, LH, levelOfY, glassPane } from './world.js';
@@ -7186,6 +7187,8 @@ function meleeHit(S, w, a, ev) {
   if (wh && wh.t0 < bt) {
     const x = eye[0] + dx * wh.t0, y = eye[1] + dy * wh.t0, z = eye[2] + dz * wh.t0;
     if (wh.kind === 'bar') bashBar(S, w, wh.bar, y, ev, a.id);
+    // 大規模戦の窓ガラス: 殴ると割れる（11-26 の指摘: 前は作戦・対戦のガラスの割り方を呼んでいて、割れなかった）
+    else if (w.war && wh.kind === 'box' && wh.mat === M.GLASS) { const gb = w.boxes[wh.id]; if (gb && gb.kind === 'glass') shatter(S, w, gb, ev, x, y, z); }
     else if (wh.mat === M.GLASS) breakGlass(S, w, Object.assign({}, wh, { by: a.id }), ev);
     ev.push({ e: 'meleehit', id: a.id, k: wh.kind === 'bar' ? 'bar' : wh.kind === 'door' ? 'door' : 'wall', m: wh.mat, x, y, z });
     if (wh.kind === 'door') ev.push({ e: 'door', d: wh.id, k: 'knock', id: a.id, loud: 0.45 });
@@ -7623,7 +7626,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.54';
+export const VERSION = '0.1.55';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -8653,7 +8656,7 @@ export function load(o) {
 }
 export { CS, LH };
 
-@@@@ FILE src/engine/interact.js text 65968
+@@@@ FILE src/engine/interact.js text 66231
 // 調べる・使う: 見ている物（扉・人・落ちている物・爆弾・壁）と、そのときできる操作。時間のかかる動作の進み。
 import { placeAmmo } from './ammobox.js';
 import { placeMine } from './mines.js';
@@ -8665,7 +8668,7 @@ import { eyeOf, dropWeapon, capsOf, wristsOf, startMelee } from './combat.js';
 import { throwNade, launchNade, launchRocket } from './nades.js';
 import { pvpDamage, hurt } from './combat.js';
 import { rayCapsule } from './pose.js';
-import { carve } from '../war/destruct.js';
+import { carve, shatter } from '../war/destruct.js';
 import { placeBar, clearBar, bashBar } from './barricade.js';
 import { curW } from './actor.js';
 import { startReload, switchTo, m320Next, cancelReload } from './weapon.js';
@@ -9599,6 +9602,8 @@ function hammerHit(S, w, a, ev) {
   if (!hw) { ev.push({ e: 'hammer', id: a.id, k: 'air' }); return; }
   const hx = eye[0] + dx * hw.t0, hy = eye[1] + dy * hw.t0, hz = eye[2] + dz * hw.t0;
   ev.push({ e: 'hammer', id: a.id, k: 'wall', x: hx, y: hy, z: hz, m: hw.mat, nx: hw.nx, ny: hw.ny, nz: hw.nz });
+  // 大規模戦の窓ガラス: 1回で割れる
+  if (w.war && hw.kind === 'box' && hw.mat === M.GLASS) { const gb = w.boxes[hw.id]; if (gb && gb.kind === 'glass') shatter(S, w, gb, ev, hx, hy, hz); return; }
   // 大規模戦の壁・床: 同じ箱を決まった回数叩くと穴
   if (w.war && hw.kind === 'box') {
     const b = w.boxes[hw.id];
@@ -9803,6 +9808,7 @@ function detonateMine(S, w, a, ev) {
   if (!any) ev.push({ e: 'deny', id: a.id, why: 'nodet' });
 }
 export { launchNade };
+export { hammerHit as hammerHitForTest };
 
 @@@@ FILE src/engine/light.js text 14362
 // 光の格子: マスの角 × 高さ3段（床0.12・胸1.4・天井2.66）× 階。各点に6方向（+X −X +Y −Y +Z −Z）の明るさ（RGB）。
@@ -35750,7 +35756,7 @@ test('敵に印（spot）: 狙っている向きの見えている敵に印が�
   ok(sp && sp.team === me.team && Math.abs((sp.until - S.t) * S.dt - SPOT_T) < 0.1, `印は ${SPOT_T} 秒`);
 });
 
-@@@@ FILE tests/unit/war_glass.test.mjs text 2475
+@@@@ FILE tests/unit/war_glass.test.mjs text 3653
 // 11-26: 大規模戦の窓ガラス。外壁の窓にある・透けて見える・弾で割れて弾は通る・爆発で割れる・乗り越えで割る・元に戻せる
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
@@ -35789,6 +35795,23 @@ test('弾が当たると割れて、弾はそのまま通る', async () => {
   const ev = []; for (let i = 0; i < 3; i++) ev.push(...step(G, {}));
   ok(!b.alive, 'ガラスが割れた');
   ok(ev.some(e => e.e === 'wglass'), '知らせ');
+});
+test('殴る・大ハンマーで割れる', async () => {
+  const G = game(), S = G.S, w = G.w, me = S.actors[0];
+  for (const [label, act] of [['殴る', { a: 'melee' }], ['大ハンマー', null]]) {
+    const b = panes(w).find(q => q.alive && q.y0 - 0 < 1e9 && !q._used); b._used = true;
+    const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, cz = (b.z0 + b.z1) / 2, thinX = b.x1 - b.x0 < b.z1 - b.z0;
+    // ガラスの前 0.8m・目の高さがガラスのまん中
+    me.x = cx - (thinX ? 0.8 : 0); me.z = cz - (thinX ? 0 : 0.8); me.y = cy - 1.55; me.vy = 0;
+    me.yaw = Math.atan2(cx - me.x, cz - me.z); me.pitch = 0;
+    const evs = [];
+    if (act) { for (let i = 0; i < 40 && b.alive; i++) { me.x = cx - (thinX ? 0.8 : 0); me.z = cz - (thinX ? 0 : 0.8); me.y = cy - 1.55; me.vy = 0; evs.push(...step(G, { [me.id]: { mx: 0, mz: 0, yaw: me.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: i === 0 ? [act] : null } })); } }
+    else {
+      const { hammerHitForTest } = await import('../../src/engine/interact.js');
+      if (hammerHitForTest) hammerHitForTest(S, w, me, evs);
+    }
+    ok(!b.alive, label + 'で割れた');
+  }
 });
 
 @@@@ FILE tests/unit/war_hammer.test.mjs text 4009
