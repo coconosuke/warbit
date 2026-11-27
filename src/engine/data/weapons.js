@@ -296,7 +296,7 @@ export const ATTACH = {
     // 16 倍より上（11-27。BattleBit の Sights: 15x・20x・PTR-40 Hunter（画像の名前から 40 倍）。research の 50・66）。倍率は固定。照準の模様は狙撃用と同じ
     scope15: { name: '15倍スコープ', zoom: 15.0, ads: 0.1, scope: true, ret: 'sniper', desc: '15倍の固定倍率。とても遠い的を狙える。視野が狭く、近くはほとんど見えない。構えるのが遅い。' },
     scope20: { name: '20倍スコープ', zoom: 20.0, ads: 0.11, scope: true, ret: 'sniper', desc: '20倍の固定倍率。揺れが大きく見えるので、伏せるか息を止めて狙う。' },
-    scope40: { name: '40倍スコープ', zoom: 40.0, ads: 0.13, scope: true, ret: 'sniper', desc: '40倍の固定倍率（本家の PTR-40 Hunter に当たる）。1km を超える的のための物。二脚と伏せがほぼ要る。' },
+    scope40: { name: '40倍スコープ', zoom: 40.0, ads: 0.13, scope: true, ret: 'sniper', desc: '40倍の固定倍率（本家の PTR-40 Hunter に当たる）。1km を超える的のための物。バイポッドと伏せがほぼ要る。' },
     rmr: { name: 'ピストル用ドットサイト（RMR）', zoom: 1.05, ads: 0.01 },
     sro: { name: 'ピストル用広窓ドット（SRO）', zoom: 1.05, ads: 0.012, desc: '丸い大きな窓で、ドットを見失いにくい。' },
   },
@@ -315,8 +315,9 @@ export const ATTACH = {
     angled: { name: '斜めのグリップ', rch: 0.82, ads: -0.01, desc: '横の反動を抑える。構えも少し速い。' },
     stubby: { name: '短い縦のグリップ', rcv: 0.93, rch: 0.9, desc: '縦と横の反動を少しずつ抑える。' },
     handstop: { name: 'ハンドストップ', ads: -0.03, rcfirst: 0.92, desc: '手を前で止めて押し込む。構えがいちばん速い。' },
-    // 二脚（11-27。BattleBit: 伏せるか、物に銃を当てると自動で立つ。立っている間は印が出る。research の 50・66）。立っている間の効き目は推測
-    bipod: { name: '二脚（バイポッド）', ads: 0.03, bipod: true, desc: '伏せるか、塀・窓の縁・物の上に銃を載せて止まると自動で立つ。立っている間は揺れがなくなり、反動が小さい。構えは少し遅い。' },
+    // バイポッド（11-27。BattleBit: 構えている時に、伏せるか物に銃を載せると自動で立つ。立っている間は画面の下に印。research の 50・66・72）。
+    //  付けているだけで: 構え +70%・リロード +25%・取り出し +25%・走る -20%（Wiki の Bipod の数字。幅のあるものは小さい方）。立てていない時は反動が悪い（weapon.js）
+    bipod: { name: 'バイポッド', adsK: 1.7, reload: 1.25, drawK: 1.25, move: 0.8, bipod: true, desc: '構えている時に、伏せるか塀・窓の縁・物の上に銃を載せると自動で立つ。立っている間は揺れがなく反動が小さいが、立てていない時は反動がとても大きく、構え・リロードが遅く、走るのも遅い。' },
   },
   side: {
     none: { name: 'なし' },

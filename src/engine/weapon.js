@@ -10,16 +10,17 @@ export { hrand };
 const DEG = Math.PI / 180;
 const _amCache = new WeakMap();
 export function attMods(wi) {
-  if (!wi) return { rcv: 1, rch: 1, rcfirst: 1, ads: 0, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1 };
+  if (!wi) return { rcv: 1, rch: 1, rcfirst: 1, ads: 0, adsK: 1, drawK: 1, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1 };
   const key = wi.att.sight + wi.att.muzzle + wi.att.grip + wi.att.side + wi.att.mag + wi.att.stock;
   const c = _amCache.get(wi);
   if (c && c.key === key) return c.m;
-  const m = { rcv: 1, rch: 1, rcfirst: 1, ads: 0, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1 };
+  const m = { rcv: 1, rch: 1, rcfirst: 1, ads: 0, adsK: 1, drawK: 1, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1 };
   const A = ATTACH, a = wi.att;
   for (const x of [A.sight[a.sight], A.muzzle[a.muzzle], A.grip[a.grip], A.side[a.side], A.mag[a.mag], A.stock[a.stock]]) {
     if (!x) continue;
     if (x.rcv) m.rcv *= x.rcv; if (x.rch) m.rch *= x.rch; if (x.rcfirst) m.rcfirst *= x.rcfirst;
     if (x.bipod) m.bipod = true;
+    if (x.adsK) m.adsK *= x.adsK; if (x.drawK) m.drawK *= x.drawK;
     if (x.ads) m.ads += x.ads; if (x.noise) m.noise *= x.noise; if (x.vel) m.vel *= x.vel; if (x.flash != null) m.flash *= x.flash;
     if (x.zoom) m.zoom = Math.max(m.zoom, x.zoom); if (x.scope) m.scope = true;
     if (x.reload) m.reload *= x.reload; if (x.move) m.move *= x.move; if (x.spread) m.spread *= x.spread;
@@ -48,12 +49,14 @@ export function spreadDeg(S, a, W, wi) {
 }
 
 // 二脚が立つか（伏せ: 銃の前 0.8m の地面が体の高さから ±0.3m。立ち・しゃがみ: 止まっていて、銃の 0.6m 先の真下 0.3m 以内に物の面があり、銃の先が壁に入っていない）
-export const BIPOD = { recoil: 0.6 };
+// バイポッド（BattleBit Wiki の Bipod）: 立てた時の反動（推測）・立てていない時の反動・初弾の跳ね・反動の戻り・上下に向けられる角度（rad。推測）
+export const BIPOD = { recoil: 0.6, offRecoil: 1.4, offFirst: 1.6, offCtrl: 0.6, pitch: 0.44 };
 export const DROPSHOT = { recoil: 1.8 };
 const _bh = [];
 const minT = (h) => { let t = 1e9; for (const q of h) if (q.t0 < t) t = q.t0; return t; };
 function bipodUp(S, w, a) {
-  if (a.sprint || a.vault || a.air || a.down || (a.spd || 0) > 0.35 || Math.abs(a.lean || 0) > 0.3) return false;
+  // 上や下へ向けすぎると立たない（本家も「上下に向けすぎるとバイポッドの効き目が消える」）
+  if (a.sprint || a.vault || a.air || a.down || (a.spd || 0) > 0.35 || Math.abs(a.lean || 0) > 0.3 || Math.abs(a.pitch || 0) > BIPOD.pitch) return false;
   const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
   if (a.st > 1.5) {
     const y0 = a.y + 0.45, t = minT(raycast(w, a.x + fx * 0.8, y0, a.z + fz * 0.8, 0, -1, 0, 0.8, S.doors, { out: _bh }));
@@ -74,7 +77,8 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   // 指で下へ押さえた分（大規模戦の人の操作 inp.rc 度）は反動の分から引く（戻りで二重に下がらない。game.js _look）
   if (inp.rc > 0 && ws.rp > 0) ws.rp = Math.max(0, ws.rp - Math.min(inp.rc, 30));
   if (W) {
-    const ctrl = W.rc.ctrl * (since > 0.12 ? 1 : 0.25);
+    // バイポッドを付けていて立っていない: 反動の戻り（コントロール）が 4 割弱い（BattleBit Wiki の Bipod）
+    const ctrl = W.rc.ctrl * (since > 0.12 ? 1 : 0.25) * (wi && !a.bip && attMods(wi).bipod ? BIPOD.offCtrl : 1);
     const dec = ctrl * dt;
     if (ws.rp > 0) ws.rp = Math.max(0, ws.rp - dec); else ws.rp = Math.min(0, ws.rp + dec);
     ws.ry *= since > 0.12 ? Math.pow(0.02, dt) : Math.pow(0.6, dt);
@@ -89,7 +93,7 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   a.adsOn = !!inp.ads && !busy && canAim(a);
   a.lowOn = !!inp.low && !a.adsOn;
   // 突撃は近い照準器（2 倍まで）で構えるのが 20% 速い（BattleBit の Wiki の Classes。research の 41）
-  const adsT = (W ? W.ads + attMods(wi).ads : 0.25) * (S.war && a.warCls === 'assault' && zoomOf(wi) <= 2 ? CLS.adsK : 1);
+  const adsT = (W ? (W.ads + attMods(wi).ads) * attMods(wi).adsK : 0.25) * (S.war && a.warCls === 'assault' && zoomOf(wi) <= 2 ? CLS.adsK : 1);
   a.ads = Math.max(0, Math.min(1, a.ads + (a.adsOn ? dt / adsT : -dt / (adsT * 0.8))));
   a.low = Math.max(0, Math.min(1, a.low + (a.lowOn ? dt * 5 : -dt * 6)));
   // 構えたときの照準の揺れ（度。弾も揺れた向きへ飛ぶ。11-12 22:05: どの銃も。実際に沿って、強さは程よく）
@@ -116,7 +120,8 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
     }
   }
   // 二脚（11-27）: 伏せるか、止まって銃を物の上に載せると自動で立つ（4 ステップごとに確かめる）
-  if (W && wi && attMods(wi).bipod && (a.ads > 0.3 || inp.fire)) { if (((S.t + a.id) & 3) === 0 || a.bip == null) a.bip = bipodUp(S, w, a); }
+  // 立てるのは構えている時だけ（本家: 伏せるか物に載せて、狙っている時に自動で立つ。切り替えのキーはない）
+  if (W && wi && attMods(wi).bipod && a.ads > 0.3) { if (((S.t + a.id) & 3) === 0 || a.bip == null) a.bip = bipodUp(S, w, a); }
   else a.bip = false;
   if (W && a.ads > 0.01) {
     const still = (a.spd || 0) < 0.3 && a.ads > 0.95;
@@ -203,7 +208,7 @@ function finishState(S, a, ev) {
   const ws = a.ws, wi = curWeapon(a), W = curW(a);
   const st = ws.st;
   if (st === 'draw') { ws.st = 'ready'; ws.t = 0; }
-  else if (st === 'holster') { ws.slot = ws.next; ws.next = -1; ws.st = 'draw'; const W2 = curW(a); ws.t = (W2 ? W2.draw : ws.slot === 3 ? (LONG[a.inv.long] && LONG[a.inv.long].draw) || 0.6 : 0.3) * (S.war && a.warCls === 'assault' ? CLS.swapK : 1); if (ev) ev.push({ e: 'draw', id: a.id, slot: ws.slot }); }
+  else if (st === 'holster') { ws.slot = ws.next; ws.next = -1; ws.st = 'draw'; const W2 = curW(a); ws.t = (W2 ? W2.draw * attMods(curWeapon(a)).drawK : ws.slot === 3 ? (LONG[a.inv.long] && LONG[a.inv.long].draw) || 0.6 : 0.3) * (S.war && a.warCls === 'assault' ? CLS.swapK : 1); if (ev) ev.push({ e: 'draw', id: a.id, slot: ws.slot }); }
   else if (st === 'reload' && wi && W) {
     // 弾倉を替える
     if (ws.rk === 'rev') { const need = magCap(wi) - wi.mag; const take = Math.min(need, wi.res); wi.mag += take; wi.res -= take; }
@@ -451,8 +456,10 @@ function tryFire(S, w, a, W, wi, inp, ev) {
     const gap = (S.t - ws.lastShot) * S.dt; if (gap < 0.35) mul *= 1 + 0.7 * (0.35 - gap) / 0.35;
   }
   if (S.war && wi.id === 'm249') mul *= Math.max(0.7, 1 - 0.015 * sh);
-  // 二脚が立っている: 反動が小さい（0.6 倍。数字は推測）
+  // バイポッド: 立っている間は反動が小さい（0.6 倍。推測）。付けていて立っていない時は反動 1.4 倍・初弾の跳ね 1.6 倍（BattleBit Wiki の Bipod:
+  //  「立てると反動がとても良くなり揺れがなくなるが、立てていない時は反動がとても悪くなる」。縦・横 +40%・初弾 +60%）
   if (a.bip) mul *= BIPOD.recoil;
+  else if (m.bipod) { kv *= sh === 0 ? BIPOD.offFirst : BIPOD.offRecoil; kh *= BIPOD.offRecoil; }
   if (S.rules && S.rules.recoil) mul *= S.rules.recoil;
   ws.rp += kv * mul; ws.ry += kh * mul;
   ws.bloom = Math.min(W.sp.hip * 0.8, ws.bloom + W.sp.hip * 0.1 * (1 - 0.7 * a.ads));

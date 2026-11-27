@@ -837,6 +837,25 @@ try {
       rec('WAR BIT', '出撃の予約: 待ちの間に DEPLOY を押すと READY（予約）、もう一度押すとやめる', !!q1 && (q1.alive || (q1.q && /READY/.test(q1.t) && /やめる/.test(q1.t) && !!q2 && !q2.q && !q2.alive && /DEPLOY/.test(q2.t))), JSON.stringify({ q1, q2 }));
       if (q1 && q1.alive) await page.evaluate(() => { const p = window.__app.game.p; p.oob = 9.95; p.x = window.__app.game.S.m.rect[0] - 25; });
       await page.waitForFunction(() => document.querySelector('#hud .hud-deploy.on .dps-go'), null, { timeout: 90000 }).catch(() => {}); }
+    // 11-27 14:27: ビーコンを選んで予約した後、待っている間にビーコンが壊されると、予約がやめになり「選び直す」になる（DEPLOY は押せない）。本陣を選ぶと戻る
+    { const pre = await page.evaluate(() => { const g = window.__app.game, S = g.S, r = S.m.respawn.find(q => q.id === g.p.id); if (r) r.at = S.t + Math.round(30 / S.dt); return !!r && !g.p.alive; });
+      let st = null;
+      const bc = pre && await center('#hud .dps-p.bcn');
+      if (bc) {
+        await tapAt(bc, 88); await page.waitForTimeout(250);
+        await tapAt(await center('#hud .dps-go'), 89);
+        await page.waitForFunction(() => window.__app.game.p.deployAt === 'rally', null, { timeout: 10000 }).catch(() => {});
+        const q = await page.evaluate(() => window.__app.game.p.deployAt);
+        await page.evaluate(() => { const g = window.__app.game, p = g.p; for (const r of g.S.rallies || []) if (r.team === p.team && r.sq === p.squad) r.hp = 0; });
+        await page.waitForFunction(() => !window.__app.game.p.deployAt && document.querySelector('#hud .dps-mapw.pick'), null, { timeout: 10000 }).catch(() => {});
+        st = await page.evaluate(() => ({ q: window.__app.game.p.deployAt, pick: !!document.querySelector('#hud .dps-mapw.pick'), dis: !!document.querySelector('#hud .dps-go.dis'), msg: ((document.querySelector('#hud .dps-go small') || {}).textContent || '') }));
+        st.q0 = q;
+        await shot('WAR-出撃の場所を選び直す');
+        await tapAt(await center('#hud .dps-p.hq'), 90); await page.waitForTimeout(300);
+        st.after = await page.evaluate(() => ({ pick: !!document.querySelector('#hud .dps-mapw.pick'), dis: !!document.querySelector('#hud .dps-go.dis'), sel: window.__app.game.dsel }));
+      }
+      await page.evaluate(() => { const g = window.__app.game, S = g.S, r = S.m.respawn.find(q => q.id === g.p.id); if (r) r.at = S.t + 1; });
+      rec('WAR BIT', '出撃の予約: 待っている間にビーコンが壊されると予約がやめになり、場所を選び直す（DEPLOY は押せない）→ 本陣を選ぶと戻る', !!st && st.q0 === 'rally' && !st.q && st.pick && st.dis && /ビーコンが壊された/.test(st.msg) && !st.after.pick && !st.after.dis && st.after.sel === 'hq', JSON.stringify(st)); }
     await tapAt(await center('#hud .dps-go'), 77);
     await page.waitForFunction(() => window.__app.game.p.alive, null, { timeout: 90000 }).catch(() => {});
     const rs = await page.evaluate(() => { const g = window.__app.game, p = g.p, hq = g.S.m.hq[p.team]; return { alive: p.alive, d: Math.hypot(p.x - hq[0], p.z - hq[1]), tk: g.S.m.tickets[p.team], cls: p.warCls }; });
@@ -935,6 +954,13 @@ try {
       p.down = true; p.dbno = 9999; p.hp = 0; });
     await page.waitForFunction(() => document.querySelector('#hud .hud-giveup.on'), null, { timeout: 10000 }).catch(() => {});
     const on = await page.evaluate(() => !!document.querySelector('#hud .hud-giveup.on'));
+    // 11-27 14:22: 倒れている間は、倒れている表示（残りの帯と秒）と這うスティックが出る（前はスティックが消えていた）
+    {
+      await page.waitForFunction(() => document.querySelector('#hud .hud-downp.on'), null, { timeout: 5000 }).catch(() => {});
+      const dp = await page.evaluate(() => { const d = document.querySelector('#hud .hud-downp'), st = document.querySelector('#hud .hud-stick'), r = d && d.getBoundingClientRect();
+        return { panel: !!(d && d.classList.contains('on') && r.width > 50 && r.height > 20), txt: d ? d.textContent.replace(/\s+/g, ' ').trim() : '', stick: !!st && getComputedStyle(st).visibility !== 'hidden' && st.getBoundingClientRect().width > 20 }; });
+      rec('画面', 'ダウン中: 倒れている表示（残りの帯と秒）と這うスティックが出る', dp.panel && dp.stick && /倒れた|起こされている/.test(dp.txt), JSON.stringify(dp));
+    }
     const c = await center('#hud .hud-giveup');
     let arm = false, dep = {};
     if (c) {

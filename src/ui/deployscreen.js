@@ -84,6 +84,8 @@ export class DeployScreen {
         <div class="dps-cls">${d.classes.map(c => `<div class="dps-c${c.id === d.cls ? ' on' : ''}${c.ok ? '' : ' dis'}" data-btn="dcls" data-sub="${c.id}" role="button" aria-label="${esc(c.name)}">${clsIcon(c.id)}<span>${esc(c.short)}</span></div>`).join('')}</div>
         <div class="dps-go${d.canGo ? '' : ' dis'}${d.queued ? ' queued' : ''}" data-btn="dgo" role="button"><b>${go}</b>${d.msg ? `<small>${esc(d.msg)}</small>` : ''}</div>`;
     }
+    // 予約をやめられた（選んだ場所が使えなくなった）: 地図の上に「場所を選び直す」・印を点滅
+    if (C.pick !== d.pick) { C.pick = d.pick; this.mapw.classList.toggle('pick', !!d.pick); }
     this._map(d);
   }
   // 地図: 範囲に合わせて大きさを決め、拠点・本陣・仲間を描く。出撃の場所は押せる印（DOM）

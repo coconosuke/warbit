@@ -234,6 +234,92 @@ function hammer(sr, seed) { const r = rng(seed), out = buf(sr, 1.1); for (let k 
 function droneLoop(sr, seed) { const r = rng(seed), out = buf(sr, 1.0); const n = out.length; const a = sine(n, sr, 180, 180); const b = sine(n, sr, 362, 362); for (let i = 0; i < n; i++) out[i] = (Math.sign(a[i]) * 0.3 + b[i] * 0.2) * (0.8 + 0.2 * Math.sin(i / sr * TAU * 8)); const z = noise(n, r); bp(z, 900, 2, sr); mixInto(out, z, 0, 0.3); lp(out, 2500, sr); for (let i = 0; i < n; i++) { const t = i / sr; out[i] *= Math.min(1, t / 0.06) * Math.min(1, (1.0 - t) / 0.3); } return normalize(out, 0.4); }
 function nvgWhine(sr, seed) { const out = buf(sr, 0.6); const n = out.length; const s = sine(n, sr, 3000, 9000); mulEnv(s, env(n, sr, 0.3, 0.3, 1)); mixInto(out, s, 0, 1); return fadeEdges(normalize(out, 0.18), sr); }
 function ring(sr) { const out = buf(sr, 4.0); const n = out.length; const s = sine(n, sr, 4100, 3950); mulEnv(s, env(n, sr, 0.05, 3.9, 1.6)); mixInto(out, s, 0, 1); return fadeEdges(normalize(out, 0.5), sr); }
+// ---- 体と装備の音（11-27 14:29「ジャンプの音がチープ。衣服や装備の擦れる音、装備の揺れる音のようなリアルな音に」）
+// 布のこすれ（制服・プレートキャリアのナイロン）: 細かい粒（2〜9ms のパチパチ）を動きの山に沿ってばらまき、下に体の動きのさっと流れる音を敷く
+function rustle(sr, r, dur, o = {}) {
+  const n = S(sr, dur), out = new Float32Array(n);
+  const f = o.f || 2400, dens = o.dens || 900, peak = o.peak || 0.25;
+  const e = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const t = i / n; e[i] = t < peak ? Math.pow(t / peak, 1.5) : Math.pow(Math.max(0, 1 - (t - peak) / (1 - peak)), 2.2); }
+  // さっと流れる音は低め（体の大きな動き・厚い布）
+  const sw = noise(n, r); bp(sw, f * 0.18, 0.7, sr); lp(sw, 1800, sr);
+  for (let i = 0; i < n; i++) sw[i] *= e[i];
+  mixInto(out, sw, 0, 1.0);
+  // 粒は、3つの帯に分けた雑音から切り出す（粒ごとに作り直すと重い）
+  const bands = [0.45, 0.75, 1.15].map(k => lp(bp(noise(n, r), f * k, 1.8, sr), 5000, sr));
+  const cnt = Math.round(dens * dur);
+  for (let k = 0; k < cnt; k++) {
+    let t = r(); for (let q = 0; q < 6 && r() > e[Math.min(n - 1, Math.floor(t * n))]; q++) t = r();
+    const m = S(sr, 0.002 + r() * 0.007), at = Math.min(n - m - 1, S(sr, t * dur)), B = bands[(r() * 3) | 0], g = (0.15 + Math.pow(r(), 2) * 0.85) * e[Math.min(n - 1, at)] * 1.3;
+    for (let i = 0; i < m; i++) out[at + i] += B[at + i] * Math.sin(Math.PI * i / m) * g;
+  }
+  return out;
+}
+// 装備の当たる小さな音。k: buckle（樹脂のバックル・ポーチの留め具）・mag（弾倉どうし。鈍い）・metal（スリングの金具・カラビナ）・rifle（銃がプレートに当たる）
+// 減衰する正弦（回転で作る。sine＋expEnv より軽い）
+function dsin(n, sr, f, tau, ph = 0) { const x = new Float32Array(n), w = TAU * f / sr, c = Math.cos(w), sn = Math.sin(w), d = Math.exp(-1 / (tau * sr)); let re = Math.cos(ph), im = Math.sin(ph); for (let i = 0; i < n; i++) { x[i] = im; const nr = (re * c - im * sn) * d; im = (re * sn + im * c) * d; re = nr; } return x; }
+function gearHit(sr, r, k, g = 1) {
+  const dur = k === 'rifle' ? 0.1 : 0.05, n = S(sr, dur), out = new Float32Array(n);
+  if (k === 'metal') {
+    const z = noise(S(sr, 0.006), r); hp(z, 2500, sr); mulEnv(z, expEnv(z.length, sr, 0.0002, 0.0015)); mixInto(out, z, 0, 0.6 * g);
+    const f = 2600 + r() * 2200; for (const [m, a] of [[1, 0.35], [1.53, 0.2], [2.41, 0.12]]) mixInto(out, dsin(n, sr, f * m * (0.98 + r() * 0.04), 0.008 + r() * 0.01, r() * TAU), 0, a * g);
+    return out;
+  }
+  const f = k === 'buckle' ? 1000 + r() * 900 : k === 'mag' ? 520 + r() * 380 : 210 + r() * 120;
+  const z = noise(n, r); bp(z, f * 1.6, k === 'buckle' ? 2.2 : 1.4, sr); mulEnv(z, expEnv(n, sr, 0.0002, k === 'rifle' ? 0.012 : 0.006)); mixInto(out, z, 0, g);
+  mixInto(out, dsin(n, sr, f, k === 'rifle' ? 0.022 : k === 'mag' ? 0.012 : 0.007, r() * TAU), 0, 0.6 * g);
+  if (k === 'rifle') mixInto(out, dsin(n, sr, f * 2.6, 0.01, r() * TAU), 0, 0.3 * g);
+  return out;
+}
+// 装備の揺れ: t0 から span 秒の間に cnt 回（はじめに固まる）。跳ね返りで小さくもう一度
+function rattle(out, sr, r, t0, span, cnt, g = 1, mix = { buckle: 0.4, mag: 0.33, metal: 0.15, rifle: 0.12 }) {
+  const ks = Object.keys(mix);
+  for (let i = 0; i < cnt; i++) {
+    let u = r(), k = ks[ks.length - 1]; for (const q of ks) { if (u < mix[q]) { k = q; break; } u -= mix[q]; }
+    const tt = Math.pow(r(), 1.6) * span, gg = g * (0.45 + r() * 0.55) * (1 - 0.5 * tt / span);
+    mixInto(out, gearHit(sr, r, k, gg), S(sr, t0 + tt), 1);
+    if (r() < 0.45) mixInto(out, gearHit(sr, r, k, gg * 0.4), S(sr, t0 + tt + 0.012 + r() * 0.03), 1);
+  }
+}
+// ナイロンのベルト・スリングがきしむ（細かいこすれの連なり）
+function strap(sr, r, dur, f = 1300) { const n = S(sr, dur), out = new Float32Array(n); let t = 0.004; while (t < dur - 0.008) { const m = S(sr, 0.004), z = noise(m, r); mulEnv(z, expEnv(m, sr, 0.0001, 0.0008)); mixInto(out, z, S(sr, t), 0.5 + 0.5 * Math.sin(Math.PI * t / dur)); t += 1 / (90 + r() * 70); } bp(out, f, 1.6, sr); return out; }
+// 跳ぶ（踏み切り）: 体重をかけて蹴る低い押し込み・靴底のこすれ・体が伸びる時の布・遅れて付いてくる装備が当たる
+function jumpUp(sr, seed) {
+  const r = rng(seed), out = buf(sr, 0.6);
+  // 踏み込む重さ（低い押し込み＋体の重さの低いうなり）
+  mixInto(out, thump(sr, r, 74 + r() * 10, 44, 0.18, 1.0), 0, 1);
+  // スマホのスピーカーでも重さが出るように、胸の高さの響き（150〜250Hz）も
+  mixInto(out, thump(sr, r, 210 + r() * 30, 140, 0.07, 0.45), 0, 1);
+  { const m = S(sr, 0.12), z = noise(m, r); lp(z, 160, sr); mulEnv(z, env(m, sr, 0.01, 0.1, 2)); mixInto(out, z, 0, 1.6); }
+  { const m = S(sr, 0.07), z = noise(m, r); bp(z, 1100 + r() * 300, 1.0, sr); mulEnv(z, env(m, sr, 0.004, 0.06, 2)); mixInto(out, z, 0, 0.22); }
+  mixInto(out, rustle(sr, r, 0.34, { f: 2000, dens: 650, peak: 0.18 }), S(sr, 0.01), 0.55);
+  mixInto(out, strap(sr, r, 0.16, 900 + r() * 300), S(sr, 0.02), 0.2);
+  rattle(out, sr, r, 0.03, 0.2, 8, 1.0);
+  lp(out, 6500, sr); hp(out, 35, sr);
+  return fadeEdges(normalize(out, 0.75), sr);
+}
+// 着地: 靴底が着く重い衝撃（脚と体の重さ）・体が沈む布のばさっ・装備がいっせいに跳ねて、落ち着くまで小さく鳴る。big は高い所から
+function jumpLand(sr, seed, big) {
+  const r = rng(seed), out = buf(sr, big ? 1.0 : 0.8);
+  mixInto(out, thump(sr, r, (big ? 62 : 72) + r() * 8, big ? 30 : 36, big ? 0.36 : 0.24, big ? 1.6 : 1.25), 0, 1);
+  mixInto(out, thump(sr, r, (big ? 170 : 200) + r() * 30, 120, big ? 0.12 : 0.08, big ? 0.9 : 0.7), 0, 1);
+  { const m = S(sr, 0.16), z = noise(m, r); lp(z, 180, sr); mulEnv(z, expEnv(m, sr, 0.002, big ? 0.06 : 0.04)); mixInto(out, z, 0, big ? 2.4 : 1.8); }
+  { const m = S(sr, 0.06), z = noise(m, r); bp(z, 320 + r() * 80, 0.8, sr); mulEnv(z, expEnv(m, sr, 0.0006, big ? 0.02 : 0.014)); mixInto(out, z, 0, big ? 1 : 0.8); }
+  mixInto(out, rustle(sr, r, big ? 0.3 : 0.22, { f: 1800, dens: 800, peak: 0.08 }), 0, 0.5);
+  rattle(out, sr, r, 0.004, 0.11, big ? 14 : 10, 1.0, { buckle: 0.35, mag: 0.35, metal: 0.15, rifle: 0.15 });
+  rattle(out, sr, r, 0.13, big ? 0.45 : 0.32, big ? 6 : 4, 0.45);
+  mixInto(out, strap(sr, r, 0.12, 900 + r() * 300), S(sr, 0.03), 0.18);
+  lp(out, 7000, sr); hp(out, 30, sr);
+  return fadeEdges(normalize(sat(out, big ? 1.4 : 1.2), big ? 0.95 : 0.85), sr);
+}
+// 重い箱を置く（弾薬箱）: 箱の鈍い音・中の弾の箱がずれる・取っ手の金具
+function boxDown(sr, seed) {
+  const r = rng(seed), out = buf(sr, 0.5);
+  mixInto(out, thump(sr, r, 110, 60, 0.14, 1), 0, 1);
+  { const m = S(sr, 0.05), z = noise(m, r); bp(z, 600, 1.1, sr); mulEnv(z, expEnv(m, sr, 0.0005, 0.012)); mixInto(out, z, 0, 0.8); }
+  rattle(out, sr, r, 0.008, 0.12, 6, 0.7, { mag: 0.6, metal: 0.4 });
+  return fadeEdges(normalize(sat(out, 1.3), 0.75), sr);
+}
 function landS(sr, seed) { const r = rng(seed), out = buf(sr, 0.3); mixInto(out, thump(sr, r, 90, 45, 0.2, 1), 0, 1); mixInto(out, step(sr, seed, 'hard'), 0, 0.6); return fadeEdges(normalize(out, 0.8), sr); }
 function radioClick(sr, seed, on) { const r = rng(seed), out = buf(sr, 0.18); const n = S(sr, on ? 0.1 : 0.16); const z = noise(n, r); bp(z, 2200, 0.7, sr); mulEnv(z, env(n, sr, 0.003, n / sr - 0.004, on ? 4 : 1)); mixInto(out, z, 0, on ? 0.6 : 0.9); mixInto(out, clack(sr, r, 2600, 0.03, 0.5), 0, 1); return fadeEdges(normalize(out, 0.45), sr); }
 function beep(sr, f = 1500, d = 0.08, g = 0.5) { const out = buf(sr, d + 0.02); const n = S(sr, d); const s = sine(n, sr, f); mulEnv(s, env(n, sr, 0.004, d - 0.004, 1)); mixInto(out, s, 0, 1); return fadeEdges(normalize(out, g), sr); }
@@ -268,6 +354,7 @@ export const SFX = {
   step_hard: [(sr, i) => step(sr, 200 + i, 'hard'), 4], step_tile: [(sr, i) => step(sr, 210 + i, 'tile'), 4], step_wood: [(sr, i) => step(sr, 220 + i, 'wood'), 4],
   step_soft: [(sr, i) => step(sr, 230 + i, 'soft'), 4], step_grass: [(sr, i) => step(sr, 240 + i, 'grass'), 4], step_dirt: [(sr, i) => step(sr, 250 + i, 'dirt'), 4], step_metal: [(sr, i) => step(sr, 260 + i, 'metal'), 4],
   land: [(sr, i) => landS(sr, 270 + i), 1],
+  jumpUp: [(sr, i) => jumpUp(sr, 1200 + i), 3], jumpLand: [(sr, i) => jumpLand(sr, 1210 + i, false), 3], fallLand: [(sr, i) => jumpLand(sr, 1220 + i, true), 2], boxDown: [(sr, i) => boxDown(sr, 1230 + i), 2],
   // 当たる
   impHard: [(sr, i) => impact(sr, 300 + i, 'hard'), 3], impWood: [(sr, i) => impact(sr, 310 + i, 'wood'), 3], impMetal: [(sr, i) => impact(sr, 320 + i, 'metal'), 3], impGlass: [(sr, i) => impact(sr, 330 + i, 'glass'), 2], impSoft: [(sr, i) => impact(sr, 340 + i, 'soft'), 2],
   fleshHit: [(sr, i) => fleshHit(sr, 350 + i), 3], plateHit: [(sr, i) => plateHit(sr, 360 + i), 3], whiz: [(sr, i) => whiz(sr, 370 + i), 3],

@@ -153,6 +153,12 @@ export function computePose(p, out) {
     tUp = norm(lerp3(tUp, proneUp, sm(prone)));
     P = lerp3(P, v3(0, 0.16 * s, -0.55 * s), sm(prone));
   }
+  // 伏せたままのリーン: 腰を中心に胴を横へ振り、少し転がる（頭が横へ 0.3m ほど出る）
+  if (prone > 0 && lean) {
+    const pk = sm(prone);
+    tUp = rotAxis(tUp, up, -lean * 0.5 * pk);
+    P = madd(P, left, -lean * 0.1 * s * pk);
+  }
   // 胸は狙いの上下に少しついていく
   const aimP = pitch * (hold !== 'none' ? 1 : 0.4);
   const spineUp = rotAxis(tUp, left, -aimP * 0.25 * (1 - prone));
@@ -163,7 +169,7 @@ export function computePose(p, out) {
   let headFwd = norm(v3(0, Math.sin(pitch), Math.cos(pitch)));
   if (prone > 0) headFwd = norm(lerp3(headFwd, norm(v3(0, Math.sin(pitch) + 0.2, 1)), prone));
   let headUp = norm(sub(up, mul(headFwd, dot(up, headFwd))));
-  headUp = rotAxis(headUp, headFwd, leanAng * 0.6);
+  headUp = rotAxis(headUp, headFwd, leanAng * (0.6 + 0.4 * prone));
   if (state === 'cuffed' || state === 'kneel') headFwd = norm(v3(0, -0.15, 1));
   if (state === 'cower' || state === 'stun') { headFwd = norm(v3(0, -0.6, 0.8)); headUp = norm(v3(0, 0.8, 0.6)); }
   const neckTop = madd(N, norm(lerp3(chestUp, headUp, 0.5)), D.neck * s);

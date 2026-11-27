@@ -438,7 +438,8 @@ export class Match {
         case 'nvg': if (k === 'down' && p.armor.head === 'nvg') { this.nvgOn = !this.nvgOn; p.nvgOn = this.nvgOn; this.au.sfx('nvg', null, { vol: 0.5 }); } break;
         case 'map': if (k === 'tap' || (k === 'longup' && !e.key)) this.app.openTablet(); break;
         // 出撃の画面（大規模戦）
-        case 'dsel': if (k === 'down' && this.S.war && !p.alive) { this.dsel = e.sub; if (p.deployAt) this.acts.push({ a: 'warDeploy', at: e.sub, ...this._warPick() }); } break;
+        //  予約をやめられた（選んだ場所が使えなくなった）あとに選び直した時は、自動で出撃の設定なら予約し直す
+        case 'dsel': if (k === 'down' && this.S.war && !p.alive) { const re = this._dpick && this.app.settings.autoDeploy; this.dsel = e.sub; this._dpick = null; if (p.deployAt || re) this.acts.push({ a: 'warDeploy', at: e.sub, ...this._warPick() }); } break;
         case 'dcls': if (k === 'down' && this.S.war && !p.alive && canPick(p, e.sub)) { this.dcls = e.sub; this._warPickSave(); } break;
         case 'dlo': if (k === 'down' && this.S.war) this.dlo = !this.dlo; break;
         case 'loadout': if (k === 'down' && this.S.war && this.S.m.mode === 'range' && p.alive) { this.acts.push({ a: 'warRedeploy' }); this.au.ui('tap'); } break;
@@ -450,7 +451,7 @@ export class Match {
         case 'datt': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(), d = this._warDeployData(), [kk, v] = String(e.sub).split(':'); const A = W.att[d.gun] || (W.att[d.gun] = {}); A[kk] = v; this._warPickSave(); this.au.ui('tap'); } break;
         // 出撃の予約（待ちの間に押した）をもう一度押すとやめる（11-27 04:01）。自動で出撃の設定でも、やめたらこの死では予約し直さない
         case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over && p.deployAt) { this.acts.push({ a: 'warDeploy', cancel: true }); this._adT = this.kiaT; this.au.ui('tap'); break; }
-          if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' || String(this.dsel).startsWith('sq:') ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
+          if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; if (this._dpick && this.dsel == null && this._dpOpts) { this.au.ui('deny'); break; } this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' || String(this.dsel).startsWith('sq:') ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
         case 'pause': if (k === 'tap' || (k === 'down' && e.key)) this.app.pauseGame(); break;
         case 'drone': if (k === 'down') this._droneToggle(); break;
         case 'zone': if (k === 'down') this._zoneNext(); break;
@@ -1031,13 +1032,15 @@ export class Match {
         case 'matchend': if (S.war) { const win = e.win === p.team, draw = e.win < 0; const why = e.why === 'time' ? '時間切れ' : S.m.mode === 'conquest' ? (win ? '敵のチケットが尽きた' : 'チケットが尽きた') : S.m.mode === 'tdm' ? `${S.m.limit} キルに到達` : `${S.m.limit} 点に到達`; hud.showBanner(`${draw ? 'DRAW' : win ? 'VICTORY' : 'DEFEAT'}<br><small>${draw ? '引き分け' : win ? '勝利' : '敗北'} ― ${why}</small>`, 4000, draw ? '' : win ? 'good' : 'bad'); au.ui(win ? 'win' : 'lose'); break; }
           { const mine = e.win === p.team; hud.showBanner(e.win < 0 ? '引き分け' : mine ? '勝利' : '敗北', 0, mine ? 'ok' : 'bad'); au.ui(mine ? 'win' : 'lose'); } break;
         case 'redeploy': if (e.id === me) { this.kiaT = -99; this.dlo = false; this._resetControls(); } break;
-        case 'respawn': if (e.id === me) { this.dlo = false; hud.deploy(null); if (S.war) this.r.warmWar(p.x, p.z); this.dead = false; this.spec = null; this.yaw = p.yaw; this.pitch = 0; this._resetControls(); this.av.hidden.add(me); if (e.zone == null) hud.hideBanner();
+        // 予約した出撃の場所が使えなくなった（ビーコンが壊された・仲間が死んだ等）: 選びを消して、選び直すまで DEPLOY を押せない。自動で出撃もこの死では予約し直さない
+        case 'deployCancel': if (e.id === me) { this.dsel = null; this._dpick = { why: e.why, at: e.at, t: this.time }; this._adT = this.kiaT; au.ui('deny'); } break;
+        case 'respawn': if (e.id === me) { this.dlo = false; this._dpick = null; hud.deploy(null); if (S.war) this.r.warmWar(p.x, p.z); this.dead = false; this.spec = null; this.yaw = p.yaw; this.pitch = 0; this._resetControls(); this.av.hidden.add(me); if (e.zone == null) hud.hideBanner();
           // 工兵で初めて出た時: RPG-7 の出し方（1回だけ）
         } break;
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
         case 'score': if (e.id === me && S.war) this._score(e); break;
-        case 'ammoBox': if (e.k === 'place') { au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.6, rate: 1.3 }); if (e.by === me) (S.war ? () => {} : hud.feed.bind(hud))(`${e.big ? '大きい' : '小さい'}弾薬箱を置いた（近くに立つと弾倉を補給）`, 'ok'); } break;
+        case 'ammoBox': if (e.k === 'place') { au.sfx('boxDown', [e.x, e.y + 0.2, e.z], { vol: 0.75 }); if (e.by === me) (S.war ? () => {} : hud.feed.bind(hud))(`${e.big ? '大きい' : '小さい'}弾薬箱を置いた（近くに立つと弾倉を補給）`, 'ok'); } break;
         case 'medkit': if (e.id === me) { au.sfx('bandage', null, { vol: 0.35, rate: 1.2 }); const t = S.byId[e.tgt]; (S.war ? () => {} : hud.feed.bind(hud))(t === p ? `自分を手当て（体力 ${e.hp}）` : `${t ? t.name : '仲間'} を手当て（体力 ${e.hp}）`, 'ok'); } else if (e.tgt === me) (S.war ? () => {} : hud.feed.bind(hud))(`${S.byId[e.id] ? S.byId[e.id].name : '衛生'} が手当てしている（体力 ${e.hp}）`, 'ok'); break;
         case 'resupply': if (e.id === me) { au.ui('pickup'); (S.war ? () => {} : hud.feed.bind(hud))(e.g ? `${e.g === 'rpg' ? 'RPG-7 の弾' : GEAR[e.g] ? GEAR[e.g].name.replace(/（.*）/, '') : ''}を補給した` : `弾倉を補給した（+${e.n}発）`, 'ok'); } break;
         case 'magDrop': au.sfx('magOut', [e.x, e.y + 0.1, e.z], { vol: 0.5, rate: 0.8 }); break;
@@ -1061,7 +1064,11 @@ export class Match {
         case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 7)) au.sfx('gasp', [a.x, a.y + 1.5, a.z], { vol: 0.3 }); } break;
         case 'exhale': if (e.id === me) au.sfx('exhale', null, { vol: 0.6 }); break;
         case 'inhale': if (e.id === me) au.sfx('inhale', null, { vol: 0.6 }); break;
-        case 'jump': { const a = S.byId[e.id]; if (a) au.sfx('land', a === p ? null : [a.x, a.y + 0.2, a.z], { vol: a === p ? 0.3 : 0.25, rate: 1.5 }); break; }
+        // 跳ぶ: 踏み切りの体と装備の音（布・バックル・弾倉・銃）＋床の材質の足音
+        case 'jump': { const a = S.byId[e.id]; if (!a) break; const mine = a === p;
+          if (!mine && Math.hypot(a.x - this.cam.x, a.z - this.cam.z) > 26) break;
+          au.sfx('jumpUp', mine ? null : [a.x, a.y + 1, a.z], { vol: mine ? 0.55 : 0.7, verb: mine ? 0.12 : 0.3 });
+          au.step(e.f || 'hard', mine ? null : [a.x, a.y, a.z], mine ? 1.1 : 0.9); break; }
         // 置いた物（置ける盾・有刺鉄線）
         case 'depset': au.sfx(e.k === 'wire' ? 'impMetal' : 'barricade', [e.x, e.y + 0.3, e.z], { vol: e.id === me ? 0.55 : 0.8, rate: e.k === 'wire' ? 1.4 : 0.8 }); break;
         case 'depbreak': if (e.why !== 'pick') { fx.debris(e.x, e.y, e.z, e.k === 'wire' ? [0.55, 0.56, 0.54] : [0.24, 0.26, 0.25]); au.sfx('impMetal', [e.x, e.y, e.z], { vol: 1, rate: 0.7 }); } else au.sfx('draw', [e.x, e.y, e.z], { vol: 0.5 }); break;
@@ -1085,12 +1092,13 @@ export class Match {
         // 着地: 自分なら画面が揺れる。高い所から落ちたほど重い音（まわりにも聞こえる）
         case 'fall': {
           const big = (e.h || 0) > 2;
-          if (e.id === me) { au.sfx('land', null, { vol: big ? 1 : 0.5, rate: big ? 0.8 : 1.1 }); if (big) { this.shake = Math.min(1, this.shake + 0.25 + 0.1 * e.h); this._heatUp(0.3); } }
+          //  体の重さと装備がいっせいに跳ねる音＋床の材質の足音（11-27 14:29: 音は重厚感とリアルさを優先）
+          if (e.id === me) { au.sfx(big ? 'fallLand' : 'jumpLand', null, { vol: big ? 1 : 0.62, verb: 0.15 }); au.step(e.f || 'hard', null, big ? 2.2 : 1.5); if (big) { this.shake = Math.min(1, this.shake + 0.25 + 0.1 * e.h); this._heatUp(0.3); } }
           else if (e.x != null) {
             // ほかの人の着地: 高いほど重く遠くまで（跳んだだけの軽い着地も近くなら聞こえる）
             const dd = Math.hypot(e.x - this.cam.x, e.z - this.cam.z);
-            if (big && dd < 35) au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: Math.min(1, 0.4 + e.h * 0.15), rate: 0.75 });
-            else if (!big && dd < 22) au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.35, rate: 1.15 });
+            if (big && dd < 35) { au.sfx('fallLand', [e.x, e.y + 0.4, e.z], { vol: Math.min(1.1, 0.5 + e.h * 0.15), verb: 0.4 }); au.step(e.f || 'hard', [e.x, e.y, e.z], 1.6); }
+            else if (!big && dd < 24) { au.sfx('jumpLand', [e.x, e.y + 0.4, e.z], { vol: 0.6, verb: 0.3 }); au.step(e.f || 'hard', [e.x, e.y, e.z], 1.1); }
           }
           break;
         }
@@ -1620,6 +1628,7 @@ export class Match {
       c4: !!(p.alive && !p.down && p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4'), c4left: (p.inv.gear.find(g => g.id === 'c4') || { n: 0 }).n,
       spread: wi ? spreadDeg(S, p, WEAPONS[wi.id], wi) : 2,
       giveup: S.war && S.m.mode !== 'range' && p.alive && p.down ? (this.time - (this._guT ?? -99) < 2.5 ? 2 : 1) : 0,
+      downInfo: S.war && S.m.mode !== 'range' && p.alive && p.down ? this._downInfo() : null,
       optic: p.ws && p.ws.slot === 2 && p.ws.gear === 'binoc' ? BINOC_OPTIC : null, canVault: this.vaultOK !== false, rally: this._rallyBtn(), rl: this._rlProg(p),
       ctxLabel: c && !tooFar(c) ? (c.def.far ? '回り込む' : (OP_NAME[c.def.op] || c.def.op)) : '',
       cmdLabel: '命令', mmZoom: this.mmZoom,
@@ -1697,12 +1706,23 @@ export class Match {
     this._mmT = (this._mmT || 0) - dt;
     if (this._mmT <= 0) { this._mmT = 0.066; hud.drawMinimap(v); }
   }
+  // 倒れている間の表示（11-27 14:22「ダウン中の UI 見直して」）: 起こしてもらえる残りの時間（帯と秒）・起こしている人・いちばん近い味方
+  _downInfo() {
+    const S = this.S, p = this.p;
+    const k = Math.max(0, Math.min(1, (p.dbno || 0) / 20)), sec = Math.ceil(k * WAR_DOWN_T);
+    const rev = p.revT != null && S.t - p.revT <= 2 ? ((S.byId[p.revBy] || {}).name || '味方') : null;
+    let near = null, nm = '';
+    for (const a of S.actors) { if (a === p || a.team !== p.team || !a.alive || a.down) continue; const d = Math.hypot(a.x - p.x, a.z - p.z); if (near == null || d < near) { near = d; nm = a.warCls === 'medic' ? '衛生' : '味方'; } }
+    let med = null; for (const a of S.actors) { if (a === p || a.team !== p.team || !a.alive || a.down || a.warCls !== 'medic') continue; const d = Math.hypot(a.x - p.x, a.z - p.z); if (med == null || d < med) med = d; }
+    return { k, sec, rev, drag: p.dragBy != null ? ((S.byId[p.dragBy] || {}).name || '味方') : null, near: near == null ? null : Math.round(near), nearK: nm, med: med == null ? null : Math.round(med) };
+  }
   // 大規模戦: 拠点の中の案内（確保中・奪い合い・中立に戻している）
   _warPrompt(prompt) {
     const S = this.S, p = this.p, m = S.m;
     if (!p.alive) return '';
     // 倒れている: 起こしてもらえるまでの残り（起こされている間は止まる）
-    if (p.down) { const left = Math.max(0, Math.ceil((p.dbno || 0) / 20 * WAR_DOWN_T)); return p.revT != null && S.t - p.revT <= 2 ? `${(S.byId[p.revBy] || {}).name || '味方'} が起こしている` : `倒れた ― 味方が起こせるのはあと ${left} 秒`; }
+    // 倒れている: 案内の文字は出さない（倒れている間の表示 _downInfo が出す）
+    if (p.down) return '';
     // 近くに倒れた味方: 包帯のボタンで起こす
     if (p.drag != null && !p.act) { const b = S.byId[p.drag]; return `${(b && b.name) || '味方'} を引きずっている ― 離すのボタン・包帯のボタンで起こす`; }
     if (!p.act) { const rt = this._reviveTgt(); if (rt) return p.inv.gear.some(x => x.id === 'bandage' && x.n > 0) ? `${rt.name} を起こす ― 包帯のボタン（引きずる ― 引きずるのボタン）` : `${rt.name} を起こすには包帯が要る（引きずる ― 引きずるのボタン）`; }
@@ -1826,9 +1846,17 @@ export class Match {
       if (x.zoom && x.zoom > 1.2) o.push(x.zooms ? x.zooms.join('/') + '倍' : x.zoom + '倍');
       if (x.rcv && x.rcv !== 1) o.push('縦の反動 ' + pc(x.rcv)); if (x.rch && x.rch !== 1) o.push('横の反動 ' + pc(x.rch)); if (x.rcfirst && x.rcfirst !== 1) o.push('初弾 ' + pc(x.rcfirst));
       if (x.ads) o.push('構え ' + (x.ads > 0 ? '+' : '-') + Math.round(Math.abs(x.ads) * 1000) + 'ms'); if (x.noise && x.noise !== 1) o.push('音 ' + pc(x.noise)); if (x.hip && x.hip !== 1) o.push('腰だめ ' + pc(x.hip)); if (x.light) o.push('ライト');
+      if (x.adsK && x.adsK !== 1) o.push('構え ' + pc(x.adsK)); if (x.reload && x.reload !== 1) o.push('リロード ' + pc(x.reload)); if (x.drawK && x.drawK !== 1) o.push('取り出し ' + pc(x.drawK)); if (x.move && x.move !== 1) o.push('走る ' + pc(x.move));
+      if (x.bipod) o.push('立てると反動 -40%・揺れなし／立てていないと反動 +40%');
       return o.join('・'); };
     const short = (nm) => String(nm).replace(/（.*?）/g, '');
     return L.filter(([k]) => ao[k] && ao[k].length > 1).map(([k, lb]) => ({ k, lb, sel: w.att[k], list: ao[k].map(v => ({ v, name: short((ATTACH[k][v] || {}).name || v), fx: fx(ATTACH[k][v]) })) }));
+  }
+  // 予約をやめた理由（DEPLOY の下に出す）
+  _dpickMsg() {
+    const d = this._dpick, b = typeof d.at === 'string' && d.at.startsWith('sq:') ? this.S.byId[+d.at.slice(3)] : null, nm = (b && b.name) || '仲間';
+    const why = d.why === 'rally' ? 'ビーコンが壊された' : d.why === 'dead' ? `${nm} が死んだ` : d.why === 'down' ? `${nm} が倒れた` : d.why === 'busy' ? `${nm} が撃ち合いを始めた` : d.why === 'flag' ? `拠点 ${d.at} が使えない` : '出撃の場所が使えない';
+    return why + ' ― 場所を選び直す';
   }
   _warDeployData() {
     const S = this.S, p = this.p, m = S.m, MD = WAR_MODES[m.mode] || WAR_MODES.conquest;
@@ -1853,7 +1881,10 @@ export class Match {
       opts.push({ id: 'sq:' + b.id, label: b.name || '仲間', x: b.x, z: b.z, mate: true });
     }
     // 選んでいた仲間が撃ち合いを始めた・倒れた: 選びを戻す（出撃の時もエンジンが確かめ、だめなら本陣から）
-    if (opts.length && !opts.some(o => o.id === this.dsel)) this.dsel = 'hq';
+    //  予約をやめられたあと（_dpick）は、選び直すまで何も選ばない（場所を選ばせる）。選べる所が無ければ（自陣の側から出るだけ）やめる
+    this._dpOpts = opts.length;
+    if (!opts.length) this._dpick = null;
+    if (opts.length && !opts.some(o => o.id === this.dsel)) this.dsel = this._dpick ? null : 'hq';
     const W = this._warPrefs(), cls = this.dcls || 'assault', C = CLASSES[cls];
     const CAT = { rifle: 'RIFLE', sniper: 'SNIPER', smg: 'SMG', shotgun: 'SHOTGUN', pistol: 'PISTOL' };
     const gi = (id) => { const x = WEAPONS[id]; return { id, name: x.name, info: `${CAT[x.cat] || ''} · ${x.rpm} RPM · ${x.mag}` }; };
@@ -1874,11 +1905,11 @@ export class Match {
       board: m.mode !== 'range',
       title: (WAR_MAPS[this.w.mapId] || WAR_MAPS.riverbend).en, mode: m.mode === 'range' ? 'TRAINING' : `${MD.en} · ${sizeLabel(m.per)}`, scoreHtml: m.mode === 'range' ? '' : ob.html, scoreKey: m.mode === 'range' ? '' : ob.key, noSquad: m.mode === 'range',
       img: this.hud.plan && this.hud.plan.img, rect: m.rect, m, myTeam: p.team, mapKey: tick + '|' + m.flags.map(f => f.owner).join(','),
-      opts, sel: this.dsel, dots, squad: { name: squadEn(p.squad, p.team), list: squad },
+      opts, sel: this.dsel, pick: !!(this._dpick && this.dsel == null), dots, squad: { name: squadEn(p.squad, p.team), list: squad },
       cls, classes: CLASS_LIST.map(id => ({ id, en: CLASSES[id].en, short: CLASSES[id].short, name: CLASSES[id].name, hp: CLASSES[id].hp, desc: CLASSES[id].desc, tools: CLASSES[id].tools.join('・'), long: toolTxt(CLASSES[id], id), ok: canPick(p, id) })),
       lo: !!this.dlo, loTab: this.dloTab || 'gun', guns, secs, gun, sec, att: this._attRows(gun, W.att[gun] || {}), gad: this._gadRow(cls, (W.gad || {})[cls]), gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.filter(([id]) => isThrow(id)).map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
-      left, queued: !!p.deployAt, canGo: !(m.mode === 'conquest' && m.tickets[p.team] <= 0),
-      msg: p.deployAt && left > 0 ? 'もう一度押すとやめる' : m.mode === 'range' ? '射台から' : m.mode === 'conquest' && m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'rally' ? 'ビーコンから' : String(this.dsel).startsWith('sq:') ? `${(S.byId[+String(this.dsel).slice(3)] || {}).name || '仲間'} のそばから` : m.mode === 'conquest' ? (this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
+      left, queued: !!p.deployAt, canGo: !(m.mode === 'conquest' && m.tickets[p.team] <= 0) && !(this._dpick && this.dsel == null),
+      msg: this._dpick && this.dsel == null ? this._dpickMsg() : p.deployAt && left > 0 ? 'もう一度押すとやめる' : m.mode === 'range' ? '射台から' : m.mode === 'conquest' && m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'rally' ? 'ビーコンから' : String(this.dsel).startsWith('sq:') ? `${(S.byId[+String(this.dsel).slice(3)] || {}).name || '仲間'} のそばから` : m.mode === 'conquest' ? (this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
     };
   }
   _visCache(a) {

@@ -190,6 +190,20 @@ function zoneSpot(S, w, a, k) {
 export function inArea(S, x, z) { const r = S.m.rect; return x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]; }
 // 出撃できる拠点（コンクエストだけ。自軍の物で、敵が奪いかけていない）
 export function canSpawnAt(S, f, team) { return S.m.mode === 'conquest' && f.owner === team && !f.contested && !(team === 0 ? f.prog < 0.999 : f.prog > -0.999); }
+// 予約した出撃の場所が使えなくなったか（理由を返す。使えるなら null）: ビーコンが壊された・仲間が死んだ／倒れた／撃ち合いを始めた・拠点を奪われかけている
+export function deployLost(S, a, at) {
+  if (!at || at === 'hq' || at === 'auto') return null;
+  if (at === 'rally') return rallyOf(S, a.team, a.squad) ? null : 'rally';
+  if (typeof at === 'string' && at.startsWith('sq:')) {
+    const b = S.byId[+at.slice(3)];
+    if (!b || !b.alive) return 'dead';
+    if (b.down) return 'down';
+    return canSpawnOn(S, a, b) ? null : 'busy';
+  }
+  if (S.m.mode !== 'conquest') return null;
+  const f = S.m.flags.find(q => q.id === at);
+  return f && !canSpawnAt(S, f, a.team) ? 'flag' : null;
+}
 // 兵科を選べるか（分隊長は分隊の1人目だけ）
 export function canPick(a, cls) { return !!CLASSES[cls] && (cls !== 'leader' || a.sqIdx === 0); }
 
@@ -505,6 +519,15 @@ export default {
         if (cur && Math.hypot(cur.x - g.x, cur.z - g.z) < 150) continue;
         placeRally(S, w, a, ev);
       }
+    }
+    // 出撃を予約して待っている間に、選んだ場所（ビーコン・分隊の仲間・拠点）が使えなくなった: 予約をやめて、場所を選び直してもらう
+    //  （11-27 14:27「ビーコンや分隊長が破壊、死亡した場合は必ずキャンセルしてもう一度出撃地点を選ぶ」。前は出る時に本陣へ回していた）
+    for (const a of S.actors) {
+      if (a.pid == null || a.alive || !a.deployAt) continue;
+      const why = deployLost(S, a, a.deployAt);
+      if (!why) continue;
+      ev.push({ e: 'deployCancel', id: a.id, why, at: a.deployAt });
+      a.deployAt = null;
     }
     // 出撃し直す: ボットは時間が来たら、人は場所を選んでから
     for (let i = m.respawn.length - 1; i >= 0; i--) {

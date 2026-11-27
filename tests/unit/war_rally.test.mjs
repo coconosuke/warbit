@@ -47,6 +47,27 @@ test('出撃: 人は集合地点を選ぶとそのまわりに出る', () => {
   ok(d < 3.5, '集合地点のまわり ' + d.toFixed(1));
 });
 
+// 11-27 14:27: 待っている間にビーコンが壊されたら、予約をやめる（本陣へ回さない）。選び直せば出られる
+test('出撃: 待っている間にビーコンが壊されると予約がやめになる', () => {
+  const G = game({ bots: true, per: 4 }), S = G.S, me = S.actors[0], key = me.team + ':' + me.squad;
+  for (let i = 0; i < 30; i++) step(G, { [me.id]: idle(me) });
+  const f = S.m.flags[2];
+  put(G, me, f.x + 40, f.z + 10);
+  S.m.sqp = { [key]: 200 };
+  const r = placeRally(S, G.w, me, []);
+  me.hp = 0; me.alive = false; me.dead = true; S.m.respawn.push({ id: me.id, at: S.t + Math.round(2 / S.dt) });
+  step(G, { [me.id]: idle(me, { act: [{ a: 'warDeploy', at: 'rally', cls: me.warCls }] }) });
+  ok(me.deployAt === 'rally', '予約した');
+  r.hp = 0;
+  const ev = [];
+  for (let i = 0; i < Math.round(3 / S.dt); i++) ev.push(...step(G, {}));
+  ok(!me.alive && me.deployAt == null, '出ない・予約がやめになった');
+  ok(ev.some(e => e.e === 'deployCancel' && e.id === me.id && e.why === 'rally'), '理由: ビーコン');
+  step(G, { [me.id]: idle(me, { act: [{ a: 'warDeploy', at: 'hq', cls: me.warCls }] }) });
+  for (let i = 0; i < 5 && !me.alive; i++) step(G, {});
+  ok(me.alive, '選び直すと出た');
+});
+
 test('壊れる: 敵の弾 3〜4 発・爆発で壊れ、30 秒は置けない。味方の弾では壊れない', async () => {
   const { hitRally, blastRallies } = await import('../../src/engine/rally.js');
   const G = game({ bots: true, per: 2 }), S = G.S, me = S.actors[0], key = me.team + ':' + me.squad;

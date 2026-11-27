@@ -34,16 +34,16 @@ test('分隊の仲間のそばに出る（立てる所・仲間と同じ向き�
   ok(me.st < 0.3 && me.stance === 0, '立って出る');
 });
 
-test('撃ち合いの最中（撃たれた・撃った・近くに敵）の仲間には出られず、本陣から出る', () => {
+// 11-27 14:27: 出られない仲間を選んでいた時は、黙って本陣へ回さず、予約をやめて選び直してもらう
+test('撃ち合いの最中（撃たれた・撃った・近くに敵）の仲間には出られず、予約がやめになる', () => {
   const { G, S, me, mate } = setup();
   mate.lastHit = { t: S.t, by: -1 };
   ok(!canSpawnOn(S, me, mate), '撃たれたばかりは出られない');
   die(S, me);
-  step(G, { [me.id]: idle(me, { act: [{ a: 'warDeploy', at: 'sq:' + mate.id, cls: me.warCls }] }), [mate.id]: idle(mate) });
-  for (let i = 0; i < 5 && !me.alive; i++) step(G, { [mate.id]: idle(mate) });
-  ok(me.alive, '出撃した');
-  const hq = S.m.hq[me.team];
-  ok(Math.hypot(me.x - hq[0], me.z - hq[1]) < Math.hypot(me.x - mate.x, me.z - mate.z), '本陣の方');
+  const ev = step(G, { [me.id]: idle(me, { act: [{ a: 'warDeploy', at: 'sq:' + mate.id, cls: me.warCls }] }), [mate.id]: idle(mate) });
+  for (let i = 0; i < 5; i++) ev.push(...step(G, { [mate.id]: idle(mate) }));
+  ok(!me.alive && me.deployAt == null, '出ない・予約がやめになった');
+  ok(ev.some(e => e.e === 'deployCancel' && e.id === me.id && e.why === 'busy'), '理由: 撃ち合い');
 });
 
 test('出る所は立てる所: 頭の上と体のまわりが空いている', () => {
@@ -70,4 +70,19 @@ test('出撃の予約をやめると、待ちが終わっても出ない。ま�
   step(G, { [me.id]: idle(me, { act: [{ a: 'warDeploy', at: 'hq', cls: me.warCls }] }), [mate.id]: idle(mate) });
   for (let i = 0; i < 5 && !me.alive; i++) step(G, { [mate.id]: idle(mate) });
   ok(me.alive, 'また押すと出た');
+});
+
+// 11-27 14:27「出撃確定させて待機中にビーコンや分隊長が破壊、死亡した場合は必ずキャンセルしてもう一度出撃地点を選ぶ」
+test('待っている間に選んだ仲間が死ぬ・倒れると、予約がやめになり、時間が来ても出ない', () => {
+  for (const how of ['dead', 'down']) {
+    const { G, S, me, mate } = setup();
+    me.hp = 0; me.alive = false; me.dead = true; S.m.respawn.push({ id: me.id, at: S.t + Math.round(2 / S.dt) });
+    step(G, { [me.id]: idle(me, { act: [{ a: 'warDeploy', at: 'sq:' + mate.id, cls: me.warCls }] }), [mate.id]: idle(mate) });
+    ok(me.deployAt === 'sq:' + mate.id, how + ': 予約した');
+    if (how === 'dead') { mate.alive = false; mate.dead = true; } else { mate.down = true; mate.dbno = 20; }
+    const ev = [];
+    for (let i = 0; i < Math.round(3 / S.dt); i++) ev.push(...step(G, {}));
+    ok(me.deployAt == null && !me.alive, how + ': 予約がやめになり、出ない');
+    ok(ev.some(e => e.e === 'deployCancel' && e.id === me.id && e.why === how), how + ': 理由 ' + JSON.stringify(ev.filter(e => e.e === 'deployCancel')));
+  }
 });

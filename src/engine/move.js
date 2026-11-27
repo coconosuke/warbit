@@ -135,7 +135,8 @@ export function moveActor(S, w, a, inp, dt, ev) {
   a.stance = want;
   // リーン（壁にめり込まない）。ダッシュより先（リーンしている間は走らない）
   let lw = inp.lean || 0;
-  if (a.st > 1.3 || a.vault || a.down || a.comply || a.cuffed) lw = 0;
+  // 伏せたままのリーン（大規模戦。11-27 14:18「伏せリーンできない」）: 胴を横へずらしてのぞく。立ち・しゃがみの途中（伏せかけ）はしない
+  if ((a.st > 1.3 && !(S.war && a.st > 1.9)) || a.vault || a.down || a.comply || a.cuffed) lw = 0;
   if (lw) {
     const rx = -Math.cos(a.yaw) * lw, rz = Math.sin(a.yaw) * lw;
     const hy = a.y + bodyHeight(a) - 0.25;
@@ -167,9 +168,23 @@ export function moveActor(S, w, a, inp, dt, ev) {
   if (mag > 0.01 && a.drag == null) { const fz = mz / mag, fx = mx / mag; dirMul = fz >= 0 ? 1 - (1 - SP.side) * Math.abs(fx) : SP.back + (SP.side - SP.back) * Math.abs(fx); }
   const tgt = vmax * mag * dirMul;
   // ローカル → 世界（前 = (sin yaw, cos yaw)、右 = (-cos yaw, sin yaw)）
-  const sy = Math.sin(a.yaw), cy = Math.cos(a.yaw);
+  //  倒れて這う（大規模戦）: 体の向き（a.yaw）は倒れた時のまま止めてあるので、見ている向き（inp.yaw）を前にする
+  //  （11-27 14:22「ダウン中の移動おかしい。反転してる？」: 前は倒れた時の向きが前で、見回したあとは逆や横へ進んだ）
+  const crawl = S.war && a.down && Number.isFinite(inp.yaw);
+  const myaw = crawl ? inp.yaw : a.yaw;
+  const sy = Math.sin(myaw), cy = Math.cos(myaw);
   let dvx = 0, dvz = 0;
   if (mag > 0.01) { const ux = (sy * mz - cy * mx) / mag, uz = (cy * mz + sy * mx) / mag; dvx = ux * tgt; dvz = uz * tgt; }
+  // 這う向きへ体（頭）を少しずつ向ける。胸を中心に回す（目が大きく振れない）。1 秒に 1.2 rad まで
+  if (crawl && tgt > 0.05 && a.dbno && a.dragBy == null) {
+    const want = Math.atan2(dvx, dvz), th = a.yaw + (a.fallYaw || 0);
+    let d = Math.atan2(Math.sin(want - th), Math.cos(want - th));
+    const lim = 1.2 * dt; d = Math.max(-lim, Math.min(lim, d));
+    if (Math.abs(d) > 1e-4) {
+      const L = 1.3, cx0 = a.x + Math.sin(th) * L, cz0 = a.z + Math.cos(th) * L, th2 = th + d;
+      a.x = cx0 - Math.sin(th2) * L; a.z = cz0 - Math.cos(th2) * L; a.fallYaw = (a.fallYaw || 0) + d;
+    }
+  }
   const cur = Math.hypot(a.vx, a.vz);
   if (S.war && !air) {
     // 大規模戦（11-19 18:16: 向きを変えるときのもっさり感をなくす）: 進みたい向きに沿った速さは加速 12・減速 18 m/秒²、
@@ -231,7 +246,7 @@ export function moveActor(S, w, a, inp, dt, ev) {
     if (a.y <= g) {
       const v = -a.vy, hh = a.airTop - g; a.y = g; a.vy = 0; a.airTop = null; a.air = false;
       // 跳んだあとの軽い着地（音だけ）
-      if (a.jumped && hh < 1.2 && ev && !S.predict) ev.push({ e: 'fall', id: a.id, v: Math.round(v * 10) / 10, h: 0.4, d: 0, roll: 0, x: a.x, y: a.y, z: a.z, loud: 0.4 });
+      if (a.jumped && hh < 1.2 && ev && !S.predict) ev.push({ e: 'fall', id: a.id, v: Math.round(v * 10) / 10, h: 0.4, d: 0, roll: 0, x: a.x, y: a.y, z: a.z, loud: 0.4, f: floorOf(w, a).step });
       a.jumped = false;
       land(S, w, a, hh, v, ev);
     }
@@ -256,10 +271,7 @@ export function moveActor(S, w, a, inp, dt, ev) {
   a.mvx = -(mvx * cy - mvz * sy); a.mvz = mvx * sy + mvz * cy;
   a.spd = Math.hypot(mvx, mvz);
   if (after !== before && ev && a.spd > 0.25 && onG) {
-    const L = levelOfY(a.y + 0.1);
-    const i = Math.floor(a.x / CS), j = Math.floor(a.z / CS);
-    const fm = w.war ? warFloor(w, a) : (L < w.NL && i >= 0 && j >= 0 && i < w.W && j < w.D) ? w.floorMat[w.idx(L, i, j)] : 0;
-    const F = FLOORS[fm] || FLOORS[1];
+    const F = floorOf(w, a);
     // 音の大きさ: 速さ・姿勢・床・防具（重いと大きい）
     let loud = (a.sprint ? 1.6 : a.spd > 1.8 ? 1.0 : a.spd > 0.9 ? 0.6 : 0.3) * F.loud * (a.st > 0.5 ? 0.6 : 1);
     if (!S.pvp && a.armor.vest === 'heavy') loud *= 1.15;
@@ -411,13 +423,19 @@ export function vaultPlan(S, w, a, out = _vp, o = {}) {
   }
   return null;
 }
+// 足もとの床（足音・跳ぶ・着地の音の材質）
+function floorOf(w, a) {
+  const L = levelOfY(a.y + 0.1), i = Math.floor(a.x / CS), j = Math.floor(a.z / CS);
+  const fm = w.war ? warFloor(w, a) : (L < w.NL && i >= 0 && j >= 0 && i < w.W && j < w.D) ? w.floorMat[w.idx(L, i, j)] : 0;
+  return FLOORS[fm] || FLOORS[1];
+}
 export function tryVault(S, w, a, ev, o = {}) {
   // 大規模戦: 前の窓ガラス（胸の高さ・0.9m 先まで）は、乗り越えるときに割る（11-20。割れるまでは通れない）
   if (w.war && !S.predict && ev && !o.hopOnly) { const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw); shatterNear(S, w, a.x + fx * 0.55, a.y + 1.1, a.z + fz * 0.55, 0.45, ev, a.y + 0.3, a.y + 2.2); }
   const p = vaultPlan(S, w, a, _vp, o);
   if (!p) return false;
   a.vault = { t: 0, dur: p.dur, x0: a.x, z0: a.z, sx: p.sx, sz: p.sz, y0: a.y, x1: p.x1, z1: p.z1, top: p.top, y1: p.y1, drop: p.drop > 0 ? 1 : 0, onto: p.onto, crouch: p.crouch, pre: p.gk >= 0 ? VAULT.smash : 0, hop: p.hop || 0 };
-  if (p.hop && ev) ev.push({ e: 'jump', id: a.id });
+  if (p.hop && ev) ev.push({ e: 'jump', id: a.id, f: floorOf(w, a).step });
   a.vx = a.vz = 0; a.sprint = false;
   // 窓のガラスを割る（手元の先読みでは割らない。ホストが割って知らせる）
   if (p.gk >= 0 && !S.predict && ev) breakGlass(S, w, { k: p.gk, q: 1, x: p.x1, by: a.id }, ev);
@@ -434,7 +452,7 @@ export function tryJump(S, w, a, ev) {
   const v = Math.min(JUMP_V, Math.sqrt(2 * 9.8 * Math.max(0.05, room)));
   a.vy = v; a.y += 0.05; a.air = true; a.ground = false; a.airTop = a.y; a.jumped = true;
   a.jumpCd = S.t + Math.round(0.35 / S.dt);
-  if (ev) ev.push({ e: 'jump', id: a.id });
+  if (ev) ev.push({ e: 'jump', id: a.id, f: floorOf(w, a).step });
   return true;
 }
 function stepVault(S, w, a, dt) {
@@ -468,7 +486,7 @@ function land(S, w, a, h, v, ev) {
   const roll = a.stance >= 1 && !a.down; // かがんで着地（受け身）
   const d = Math.round(fallDamage(h) * (roll ? FALL.roll : 1) * fallWeight(S, a));
   const stun = h > FALL.safe ? Math.min(1.3, 0.25 + 0.2 * (h - FALL.safe)) * (roll ? 0.6 : 1) : 0;
-  if (ev) ev.push({ e: 'fall', id: a.id, v: Math.round(v * 10) / 10, h: Math.round(h * 10) / 10, d, roll: roll ? 1 : 0, x: a.x, y: a.y, z: a.z, loud: Math.min(2, 0.5 + h * 0.3) });
+  if (ev) ev.push({ e: 'fall', id: a.id, v: Math.round(v * 10) / 10, h: Math.round(h * 10) / 10, d, roll: roll ? 1 : 0, x: a.x, y: a.y, z: a.z, loud: Math.min(2, 0.5 + h * 0.3), f: floorOf(w, a).step });
   if (stun > 0) a.stun = Math.max(a.stun || 0, stun);
   if (d < 1) return;
   if (h > FALL.legH) a.inj.leg = Math.min(S.pvp ? 2 : 4, (a.inj.leg || 0) + 1);

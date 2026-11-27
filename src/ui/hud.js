@@ -56,13 +56,15 @@ export class Hud {
     this.reticle = el('div', 'hud-reticle'); r.appendChild(this.reticle);
     // 息の残り（息止めの間と、戻るまで。構えているときだけ）
     this.breathEl = el('div', 'hud-breath', '<i></i>'); r.appendChild(this.breathEl);
-    // 二脚が立っている印（11-27。BattleBit も立つと印が出る）
-    this.bipEl = el('div', 'hud-bip', '<svg viewBox="0 0 24 24"><path d="M4 7h16M12 7l-5 12M12 7l5 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><b>二脚</b>'); r.appendChild(this.bipEl);
+    // バイポッドが立っている印（11-27。BattleBit も立つと画面の下に印が出る）
+    this.bipEl = el('div', 'hud-bip', '<svg viewBox="0 0 24 24"><path d="M4 7h16M12 7l-5 12M12 7l5 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><b>バイポッド</b>'); r.appendChild(this.bipEl);
     this.hitm = el('div', 'hud-hit', '<i></i><i></i><i></i><i></i>'); r.appendChild(this.hitm);
     // 点（大規模戦）: 照準の下に合計と内訳。続けて入ると足していく
     this.ptsEl = el('div', 'hud-pts', '<div class="kl"></div><div class="tot"></div><div class="rs"></div>'); r.appendChild(this.ptsEl);
     // ダウン中にあきらめて出撃の画面へ（大規模戦。指だと2回押す。11-19 18:16）
     this.giveup = el('div', 'hud-giveup', '<b>GIVE UP</b><span>出撃の画面へ</span>'); this.giveup.dataset.btn = 'giveup'; this.giveup.setAttribute('role', 'button'); r.appendChild(this.giveup);
+    // 倒れている間の表示（大規模戦）: 「倒れた」・残りの帯と秒・起こしている人／近い味方と衛生
+    this.downP = el('div', 'hud-downp', '<b class="t">倒れた</b><div class="bar"><i></i></div><div class="s"><span class="sec"></span><span class="sub"></span></div>'); r.appendChild(this.downP);
     this.dmg = el('div', 'hud-dmg'); r.appendChild(this.dmg);
     this.prog = el('div', 'hud-prog', '<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg"/></svg><div class="lb"></div>'); r.appendChild(this.prog);
     this.prompt = el('div', 'hud-prompt'); r.appendChild(this.prompt);
@@ -276,6 +278,19 @@ export class Hud {
       const g = Math.round(this.cache.gapS);
       if (this.cache.gap !== g) { this.cache.gap = g; this.cross.style.setProperty('--gap', g + 'px'); }
       this.cross.classList.toggle('dot', this.S.crosshair === 'dot');
+    }
+    {
+      const di = v.downInfo, key = di ? [Math.round(di.k * 200), di.sec, di.rev, di.drag, di.near, di.med].join('|') : '';
+      if (this.cache.downP !== key) {
+        this.cache.downP = key; this.downP.classList.toggle('on', !!di);
+        if (di) {
+          this.downP.querySelector('.bar i').style.transform = `scaleX(${di.k.toFixed(3)})`;
+          this.downP.classList.toggle('rev', !!di.rev); this.downP.classList.toggle('low', !di.rev && di.k < 0.3);
+          this.downP.querySelector('.t').textContent = di.rev ? '起こされている' : '倒れた';
+          this.downP.querySelector('.sec').textContent = di.rev ? '' : di.sec + ' 秒';
+          this.downP.querySelector('.sub').textContent = di.rev ? di.rev : di.drag ? di.drag + ' が引きずっている' : (di.med != null ? '衛生 ' + di.med + 'm' : di.near != null ? '味方 ' + di.near + 'm' : '近くに味方がいない');
+        }
+      }
     }
     { const gk = v.giveup || 0; if (this.cache.giveup !== gk) { this.cache.giveup = gk; this.giveup.classList.toggle('on', gk > 0); this.giveup.classList.toggle('arm', gk === 2); this.giveup.lastChild.textContent = gk === 2 ? 'もう一度押すと出撃の画面へ' : '出撃の画面へ'; } }
     // 拾う: 近くに拾える弾倉がある間だけ出す
