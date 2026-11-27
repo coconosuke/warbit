@@ -347,6 +347,44 @@ function vaultS(sr, seed) {
   lp(out, 7500, sr); hp(out, 30, sr);
   return fadeEdges(normalize(sat(out, 1.2), 0.75), sr);
 }
+// ---- 弾倉のリロード（11-27「音は重厚感とリアルさ」）: 一人称の手の動き（抜く 12〜35%・新しい弾倉 35〜58%・差す 58〜75%）に合わせて分けて鳴らす
+// 抜く: リリースボタンのカチッ → 弾倉が擦れて抜ける → 抜けきる時に弾倉の口が当たり、中の弾が鳴る
+function rlOut(sr, seed) {
+  const r = rng(seed), out = buf(sr, 0.4);
+  mixInto(out, clack(sr, r, 2500 + r() * 400, 0.03, 0.55), 0, 1);
+  { const m = S(sr, 0.13), z = noise(m, r); bp(z, 1700 + r() * 300, 1.3, sr); mulEnv(z, env(m, sr, 0.03, 0.1, 1.6)); mixInto(out, z, S(sr, 0.025), 0.45); }
+  mixInto(out, dsin(S(sr, 0.12), sr, 820 + r() * 120, 0.025, r() * TAU), S(sr, 0.13), 0.35);
+  for (let k = 0; k < 3; k++) mixInto(out, gearHit(sr, r, 'metal', 0.3), S(sr, 0.13 + k * 0.025 + r() * 0.01), 1);
+  return fadeEdges(normalize(out, 0.62), sr);
+}
+// 新しい弾倉を出す: ポーチのふた（ベルクロのバリッ）・ナイロンのこすれ・弾倉が手の中で当たる
+function rlPouch(sr, seed) {
+  const r = rng(seed), out = buf(sr, 0.4);
+  mixInto(out, rustle(sr, r, 0.3, { f: 2400, dens: 900, peak: 0.3 }), 0, 0.6);
+  { const n = S(sr, 0.09), v = new Float32Array(n), z = noise(n, r); hp(z, 2500, sr); for (let i = 0; i < n; i++) v[i] = z[i] * (r() < 0.12 ? 1 : 0.15); mulEnv(v, env(n, sr, 0.005, 0.08, 1.2)); mixInto(out, v, S(sr, 0.03), 0.55); }
+  mixInto(out, gearHit(sr, r, 'mag', 0.9), S(sr, 0.2), 1);
+  return fadeEdges(normalize(out, 0.5), sr);
+}
+// 差す: 差し込む擦れ → ラッチがかかる確かな「カチャッ」と胴の響き → 手のひらで下から叩く
+function rlIn(sr, seed) {
+  const r = rng(seed), out = buf(sr, 0.45);
+  { const m = S(sr, 0.09), z = noise(m, r); bp(z, 1400 + r() * 300, 1.2, sr); mulEnv(z, env(m, sr, 0.07, 0.02, 1)); mixInto(out, z, 0, 0.4); }
+  mixInto(out, clack(sr, r, 1450 + r() * 200, 0.07, 1.1), S(sr, 0.085), 1);
+  mixInto(out, thump(sr, r, 210, 130, 0.06, 0.7), S(sr, 0.085), 1);
+  mixInto(out, dsin(S(sr, 0.1), sr, 640 + r() * 80, 0.03, 0), S(sr, 0.088), 0.3);
+  { const m = S(sr, 0.04), z = noise(m, r); bp(z, 650, 0.8, sr); mulEnv(z, expEnv(m, sr, 0.0005, 0.01)); mixInto(out, z, S(sr, 0.16), 0.55); mixInto(out, thump(sr, r, 140, 90, 0.05, 0.5), S(sr, 0.16), 1); }
+  return fadeEdges(normalize(sat(out, 1.2), 0.7), sr);
+}
+// ボルトを戻す（空からのリロード）: ボルトキャッチを押す小さなカチッ → ばねでボルトが走って閉じる「シャキン」と、銃の胴の響き
+function rlBolt(sr, seed) {
+  const r = rng(seed), out = buf(sr, 0.4);
+  mixInto(out, clack(sr, r, 2100, 0.03, 0.45), 0, 1);
+  { const m = S(sr, 0.03), z = noise(m, r); hp(z, 2800, sr); mulEnv(z, env(m, sr, 0.005, 0.025, 1)); mixInto(out, z, S(sr, 0.035), 0.5); }
+  mixInto(out, clack(sr, r, 1750 + r() * 200, 0.1, 1.2), S(sr, 0.06), 1);
+  for (const [f, a] of [[2350, 0.3], [3650, 0.18], [5200, 0.08]]) mixInto(out, dsin(S(sr, 0.2), sr, f * (0.97 + r() * 0.06), 0.035, r() * TAU), S(sr, 0.06), a);
+  mixInto(out, thump(sr, r, 170, 100, 0.07, 0.7), S(sr, 0.06), 1);
+  return fadeEdges(normalize(sat(out, 1.25), 0.75), sr);
+}
 // 走る時の装備の揺れ（一歩ごと。弾倉・バックル・スリングの金具が当たり、布がこすれる）
 function gearRun(sr, seed) {
   const r = rng(seed), out = buf(sr, 0.3);
@@ -400,6 +438,7 @@ export const SFX = {
   land: [(sr, i) => landS(sr, 270 + i), 1],
   stProne: [(sr, i) => stanceS(sr, 1240 + i, 'prone'), 2], stRise: [(sr, i) => stanceS(sr, 1245 + i, 'rise'), 2], stCrouch: [(sr, i) => stanceS(sr, 1250 + i, 'crouch'), 2], stStand: [(sr, i) => stanceS(sr, 1255 + i, 'stand'), 2], vaultS: [(sr, i) => vaultS(sr, 1260 + i), 2],
   gearRun: [(sr, i) => gearRun(sr, 1270 + i), 4],
+  rlOut: [(sr, i) => rlOut(sr, 1280 + i), 2], rlPouch: [(sr, i) => rlPouch(sr, 1285 + i), 2], rlIn: [(sr, i) => rlIn(sr, 1290 + i), 2], rlBolt: [(sr, i) => rlBolt(sr, 1295 + i), 2],
   jumpUp: [(sr, i) => jumpUp(sr, 1200 + i), 3], jumpLand: [(sr, i) => jumpLand(sr, 1210 + i, false), 3], fallLand: [(sr, i) => jumpLand(sr, 1220 + i, true), 2], boxDown: [(sr, i) => boxDown(sr, 1230 + i), 2],
   // 当たる
   impHard: [(sr, i) => impact(sr, 300 + i, 'hard'), 3], impWood: [(sr, i) => impact(sr, 310 + i, 'wood'), 3], impMetal: [(sr, i) => impact(sr, 320 + i, 'metal'), 3], impGlass: [(sr, i) => impact(sr, 330 + i, 'glass'), 2], impSoft: [(sr, i) => impact(sr, 340 + i, 'soft'), 2],

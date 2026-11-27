@@ -214,7 +214,7 @@ export class AudioSys {
     if (name === 'ui_back') return this.ui('back');
     const d = this._dist(pos);
     if (pos && d > (o.maxD || 70)) return null;
-    return this.play(name, { pos, vol: o.vol ?? 1, rate: o.rate, vary: o.vary ?? 0.06, verb: o.verb ?? 0.5, hrtf: pos && d < 12, delay: pos ? d / 343 : 0, ref: o.ref || 2.2 });
+    return this.play(name, { pos, vol: o.vol ?? 1, rate: o.rate, vary: o.vary ?? 0.06, verb: o.verb ?? 0.5, hrtf: pos && d < 12, delay: (pos ? d / 343 : 0) + (o.delay || 0), ref: o.ref || 2.2 });
   }
   ui(name) { return this.play('ui_' + name, { bus: 'ui', verb: 0, vol: 0.9 }); }
   // 爆発（11-19 18:16: 70m より遠いと鳴っていなかった）: 近い音（はじける高い音）と遠い音（低いとどろき）を距離で混ぜる。

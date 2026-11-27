@@ -986,9 +986,21 @@ export class Match {
         case 'stung': if (e.id === me) { this.shake = 1; this.blurK = Math.max(this.blurK, 0.8); } break;
         case 'tase': au.sfx('taser', S.byId[e.id] ? [S.byId[e.id].x, S.byId[e.id].y + 1, S.byId[e.id].z] : null); break;
         case 'spray': au.sfx('spray', S.byId[e.id] ? [S.byId[e.id].x, S.byId[e.id].y + 1.5, S.byId[e.id].z] : null); break;
-        case 'reload': if (e.id === me) au.sfx(e.k === 'shell' ? 'shellStart' : 'magOut', null, { vol: 0.7 }); else { const a = S.byId[e.id]; if (a && a.kind === 'swat' && !S.pvp && Math.random() < 0.5) this._say(a, 'swat_reload'); if (a && this._nearCam(a, 20)) au.sfx('magOut', [a.x, a.y + 1.2, a.z], { vol: 0.5 }); } break;
+        // リロード（弾倉の銃）: 手の動きに合わせて 抜く→ポーチから出す→差す→（空なら）ボルトを戻す を分けて鳴らす。途中でやめたら止める
+        case 'reload': {
+          const a = S.byId[e.id], W2 = a && curW(a), seqOK = W2 && e.k !== 'shell' && !W2.tube && !W2.breakAction && !W2.revolver && W2.cat !== 'less' && e.dur > 0.3;
+          if (a && a.kind === 'swat' && !S.pvp && e.id !== me && Math.random() < 0.5) this._say(a, 'swat_reload');
+          const mine = e.id === me; if (!mine && !(a && this._nearCam(a, 20))) break;
+          const pos = mine ? null : [a.x, a.y + 1.2, a.z], vk = mine ? 1 : 0.65;
+          if (!seqOK) { au.sfx(e.k === 'shell' ? 'shellStart' : 'magOut', pos, { vol: 0.7 * vk }); break; }
+          const T = e.dur, seq = [['rlOut', 0.1, 0.75], ['rlPouch', 0.36, 0.5], ['rlIn', 0.6, 0.8]];
+          if (e.empty) seq.push(['rlBolt', 0.84, 0.8]);
+          const hs = []; for (const [nm, f, v] of seq) { const h = au.sfx(nm, pos, { vol: v * vk, delay: T * f, verb: mine ? 0.15 : 0.35 }); if (h) hs.push(h); }
+          if (a) { if (a._rlSnd) for (const h of a._rlSnd) try { h.stop(0.02); } catch (er) { /* 済み */ } a._rlSnd = hs; a._rlSeq = true; }
+          break;
+        }
         // ほかの人のリロード・持ち替え・ライトの音も近くなら聞こえる（11-20: 前は抜く音だけで、差す音・弾を込める音・持ち替えは自分だけ）
-        case 'reloaded': if (e.id === me) au.sfx('magIn', null, { vol: 0.75 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 18)) au.sfx('magIn', [a.x, a.y + 1.2, a.z], { vol: 0.45 }); } break;
+        case 'reloaded': { const a = S.byId[e.id]; if (a && a._rlSeq) { a._rlSeq = false; a._rlSnd = null; break; } /* 分けて鳴らした */ if (e.id === me) au.sfx('magIn', null, { vol: 0.75 }); else if (a && this._nearCam(a, 18)) au.sfx('magIn', [a.x, a.y + 1.2, a.z], { vol: 0.45 }); break; }
         case 'shell': if (e.id === me) au.sfx('shellIn', null, { vol: 0.7 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 14)) au.sfx('shellIn', [a.x, a.y + 1.2, a.z], { vol: 0.4 }); } break;
         case 'pumped': { const a = S.byId[e.id], wb = a && curWeapon(a); if (wb && WEAPONS[wb.id] && WEAPONS[wb.id].bolt) break; /* ボルトの音は 'bolt' で鳴らした */ if (e.id === me) au.sfx('pump', null, { vol: 0.75 }); else if (a) au.sfx('pump', [a.x, a.y + 1.2, a.z], { vol: 0.5 }); break; }
         // ボルトの操作の音（起こす・引く・押す・倒す。音の中の間合いは見た目の動きと同じ）
@@ -1099,7 +1111,7 @@ export class Match {
         case 'vault': { const a = S.byId[e.id]; if (!a) break; const mine = a === p; if (!mine && Math.hypot(e.x - this.cam.x, e.z - this.cam.z) > 22) break;
           au.sfx('vaultS', mine ? null : [e.x, e.y + 1, e.z], { vol: mine ? 0.6 : 0.7, verb: mine ? 0.12 : 0.3 }); break; }
         // リロードを途中でやめた（自分だけ。手を止める小さな音）
-        case 'reloadx': if (e.id === me) au.sfx('click', null, { vol: 0.25, rate: 0.9 }); break;
+        case 'reloadx': { const a = S.byId[e.id]; if (a && a._rlSnd) { for (const h of a._rlSnd) try { h.stop(0.03); } catch (er) { /* 済み */ } a._rlSnd = null; a._rlSeq = false; } if (e.id === me) au.sfx('click', null, { vol: 0.25, rate: 0.9 }); break; }
         case 'wire': { const near = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); if (near < 30) au.sfx('impMetal', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.35 : 0.55, rate: 1.6 + Math.random() * 0.3 }); break; }
         // 着地: 自分なら画面が揺れる。高い所から落ちたほど重い音（まわりにも聞こえる）
         case 'fall': {
