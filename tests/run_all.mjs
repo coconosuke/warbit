@@ -893,7 +893,8 @@ try {
   // メニューの再出撃（11-19 18:16）: 生きている間は REDEPLOY がある
   {
     const t0 = await page.evaluate(() => { window.__app.pauseGame(); return window.__app.game.S.t; });
-    await page.waitForTimeout(800);
+    // 進むのを待つ（描画の遅い環境では 0.8 秒で数こましか進まないことがある。止まっていれば 10 秒たっても進まない）
+    await page.waitForFunction((t) => window.__app.game.S.t > t + 5, t0, { timeout: 10000 }).catch(() => {});
     const hasRd = await page.evaluate(() => !!document.querySelector('[data-a="redeploy"]'));
     const t1 = await page.evaluate(() => window.__app.game.S.t);
     await page.evaluate(() => window.__app.resumeGame());

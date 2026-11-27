@@ -5,6 +5,8 @@ import { pvpDamage } from '../../src/engine/combat.js';
 import { heightAt } from '../../src/war/world.js';
 import { personPoint } from '../../src/engine/interact.js';
 import { DRAG } from '../../src/engine/drag.js';
+import { poseInput } from '../../src/engine/combat.js';
+import { computePose, NBONE } from '../../src/engine/pose.js';
 
 const idle = (a, o = {}) => Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o);
 function setup() {
@@ -64,4 +66,24 @@ test('引きずる人が倒れると離す', () => {
   pvpDamage(S, me, me.hp + 5, null, 'chest', 0, 1, [], 'bullet');
   step(G, {});
   ok(me.drag == null && mate.dragBy == null, '離した');
+});
+
+test('引きずる人の見た目: 左手が倒れた人の胸元へ下りる・銃は下げる（ほかの人の画面にも送る）', async () => {
+  const { G, S, me, mate } = setup();
+  const B = new Float32Array(NBONE * 12);
+  computePose(poseInput(me, {}), B);
+  const hand0 = B[7 * 12 + 1] - me.y;
+  step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'drag' }] }) });
+  ok(me.drag === mate.id && me.dragPt, '引きずり中・手の行き先');
+  const p = poseInput(me, {});
+  ok(p.act === 'drag' && p.low === 1, '動作 drag・銃を下げる ' + p.act + ' ' + p.low);
+  computePose(p, B);
+  const hand1 = B[7 * 12 + 1] - me.y;
+  ok(hand1 < hand0 - 0.15, '左手が下がる ' + hand0.toFixed(2) + '→' + hand1.toFixed(2));
+  // 送る形: ほかの人の画面でも drag の動作になる
+  const { packSnap } = await import('../../src/net/snap.js');
+  const sn = packSnap(S, G.w, [], [me.pid], false), row = sn.A.find(r => r[0] === me.id);
+  ok(row && row[25] === 10, '送る形に drag（10）' + (row ? row[25] : '-'));
+  step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'drag' }] }) });
+  ok(me.drag == null && !me.dragPt, '離すと戻る');
 });

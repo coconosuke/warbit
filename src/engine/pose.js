@@ -135,6 +135,8 @@ export function computePose(p, out) {
   if (act === 'grab') torsoBend += 0.45 * Math.sin(Math.PI * clamp((actT - 0.05) / 0.8, 0, 1));
   if (act === 'place') torsoBend += 0.08 * reachK;
   if (act === 'kick') torsoBend -= 0.16 * kickExt;
+  // 引きずる: 腰を少し落として前かがみ（低い所の襟をつかむ）
+  if (act === 'drag') { torsoBend += 0.3; pelvisY -= 0.1 * s; }
   // ローカルでの関節
   const fwd = v3(0, 0, 1), up = v3(0, 1, 0), left = v3(1, 0, 0);
   let P = v3(0, pelvisY, 0);
@@ -289,6 +291,13 @@ export function computePose(p, out) {
       const off = sub(tgt, shL), dl = len(off), maxR = (ua + fa) * 0.97;
       if (dl > maxR) tgt = madd(shL, off, maxR / dl);
       wristL = lerp3(wristL, tgt, reachK); handDirL = norm(lerp3(handDirL, norm(off), reachK)); elbowHintL = norm(lerp3(elbowHintL, v3(1, -0.6, 0), reachK));
+    }
+    // 引きずる: 左手を倒れた人の胸元へ（届く所まで伸ばす）。銃は右手で下げたまま
+    if (act === 'drag' && aP) {
+      let tgt = v3(aP[0], aP[1], aP[2]);
+      const off = sub(tgt, shL), dl = len(off), maxR = (ua + fa) * 0.97;
+      if (dl > maxR) tgt = madd(shL, off, maxR / dl);
+      wristL = tgt; handDirL = norm(off); elbowHintL = norm(v3(1, -0.3, -0.5));
     }
     // 扉を開ける・閉める: 左手をノブへ伸ばして戻す（銃は右手）
     if ((p.gest === 'push' || p.gest === 'grab') && p.gestP) {

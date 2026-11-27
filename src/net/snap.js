@@ -99,12 +99,12 @@ export function packSnap(S, w, events, mePids, withBlocks) {
   return out;
 }
 // 動作の見た目（ほかの人の拘束・作業・ノブ・押す）: 体の動きの種類・進み・手の行き先、拘束されている進み
-const ACTS = ['', 'cuff', 'kneel', 'grab', 'place', 'radio', 'bandage', 'kick', 'knob', 'peek'];
+const ACTS = ['', 'cuff', 'kneel', 'grab', 'place', 'radio', 'bandage', 'kick', 'knob', 'peek', 'drag'];
 function actRow(a) {
   const x = a.act, g = a.gest;
-  const ap = x ? (x.pose || ACT_POSE[x.k] || '') : a.peek ? 'peek' : '';
-  const tg = x && x.tgt ? x.tgt : a.peek ? [a.peek.x, a.peek.y, a.peek.z] : null;
-  return [ACTS.indexOf(ap), x ? Math.round(100 * Math.min(1, x.t / Math.max(0.05, x.dur))) : 0, tg ? r2(tg[0]) : 0, tg ? r2(tg[1]) : 0, tg ? r2(tg[2]) : 0,
+  const ap = x ? (x.pose || ACT_POSE[x.k] || '') : a.peek ? 'peek' : a.dragPt ? 'drag' : '';
+  const tg = x && x.tgt ? x.tgt : a.peek ? [a.peek.x, a.peek.y, a.peek.z] : a.dragPt || null;
+  return [ACTS.indexOf(ap), x ? Math.round(100 * Math.min(1, x.t / Math.max(0.05, x.dur))) : ap === 'drag' ? 50 : 0, tg ? r2(tg[0]) : 0, tg ? r2(tg[1]) : 0, tg ? r2(tg[2]) : 0,
     g ? (g.k === 'push' ? 1 : 2) : 0, g ? Math.round(100 * Math.min(1, g.t / g.dur)) : 0, g && g.tgt ? r2(g.tgt[0]) : 0, g && g.tgt ? r2(g.tgt[1]) : 0, g && g.tgt ? r2(g.tgt[2]) : 0,
     Math.round(100 * (a.cuffK || 0))];
 }
@@ -205,7 +205,9 @@ export class Mirror {
         // 動作の見た目
         if (r1.length > 25) {
           const ap = ACTS[r1[25]] || '';
-          a.act = ap && ap !== 'peek' ? { k: '_net', pose: ap, t: r1[26] / 100, dur: 1, tgt: [r1[27] / 100, r1[28] / 100, r1[29] / 100] } : null;
+          a.act = ap && ap !== 'peek' && ap !== 'drag' ? { k: '_net', pose: ap, t: r1[26] / 100, dur: 1, tgt: [r1[27] / 100, r1[28] / 100, r1[29] / 100] } : null;
+          // 引きずる: 動作ではなく手の行き先だけ（参加側の HUD は自分の dg で決まる）
+          a.dragPt = ap === 'drag' ? [r1[27] / 100, r1[28] / 100, r1[29] / 100] : null;
           a.peek = ap === 'peek' ? { x: r1[27] / 100, y: r1[28] / 100, z: r1[29] / 100, k: 'mirror' } : null;
           a.gest = r1[30] ? { k: r1[30] === 1 ? 'push' : 'grab', t: r1[31] / 100, dur: 1, tgt: [r1[32] / 100, r1[33] / 100, r1[34] / 100] } : null;
         }

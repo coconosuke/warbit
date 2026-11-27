@@ -12,6 +12,7 @@ export function startDrag(S, a, b, off, ev) {
   if (a.drag != null) stopDrag(S, a, ev);
   if (b.dragBy != null) { const o = S.byId[b.dragBy]; if (o) stopDrag(S, o, ev); }
   a.drag = b.id; b.dragBy = a.id; a.dragOff = off || [0, 0];
+  a.dragPt = [b.x + a.dragOff[0], b.y + 0.3, b.z + a.dragOff[1]];
   a.sprint = false; a.adsOn = false;
   if (ev) ev.push({ e: 'drag', id: a.id, tgt: b.id, on: true });
 }
@@ -19,7 +20,7 @@ export function stopDrag(S, a, ev) {
   const b = a.drag != null ? S.byId[a.drag] : null;
   if (b && b.dragBy === a.id) b.dragBy = null;
   if (a.drag != null && ev) ev.push({ e: 'drag', id: a.id, tgt: b ? b.id : -1, on: false });
-  a.drag = null; a.dragOff = null;
+  a.drag = null; a.dragOff = null; a.dragPt = null;
 }
 
 const _po = [0, 0, 0];
@@ -31,6 +32,9 @@ export function stepDrag(S, w, ev) {
     if (!a.alive || a.down || a.dead || !b || !b.alive || !b.down || b.dragBy !== a.id) { stopDrag(S, a, ev); continue; }
     const off = a.dragOff || [0, 0];
     const tx = b.x + off[0], tz = b.z + off[1];
+    // 見た目: 引きずる人の左手の行き先（倒れた人の胸元）
+    if (!a.dragPt) a.dragPt = [0, 0, 0];
+    a.dragPt[0] = tx; a.dragPt[1] = b.y + 0.3; a.dragPt[2] = tz;
     const dx = a.x - tx, dz = a.z - tz, d = Math.hypot(dx, dz);
     if (d > DRAG.max || Math.abs(a.y - b.y) > 1.2) { stopDrag(S, a, ev); continue; }
     if (d <= DRAG.len) continue;

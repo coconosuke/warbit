@@ -29,9 +29,11 @@ export function poseInput(a, o = {}) {
   o.fire = a.fireK || 0; o.state = poseState(a); o.stateT = a.stateT; o.fallYaw = a.fallYaw; o.seed = a.look ? a.look.seed : 0; o.throwT = a.throwT;
   // 動作（拘束・作業・拾う・無線…）とその進み、手の行き先（体の向きの座標）
   const x = a.act;
-  o.act = x ? (x.pose || ACT_POSE[x.k] || null) : a.peek ? 'peek' : null;
-  o.actT = x ? Math.min(1, x.t / Math.max(0.05, x.dur)) : a.peek ? 1 : 0;
-  o.actP = toLocal(a, x ? x.tgt : a.peek ? [a.peek.x, a.peek.y, a.peek.z] : null, o.actP);
+  // 引きずる（大規模戦）: 左手を倒れた人の胸元へ（dragPt は drag.js が毎ステップ置く）。銃は下げる
+  o.act = x ? (x.pose || ACT_POSE[x.k] || null) : a.peek ? 'peek' : a.dragPt ? 'drag' : null;
+  o.actT = x ? Math.min(1, x.t / Math.max(0.05, x.dur)) : a.peek ? 1 : a.dragPt ? 0.5 : 0;
+  o.actP = toLocal(a, x ? x.tgt : a.peek ? [a.peek.x, a.peek.y, a.peek.z] : a.dragPt || null, o.actP);
+  if (o.act === 'drag') o.low = 1;
   o.gest = a.gest ? a.gest.k : null; o.gestT = a.gest ? Math.min(1, a.gest.t / a.gest.dur) : 0;
   o.gestP = toLocal(a, a.gest ? a.gest.tgt : null, o.gestP);
   o.cuffT = a.cuffK || 0;

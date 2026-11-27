@@ -261,6 +261,8 @@ export function stepBlasts(S, w, dt, ev) {
       const k = Math.pow(1 - d / b.r, b.fall || 1.3);
       const dmg = b.dmg * k;
       a.stun = Math.max(a.stun, 1.5 * k + 0.5); a.deaf = Math.max(a.deaf, 4);
+      // 大規模戦は味方に当たらない（BattleBit は味方撃ちなし。爆発も。自分の爆発では自分も傷つく。research の 69）
+      if (S.war && by && a.team === by.team && a.id !== by.id) continue;
       if (S.pvp) pvpDamage(S, a, dmg, by, 'chest', a.x - b.x, a.z - b.z, ev, 'blast');
       else {
         let dd = dmg;
