@@ -694,8 +694,44 @@ function addPistolDot(B, P, kind = 'rmr') {
   P.sightY = top + 0.015; P.optic = { kind: 'reddot', z, r: 0.008, y: top + 0.015 };
 }
 // アタッチメント
+// バイポッドの脚の行列（11-27 16:35）: 銃の行列 M に、留め金（銃の座標の y,z）を通る横の軸のまわりの回転をかける。
+//  k=0 たたむ（後ろへ寝る）〜 k=1 立てる（下へ。少し前へ開く）
+export function bipodMatrix(M, out, k, pv) {
+  const th = -1.72 * k, c = Math.cos(th), s = Math.sin(th), y0 = pv[0], z0 = pv[1];
+  out.set(M);
+  for (let i = 0; i < 3; i++) { const uy = M[4 + i], uz = M[8 + i]; out[4 + i] = uy * c + uz * s; out[8 + i] = -uy * s + uz * c; }
+  const ty = y0 - (y0 * c - z0 * s), tz = z0 - (y0 * s + z0 * c);
+  for (let i = 0; i < 3; i++) out[12 + i] = M[12 + i] + M[4 + i] * ty + M[8 + i] * tz;
+  return out;
+}
+// 本家の照準器（11-27）の形: 近い物を使うか（独自の形）、プリズム（短い箱と太い目当て）・FLIR（四角い胴と前の丸いレンズ、後ろの画面）を足す
+const SIGHT_SHAPE = { slip: 'acog2', p78: 'acog2', echo: 'lpvo', m125: 'acog', tri4: 'acog' };
 function addSight(B, P, kind) {
   const ry = P.railY ?? 0.052, z0 = P.railZ ? P.railZ[0] : -0.05, z1 = P.railZ ? P.railZ[1] : 0.05;
+  if (kind === 'prisma' || kind === 'burris') {
+    // プリズム: 短く角ばった胴（2 段）、前に太い対物、上に小さなドットの台
+    const z = (z0 + z1) / 2, y = ry + 0.034, zb = z - 0.06, zf = z + 0.055, big = kind === 'burris' ? 1.12 : 1;
+    sbx(B, 0.0125, ry, z - 0.04, ry + 0.016, z + 0.03, K.blk);
+    sbx(B, 0.017 * big, y - 0.017, zb + 0.012, y + 0.017, z + 0.01, K.blk);
+    B.tube([0, y, z + 0.01], [0, y, zf], 0.0175 * big, 0.0195 * big, 12, LAYER.metal, K.blk, { caps: true });
+    B.tube([0, y, zb], [0, y, zb + 0.012], 0.0175, 0.0165, 12, LAYER.metal, K.blk, { caps: true });
+    if (kind === 'burris') sbx(B, 0.009, y + 0.017, z - 0.03, y + 0.03, z + 0.0, K.dg);
+    bx(B, -0.017 * big, y - 0.005, z - 0.02, -0.024, y + 0.005, z - 0.004, K.dg);
+    P.sightY = y; P.eyeZ = zb - 0.06; P.optic = { kind, z, r: 0.014, y, scope: true, zb, rr: 0.016 };
+    return;
+  }
+  if (kind === 'flir') {
+    // 熱の照準器: 四角い胴、前に丸いレンズ、後ろに目当て、上につまみ
+    const z = (z0 + z1) / 2, y = ry + 0.04, zb = z - 0.085, zf = z + 0.07;
+    sbx(B, 0.013, ry, z - 0.045, ry + 0.014, z + 0.04, K.blk);
+    sbx(B, 0.024, y - 0.025, zb + 0.02, y + 0.024, zf - 0.02, K.dg);
+    B.tube([0, y, zf - 0.02], [0, y, zf], 0.021, 0.021, 14, LAYER.metal, K.blk, { caps: true });
+    B.tube([0, y, zb], [0, y, zb + 0.02], 0.016, 0.019, 12, LAYER.rubber, K.blk, { caps: true });
+    for (const dz of [-0.02, 0.0]) B.tube([0.006, y + 0.024, z + dz], [0.006, y + 0.032, z + dz], 0.005, 0.005, 8, LAYER.metal, K.blk, { caps: true });
+    P.sightY = y; P.eyeZ = zb - 0.06; P.optic = { kind, z, r: 0.015, y, scope: true, zb, rr: 0.017 };
+    return;
+  }
+  kind = SIGHT_SHAPE[kind] || kind;
   if (kind === 'reddot') {
     const z = (z0 + z1) / 2 - 0.01;
     sbx(B, 0.012, ry, z - 0.02, ry + 0.012, z + 0.03, K.blk);
@@ -810,6 +846,58 @@ function addSight(B, P, kind) {
   }
 }
 // ホロサイト（EOTech EXPS3）: 台と窓の枠（左右の柱と屋根）。中は空いている
+// ブースター（拡大鏡）: 左の蝶番で横へ倒れる筒（P.flip）。G33 3倍・6XMag 6倍（長く太い）。軸は前のドット・ホロと同じ高さ
+function addBooster(B, P, kind, zm) {
+  const ry = P.railY ?? 0.052, y = P.sightY, big = kind === 'mag6', L = big ? 0.075 : 0.05, R = big ? 0.0175 : 0.0152;
+  sbx(B, 0.0145, ry, zm - 0.026, ry + 0.012, zm + 0.026, K.blk);
+  bx(B, 0.0145, ry + 0.004, zm - 0.02, 0.0215, ry + 0.015, zm + 0.02, K.blk);
+  P.flip = (M) => {
+    M.tube([0, y, zm - L], [0, y, zm + 0.046], R, R, 12, LAYER.metal, K.blk, { caps: false });
+    M.tube([0, y, zm - L - 0.012], [0, y, zm - L], R + 0.002, R, 12, LAYER.metal, K.blk, { caps: true });
+    M.tube([0, y, zm + 0.046], [0, y, zm + 0.053], R + 0.001, R + 0.001, 12, LAYER.metal, K.dg, { caps: true });
+    M.tube([0, y, zm - 0.013], [0, y, zm + 0.013], R + 0.003, R + 0.003, 12, LAYER.metal, K.blk, { caps: false });
+    bx(M, 0.004, ry + 0.012, zm - 0.012, 0.0195, y, zm + 0.012, K.blk);
+  };
+  P.flipPivot = [0.0185, ry + 0.012];
+  P.boost = { zb: zm - L - 0.012, rr: R - 0.002 };
+}
+// 横・上の照準器（11-27 16:22。本家の Canted・Top）: 45° の台（右へ傾けて付ける。銃を左へ傾けると真上に来る）・上のドット。
+//  P.cant.p = のぞく点（銃の座標）、P.cant.eye = 目の前後の位置
+function addCant(B, P, kind) {
+  const ry = P.railY ?? 0.052, z0 = P.railZ ? P.railZ[0] : -0.05, z1 = P.railZ ? P.railZ[1] : 0.05;
+  const a = Math.PI / 4, c = Math.cos(a), s = Math.sin(a);
+  const tilt = (x, y, z) => B.setXf([c, s, 0, -s, c, 0, 0, 0, 1, x, y, z]);
+  if (kind === 'tDot') {
+    // 倍率の照準器の上に小さなドット（RMR に近い形。独自）
+    const o = P.optic, yt = o.y + (o.rr || 0.016) + 0.006, z = o.z;
+    sbx(B, 0.011, yt - 0.004, z - 0.016, yt + 0.004, z + 0.018, K.blk);
+    sbx(B, 0.012, yt + 0.004, z - 0.014, yt + 0.024, z + 0.008, K.blk);
+    bx(B, -0.012, yt + 0.004, z + 0.008, 0.012, yt + 0.006, z + 0.012, K.blk);
+    P.cant = { p: [0, yt + 0.016, z], eye: z - 0.25 };
+    return;
+  }
+  if (kind === 'cDot') {
+    const z = z1 - 0.035;
+    tilt(-0.012, ry, z);
+    sbx(B, 0.008, -0.006, -0.02, 0.006, 0.02, K.blk);          // 45° の台
+    sbx(B, 0.011, 0.006, -0.016, 0.026, 0.008, K.blk);         // ドットの胴
+    bx(B, -0.011, 0.006, 0.008, 0.011, 0.009, 0.013, K.blk);
+    B.setXf(null);
+    const py = 0.018; P.cant = { p: [-0.012 - s * py, ry + c * py, z], eye: z - 0.22 };
+    return;
+  }
+  // 45° の折りたたみの金属の照準（前の柱と後ろの丸い穴）
+  const zf = z1 - 0.012, zr = z0 + 0.014;
+  tilt(-0.012, ry, zf);
+  sbx(B, 0.006, 0, -0.008, 0.008, 0.008, K.blk); sbx(B, 0.0016, 0.008, -0.002, 0.024, 0.002, K.blk);
+  B.setXf(null);
+  tilt(-0.012, ry, zr);
+  sbx(B, 0.006, 0, -0.008, 0.008, 0.008, K.blk);
+  for (const sx of [1, -1]) bx(B, sx * 0.0035, 0.008, -0.002, sx * 0.0075, 0.026, 0.002, K.blk);
+  bx(B, -0.0075, 0.008, -0.002, 0.0075, 0.012, 0.002, K.blk); bx(B, -0.0075, 0.022, -0.002, 0.0075, 0.026, 0.002, K.blk);
+  B.setXf(null);
+  const py = 0.017; P.cant = { p: [-0.012 - s * py, ry + c * py, zr], eye: zr - 0.09 };
+}
 function holoBody(B, ry, z) {
   sbx(B, 0.019, ry, z - 0.045, ry + 0.02, z + 0.04, K.blk);
   for (const sx of [1, -1]) bx(B, sx * 0.02, ry + 0.02, z - 0.045, sx * 0.0145, ry + 0.062, z + 0.04, K.blk);
@@ -870,10 +958,19 @@ const GRIP_SHAPE = { vskel: 'vert', rk6: 'vert', vtac: 'vert', fab: 'vert', hera
 function addGrip(B, P, kind) {
   kind = GRIP_SHAPE[kind] || kind;
   // 二脚（11-27）: 前の握りの先に留め金と、たたんだ2本の脚（銃身に沿って後ろへ）。下のレールがない銃（狙撃銃）は銃の前 6 割の所
+  //  脚は別の部品（P.legs）: 立てる時に留め金のまわりで下へ回る（11-27 16:35「展開の描写」。bipodMatrix）。脚は先へ少し開く
   if (kind === 'bipod') {
     const z = P.rail2 ? P.rail2[1] - 0.02 : (P.muzzle ?? 0.5) * 0.6, y = P.foreY ?? -0.032;
     sbx(B, 0.014, y - 0.018, z - 0.016, y, z + 0.016, K.blk);
-    for (const sx of [1, -1]) B.tube([sx * 0.009, y - 0.016, z - 0.004], [sx * 0.011, y - 0.022, z - 0.17], 0.0045, 0.004, 6, LAYER.metal, K.dg, { caps: true });
+    B.tube([-0.016, y - 0.012, z], [0.016, y - 0.012, z], 0.005, 0.005, 8, LAYER.metal, K.dg, { caps: true }); // 軸
+    P.legs = (M) => {
+      for (const sx of [1, -1]) {
+        M.tube([sx * 0.011, y - 0.014, z - 0.004], [sx * 0.028, y - 0.018, z - 0.15], 0.0048, 0.0042, 6, LAYER.metal, K.dg, { caps: true });
+        M.tube([sx * 0.028, y - 0.018, z - 0.15], [sx * 0.033, y - 0.019, z - 0.2], 0.0036, 0.0034, 6, LAYER.metal, K.mg || K.dg, { caps: true }); // 伸びる脚の先
+        M.tube([sx * 0.033, y - 0.019, z - 0.2], [sx * 0.034, y - 0.019, z - 0.212], 0.0058, 0.0058, 8, LAYER.rubber, K.blk, { caps: true });  // ゴムの足
+      }
+    };
+    P.bipPivot = [y - 0.012, z];
     return;
   }
   if (!P.rail2 || kind === 'none') return;
@@ -1099,7 +1196,7 @@ export function gunModel(wid, att = {}) {
   const W = WEAPONS[wid];
   if (!W) return null;
   const side = att.side || (att.light ? 'light' : 'none');
-  const key = wid + '|' + (att.sight || 'iron') + '|' + (att.muzzle || 'none') + '|' + (att.grip || 'none') + '|' + side + '|' + (att.mag || 'std') + '|' + (att.stock || 'std') + '|' + (att.finish || 'blk');
+  const key = wid + '|' + (att.sight || 'iron') + '|' + (att.boost || '') + '|' + (att.cant || '') + '|' + (att.muzzle || 'none') + '|' + (att.grip || 'none') + '|' + side + '|' + (att.mag || 'std') + '|' + (att.stock || 'std') + '|' + (att.finish || 'blk');
   let g = cache.get(key);
   if (g) return g;
   const B = new MeshBuilder(), P = { sightY: 0.06, eyeZ: -0.25, muzzle: 0.3 };
@@ -1110,7 +1207,14 @@ export function gunModel(wid, att = {}) {
   try { fn(B, P, { mdl: W.mdl || {}, fde: W.mdl && W.mdl.fde, stock: att.stock || 'std' }); }
   finally { K.blk = K0.blk; K.dg = K0.dg; K.fde = K0.fde; FINACT = null; OPTIC = false; }
   if ((att.sight === 'rmr' || att.sight === 'sro') && P.pistol) addPistolDot(B, P, att.sight);
-  else if (att.sight && att.sight !== 'iron' && att.sight !== 'rmr' && att.sight !== 'sro' && (P.railZ || P.pistol === undefined)) addSight(B, P, att.sight);
+  else if (att.sight && att.sight !== 'iron' && att.sight !== 'rmr' && att.sight !== 'sro' && (P.railZ || P.pistol === undefined)) {
+    // ブースター（11-27 16:22）: ドット・ホロを前へずらし、後ろに拡大鏡（横へ倒せる別の部品）
+    const bst = att.boost && att.boost !== 'none' && P.railZ && ['reddot', 'srs', 'holo'].includes(att.sight), rz0 = P.railZ;
+    if (bst) P.railZ = [rz0[0] + 0.09, rz0[1]];
+    addSight(B, P, att.sight);
+    if (bst) { P.railZ = rz0; addBooster(B, P, att.boost, (rz0[0] + rz0[1]) / 2 - 0.07); }
+    if (att.cant && att.cant !== 'none' && P.optic && P.optic.scope) addCant(B, P, att.cant);
+  }
   if (att.muzzle && att.muzzle !== 'none' && !W.integral) addMuzzle(B, P, att.muzzle, W.cat);
   if (att.grip === 'bipod') addGrip(B, P, 'bipod');
   else if (att.grip && att.grip !== 'none') {
@@ -1125,7 +1229,8 @@ export function gunModel(wid, att = {}) {
   if (P.mag) { mag = new MeshBuilder(); P.mag(mag); }
   if (P.pump) { pump = new MeshBuilder(); P.pump(pump); }
   if (P.flip) { flip = new MeshBuilder(); P.flip(flip); }
-  g = { key, wid, body: B, mag, pump, flip, pts: P, len: P.muzzle };
+  let legs = null; if (P.legs) { legs = new MeshBuilder(); P.legs(legs); }
+  g = { key, wid, body: B, mag, pump, flip, legs, pts: P, len: P.muzzle };
   cache.set(key, g);
   return g;
 }

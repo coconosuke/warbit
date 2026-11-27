@@ -43,3 +43,13 @@ test('15・20・40 倍は倍率ごとに感度を決められる（既定は前�
   ok(Math.abs(sensForZoom(st, 15) - DEFAULTS.sensZ[15]) < 1e-9, '15倍はそのまま');
   ok(Math.abs(sensForZoom(st, 40) - DEFAULTS.sensZ[40]) < 1e-9, '40倍はそのまま');
 });
+
+// 11-27 16:37「40倍などで構える時に一気に視点が飛ぶ」: 構えの途中も、画面の上での動きの速さ（感度×画面の倍率）は腰だめと構えきりの間に収まる
+test('構えの途中の感度: 画面の上の速さが腰だめと構えきりの間（40 倍でも飛ばない）', async () => {
+  const { adsSensK, DEFAULTS } = await import('../../src/app/settings.js');
+  const st = { ...DEFAULTS };
+  for (const Z of [2, 3, 4, 6, 8, 15, 20, 40]) {
+    const end = adsSensK(st, Z, 1) * Z, lo = Math.min(1, end), hi = Math.max(1, end);
+    for (let a = 0; a <= 1.0001; a += 0.05) { const zc = 1 + (Z - 1) * a, sp = adsSensK(st, Z, a) * zc; ok(sp >= lo * 0.97 && sp <= hi * 1.03, `${Z}倍 構え ${a.toFixed(2)}: 画面の速さ ${sp.toFixed(2)}（${lo.toFixed(2)}〜${hi.toFixed(2)}）`); }
+  }
+});

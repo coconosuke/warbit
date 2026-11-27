@@ -604,17 +604,19 @@ try {
     {
       const res = {};
       await page.evaluate(() => { const p = window.__app.game.p, wi = p.inv.w[p.ws.slot]; window.__sg0 = [wi.att.sight, wi.zi]; });
-      for (const sg of ['acog', 'scope6']) {
+      for (const sg of ['acog', 'scope6', 'flir']) {
         await page.evaluate((sg) => { const g = window.__app.game, p = g.p, wi = p.inv.w[p.ws.slot]; wi.att.sight = sg; wi.zi = 0; g.adsOn = true; }, sg);
         await page.waitForFunction(() => window.__app.game.p.ads > 0.98, null, { timeout: 20000 }).catch(() => {});
         await page.waitForTimeout(600);
-        res[sg] = await page.evaluate(() => { const g = window.__app.game, r = window.__app.renderer; return { pip: r.pipOn, cls: document.querySelector('#hud .hud-scope').className, vm: g.vm.on && !g.vm.scoped, fz: g.cam ? +(Math.tan(g._fov0 / 2) / Math.tan(g.cam.fov / 2)).toFixed(2) : 0 }; });
+        res[sg] = await page.evaluate(() => { const g = window.__app.game, r = window.__app.renderer; return { pip: r.pipOn, cls: document.querySelector('#hud .hud-scope').className, vm: g.vm.on && !g.vm.scoped, fz: g.cam ? +(Math.tan(g._fov0 / 2) / Math.tan(g.cam.fov / 2)).toFixed(2) : 0, th: !!r.thermal }; });
         await page.evaluate(() => { window.__app.game.adsOn = false; });
         await page.waitForTimeout(400);
       }
       await page.evaluate(() => { const g = window.__app.game, p = g.p, wi = p.inv.w[p.ws.slot]; wi.att.sight = window.__sg0[0]; wi.zi = window.__sg0[1]; });
       const okP = !res.acog.pip && !res.scope6.pip && /acog/.test(res.acog.cls) && /scope6/.test(res.scope6.cls) && !/pip/.test(res.acog.cls + res.scope6.cls) && !res.acog.vm && !res.scope6.vm && Math.abs(res.acog.fz - 4) < 0.3 && Math.abs(res.scope6.fz - 6) < 0.4;
       rec('画面', 'スコープ: どの倍率も画面ぜんたいを倍率どおりに寄せ、筒の輪を重ねる（輪の外も見える・BattleBit に合わせる）', okP, JSON.stringify(res));
+      // 11-27 16:07: 本家の FLIR（2.5 倍・熱を見る）。のぞいている間だけ熱の見え方
+      rec('画面', 'FLIR: 2.5 倍で、のぞいている間は熱の見え方（人が白く浮く）', !!res.flir && res.flir.th && Math.abs(res.flir.fz - 2.5) < 0.3 && !res.acog.th, JSON.stringify(res.flir));
     }
     // 敵に印（11-19）: 標的を狙って印のボタン → 分隊に見える印がつく
     {

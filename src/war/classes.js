@@ -81,9 +81,12 @@ export function classLoadout(cls, gun, sec, att, gad) {
   if (sight) prim.sight = sight;
   // 付属品（出撃の画面の LOADOUT で選ぶ。付けられない物は makeWeapon が外す）
   const A = att && att[g];
-  if (A) for (const k of ['sight', 'muzzle', 'grip', 'side']) if (A[k]) prim[k] = A[k];
+  if (A) for (const k of ['sight', 'boost', 'cant', 'muzzle', 'grip', 'side', 'mag']) if (A[k]) prim[k] = A[k];
+  // 拳銃の付属品（11-27 16:33「セカンダリのカスタムとプレビューも」）
+  const secW = { id: s, ammo: 'ap' }, A2 = att && att[s];
+  if (A2) for (const k of ['sight', 'muzzle', 'side', 'mag']) if (A2[k]) secW[k] = A2[k];
   const gear = C.gear.map(x => x.slice());
   const gs = classGadgets(cls), gd = gs.includes(gad) ? gad : gs[0];
   if (gd && gd !== 'none' && GEAR[gd]) gear.push([gd, GEAR[gd].max || 1]);
-  return { war: true, primary: prim, secondary: { id: s, ammo: 'ap' }, long: C.long || 'none', gear, vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
+  return { war: true, primary: prim, secondary: secW, long: C.long || 'none', gear, vest: 'light', plate: 'ceramic', helmet: C.noHelmet ? 'none' : 'helmet', head: 'none' };
 }

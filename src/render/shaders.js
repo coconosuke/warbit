@@ -384,7 +384,7 @@ void main(){
 export const COMP_FS = `
 uniform sampler2D uSrc; uniform sampler2D uBloom; uniform float uBloomK; uniform float uExposure; uniform float uVig;
 uniform float uNVG; uniform float uFlashW; uniform float uDamage; uniform float uSupp; uniform float uGas; uniform float uTime2; uniform float uSat; uniform vec4 uGrade; uniform vec3 uLift; uniform vec3 uGain; uniform float uBlur; uniform vec2 uTexel2; uniform float uPeek; uniform float uSmoke;
-uniform sampler2D uPip; uniform vec4 uPipC;
+uniform sampler2D uPip; uniform vec4 uPipC; uniform float uThermal;
 in vec2 vUV; layout(location=0) out vec4 oCol;
 vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 void main(){
@@ -410,6 +410,14 @@ void main(){
     }
   }
   if (uBloomK > 0.0 && pipIn < 0.5) c += texture(uBloom, uv).rgb * uBloomK;
+  // 熱の照準器（FLIR。11-27）: 景色は暗い灰色に押し込め、人（描く時にとても明るくしてある）は白く浮かせる。細かいちらつき
+  if (uThermal > 0.5) {
+    float l = dot(c, vec3(0.30, 0.59, 0.11));
+    float env = 0.08 + 0.32 * smoothstep(0.0, 1.4, l);
+    float hot = smoothstep(2.2, 6.5, l);
+    float n = hash12(floor(vUV * vec2(480.0, 270.0)) + floor(uTime2 * 24.0)) - 0.5;
+    c = vec3(mix(env, 0.98, hot) + n * 0.035) / max(uExposure, 0.01);
+  }
   c *= uExposure;
   vec2 q = vUV - 0.5;
   float r2 = dot(q * vec2(1.6, 1.0), q * vec2(1.6, 1.0));

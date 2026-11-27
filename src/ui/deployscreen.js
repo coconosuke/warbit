@@ -29,7 +29,11 @@ export class DeployScreen {
     this.card = el('div', 'dps-card'); root.appendChild(this.card);
     this.bot = el('div', 'dps-bot'); root.appendChild(this.bot);
     // LOADOUT を開いている間の見本（兵士・銃）の下に出す名前（3D は game.js が後ろの画面に描く）
+    // 見本を指で回す所（data-btn: 押している指の動きを game.js が読む）
+    this.pvt = el('div', 'dps-pvt'); this.pvt.dataset.btn = 'pvdrag'; root.appendChild(this.pvt);
     this.pvcap = el('div', 'dps-pvcap'); root.appendChild(this.pvcap);
+    // 付属品の欄の銃の数字（本家のロードアウトの能力の棒）。見本の上の方に重ねる
+    this.stats = el('div', 'dps-stats'); root.appendChild(this.stats);
   }
   // 見本を描く所（画面の座標）: 上の帯の下〜下の帯の上、左の端〜LOADOUT の板の左
   previewRect() {
@@ -53,13 +57,16 @@ export class DeployScreen {
       this.sq.innerHTML = `<div class="dps-h"><span>SQUAD</span><b>${esc(d.squad.name)}</b><em>${d.squad.list.filter(m => m.st !== 'dead').length}/${d.squad.list.length}</em></div>` +
         d.squad.list.map(m => `<div class="dps-m ${m.st}${m.me ? ' me' : ''}"><i>${clsIcon(m.cls)}</i><span>${esc(m.name)}</span><small>${m.st === 'dead' ? 'KIA' : m.st === 'down' ? 'DOWN' : m.st === 'wait' ? 'READY' : ''}</small></div>`).join('');
     }
-    const k3 = d.cls + '|' + d.lo + '|' + d.gun + '|' + d.sec + '|' + d.classes.map(c => c.ok ? 1 : 0).join('') + '|' + (d.att || []).map(r => r.sel).join(',') + '|' + d.loTab + '|' + (d.gad ? d.gad.sel : '') + '|' + d.classes.map(c => c.long).join(',');
+    const k3 = d.cls + '|' + d.lo + '|' + d.gun + '|' + d.sec + '|' + d.classes.map(c => c.ok ? 1 : 0).join('') + '|' + (d.att || []).map(r => r.sel).join(',') + '|' + (d.att2 || []).map(r => r.sel).join(',') + '|' + d.loTab + '|' + (d.gad ? d.gad.sel : '') + '|' + d.classes.map(c => c.long).join(',');
     if (C.card !== k3) {
       C.card = k3;
       const c = d.classes.find(q => q.id === d.cls) || d.classes[0];
       if (d.lo) {
         this.card.className = 'dps-card dps-lop';
-        const tabs = `<div class="dps-tabs"><div class="dps-tab${d.loTab !== 'att' && d.loTab !== 'gad' ? ' on' : ''}" data-btn="dlotab" data-sub="gun" role="button">銃</div><div class="dps-tab${d.loTab === 'att' ? ' on' : ''}" data-btn="dlotab" data-sub="att" role="button">付属品</div>${d.gad ? `<div class="dps-tab${d.loTab === 'gad' ? ' on' : ''}" data-btn="dlotab" data-sub="gad" role="button">道具</div>` : ''}</div>`;
+        const tabs = `<div class="dps-tabs"><div class="dps-tab${d.loTab !== 'att' && d.loTab !== 'att2' && d.loTab !== 'gad' ? ' on' : ''}" data-btn="dlotab" data-sub="gun" role="button">銃</div><div class="dps-tab${d.loTab === 'att' ? ' on' : ''}" data-btn="dlotab" data-sub="att" role="button">付属品</div>${(d.att2 || []).length ? `<div class="dps-tab${d.loTab === 'att2' ? ' on' : ''}" data-btn="dlotab" data-sub="att2" role="button">拳銃</div>` : ''}${d.gad ? `<div class="dps-tab${d.loTab === 'gad' ? ' on' : ''}" data-btn="dlotab" data-sub="gad" role="button">道具</div>` : ''}</div>`;
+        // 付属品の行（主の銃 datt・拳銃 datt2）: 1行ずつ「◀ 名前 ▶」で切り替える。下に効き目と説明（折り返して全部）
+        const attRows = (rows, btn) => (rows || []).map(r => { const i = Math.max(0, r.list.findIndex(o => o.v === r.sel)), n = r.list.length, cur = r.list[i], pv = r.list[(i + n - 1) % n].v, nx = r.list[(i + 1) % n].v;
+          return `<div class="dps-ar"><span>${esc(r.lb)}</span><div class="dps-ab" data-btn="${btn}" data-sub="${r.k}:${pv}" role="button" aria-label="前">◀</div><div class="dps-an"><b>${esc(cur.name)}</b>${cur.en ? `<em>${esc(cur.en)}</em>` : ''}${cur.fx ? `<small>${esc(cur.fx)}</small>` : ''}${cur.desc ? `<p>${esc(cur.desc)}</p>` : ''}</div><div class="dps-ab" data-btn="${btn}" data-sub="${r.k}:${nx}" role="button" aria-label="次">▶</div></div>`; }).join('');
         if (d.loTab === 'gad' && d.gad) {
           // 副の道具（C4 など）。兵科の道具（弾薬箱・医療キット・双眼鏡・大ハンマー・RPG）は兵科で決まり
           const r = d.gad, i = Math.max(0, r.list.findIndex(o => o.v === r.sel)), n = r.list.length, cur = r.list[i], pv = r.list[(i + n - 1) % n].v, nx = r.list[(i + 1) % n].v;
@@ -67,11 +74,13 @@ export class DeployScreen {
           this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(c.en)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}` +
             `<div class="dps-ar"><span>${esc(r.lb)}</span><div class="dps-ab" data-btn="dgad" data-sub="${pv}" role="button" aria-label="前">◀</div><div class="dps-an"><b>${esc(cur.name)}</b><small>${esc(cur.fx || '')}</small></div><div class="dps-ab" data-btn="dgad" data-sub="${nx}" role="button" aria-label="次">▶</div></div>` +
             (fixed ? `<div class="dps-kv"><span>兵科の道具</span><b>${esc(fixed)}</b></div>` : '');
+        } else if (d.loTab === 'att2' && (d.att2 || []).length) {
+          this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(d.secName)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}` + attRows(d.att2, 'datt2');
         } else if (d.loTab === 'att') {
           this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(d.gunName)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}` +
             // 1行ずつ「◀ 名前 ▶」で切り替える（小さい画面でも全部の枠が見える）。下に効き目
             (d.att || []).map(r => { const i = Math.max(0, r.list.findIndex(o => o.v === r.sel)), n = r.list.length, cur = r.list[i], pv = r.list[(i + n - 1) % n].v, nx = r.list[(i + 1) % n].v;
-              return `<div class="dps-ar"><span>${esc(r.lb)}</span><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${pv}" role="button" aria-label="前">◀</div><div class="dps-an"><b>${esc(cur.name)}</b>${cur.en ? `<em>${esc(cur.en)}</em>` : ''}<small>${esc(cur.fx || '')}</small></div><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${nx}" role="button" aria-label="次">▶</div></div>`; }).join('');
+              return `<div class="dps-ar"><span>${esc(r.lb)}</span><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${pv}" role="button" aria-label="前">◀</div><div class="dps-an"><b>${esc(cur.name)}</b>${cur.en ? `<em>${esc(cur.en)}</em>` : ''}${cur.fx ? `<small>${esc(cur.fx)}</small>` : ''}${cur.desc ? `<p>${esc(cur.desc)}</p>` : ''}</div><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${nx}" role="button" aria-label="次">▶</div></div>`; }).join('');
         } else {
         this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(c.en)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}
           <div class="dps-sub">PRIMARY　主の銃</div><div class="dps-g">${d.guns.map(g => `<div class="dps-o${g.id === d.gun ? ' on' : ''}" data-btn="dgun" data-sub="${g.id}" role="button"><b>${esc(g.name)}</b><small>${esc(g.info)}</small></div>`).join('')}</div>
@@ -95,9 +104,17 @@ export class DeployScreen {
     }
     // LOADOUT: 地図と分隊の欄を隠し、後ろに描く見本（兵士・銃）を見せる（11-27 15:08「本家みたいにプレビュー」）
     if (C.lo !== !!d.lo) { C.lo = !!d.lo; this.root.classList.toggle('lo', !!d.lo); if (this.root.parentElement) this.root.parentElement.classList.toggle('dps-lo-on', !!d.lo); }
-    { const cap = d.lo ? `<b>${esc(d.gunName)}</b><span>${esc(d.loTab === 'att' ? '付属品' : (d.classes.find(q => q.id === d.cls) || {}).en || '')}</span>` : '';
+    { const cap = d.lo ? `<b>${esc(d.loTab === 'att2' ? d.secName : d.gunName)}</b><span>${esc(d.loTab === 'att' ? '付属品' : d.loTab === 'att2' ? '拳銃' : (d.classes.find(q => q.id === d.cls) || {}).en || '')}</span>` : '';
       if (C.cap !== cap) { C.cap = cap; this.pvcap.innerHTML = cap; }
-      if (d.lo) { const r = this.previewRect(); if (r) { const l = Math.round(r.left - this.root.getBoundingClientRect().left) + 'px', w = Math.round(r.width) + 'px', tp = Math.round(r.bottom - this.root.getBoundingClientRect().top - 34) + 'px'; if (this.pvcap.style.left !== l) this.pvcap.style.left = l; if (this.pvcap.style.width !== w) this.pvcap.style.width = w; if (this.pvcap.style.top !== tp) this.pvcap.style.top = tp; } } }
+      if (d.lo) { const r = this.previewRect(); if (r) { const R0 = this.root.getBoundingClientRect(), l = Math.round(r.left - R0.left) + 'px', w = Math.round(r.width) + 'px', tp = Math.round(r.bottom - R0.top - 34) + 'px'; if (this.pvcap.style.left !== l) this.pvcap.style.left = l; if (this.pvcap.style.width !== w) this.pvcap.style.width = w; if (this.pvcap.style.top !== tp) this.pvcap.style.top = tp;
+        const T = this.pvt.style, t2 = Math.round(r.top - R0.top) + 'px', h2 = Math.round(r.height) + 'px'; if (T.left !== l) T.left = l; if (T.width !== w) T.width = w; if (T.top !== t2) T.top = t2; if (T.height !== h2) T.height = h2; } } }
+    { const st = d.lo && d.stats ? d.stats : null, k5 = st ? st.map(r => r.t + (r.base !== r.v ? '*' : '')).join('|') : '';
+      if (C.st !== k5) {
+        C.st = k5; this.stats.classList.toggle('on', !!st);
+        this.stats.innerHTML = st ? st.map(r => { const k = Math.max(0, Math.min(1, r.v / r.max)), kb = Math.max(0, Math.min(1, r.base / r.max)), d2 = r.v - r.base, good = Math.abs(d2) < 1e-6 ? '' : (d2 < 0) === r.lo ? ' up' : ' dn';
+          return `<div class="sr${good}"><span>${esc(r.lb)}</span><i><b style="width:${(Math.min(k, kb) * 100).toFixed(1)}%"></b><em style="left:${(Math.min(k, kb) * 100).toFixed(1)}%;width:${(Math.abs(k - kb) * 100).toFixed(1)}%"></em></i><small>${esc(r.t)}</small></div>`; }).join('') : '';
+      }
+      if (st) { const r = this.previewRect(), R0 = this.root.getBoundingClientRect(); if (r) { const l = Math.round(r.left - R0.left + 4) + 'px', tp = Math.round(r.top - R0.top + 2) + 'px', w = Math.round(Math.min(240, r.width - 8)) + 'px'; if (this.stats.style.left !== l) this.stats.style.left = l; if (this.stats.style.top !== tp) this.stats.style.top = tp; if (this.stats.style.width !== w) this.stats.style.width = w; } } }
     // 予約をやめられた（選んだ場所が使えなくなった）: 地図の上に「場所を選び直す」・印を点滅
     if (C.pick !== d.pick) { C.pick = d.pick; this.mapw.classList.toggle('pick', !!d.pick); }
     this._map(d);

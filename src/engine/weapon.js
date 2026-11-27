@@ -11,12 +11,12 @@ const DEG = Math.PI / 180;
 const _amCache = new WeakMap();
 export function attMods(wi) {
   if (!wi) return { rcv: 1, rch: 1, rcfirst: 1, ads: 0, adsK: 1, drawK: 1, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1, dmg: 1, acc: 1, ctrl: 1 };
-  const key = wi.att.sight + wi.att.muzzle + wi.att.grip + wi.att.side + wi.att.mag + wi.att.stock;
+  const key = wi.att.sight + wi.att.muzzle + wi.att.grip + wi.att.side + wi.att.mag + wi.att.stock + (wi.att.boost || '') + (wi.att.cant || '');
   const c = _amCache.get(wi);
   if (c && c.key === key) return c.m;
   const m = { rcv: 1, rch: 1, rcfirst: 1, ads: 0, adsK: 1, drawK: 1, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1, dmg: 1, acc: 1, ctrl: 1 };
   const A = ATTACH, a = wi.att;
-  for (const x of [A.sight[a.sight], A.muzzle[a.muzzle], A.grip[a.grip], A.side[a.side], A.mag[a.mag], A.stock[a.stock]]) {
+  for (const x of [A.sight[a.sight], A.muzzle[a.muzzle], A.grip[a.grip], A.side[a.side], A.mag[a.mag], A.stock[a.stock], a.boost && A.boost[a.boost], a.cant && A.cant[a.cant]]) {
     if (!x) continue;
     if (x.rcv) m.rcv *= x.rcv; if (x.rch) m.rch *= x.rch; if (x.rcfirst) m.rcfirst *= x.rcfirst;
     if (x.bipod) m.bipod = true;
@@ -55,6 +55,8 @@ export function spreadDeg(S, a, W, wi) {
 // バイポッド（BattleBit Wiki の Bipod）: 立てた時の反動（推測）・立てていない時の反動・初弾の跳ね・反動の戻り・上下に向けられる角度（rad。推測）
 export const BIPOD = { recoil: 0.6, offRecoil: 1.4, offFirst: 1.6, offCtrl: 0.6, pitch: 0.44 };
 export const DROPSHOT = { recoil: 1.8 };
+// 付属品の Control（倍率。1 より小さいと悪い）→ 構えた時の揺れの倍率
+export function swayK(wi) { const c = wi ? attMods(wi).ctrl : 1; return Math.max(0.6, Math.min(2, 1 + (1 - c) * 0.5)); }
 const _bh = [];
 const minT = (h) => { let t = 1e9; for (const q of h) if (q.t0 < t) t = q.t0; return t; };
 function bipodUp(S, w, a) {
@@ -81,9 +83,9 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   if (inp.rc > 0 && ws.rp > 0) ws.rp = Math.max(0, ws.rp - Math.min(inp.rc, 30));
   if (W) {
     // バイポッドを付けていて立っていない: 反動の戻り（コントロール）が 4 割弱い（BattleBit Wiki の Bipod）
-    //  銃口・グリップの Control（BattleBit の Barrels・Grips）も掛ける
-    const amc = wi ? attMods(wi) : null;
-    const ctrl = W.rc.ctrl * (since > 0.12 ? 1 : 0.25) * (amc && !a.bip && amc.bipod ? BIPOD.offCtrl : 1) * (amc ? amc.ctrl : 1);
+    //  11-27 16:39: 本家の Control は「構えた時の揺れ」の数（Dot Esports の説明。research の 76）。前は反動の戻りに掛けていて、
+    //  ロングバレル・ヘビーで戻りが 4 割弱になり、立って撃つと反動が積み上がっていた → 揺れ（下の swayK）に移した
+    const ctrl = W.rc.ctrl * (since > 0.12 ? 1 : 0.25);
     const dec = ctrl * dt;
     if (ws.rp > 0) ws.rp = Math.max(0, ws.rp - dec); else ws.rp = Math.min(0, ws.rp + dec);
     ws.ry *= since > 0.12 ? Math.pow(0.02, dt) : Math.pow(0.6, dt);
@@ -126,8 +128,11 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   }
   // 二脚（11-27）: 伏せるか、止まって銃を物の上に載せると自動で立つ（4 ステップごとに確かめる）
   // 立てるのは構えている時だけ（本家: 伏せるか物に載せて、狙っている時に自動で立つ。切り替えのキーはない）
+  const bip0 = !!a.bip;
   if (W && wi && attMods(wi).bipod && a.ads > 0.3) { if (((S.t + a.id) & 3) === 0 || a.bip == null) a.bip = bipodUp(S, w, a); }
   else a.bip = false;
+  // 立てた・たたんだ（音。11-27 16:35）
+  if (!!a.bip !== bip0 && ev && S.war && !S.predict) ev.push({ e: 'bipod', id: a.id, on: !!a.bip, x: a.x, y: a.y, z: a.z });
   if (W && a.ads > 0.01) {
     const still = (a.spd || 0) < 0.3 && a.ads > 0.95;
     ws.calm = still ? Math.min(1, (ws.calm || 0) + dt / 1.5) : Math.max(0, (ws.calm || 0) - dt * 4);
@@ -136,7 +141,9 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
       * (Math.abs(a.lean || 0) > 0.3 ? 1.15 : 1) * (1 + 0.4 * fat) * (1 - 0.3 * ws.calm)
       * (1 - 0.9 * (ws.hold || 0)) * (1 + 0.9 * Math.min(1, (ws.gasp || 0) / 2.5))
       // 高い倍率では揺れの角度を少し小さく（11-26 22:48: 8倍で揺れが細かい狙いを押し流していた。4倍 0.83・8倍 0.63・12倍 0.5）
-      * (S.war ? 1 / (1 + 0.1 * Math.max(0, zoomOf(curWeapon(a)) - 2)) : 1);
+      * (S.war ? 1 / (1 + 0.1 * Math.max(0, zoomOf(curWeapon(a)) - 2)) : 1)
+      // 付属品の Control（本家の Barrels・Grips の表。下がると揺れが大きい）。1＋(1−Control の倍率)×0.5（推測でゆるくした）
+      * swayK(curWeapon(a));
     const t = S.t * S.dt + a.id * 7.3;
     // 息: ふだんは 1.55 rad/秒（約4秒）。走ったあとは大きく、速い息（2.7 rad/秒）が混ざる
     const br = 0.55 * (1 + 1.2 * fat) * Math.sin(t * 1.55) + 0.75 * fat * Math.sin(t * 2.7 + 0.5);

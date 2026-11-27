@@ -4,12 +4,13 @@ import { eyeOf, capsOf } from '../engine/combat.js';
 import { curWeapon, curW, ammoCount, makeWeapon, magCap, createActor } from '../engine/actor.js';
 import { contextOf, OP_NAME, doorOps, personOps, personPoint } from '../engine/interact.js';
 import { WAR_DOWN_T } from '../engine/status.js';
-import { spreadDeg, magNear } from '../engine/weapon.js';
+import { spreadDeg, magNear, attMods } from '../engine/weapon.js';
+import { warGun } from '../war/guns.js';
 import { vaultPlan, PRONE_TURN } from '../engine/move.js';
 import { depSpot, DEP_WHY } from '../engine/deploy.js';
 import { raycast, CS, LH, levelOfY, los } from '../engine/world.js';
 import { smokeBetween, fuseOf } from '../engine/nades.js';
-import { sensForZoom, fineAimK } from './settings.js';
+import { sensForZoom, fineAimK, adsSensK } from './settings.js';
 import { TC } from '../ui/teamcol.js';
 // 大規模戦のエイムアシストの強さ: [体の上での見回しの速さ]（敵の見かけの動きには 1 - これ だけついていく）
 // 双眼鏡を構えている時の倍率（構えきるまでは 1）
@@ -19,7 +20,7 @@ function beamOf(wi) { const x = wi && wi.att && ATTACH.side[wi.att.side]; return
 function binocZoom(p) { const ws = p && p.ws; return ws && ws.slot === 2 && ws.gear === 'binoc' && GEAR.binoc ? (p.ads > 0.5 ? GEAR.binoc.zooms[ws.bz ?? GEAR.binoc.zi] : 1) : 0; }
 const AA_WAR = { off: [1], weak: [0.85], mid: [0.75], strong: [0.65], max: [0.55] };
 import { sideOf, isOpen } from '../engine/doors.js';
-import { WEAPONS, ATTACH, attachOptions, zoomOf, opticOf, zoomsOf, swayCamK, scopePip } from '../engine/data/weapons.js';
+import { WEAPONS, ATTACH, attachOptions, zoomOf, opticOf, zoomsOf, swayCamK, scopePip, BOOST_OK, cantOK } from '../engine/data/weapons.js';
 import { GEAR, LONG } from '../engine/data/equipment.js';
 import { MAPS } from '../engine/maps/index.js';
 import { MISSIONS } from '../engine/data/missions.js';
@@ -196,7 +197,9 @@ export class Match {
     let k = (inp.mouse ? 0.0022 : 0.0052) * (st.sens || 1);
     // 倍率の照準器は「スコープ」の感度（4倍が基準）を倍率に合わせて変える（画面の上で同じ速さ。2倍は0.72・8倍は0.23）
     // 構えの途中（覗き込む 0.2〜0.8）は、腰だめと構えの感度の間をなめらかに移す（11-26: 前は半分を超えた瞬間に感度が跳んだ）
-    { const kz = zoom >= 1.5 ? sensForZoom(st, zoom) : (st.sensAds || 0.75), u = clamp((ads - 0.2) / 0.6, 0, 1); k *= 1 + (kz - 1) * u * u * (3 - 2 * u); }
+    //  11-27 16:37「40倍などで構える時に一気に視点が飛ぶ」: 倍率の照準器は、画面の倍率（構えの途中は 1〜倍率）に合わせて感度を下げる
+    //  （対数でつなぐ: 倍率が半分まで来たら感度も対数で半分まで）。前は構え 0.2〜0.8 で感度を移していて、40 倍では画面が 20 倍に寄った時に感度がまだ半分ほど残り、指の少しの動きで大きく飛んだ
+    k *= adsSensK(st, zoom, ads);
     if (inp.fire && !inp.mouse) k *= st.sensFire || 1;
     // エイムアシスト（タッチ）。対戦は部屋の設定（0なし・1弱い・2ふつう）
     let want = 1, track = null;
@@ -451,7 +454,7 @@ export class Match {
         case 'dlotab': if (k === 'down' && this.S.war && !p.alive) { this.dloTab = e.sub; this.au.ui('tap'); } break;
         // 副の道具（LOADOUT の「道具」）
         case 'dgad': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(); (W.gad || (W.gad = {}))[this.dcls || 'assault'] = e.sub; this._warPickSave(); this.au.ui('tap'); } break;
-        case 'datt': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(), d = this._warDeployData(), [kk, v] = String(e.sub).split(':'); const A = W.att[d.gun] || (W.att[d.gun] = {}); A[kk] = v; this._warPickSave(); this.au.ui('tap'); } break;
+        case 'datt': case 'datt2': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(), d = this._warDeployData(), [kk, v] = String(e.sub).split(':'), id = b === 'datt2' ? d.sec : d.gun; const A = W.att[id] || (W.att[id] = {}); A[kk] = v; this._warPickSave(); this.au.ui('tap'); } break;
         // 出撃の予約（待ちの間に押した）をもう一度押すとやめる（11-27 04:01）。自動で出撃の設定でも、やめたらこの死では予約し直さない
         case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over && p.deployAt) { this.acts.push({ a: 'warDeploy', cancel: true }); this._adT = this.kiaT; this.au.ui('tap'); break; }
           if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; if (this._dpick && this.dsel == null && this._dpOpts) { this.au.ui('deny'); break; } this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' || String(this.dsel).startsWith('sq:') ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
@@ -1107,6 +1110,8 @@ export class Match {
           }
           break;
         }
+        // バイポッドを立てた・たたんだ（11-27 16:35）
+        case 'bipod': { const mine = e.id === me; if (!mine && Math.hypot(e.x - this.cam.x, e.z - this.cam.z) > 14) break; au.sfx(e.on ? 'bipOn' : 'bipOff', mine ? null : [e.x, e.y + 0.6, e.z], { vol: mine ? 0.5 : 0.55, verb: mine ? 0.12 : 0.3 }); break; }
         // 乗り越え: 手を縁につく・体を振り上げる布と装備・向こうへ足をつく
         case 'vault': { const a = S.byId[e.id]; if (!a) break; const mine = a === p; if (!mine && Math.hypot(e.x - this.cam.x, e.z - this.cam.z) > 22) break;
           au.sfx('vaultS', mine ? null : [e.x, e.y + 1, e.z], { vol: mine ? 0.6 : 0.7, verb: mine ? 0.12 : 0.3 }); break; }
@@ -1450,7 +1455,7 @@ export class Match {
     const room = roomOf(this.w, cam.x, cam.y - 1, cam.z);
     r.render({
       cam, doors: S.doors, lights, dt,
-      post: { smoke: smk, exposure: this.exposure * (st.bright || 1) * (S.war ? 1 : 1), nvg: nvg && !p.peek, flash, damage: Math.max(this.dmgK * 0.8, lowHp), supp: Math.max(this.suppK * 0.8, oobK * 0.7), gas, blur: Math.max(this.blurK, gas * 0.5, p.stun > 0 ? 0.4 : 0, flash * 0.6), vig: (p.peek ? 0.15 : (st.vignette === false ? 0.08 : 0.32)) + 0.22 * (this.hpK || 0), grade: S.war ? this._grade(st) : null, sat: (st.sat ?? 1.08) * (S.war ? WAR_GRADE.sat : 1) * (1 - 0.85 * oobK) * (1 - 0.45 * (this.hpK || 0)) * (1 - 0.7 * (this.deathK || 0)), peek: p.peek ? (p.peek.k === 'mirror' ? 2 : 1) : 0 },
+      post: { smoke: smk, exposure: this.exposure * (st.bright || 1) * (S.war ? 1 : 1), nvg: nvg && !p.peek, thermal: fp && p.alive && p.ads > 0.7 && !binocZoom(p) && !!opticOf(curWeapon(p)).thermal, flash, damage: Math.max(this.dmgK * 0.8, lowHp), supp: Math.max(this.suppK * 0.8, oobK * 0.7), gas, blur: Math.max(this.blurK, gas * 0.5, p.stun > 0 ? 0.4 : 0, flash * 0.6), vig: (p.peek ? 0.15 : (st.vignette === false ? 0.08 : 0.32)) + 0.22 * (this.hpK || 0), grade: S.war ? this._grade(st) : null, sat: (st.sat ?? 1.08) * (S.war ? WAR_GRADE.sat : 1) * (1 - 0.85 * oobK) * (1 - 0.45 * (this.hpK || 0)) * (1 - 0.7 * (this.deathK || 0)), peek: p.peek ? (p.peek.k === 'mirror' ? 2 : 1) : 0 },
       vm: fp ? { fov: (st.vmFov || 54) * DEG, room } : null, pip: this._pip, shadows: st.shadows !== 'off' && st.quality !== 'low',
       ambMin: nvg ? 0.02 : 0,
     });
@@ -1865,9 +1870,12 @@ export class Match {
     return { ok: pts >= RALLY.cost && !cd, lb: cd ? cd + 's' : rallyOf(S, p.team, p.squad) ? '置き直す' : 'ビーコン' };
   }
   // LOADOUT の付属品の行: 照準器・銃口・下・横。付けられる物だけ（attachOptions）。選んでいなければ makeWeapon の既定
-  _attRows(gun, A) {
-    const ao = attachOptions(gun), lo = classLoadout(this.dcls || 'assault', gun, null, { [gun]: A }), w = makeWeapon(lo.primary) || { att: {} };
-    const L = [['sight', '照準器'], ['muzzle', '銃口'], ['grip', 'グリップ'], ['side', 'ライト類']];
+  // sec: 拳銃（副の銃）の付属品（11-27 16:33）
+  _attRows(gun, A, sec) {
+    const ao = attachOptions(gun), cls = this.dcls || 'assault', lo = sec ? classLoadout(cls, null, gun, { [gun]: A }) : classLoadout(cls, gun, null, { [gun]: A }), w = makeWeapon(sec ? lo.secondary : lo.primary) || { att: {} };
+    const L = [['sight', '照準器'], ['boost', 'ブースター'], ['cant', '横・上'], ['muzzle', '銃口'], ['grip', 'グリップ'], ['side', 'ライト類'], ['mag', '弾倉']];
+    // ブースターはドット・ホロの時だけ、横・上の照準器は倍率の照準器の時だけ（実物の付け方。合わない時は行を出さない）
+    const fit = (k, v) => k === 'boost' ? (v === 'none' || BOOST_OK.has(w.att.sight)) : k === 'cant' ? (v === 'none' || cantOK(w.att.sight)) : true;
     // 効き目の短い説明（縦・横の反動、初弾、構えの時間、音、腰だめ、倍率）
     const fx = (x) => { if (!x) return ''; const o = [], pc = (v) => (v < 1 ? '-' : '+') + Math.round(Math.abs(1 - v) * 100) + '%';
       if (x.zoom && x.zoom > 1.2) o.push(x.zooms ? x.zooms.join('/') + '倍' : x.zoom + '倍');
@@ -1875,12 +1883,13 @@ export class Match {
       if (x.ads) o.push('構え ' + (x.ads > 0 ? '+' : '-') + Math.round(Math.abs(x.ads) * 1000) + 'ms'); if (x.noise && x.noise !== 1) o.push('音 ' + pc(x.noise)); if (x.hip && x.hip !== 1) o.push('腰だめ ' + pc(x.hip)); if (x.light) o.push('ライト');
       if (x.adsK && x.adsK !== 1) o.push('構え ' + pc(x.adsK)); if (x.reload && x.reload !== 1) o.push('リロード ' + pc(x.reload)); if (x.drawK && x.drawK !== 1) o.push('取り出し ' + pc(x.drawK)); if (x.move && x.move !== 1) o.push('走る ' + pc(x.move));
       if (x.dmg && x.dmg !== 1) o.push('ダメージ ' + pc(x.dmg)); if (x.vel && x.vel !== 1) o.push('弾速 ' + pc(x.vel));
-      if (x.acc && x.acc !== 1) o.push('散らばり ' + pc(x.acc)); if (x.ctrl && x.ctrl !== 1) o.push('反動の戻り ' + pc(x.ctrl));
+      if (x.acc && x.acc !== 1) o.push('散らばり ' + pc(x.acc)); if (x.ctrl && x.ctrl !== 1) o.push('構えの揺れ ' + pc(Math.max(0.6, Math.min(2, 1 + (1 - x.ctrl) * 0.5))));
       if (x.flash === 0) o.push('炎なし'); else if (x.flash && Math.abs(x.flash - 1) >= 0.05) o.push('炎 ' + pc(x.flash));
       if (x.bipod) o.push('立てると反動 -40%・揺れなし／立てていないと反動 +40%');
+      if (x.roll) o.push('45° 傾けて等倍'); else if (x.ret === 'reddot' && x.roll === 0) o.push('上で等倍');
       return o.join('・'); };
     const short = (nm) => String(nm).replace(/（.*?）/g, '');
-    return L.filter(([k]) => ao[k] && ao[k].length > 1).map(([k, lb]) => ({ k, lb, sel: w.att[k], list: ao[k].map(v => ({ v, name: short((ATTACH[k][v] || {}).name || v), en: (ATTACH[k][v] || {}).en || '', fx: fx(ATTACH[k][v]) })) }));
+    return L.filter(([k]) => ao[k] && ao[k].filter(v => fit(k, v)).length > 1).map(([k, lb]) => ({ k, lb, sel: w.att[k] || 'none', list: ao[k].filter(v => fit(k, v)).map(v => ({ v, name: short((ATTACH[k][v] || {}).name || v), en: (ATTACH[k][v] || {}).en || '', fx: fx(ATTACH[k][v]), desc: (ATTACH[k][v] || {}).desc || '' })) }));
   }
   // 出撃の画面の LOADOUT の見本（11-27 15:08「本家みたいに銃や装備の変更でプレビュー（銃の見た目、装備してるプレイヤーの見た目）」）:
   //  地図の代わりに左の空いた所へ、選んだ兵科・銃・付属品の兵士を描く（ゆっくり向きを変える）。付属品の欄では銃を横から大きく
@@ -1891,7 +1900,7 @@ export class Match {
     const R = [Math.round((rc.left - cr.left) * kx), Math.round((cr.bottom - rc.bottom) * ky), Math.max(2, Math.round(rc.width * kx)), Math.max(2, Math.round(rc.height * ky))];
     const pk = this._warPick(), W = this._warPrefs();
     const lo = classLoadout(pk.cls, pk.gun, pk.sec, W.att, pk.gad);
-    const key = JSON.stringify([pk.cls, lo.primary, lo.secondary.id, p.team]);
+    const key = JSON.stringify([pk.cls, lo.primary, lo.secondary, p.team]);
     let fa = this._pvA;
     if (!fa || this._pvK !== key) {
       const hq = S.m.hq[p.team] || [p.x, p.z], gy = heightAt(this.w, hq[0], hq[1]);
@@ -1899,26 +1908,34 @@ export class Match {
       Object.assign(fa.ws, { st: 'idle', t: 0 }); fa.warCls = pk.cls; fa.low = 1; fa.stateT = 2; fa._lookV = key;
       this._pvA = fa; this._pvK = key; this._pvT = this._pvT || 0;
     }
-    this._pvT += dt;
-    const y0 = 0.6, T = this._pvT, gunTab = this.dloTab === 'att';
+    // 指で回す（11-27 16:32「触れたら動かせるように」）: 横に動かすと回り、縦に動かすと上下から見る。触っている間と離して 4 秒は自動で回らない
+    { let dr = null; for (const q of this.app.input.ptr.values()) if (q.kind === 'btn' && q.btn === 'pvdrag') dr = q;
+      if (dr) { if (this._pvLX != null) { this._pvU = (this._pvU || 0) + (dr.x - this._pvLX) * 0.011; this._pvV = Math.max(-0.35, Math.min(0.6, (this._pvV || 0) + (dr.y - this._pvLY) * 0.006)); } this._pvLX = dr.x; this._pvLY = dr.y; this._pvDT = this.time; }
+      else this._pvLX = null;
+      if (this.time - (this._pvDT ?? -99) > 4) this._pvT += dt; }
+    const y0 = 0.6, T = this._pvT, gunTab = this.dloTab === 'att' || this.dloTab === 'att2', U = this._pvU || 0, V = this._pvV || 0;
     const cx = fa.x, cz = fa.z, gy = fa.y;
     let cam, draw;
     const look = (px, py, pz, tx, ty, tz, fov) => ({ x: px, y: py, z: pz, yaw: Math.atan2(tx - px, tz - pz), pitch: Math.atan2(ty - py, Math.hypot(tx - px, tz - pz)), fov });
     if (gunTab) {
       // 銃だけを横から（銃口が右）。銃の長さに合わせて離れる
-      const wi = curWeapon(fa); if (!wi) return false;
+      const wi = this.dloTab === 'att2' ? fa.inv.w[1] : curWeapon(fa); if (!wi) return false;
       const bb = this.av.gunBox(wi.id, wi.att) || { z0: -0.4, z1: 0.5, y0: -0.15, y1: 0.12 };
-      const L = bb.z1 - bb.z0, asp = R[2] / R[3], fov = 0.5, D = Math.max(0.35, (L * 1.18) / (2 * Math.tan(fov / 2) * Math.min(1.6, asp)));
-      const gyaw = y0 + Math.PI / 2 + Math.sin(T * 0.5) * 0.18, tx = cx, ty = gy + 1.3, tz = cz;
+      //  離れる距離: 長さが横に、高さ（上に数字の棒を重ねるので 1.7 倍）が縦に収まる方（拳銃は高さで決まる）
+      const L = bb.z1 - bb.z0, Hh = bb.y1 - bb.y0, asp = R[2] / R[3], fov = 0.5, tf = 2 * Math.tan(fov / 2), D = Math.max(0.35, (L * 1.45) / (tf * Math.min(1.6, asp)), (Hh * 2.2) / tf);
+      const gyaw = y0 + Math.PI / 2 + Math.sin(T * 0.5) * 0.18 + U, tx = cx, ty = gy + 1.3, tz = cz;
       const zc = (bb.z0 + bb.z1) / 2, yc = (bb.y0 + bb.y1) / 2;
       const g = { wi, yaw: gyaw, x: tx - Math.sin(gyaw) * zc, y: ty - yc, z: tz - Math.cos(gyaw) * zc };
-      cam = look(tx + Math.sin(y0 + 0.12) * D, ty + D * 0.12, tz + Math.cos(y0 + 0.12) * D, tx, ty, tz, fov);
+      // 上に銃の数字の棒を出すので、銃は真ん中より少し下に
+      const lift = 2 * D * Math.tan(fov / 2) * 0.24;
+      const el2 = 0.12 + V, ch = Math.cos(el2);
+      cam = look(tx + Math.sin(y0 + 0.12) * D * ch, ty + D * Math.sin(el2) + lift, tz + Math.cos(y0 + 0.12) * D * ch, tx, ty + lift, tz, fov);
       draw = (f) => this.av.studio(f, fa, { gun: g });
     } else {
       // 兵士の全身（斜め前から。ゆっくり向きを変える）
-      fa.yaw = y0 + 0.75 + Math.sin(T * 0.3) * 1.25; fa.pitch = -0.05; // 前から横・背中の方まで（背嚢・無線機が見える）
-      const D = 3.7, fov = 0.62;
-      cam = look(cx + Math.sin(y0) * D, gy + 1.15, cz + Math.cos(y0) * D, cx, gy + 0.95, cz, fov);
+      fa.yaw = y0 + 0.75 + Math.sin(T * 0.3) * 1.25 + U; fa.pitch = -0.05; // 前から横・背中の方まで（背嚢・無線機が見える）
+      const D = 3.7, fov = 0.62, el2 = 0.05 + V, ch = Math.cos(el2);
+      cam = look(cx + Math.sin(y0) * D * ch, gy + 0.95 + D * Math.sin(el2), cz + Math.cos(y0) * D * ch, cx, gy + 0.95, cz, fov);
       draw = (f) => this.av.studio(f, fa);
     }
     // 明かり: 正面の左上（主）と後ろ（縁）。夜の地図でも見えるように
@@ -1942,6 +1959,24 @@ export class Match {
     for (const a of S.actors) { if (a === p || !a.alive) continue; const ox = a.x - c.x, oy = a.y + 1.1 - c.y, oz = a.z - c.z, along = ox * dx + oy * dy + oz * dz; if (along < 0.5 || along > t) continue; const px = ox - dx * along, py = oy - dy * along, pz = oz - dz * along; if (px * px + py * py * 0.25 + pz * pz < 0.35 * 0.35) t = along; }
     this._rfT = this.time; this._rfM = Number.isFinite(t) ? Math.round(t) : null;
     return this._rfM;
+  }
+  // LOADOUT の付属品の欄に出す銃の数字（本家のロードアウトの能力の棒）: 付属品を付けた値と、付けていない値（差を色で）
+  _gunStats(gun, A, sec) {
+    const W = WEAPONS[gun]; if (!W) return null;
+    const cls = this.dcls || 'assault', lo = sec ? classLoadout(cls, null, gun, { [gun]: A || {} }) : classLoadout(cls, gun, null, { [gun]: A || {} }), wi = makeWeapon(sec ? lo.secondary : lo.primary); if (!wi) return null;
+    const m = attMods(wi), g = warGun(gun), rc = W.rc || {};
+    const row = (lb, base, v, max, lo2, fmt) => ({ lb, base, v, max, lo: !!lo2, t: fmt(v) });
+    const f0 = (x) => String(Math.round(x)), f2 = (x) => x.toFixed(2);
+    return [
+      row('ダメージ', g.dmg, g.dmg * m.dmg, 80, false, f0),
+      row('連射', W.rpm || 0, W.rpm || 0, 1200, false, f0),
+      row('弾速', W.vel || 0, (W.vel || 0) * m.vel, 1000, false, f0),
+      row('縦の反動', rc.v || 0, (rc.v || 0) * m.rcv, 2, true, f2),
+      row('横の反動', rc.h || 0, (rc.h || 0) * m.rch, 1.2, true, f2),
+      row('構え', W.ads || 0, ((W.ads || 0) + m.ads) * m.adsK, 0.8, true, (x) => x.toFixed(2) + 's'),
+      row('リロード', (W.rl && W.rl.tac) || 0, ((W.rl && W.rl.tac) || 0) * m.reload, 8, true, (x) => x.toFixed(1) + 's'),
+      row('装弾数', W.mag || 0, magCap(wi), 100, false, f0),
+    ];
   }
   // 予約をやめた理由（DEPLOY の下に出す）
   _dpickMsg() {
@@ -1998,7 +2033,7 @@ export class Match {
       img: this.hud.plan && this.hud.plan.img, rect: m.rect, m, myTeam: p.team, mapKey: tick + '|' + m.flags.map(f => f.owner).join(','),
       opts, sel: this.dsel, pick: !!(this._dpick && this.dsel == null), dots, squad: { name: squadEn(p.squad, p.team), list: squad },
       cls, classes: CLASS_LIST.map(id => ({ id, en: CLASSES[id].en, short: CLASSES[id].short, name: CLASSES[id].name, hp: CLASSES[id].hp, desc: CLASSES[id].desc, tools: CLASSES[id].tools.join('・'), long: toolTxt(CLASSES[id], id), ok: canPick(p, id) })),
-      lo: !!this.dlo, loTab: this.dloTab || 'gun', guns, secs, gun, sec, att: this._attRows(gun, W.att[gun] || {}), gad: this._gadRow(cls, (W.gad || {})[cls]), gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.filter(([id]) => isThrow(id)).map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
+      lo: !!this.dlo, loTab: this.dloTab || 'gun', guns, secs, gun, sec, att: this._attRows(gun, W.att[gun] || {}), stats: this.dlo && this.dloTab === 'att' ? this._gunStats(gun, W.att[gun] || {}) : this.dlo && this.dloTab === 'att2' ? this._gunStats(sec, W.att[sec] || {}, true) : null, att2: this._attRows(sec, W.att[sec] || {}, true), gad: this._gadRow(cls, (W.gad || {})[cls]), gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.filter(([id]) => isThrow(id)).map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
       left, queued: !!p.deployAt, canGo: !(m.mode === 'conquest' && m.tickets[p.team] <= 0) && !(this._dpick && this.dsel == null),
       msg: this._dpick && this.dsel == null ? this._dpickMsg() : p.deployAt && left > 0 ? 'もう一度押すとやめる' : m.mode === 'range' ? '射台から' : m.mode === 'conquest' && m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'rally' ? 'ビーコンから' : String(this.dsel).startsWith('sq:') ? `${(S.byId[+String(this.dsel).slice(3)] || {}).name || '仲間'} のそばから` : m.mode === 'conquest' ? (this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
     };

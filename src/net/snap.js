@@ -16,7 +16,7 @@ const r2 = (v) => Math.round(v * 100);
 const r3 = (v) => Math.round(v * 1000);
 const isNum = (v) => typeof v === 'number' && isFinite(v);
 // 送る出来事（見た目・音・HUDに要るもの）
-export const NET_EV = new Set(['shot', 'imp', 'blood', 'hit', 'whiz', 'kill', 'down', 'cuffed', 'report', 'evidence', 'bombdone', 'soft', 'glass', 'block', 'reinf', 'door', 'deny', 'nade', 'boom', 'c2', 'flashed', 'stung', 'tase', 'spray', 'reload', 'reloaded', 'shell', 'pumped', 'bolt', 'dry', 'draw', 'fmode', 'lightsw', 'step', 'shout', 'cmd', 'mirror', 'act', 'trap', 'trapset', 'barset', 'c2set', 'barhit', 'barbreak', 'plant', 'disable', 'defpick', 'defdrop', 'spotted', 'drone', 'dronedead', 'phase', 'round', 'roundstart', 'swap', 'respawn', 'deployCancel', 'jump', 'stance', 'vault', 'matchend', 'end', 'revive', 'bandaged', 'fall', 'throw', 'bounce', 'allbombs', 'trapoff', 'peek', 'peekend', 'launch', 'shieldhit', 'longsel', 'm320sel', 'gearhint', 'gearsel', 'melee', 'meleehit', 'outside', 'zone', 'camdead', 'depset', 'depbreak', 'dephit', 'wire']);
+export const NET_EV = new Set(['shot', 'imp', 'blood', 'hit', 'whiz', 'kill', 'down', 'cuffed', 'report', 'evidence', 'bombdone', 'soft', 'glass', 'block', 'reinf', 'door', 'deny', 'nade', 'boom', 'c2', 'flashed', 'stung', 'tase', 'spray', 'reload', 'reloaded', 'shell', 'pumped', 'bolt', 'dry', 'draw', 'fmode', 'lightsw', 'step', 'shout', 'cmd', 'mirror', 'act', 'trap', 'trapset', 'barset', 'c2set', 'barhit', 'barbreak', 'plant', 'disable', 'defpick', 'defdrop', 'spotted', 'drone', 'dronedead', 'phase', 'round', 'roundstart', 'swap', 'respawn', 'deployCancel', 'jump', 'stance', 'vault', 'bipod', 'matchend', 'end', 'revive', 'bandaged', 'fall', 'throw', 'bounce', 'allbombs', 'trapoff', 'peek', 'peekend', 'launch', 'shieldhit', 'longsel', 'm320sel', 'gearhint', 'gearsel', 'melee', 'meleehit', 'outside', 'zone', 'camdead', 'depset', 'depbreak', 'dephit', 'wire']);
 // 出来事の数を丸める（小数2けた）
 export function packEvent(e) {
   const o = {};
@@ -25,9 +25,9 @@ export function packEvent(e) {
 }
 const FL = { alive: 1, dead: 2, down: 4, cuffed: 8, c1: 16, c2: 32, stun: 64, cower: 128, sprint: 256, ground: 512, light: 1024, nvg: 2048, carry: 4096, reported: 8192, blind: 16384, gas: 32768, spot: 65536, staged: 131072, vault: 262144 };
 const SIDE = ['', 'swat', 'sus'];
-function attKey(w) { return w ? [w.id, w.att.sight || 'iron', w.att.muzzle || 'none', w.att.grip || 'none', w.att.side || (w.att.light ? 'light' : 'none'), w.am, w.att.mag || 'std', w.att.stock || 'std', w.att.finish || 'blk'] : null; }
+function attKey(w) { return w ? [w.id, w.att.sight || 'iron', w.att.muzzle || 'none', w.att.grip || 'none', w.att.side || (w.att.light ? 'light' : 'none'), w.am, w.att.mag || 'std', w.att.stock || 'std', w.att.finish || 'blk', w.att.boost || 'none', w.att.cant || 'none'] : null; }
 // attKey の配列 → makeWeapon の装備
-function specOf(k) { return k && WEAPONS[k[0]] ? { id: k[0], sight: k[1], muzzle: k[2], grip: k[3], side: k[4], ammo: k[5], mag: k[6], stock: k[7], finish: k[8] } : null; }
+function specOf(k) { return k && WEAPONS[k[0]] ? { id: k[0], sight: k[1], muzzle: k[2], grip: k[3], side: k[4], ammo: k[5], mag: k[6], stock: k[7], finish: k[8], boost: k[9], cant: k[10] } : null; }
 
 // ---- ホスト: 静かな情報（始まり・入り直し・陣営の交代のとき）
 export function packStatic(S) {

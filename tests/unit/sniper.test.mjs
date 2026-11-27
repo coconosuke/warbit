@@ -84,27 +84,22 @@ test('sniper: 対戦の1発（胴）は軽装・中装を倒し、重装は耐�
   ok(d * 0.75 < PVP_ARMOR.light.hp, '手足は1発では倒れない');
 });
 
-test('optics: 2・3・4・6・8倍の照準器（実在の物）。等倍に切り替えられる物は、等倍で照準の見え方が変わる', () => {
-  const z = (sight, zi = 0) => { const wi = makeWeapon({ id: 'hk417', sight }); wi.zi = zi; return { zoom: zoomOf(wi), o: opticOf(wi) }; };
-  eq(z('acog2').zoom, 2, '2倍（ACOG TA47）');
-  eq(z('mag3').zoom, 3, '3倍（EXPS3＋G33）'); ok(z('mag3').o.scope, '3倍はスコープの像');
-  const m1 = z('mag3', 1); eq(m1.zoom, 1, 'ブースターを倒すと等倍'); eq(m1.o.kind, 'holo', '等倍はホロサイトの照準'); ok(!m1.o.scope, '銃とホロの窓が見える');
-  eq(z('acog').zoom, 4, '4倍（ACOG TA31）');
-  eq(z('lpvo').zoom, 4); const l1 = z('lpvo', 1); eq(l1.zoom, 1); ok(l1.o.scope && l1.o.wide, '等倍〜4倍の等倍は広い視野のスコープ');
-  eq(z('scope6').zoom, 6, '6倍（ACOG TA648）');
-  eq(z('lpvo8').zoom, 8, '8倍（NX8 1-8x24）'); eq(z('lpvo8', 1).zoom, 1);
-  // 11-27 15:08: 本家（BattleBit）に同じ物がある照準器は本家の名前（en に英語の正式名）。ない物は実在の物の名前のまま
-  for (const k of ['acog', 'scope6', 'sniper']) ok(ATTACH.sight[k].en, `本家の名前 ${ATTACH.sight[k].name}（${ATTACH.sight[k].en}）`);
-  for (const k of ['acog2', 'mag3', 'lpvo', 'lpvo8']) ok(/（.+）/.test(ATTACH.sight[k].name), `実在の照準器の名前 ${ATTACH.sight[k].name}`);
-  const g = gunModel('hk416', { sight: 'mag3' });
-  ok(g.flip && g.pts.flipPivot, 'ブースターは横へ倒れる別の部品');
-  for (const k of ['acog2', 'acog', 'lpvo', 'scope6', 'lpvo8']) { const m = gunModel('hk417', { sight: k }); ok(m.pts.optic && m.pts.optic.kind === k && m.pts.optic.scope, `形 ${k}`); }
+// 11-27 16:07（案A）: 照準器は本家の物だけ（2 倍の ACOG・ブースター・等倍〜4/8 倍は外した）。倍率は Steam の手引きで測られた値
+// 11-27 16:22「なるべく実物に寄せて」: Burris AR332 は実物の 3 倍。等倍〜4/8 倍（実物の ELCAN・ナイトフォース）も戻した
+test('optics: 本家の照準器（Slip 2・FLIR 2.5・1P78 2.8・Prisma 3・Burris AR332 3・Echo 3・M125 3.2・Acog 4・TRI4X32 4・6x 6）と実物の等倍〜4/8 倍', () => {
+  const z = (sight, id = 'hk417') => { const wi = makeWeapon({ id, sight }); return { zoom: zoomOf(wi), o: opticOf(wi), s: wi.att.sight }; };
+  for (const [k, v] of [['slip', 2], ['flir', 2.5], ['prisma', 3], ['burris', 3], ['echo', 3], ['m125', 3.2], ['acog', 4], ['tri4', 4], ['lpvo', 4], ['lpvo8', 8], ['scope6', 6]]) { const r = z(k); eq(r.s, k, k + ' を付けられる'); eq(r.zoom, v, k + ' の倍率'); ok(r.o.scope, k + ' はスコープ'); }
+  eq(z('p78', 'akm').zoom, 2.8, '1P78（AK）');
+  ok(z('flir').o.thermal && !z('acog').o.thermal, 'FLIR だけ熱を見る');
+  for (const k of ['acog', 'scope6', 'sniper', 'slip', 'flir', 'p78', 'prisma', 'echo', 'm125', 'tri4', 'burris']) ok(ATTACH.sight[k].en, `本家の名前 ${ATTACH.sight[k].name}（${ATTACH.sight[k].en}）`);
+  for (const k of ['slip', 'acog', 'scope6', 'prisma', 'burris', 'flir', 'echo']) { const m = gunModel('hk417', { sight: k }); ok(m.pts.optic && m.pts.optic.scope, `形 ${k}`); }
 });
 
 test('optics: 射撃モードのボタンはいつも連射・単発、倍率は倍率のボタン（11-19 14:03 から別。古い手元の zoom: true も受ける）', () => {
   const G = createGame({ map: 'training', mode: 'train', seed: 7, team: 1, house: false });
   const p = G.S.actors[0];
-  p.inv.w[0] = makeWeapon({ id: 'hk416', sight: 'lpvo8', ammo: 'ap' });
+  // 倍率を切り替えられる照準器（本家の照準器にはないので、古い等倍〜8 倍を直接付けて確かめる）
+  p.inv.w[0] = makeWeapon({ id: 'hk416', ammo: 'ap' }); p.inv.w[0].att.sight = 'lpvo8';
   p.ws.slot = 0; p.ws.st = 'draw'; p.ws.t = 0.1;
   for (let i = 0; i < 30; i++) step(G, { [p.id]: { yaw: p.yaw, pitch: 0 } });
   const wi = p.inv.w[0], m0 = wi.mode;
@@ -123,18 +118,19 @@ test('optics: 射撃モードのボタンはいつも連射・単発、倍率は
   ok(ev.some(e => e.e === 'zoom') && wi.mode === m2, '古い手元（zoom: true）は倍率');
 });
 
-test('optics: 付けられる銃は実銃の取り付け方に合わせる', () => {
+test('optics: 付けられる銃は実銃の取り付け方に合わせる（本家の照準器）', () => {
   const S = (id) => attachOptions(id).sight;
-  ok(!S('mk18').includes('lpvo8') && !S('mk18').includes('scope6'), 'Mk18（短い銃身）に等倍〜8倍・6倍はない');
-  ok(S('hk417').includes('scope6') && S('hk417').includes('lpvo8'), 'HK417（7.62mm・選抜射手）は6倍と等倍〜8倍');
-  ok(S('g3').includes('scope6') && !S('g3').includes('mag3'), 'G3 は爪の台に6倍まで（ブースターはなし）');
-  ok(S('m4a1').includes('lpvo8') && !S('m4a1').includes('scope6'), 'M4A1 は等倍〜8倍、6倍（7.62mm 用）はなし');
-  eq(S('akm').join(), 'iron', 'AKM は照準器なし');
-  ok(S('mp7').includes('acog2') && !S('mp7').includes('mag3'), 'MP7 は2倍まで（レールが短い）');
-  ok(S('mpx').includes('mag3'), 'MPX は上のレールが長いのでブースターも');
+  ok(!S('mk18').includes('scope6'), 'Mk18（短い銃身）に 6 倍はない');
+  ok(S('hk417').includes('scope6'), 'HK417（7.62mm）は 6 倍');
+  ok(S('g3').includes('scope6') && !S('g3').includes('prisma'), 'G3 は爪の台に 6 倍まで');
+  ok(S('m4a1').includes('tri4') && S('m4a1').includes('flir') && !S('m4a1').includes('scope6'), 'M4A1 は 4 倍まで（6 倍は 7.62mm 用）');
+  eq(S('akm').join(), 'iron,p78', 'AKM は横の台に 1P78 だけ');
+  ok(S('mp7').includes('slip') && !S('mp7').includes('prisma'), 'MP7 は 2 倍まで（レールが短い）');
+  ok(S('mpx').includes('prisma'), 'MPX は上のレールが長いので 3 倍も');
   ok(!S('m4super').some(k => ATTACH.sight[k].scope), '散弾銃に倍率の照準器はない');
-  ok(!S('vz58').includes('mag3'), 'vz.58 の短いレールにブースターは付かない');
-  eq(S('at308')[0], 'sniper', '狙撃銃の既定は狙撃用スコープ');
+  for (const id of ['m4a1', 'hk417', 'mp7', 'akm', 'at308']) ok(!S(id).some(k => ['acog2', 'mag3'].includes(k)), id + ': 2 倍の ACOG・ホロ一体のブースターは選べない（ブースターは別の枠）');
+  ok(S('m4a1').includes('lpvo8') && S('m4a1').includes('lpvo') && !S('mk18').includes('lpvo8'), '等倍〜8 倍は銃身が長めの物だけ');
+  eq(S('at308')[0], 'sniper', '狙撃銃の既定は 8 倍');
 });
 
 test('sniper: TDM では両方のチームが狙撃銃を使える。爆弾・殲滅戦は SWAT 側だけ（犯人側の装備に入れていても既定の主武器）', () => {

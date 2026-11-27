@@ -58,6 +58,15 @@ export function sensForZoom(st, z) {
   let k = keys[0]; for (const q of keys) if (q <= z + 1e-6) k = q;
   return (Z[k] ?? DEFAULTS.sensZ[k]) * Math.min(1.25, k / Math.max(1, z));
 }
+// 構えの途中の感度（腰だめの感度にかける数）。倍率の照準器は画面の倍率（1〜倍率）に合わせて対数でつなぐ（11-27 16:37「40倍などで
+//  構える時に一気に視点が飛ぶ」: 前は構え 0.2〜0.8 で移していて、40 倍では画面が 20 倍に寄った時に感度がまだ半分残り、指の少しの動きで大きく飛んだ）。
+//  等倍の照準器は今までどおり（構え 0.2〜0.8 でなめらかに）
+export function adsSensK(st, zoom, ads) {
+  const a = Math.max(0, Math.min(1, ads));
+  if (zoom >= 1.5) { const kz = sensForZoom(st, zoom), zc = 1 + (zoom - 1) * a, w = Math.log(zc) / Math.log(zoom); return Math.exp(Math.log(Math.max(1e-4, kz)) * Math.max(0, Math.min(1, w))); }
+  const kz = st.sensAds || 0.75, u = Math.max(0, Math.min(1, (a - 0.2) / 0.6));
+  return 1 + (kz - 1) * u * u * (3 - 2 * u);
+}
 // スコープの細かい操作（11-26 22:48: 高い倍率で遠くを狙うと、細かい指の動きが思うように効かない）:
 //  3倍以上をのぞいている間、指をゆっくり動かした分だけ見回しを細かくする（速く動かすと今までどおり）。
 //  v: 指の速さ（画面の点/秒）、zoom: 倍率、lv: 'off' | 'weak' | 'mid' | 'strong'。戻り値は感度にかける数

@@ -3,7 +3,9 @@ import { BTN, INFO, ICONS } from './hudlayout.js';
 import { onTap } from './input.js';
 import { C, CS, LH, isWallish } from '../engine/world.js';
 import { M } from '../engine/data/materials.js';
-import { WEAPONS, zoomsOf, zoomOf } from '../engine/data/weapons.js';
+import { WEAPONS, zoomsOf, zoomOf, opticOf } from '../engine/data/weapons.js';
+// 今ののぞき方の短い名前（倍率・等倍・横の照準器・上の照準器）
+const zlab = (wi, en) => { const o = opticOf(wi); return o.cant ? (o.roll ? (en ? 'CANT' : '横') : (en ? 'TOP' : '上')) : o.zoom <= 1.06 ? (en ? '1x' : '等倍') : (en ? o.zoom + 'x' : o.zoom + '倍'); };
 import { GEAR, LONG } from '../engine/data/equipment.js';
 import { ammoCount } from '../engine/actor.js';
 import { warPlanImage, drawWarMarks, WAR_PX } from './warplan.js';
@@ -418,8 +420,8 @@ export class Hud {
         } else if (wi && W) {
           const [m, r] = ammoCount(wi);
           am.querySelector('.mode').textContent = v.war
-            ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') + (zoomsOf(wi.att) ? (zoomOf(wi) <= 1 ? ' · 1x' : ` · ${zoomOf(wi)}x`) : '') + (p.ws.st === 'consol' ? ' · 弾倉をまとめる' : p.ws.st === 'reload' ? ' · RELOAD' : p.ws.st === 'shell' ? ' · LOAD' : '')
-            : (W.bolt ? 'ボルト' : W.modes[wi.mode] === 'auto' ? '連射' : W.modes[wi.mode] === 'burst' ? '3点' : '単発') + (zoomsOf(wi.att) ? (zoomOf(wi) <= 1 ? '・等倍' : `・${zoomOf(wi)}倍`) : '') + (p.ws.st === 'reload' ? '・リロード中' : p.ws.st === 'shell' ? '・装填中' : '');
+            ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') + (zoomsOf(wi.att) ? ' · ' + zlab(wi, true) : '') + (p.ws.st === 'consol' ? ' · 弾倉をまとめる' : p.ws.st === 'reload' ? ' · RELOAD' : p.ws.st === 'shell' ? ' · LOAD' : '')
+            : (W.bolt ? 'ボルト' : W.modes[wi.mode] === 'auto' ? '連射' : W.modes[wi.mode] === 'burst' ? '3点' : '単発') + (zoomsOf(wi.att) ? '・' + zlab(wi, false) : '') + (p.ws.st === 'reload' ? '・リロード中' : p.ws.st === 'shell' ? '・装填中' : '');
           // 対戦は予備が減らない（∞）
           // 大規模戦は弾倉の数（BattleBit も残りを弾倉で見せる）
           const inf = v.pvp && !v.war;
@@ -452,7 +454,7 @@ export class Hud {
       // C4 を持っている: 射撃のボタンで投げ、構えのボタンで起爆（射撃モードのボタンは使わない）
       const c4 = p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4';
       const fm = c4 ? '' : m320 ? '弾種' : W ? (W.bolt ? 'BOLT' : W.modes[wi.mode] === 'auto' ? 'AUTO' : W.modes[wi.mode] === 'burst' ? 'BURST' : 'SEMI') : '';
-      const zl = bino ? `×${GEAR.binoc.zooms[p.ws.bz ?? GEAR.binoc.zi]}` : zs ? (zoomOf(wi) <= 1 ? '×1' : `×${zoomOf(wi)}`) : '';
+      const zl = bino ? `×${GEAR.binoc.zooms[p.ws.bz ?? GEAR.binoc.zi]}` : zs ? (opticOf(wi).cant ? zlab(wi, false) : zoomOf(wi) <= 1.06 ? '×1' : `×${zoomOf(wi)}`) : '';
       const fk = fm + '|' + zl + '|' + (zs ? 1 : 0) + (m320 || (!c4 && W && W.modes.length > 1) ? 1 : 0);
       if (this.cache.fmk !== fk) {
         this.cache.fmk = fk;

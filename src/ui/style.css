@@ -393,16 +393,17 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-scope .ret::after { content: ''; position: absolute; left: 50%; top: -120px; width: 1px; height: 240px; background: rgba(0,0,0,.85); }
 .hud-scope .ret::before { content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #ff3a2a; box-shadow: 0 0 4px #ff2a1a; z-index: 1; }
 /* 倍率の照準器の像（11-12。実在の照準器の模様を元に。SVG）: 大きさは画面の短い辺の0.86（スコープの丸い窓） */
-.hud-scope.acog2 .ret, .hud-scope.mag3 .ret, .hud-scope.acog .ret, .hud-scope.scope6 .ret, .hud-scope.lpvo .ret, .hud-scope.lpvo8 .ret, .hud-scope.sniper .ret { width: calc(var(--sr) * 2); height: calc(var(--sr) * 2); transform: translate(-50%, -50%); background: center / 100% 100% no-repeat; }
+.hud-scope.magdot .ret, .hud-scope.acog2 .ret, .hud-scope.mag3 .ret, .hud-scope.acog .ret, .hud-scope.scope6 .ret, .hud-scope.lpvo .ret, .hud-scope.lpvo8 .ret, .hud-scope.sniper .ret { width: calc(var(--sr) * 2); height: calc(var(--sr) * 2); transform: translate(-50%, -50%); background: center / 100% 100% no-repeat; }
 .hud-scope.acog2 .ret::before, .hud-scope.acog2 .ret::after, .hud-scope.mag3 .ret::before, .hud-scope.mag3 .ret::after, .hud-scope.acog .ret::before, .hud-scope.acog .ret::after, .hud-scope.scope6 .ret::before, .hud-scope.scope6 .ret::after, .hud-scope.lpvo .ret::before, .hud-scope.lpvo .ret::after, .hud-scope.lpvo8 .ret::before, .hud-scope.lpvo8 .ret::after, .hud-scope.sniper .ret::before, .hud-scope.sniper .ret::after { display: none; }
 .hud-scope.acog2 .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23000' stroke-opacity='.9'><path d='M0 100H84M116 100H200M100 116V200M100 0V84' stroke-width='1'/><path d='M0 100H50M150 100H200M100 150V200' stroke-width='3.4'/></g><g fill='none' stroke='%23ff3a2a' stroke-width='1.8' stroke-linecap='round'><path d='M84 100H96M104 100H116M100 84V96M100 104V116'/></g><circle cx='100' cy='100' r='1.1' fill='%23ff3a2a'/></svg>"); }
+.hud-scope.magdot .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><circle cx='100' cy='100' r='4.2' fill='%23ff3a2a'/><circle cx='100' cy='100' r='7' fill='%23ff3a2a' opacity='.25'/></svg>"); }
 .hud-scope.mag3 .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23ff3a2a' stroke-width='2.2'><circle cx='100' cy='100' r='24'/><path d='M100 72V78M100 122V128M72 100H78M122 100H128'/></g><circle cx='100' cy='100' r='1.9' fill='%23ff3a2a'/></svg>"); }
 .hud-scope.acog .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><path d='M91.5 108.5L100 100L108.5 108.5' fill='none' stroke='%23ff3a2a' stroke-width='2.6' stroke-linejoin='miter'/><path d='M100 112V178' stroke='%23000' stroke-width='0.9'/><path d='M90.0 118H110.0' stroke='%23000' stroke-width='1.1'/><path d='M92.5 126H107.5' stroke='%23000' stroke-width='1.1'/><path d='M94.5 134H105.5' stroke='%23000' stroke-width='1.1'/><path d='M96.0 142H104.0' stroke='%23000' stroke-width='1.1'/><path d='M97.0 150H103.0' stroke='%23000' stroke-width='1.1'/><path d='M98.0 158H102.0' stroke='%23000' stroke-width='1.1'/></svg>"); }
 .hud-scope.scope6 .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><path d='M106 110.4A12 12 0 1 0 94 110.4' fill='none' stroke='%23ff3a2a' stroke-width='2'/><circle cx='100' cy='100' r='1.6' fill='%23ff3a2a'/><path d='M100 116V178' stroke='%23000' stroke-width='0.9'/><path d='M92.0 122H108.0' stroke='%23000' stroke-width='1.1'/><path d='M94.0 129H106.0' stroke='%23000' stroke-width='1.1'/><path d='M95.5 136H104.5' stroke='%23000' stroke-width='1.1'/><path d='M96.5 143H103.5' stroke='%23000' stroke-width='1.1'/><path d='M97.25 150H102.75' stroke='%23000' stroke-width='1.1'/><path d='M98.0 157H102.0' stroke='%23000' stroke-width='1.1'/><path d='M98.5 164H101.5' stroke='%23000' stroke-width='1.1'/></svg>"); }
 .hud-scope.lpvo .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23000' stroke-opacity='.92'><path d='M0 100H200M100 100V200M100 0V92' stroke-width='.8'/><path d='M0 100H52M148 100H200M100 152V200' stroke-width='3.6'/><path d='M96 110H104M96 120H104M97 130H103M97 140H103' stroke-width='1'/></g><circle cx='100' cy='100' r='2' fill='%23ff3a2a'/></svg>"); }
 .hud-scope.lpvo8 .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23000' stroke-opacity='.92'><path d='M0 100H90M110 100H200M100 110V200M100 0V90' stroke-width='.7'/><path d='M0 100H58M142 100H200M100 142V200M100 0V58' stroke-width='3.2'/><g stroke-width='.8'><path d='M116 97V103M84 97V103M97 116H103' /><path d='M124 97V103M76 97V103M97 124H103' /><path d='M132 97V103M68 97V103M97 132H103' /><path d='M140 97V103M60 97V103M97 140H103' /><path d='M148 97V103M52 97V103M97 148H103' /></g></g><circle cx='100' cy='100' r='8' fill='none' stroke='%23ff3a2a' stroke-width='1.4'/><circle cx='100' cy='100' r='1.2' fill='%23ff3a2a'/></svg>"); }
 .hud-scope.sniper .ret { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23000' stroke-opacity='.92'><path d='M0 100H200M100 0V200' stroke-width='.5'/><path d='M0 100H62M138 100H200M100 0V62M100 138V200' stroke-width='3.2'/></g><g fill='%23000' fill-opacity='.92'><circle cx='108' cy='100' r='1'/><circle cx='92' cy='100' r='1'/><circle cx='100' cy='108' r='1'/><circle cx='100' cy='92' r='1'/><circle cx='116' cy='100' r='1'/><circle cx='84' cy='100' r='1'/><circle cx='100' cy='116' r='1'/><circle cx='100' cy='84' r='1'/><circle cx='124' cy='100' r='1'/><circle cx='76' cy='100' r='1'/><circle cx='100' cy='124' r='1'/><circle cx='100' cy='76' r='1'/><circle cx='132' cy='100' r='1'/><circle cx='68' cy='100' r='1'/><circle cx='100' cy='132' r='1'/><circle cx='100' cy='68' r='1'/></g><circle cx='100' cy='100' r='.9' fill='%23ff3a2a'/></svg>"); }
-.hud-scope.mag3 .ret, .hud-scope.acog2 .ret, .hud-scope.acog .ret, .hud-scope.scope6 .ret, .hud-scope.lpvo .ret, .hud-scope.lpvo8 .ret { filter: drop-shadow(0 0 1.5px rgba(255,60,40,.55)); }
+.hud-scope.magdot .ret, .hud-scope.mag3 .ret, .hud-scope.acog2 .ret, .hud-scope.acog .ret, .hud-scope.scope6 .ret, .hud-scope.lpvo .ret, .hud-scope.lpvo8 .ret { filter: drop-shadow(0 0 1.5px rgba(255,60,40,.55)); }
 .hud-scope.wide { background: radial-gradient(circle at calc(50% + var(--scx)) calc(50% + var(--scy)), transparent 0, transparent calc(var(--sr) * 1.86), rgba(0,0,0,.9) calc(var(--sr) * 2.09 + var(--se))); }
 .hud-hit { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; --hc: var(--hit-body, #fff); --hg: 5px; --hl: 8px; pointer-events: none; }
 .hud-hit i { position: absolute; left: 0; top: -1px; width: var(--hl); height: 2px; background: var(--hc); box-shadow: 0 0 2px rgba(0,0,0,.9); transform-origin: 0 50%; }
@@ -554,6 +555,18 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 /* LOADOUT の間は、後ろの試合の HUD（地図・ボタン・スティック）を隠す（見本が透けて見えるので） */
 #hud.dps-lo-on > :not(.hud-deploy):not(.hud-board) { visibility: hidden !important; }
 .hud-deploy.lo .dps-mapw, .hud-deploy.lo .dps-sq { visibility: hidden; }
+/* 見本を指で回す所（11-27 16:32「触れたら動かせるように」） */
+.dps-pvt { position: absolute; display: none; touch-action: none; }
+.hud-deploy.lo .dps-pvt { display: block; }
+.dps-stats { position: absolute; display: none; flex-direction: column; gap: 2px; padding: 5px 7px; background: rgba(8,11,14,.55); border-radius: 4px; pointer-events: none; }
+.hud-deploy.lo .dps-stats.on { display: flex; }
+.dps-stats .sr { display: grid; grid-template-columns: 58px 1fr 44px; align-items: center; gap: 6px; font: 600 11px var(--f-body); color: #d9dfe4; }
+.dps-stats .sr i { position: relative; height: 5px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
+.dps-stats .sr i b { position: absolute; left: 0; top: 0; bottom: 0; background: #e9e4d8; }
+.dps-stats .sr i em { position: absolute; top: 0; bottom: 0; }
+.dps-stats .sr.up i em { background: #7fd36b; } .dps-stats .sr.dn i em { background: #ff6a52; }
+.dps-stats .sr.up small { color: #9be37a; } .dps-stats .sr.dn small { color: #ff8a7a; }
+.dps-stats .sr small { font-size: 11px; text-align: right; white-space: nowrap; }
 .dps-pvcap { position: absolute; display: none; flex-direction: column; align-items: center; pointer-events: none; text-shadow: 0 1px 3px #000; }
 .hud-deploy.lo .dps-pvcap { display: flex; }
 .dps-pvcap b { font: 900 15px var(--f-head); letter-spacing: .06em; }
@@ -603,7 +616,8 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .dps-kv b { font-weight: 700; font-family: var(--f-body); } .dps-kv.soon b { color: #7f8a94; font-weight: 500; }
 .dps-card.dps-lop { width: min(540px, 62%); }
 /* 兵科の説明が長くて小さい画面に入りきらない時は、板の中を指で送れる */
-.dps-card:not(.dps-lop) { overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; }
+/* LOADOUT の付属品の行が多い（照準器・ブースター・横の照準器…）時も、板の中を指で送れる */
+.dps-card { overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; }
 .dps-lop .dps-g { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* LOADOUT の 銃／付属品 の切り替え（11-20） */
 .dps-tabs { display: flex; gap: 4px; margin: 4px 0 2px; }
@@ -613,9 +627,11 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .dps-ar > span { font-size: 11px; color: var(--sub); }
 .dps-ab { height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); font-size: 12px; }
 .dps-an { min-width: 0; text-align: center; }
-.dps-an b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dps-an em { display: block; font: 600 10px var(--f-head); letter-spacing: .04em; font-style: normal; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dps-an small { display: block; font-size: 11px; color: #9be37a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 付属品の名前・効き目・説明は折り返して全部読めるように（11-27 16:32「説明が見切れて読めない」） */
+.dps-an b { display: block; font-size: 12px; line-height: 1.3; }
+.dps-an em { display: block; font: 600 11px var(--f-head); letter-spacing: .04em; font-style: normal; color: rgba(255,255,255,.55); }
+.dps-an p { margin: 2px 0 0; font: 500 11px/1.4 var(--f-body); color: #b9c2c9; text-align: left; }
+.dps-an small { display: block; font-size: 11px; line-height: 1.35; color: #9be37a; }
 .dps-x { margin-left: auto; width: 30px; height: 26px; display: flex; align-items: center; justify-content: center; font: 700 18px/1 var(--f-head); background: rgba(255,255,255,.06); }
 .dps-sub { font: 800 11px var(--f-head); letter-spacing: .1em; color: #8d99a4; margin: 6px 0 4px; }
 .dps-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }

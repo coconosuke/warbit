@@ -69,3 +69,22 @@ test('バイポッド（本家の Wiki）: 立てていない時は反動 1.4 �
   const tb = t('bipod'), tn = t('none');
   ok(tb > tn * 1.5, '構えが遅い ' + tb + ' / ' + tn);
 });
+
+// 11-27 16:35「バイポッドの音と展開描写も」: 立てた・たたんだ時に音の出来事。脚は別の部品で、立てると下へ開く
+test('バイポッド: 立てる・たたむと音の出来事。脚は留め金のまわりで下へ開く', async () => {
+  const { gunModel, bipodMatrix } = await import('../../src/render/guns.js');
+  const { G, S, me } = setup('bipod');
+  const ev = [];
+  for (let i = 0; i < 200; i++) ev.push(...step(G, { [me.id]: idle(me, { stance: 2, ads: true }) }));
+  ok(ev.some(e => e.e === 'bipod' && e.id === me.id && e.on), '立てた音');
+  for (let i = 0; i < 60; i++) ev.push(...step(G, { [me.id]: idle(me, { stance: 2, ads: false }) }));
+  ok(ev.some(e => e.e === 'bipod' && e.id === me.id && !e.on), 'たたんだ音');
+  const g = gunModel(me.inv.w[0].id, { grip: 'bipod' });
+  ok(g.legs && g.pts.bipPivot, '脚は別の部品');
+  const I = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), M = new Float32Array(16);
+  const [py, pz] = g.pts.bipPivot, tip = [0, py, pz - 0.2];
+  const at = (k) => { bipodMatrix(I, M, k, g.pts.bipPivot); return [M[4] * tip[1] + M[8] * tip[2] + M[12], M[5] * tip[1] + M[9] * tip[2] + M[13], M[6] * tip[1] + M[10] * tip[2] + M[14]]; };
+  const f = at(0), d = at(1);
+  ok(Math.abs(f[1] - py) < 0.01 && f[2] < pz - 0.15, 'たたむと後ろへ寝る ' + f.map(v => v.toFixed(3)));
+  ok(d[1] < py - 0.15 && d[2] > pz - 0.06, '立てると下へ（少し前へ） ' + d.map(v => v.toFixed(3)));
+});

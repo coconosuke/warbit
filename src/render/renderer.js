@@ -526,6 +526,8 @@ export class Renderer {
       ux = rx * sr; uy = cr; uz = rz * sr;
     }
     this.camPos = [c.x, c.y, c.z];
+    // 熱の照準器（FLIR）をのぞいている: 人をとても明るく描く（actors.js。仕上げで白く浮く）
+    this.thermal = !!(f.post && f.post.thermal);
     m4lookAt(this.view, c.x, c.y, c.z, c.x + fx, c.y + fy, c.z + fz, ux, uy, uz);
     m4persp(this.proj, c.fov, W / H, this.war ? 0.08 : 0.04, this.war ? this.viewDist + 60 : 400);
     m4mul(this.vp, this.proj, this.view);
@@ -580,7 +582,7 @@ export class Renderer {
     m4invert(this.invVP, this.vp);
     frustumPlanes(this.vp, this.planes);
     this._setLights(f.lights || []);
-    this.shadowOn = false; this.pipOn = false;
+    this.shadowOn = false; this.pipOn = false; this.thermal = false;
     const target = this.msaa ? this.msF : this.hdrF;
     gl.bindFramebuffer(gl.FRAMEBUFFER, target);
     gl.viewport(0, 0, W, H);
@@ -912,6 +914,7 @@ export class Renderer {
     gl.uniform1f(C.u.uExposure, p.exposure ?? 1);
     gl.uniform1f(C.u.uVig, p.vig ?? 0.35);
     gl.uniform1f(C.u.uNVG, p.nvg ? 1 : 0);
+    if (C.u.uThermal) gl.uniform1f(C.u.uThermal, p.thermal ? 1 : 0);
     gl.uniform1f(C.u.uFlashW, p.flash || 0);
     gl.uniform1f(C.u.uDamage, p.damage || 0);
     gl.uniform1f(C.u.uSupp, p.supp || 0);

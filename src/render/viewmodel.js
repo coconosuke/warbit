@@ -2,6 +2,7 @@
 import { MeshBuilder, hex, mulc } from './build.js';
 import { LAYER } from './textures.js';
 import { makeWorldMesh, drawMesh, delMesh } from './renderer.js';
+import { bipodMatrix } from './guns.js';
 import { WEAPONS, opticOf, swayCamK, PIP_MAX_ZOOM } from '../engine/data/weapons.js';
 // スコープの中の像のレンズの大きさ（画面の縦の半分に対する半径。BattleBit の 4倍の見え方に合わせて約半分）
 export const PIP_LENS = 0.5;
@@ -155,8 +156,13 @@ export class ViewModel {
     this.pip = pip;
     this.scoped = !!(os && os.scope && a.ads > 0.9 && !pip);
     // ブースター（ホロ＋3倍）: 等倍のときは横へ倒す（0.25秒）
-    this.flipK = lerp(this.flipK || 0, os && P.optic.kind === 'mag3' && !os.scope ? 1 : 0, 1 - Math.exp(-dt * 12));
+    //  ブースター（11-27 16:22。G33・6XMag）も同じ: 等倍のドット・ホロでのぞく間は倒す
+    this.flipK = lerp(this.flipK || 0, os && (P.optic.kind === 'mag3' || P.boost) && !os.scope && !os.cant ? 1 : 0, 1 - Math.exp(-dt * 12));
+    // 横・上の照準器（11-27 16:22）でのぞいている: 銃を傾け（オフセット）、その照準器を目の前へ
+    this.cantK = lerp(this.cantK || 0, os && os.cant && P.cant ? 1 : 0, 1 - Math.exp(-dt * 10));
+    this.cantR = os && os.cant ? os.roll || 0 : this.cantR || 0;
     this.flipP = P.flipPivot || null;
+    this.bipK = lerp(this.bipK || 0, a.bip ? 1 : 0, 1 - Math.exp(-dt * 14));
     // 状態の重み
     // 倒れた味方を引きずっている間（11-27）も、走る時と同じく銃を下げて横へ（片手がふさがる）
     const ads = sm(a.ads), low = sm(a.low), spr = a.sprint || a.drag != null ? 1 : 0;
@@ -278,9 +284,17 @@ export class ViewModel {
     // 世界へ
     let gR = R, gU = U, gF = F;
     const rotAll = (ax, ang) => { gR = rot(gR, ax, ang); gU = rot(gU, ax, ang); gF = rot(gF, ax, ang); };
+    // オフセットの照準器: 右に 45° 傾けて付けてあるので、銃の上を左へ傾ける（のぞく間だけ）
+    const ck = this.cantK * ads;
+    if (ck > 0.001 && this.cantR) { const t = rot(U, F, this.cantR); roll -= (t[0] * R[0] + t[1] * R[1] + t[2] * R[2] < 0 ? 1 : -1) * this.cantR * ck; }
     rotAll(U, yaw); rotAll(gR, pitch); rotAll(gF, -roll);
     const cx = cam.x, cy = cam.y, cz = cam.z;
     const org = [cx + R[0] * px + U[0] * py + F[0] * pz, cy + R[1] * px + U[1] * py + F[1] * pz, cz + R[2] * px + U[2] * py + F[2] * pz];
+    // 横・上の照準器を目の前へ: のぞく点（銃の座標 P.cant.p）が、目の前の P.cant.eye の距離に来るように銃をずらす
+    if (ck > 0.001 && P.cant) {
+      const c = P.cant.p, dist = c[2] - P.cant.eye;
+      for (let i = 0; i < 3; i++) { const d = -gR[i] * c[0] + gU[i] * c[1] + gF[i] * c[2]; const tg = [cx, cy, cz][i] + F[i] * dist - d; org[i] += (tg - org[i]) * ck; }
+    }
     const M = this.M;
     M[0] = -gR[0]; M[1] = -gR[1]; M[2] = -gR[2]; M[3] = 0;
     M[4] = gU[0]; M[5] = gU[1]; M[6] = gU[2]; M[7] = 0;
@@ -611,6 +625,11 @@ export class ViewModel {
         M2[12] += M[8] * this.pumpOff; M2[13] += M[9] * this.pumpOff; M2[14] += M[10] * this.pumpOff;
         gl.uniformMatrix4fv(P.u.uModel, false, M2);
         drawMesh(gl, this.gm.pump);
+      }
+      // バイポッドの脚（11-27 16:35）: 立てると留め金のまわりで下へ開く（0.2 秒ほど）
+      if (this.gm.legs) {
+        gl.uniformMatrix4fv(P.u.uModel, false, bipodMatrix(this.M, this.Mm, sm(this.bipK || 0), this.gm.g.pts.bipPivot));
+        drawMesh(gl, this.gm.legs);
       }
       // ブースターの倒し: 左の蝶番（flipPivot）のまわりに、上から左へ 90°
       if (this.gm.flip) {

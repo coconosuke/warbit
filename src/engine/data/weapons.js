@@ -289,14 +289,25 @@ export const ATTACH = {
     acog2: { name: '2倍スコープ（ACOG TA47 2x20）', zoom: 2.0, ads: 0.03, scope: true, desc: 'トリジコンの小型のACOG（全長13.5cm）。2倍の固定倍率で、照準は赤い十字（光ファイバーと夜光）。近くも見やすい。' },
     mag3: { name: 'ホロサイト＋3倍ブースター（EXPS3・G33）', zoom: 3.0, zooms: [3, 1], ads: 0.04, scope: true, flip: true, desc: 'EOTech のホロサイトの後ろに3倍のブースター（G33）。構えている間に射撃モードのボタンで、ブースターを横へ倒す（等倍のホロサイト）・戻す（3倍）。' },
     acog: { name: 'ACOG', en: 'Acog', zoom: 4.0, ads: 0.05, scope: true, desc: 'トリジコンの4倍の固定スコープ。照準は赤い山形（シェブロン）と、下に5.56mmの距離の目盛り。遠くの頭を狙える。近くは見づらい。' },
-    lpvo: { name: '等倍〜4倍スコープ（SpecterDR 1-4x）', zoom: 4.0, zooms: [4, 1], ads: 0.06, scope: true, wide1: true, desc: 'ELCAN の等倍と4倍を上のレバーで切り替えるスコープ。構えている間に射撃モードのボタンで切り替える。照準は十字と赤い点。' },
+    lpvo: { name: 'スペクター DR 1-4倍', en: 'ELCAN SpecterDR 1-4x', zoom: 4.0, zooms: [4, 1], ads: 0.06, scope: true, wide1: true, desc: 'ELCAN の等倍と4倍を上のレバーで切り替えるスコープ。構えている間に射撃モードのボタンで切り替える。照準は十字と赤い点。' },
     scope6: { name: '6倍スコープ', en: '6x Scope', zoom: 6.0, ads: 0.08, scope: true, desc: '7.62mm NATO の小銃のための大きなACOG（全長23cm・1.1kg）。照準は赤い馬蹄形と点、下に .308 の距離の目盛り。' },
-    lpvo8: { name: '等倍〜8倍スコープ（NX8 1-8x24）', zoom: 8.0, zooms: [8, 1], ads: 0.07, scope: true, wide1: true, desc: 'ナイトフォースの選抜射手向けのスコープ（全長22cm）。構えている間に射撃モードのボタンで等倍と8倍を切り替える。照準は赤い円と点、細い十字に2ミルごとの目盛り。' },
+    lpvo8: { name: 'NX8 1-8倍', en: 'Nightforce NX8 1-8x24', zoom: 8.0, zooms: [8, 1], ads: 0.07, scope: true, wide1: true, desc: 'ナイトフォースの選抜射手向けのスコープ（全長22cm）。構えている間に射撃モードのボタンで等倍と8倍を切り替える。照準は赤い円と点、細い十字に2ミルごとの目盛り。' },
     sniper: { name: '8倍スコープ', en: '8x Scope', zoom: 8.0, zooms: [4, 8], ads: 0.08, scope: true, desc: 'シュミット＆ベンダーの狙撃用スコープ（34mmの胴・50mmの対物レンズ）。射撃モードのボタンで4倍と8倍を切り替える。照準はミルドットの十字。' },
     // 16 倍より上（11-27。BattleBit の Sights: 15x・20x・PTR-40 Hunter（画像の名前から 40 倍）。research の 50・66）。倍率は固定。照準の模様は狙撃用と同じ
     scope15: { name: '15倍スコープ', en: '15x Scope', zoom: 15.0, ads: 0.1, scope: true, ret: 'sniper', desc: '15倍の固定倍率。とても遠い的を狙える。視野が狭く、近くはほとんど見えない。構えるのが遅い。' },
     scope20: { name: '20倍スコープ', en: '20x Scope', zoom: 20.0, ads: 0.11, scope: true, ret: 'sniper', desc: '20倍の固定倍率。揺れが大きく見えるので、伏せるか息を止めて狙う。' },
     scope40: { name: 'PTR-40 ハンター', en: 'PTR-40 Hunter', zoom: 40.0, ads: 0.13, scope: true, ret: 'sniper', desc: '40倍の固定倍率（本家の PTR-40 Hunter に当たる）。1km を超える的のための物。バイポッドと伏せがほぼ要る。' },
+    // 本家の中くらいの照準器（11-27 16:07 案A。research の 73）。倍率は Steam の手引き「Medium Scope Magnification Levels」（作者が射撃場で同じ所を
+    //  のぞいて比べた値。本人も「たぶん」と書いている）。1P78 は手引きにないので実物（1P78 カシュタン 2.8 倍）。形と照準の模様は近い物を使う（独自）
+    slip: { name: 'スリップ', en: 'Slip', zoom: 2.0, ads: 0.03, scope: true, ret: 'acog2', shape: 'acog2', desc: '小さな 2 倍。近い所も見やすい。' },
+    flir: { name: 'FLIR', en: 'Flir', zoom: 2.5, ads: 0.035, scope: true, ret: 'acog2', shape: 'flir', thermal: true, desc: '熱を見る 2.5 倍（白いほど熱い）。人がはっきり浮かぶが、景色は灰色になる。' },
+    p78: { name: '1P78', en: '1P78', zoom: 2.8, ads: 0.035, scope: true, ret: 'acog', shape: 'acog2', desc: 'AK の横に付ける 2.8 倍（実物は 1P78 カシュタン）。' },
+    prisma: { name: 'プリズマ', en: 'Prisma', zoom: 3.0, ads: 0.04, scope: true, ret: 'acog', shape: 'prism', desc: '3 倍のプリズムの照準器。' },
+    echo: { name: 'エコー', en: 'Echo', zoom: 3.0, ads: 0.045, scope: true, ret: 'lpvo', shape: 'lpvo', desc: '3 倍。箱形の胴で視野が広め。' },
+    m125: { name: 'M125', en: 'M125', zoom: 3.2, ads: 0.045, scope: true, ret: 'acog', shape: 'acog', desc: '3 倍より少し大きい。' },
+    tri4: { name: 'TRI4X32', en: 'TRI4X32', zoom: 4.0, ads: 0.05, scope: true, ret: 'acog2', shape: 'acog', desc: '4 倍（実物の 4x32 の照準器に当たる）。' },
+    // 11-27 16:22「なるべく実物に寄せて」: 実物の倍率（AR-332 は 3x32 のプリズム）
+    burris: { name: 'バリス AR332', en: 'Burris AR332', zoom: 3.0, ads: 0.045, scope: true, ret: 'acog', shape: 'prism', desc: '実物の Burris AR-332（3 倍・32mm のプリズム）。' },
     rmr: { name: 'ピストル レッドドット', en: 'Pistol Red Dot', zoom: 1.05, ads: 0.01 },
     sro: { name: 'ピストル デルタサイト', en: 'Pistol Delta Sight', zoom: 1.05, ads: 0.012, desc: '丸い大きな窓で、ドットを見失いにくい。' },
   },
@@ -342,7 +353,7 @@ export const ATTACH = {
     vtac: { name: 'VTAC UVG タクティカルグリップ', en: 'VTACUVG Tactical Grip', rcv: 0.95 },
     // 本家にない（ハードエントリーの頃の物。大規模戦では選べない）
     handstop: { name: 'ハンドストップ', ads: -0.03, rcfirst: 0.92, desc: '手を前で止めて押し込む。構えがいちばん速い。' },
-    bipod: { name: 'バイポッド', en: 'Bipod', adsK: 1.7, reload: 1.25, drawK: 1.25, move: 0.8, bipod: true, desc: '構えている時に、伏せるか塀・窓の縁・物の上に銃を載せると自動で立つ。立っている間は揺れがなく反動が小さいが、立てていない時は反動がとても大きく、構え・リロードが遅く、走るのも遅い。' },
+    bipod: { name: 'バイポッド', en: 'Bipod', ctrl: 0.11, adsK: 1.7, reload: 1.25, drawK: 1.25, move: 0.8, bipod: true, desc: '構えている時に、伏せるか塀・窓の縁・物の上に銃を載せると自動で立つ。立っている間は揺れがなく反動が小さいが、立てていない時は反動がとても大きく、構え・リロードが遅く、走るのも遅い。' },
   },
   side: {
     none: { name: 'なし' },
@@ -358,9 +369,23 @@ export const ATTACH = {
   },
   mag: {
     std: { name: '標準の弾倉' },
-    ext: { name: '長い弾倉', cap: 1.33, reload: 1.12, ads: 0.015, desc: '装弾数が約3分の1ふえる。重く、替えるのが少し遅い。' },
-    drum: { name: 'ドラム弾倉', reload: 1.4, ads: 0.05, move: 0.97, desc: 'たくさん入るが重く、替えるのも遅い。' },
-    fast: { name: '2本つなぎの弾倉', reload: 0.82, ads: 0.01, desc: '2本を横につないで、替えるのが速い。' },
+    ext: { name: '長い弾倉', en: 'Extended', cap: 1.33, reload: 1.12, ads: 0.015, desc: '装弾数が約3分の1ふえる。重く、替えるのが少し遅い。' },
+    drum: { name: 'ドラム弾倉', en: 'Extended-A (Drum)', reload: 1.4, ads: 0.05, move: 0.97, desc: 'たくさん入るが重く、替えるのも遅い。' },
+    fast: { name: '2本つなぎの弾倉', en: 'Quick-A', reload: 0.82, ads: 0.01, desc: '2本を横につないで、替えるのが速い。' },
+  },
+  // ブースター（11-27 16:22「ブースターも。現実準拠」）: ドット・ホロの後ろに付ける拡大鏡。倍率のボタンで横へ倒す（倒すと等倍のドット・ホロ）
+  boost: {
+    none: { name: 'なし' },
+    g33: { name: 'G33 マグニファイア', en: 'EOTech G33', zoom: 3.0, ads: 0.03, desc: 'ドット・ホロの後ろの 3 倍の拡大鏡。倍率のボタンで横へ倒すと等倍に戻る。' },
+    mag6: { name: '6XMag マグニファイア', en: 'Aimpoint 6XMag-1', zoom: 6.0, ads: 0.05, desc: '6 倍の拡大鏡。長く重い。倍率のボタンで横へ倒す。' },
+  },
+  // 横・上の照準器（11-27 16:22「横につける等倍のサイト」。本家の Canted・Top の照準器に当たる）: 倍率の照準器と一緒に使う。
+  //  倍率のボタンで切り替え、オフセット（45°）は銃を傾けてのぞく、上のドットは頬を浮かせてのぞく
+  cant: {
+    none: { name: 'なし' },
+    cIron: { name: 'オフセット アイアンサイト', en: 'Ironsight (Canted)', ret: 'iron', roll: Math.PI / 4, ads: 0.01, desc: '45° 傾けて付けた折りたたみの金属の照準。銃を傾けて近くを撃つ。' },
+    cDot: { name: 'オフセット レッドドット', en: 'Red Dot (Canted)', ret: 'reddot', roll: Math.PI / 4, ads: 0.015, desc: '45° の台に付けた小さなドット（実物は RMR）。銃を傾けて近くを撃つ。' },
+    tDot: { name: 'トップ レッドドット', en: 'Red Dot Top', ret: 'reddot', roll: 0, ads: 0.015, desc: '倍率の照準器の上に載せた小さなドット。頬を浮かせてのぞく。' },
   },
   stock: {
     std: { name: '標準の銃床' },
@@ -372,7 +397,10 @@ export const ATTACH = {
     blk: { name: '標準' }, fde: { name: 'タン（FDE）' }, od: { name: 'オリーブドラブ' }, gry: { name: 'グレー' },
   },
 };
-export const SLOT_NAME = { sight: '照準器', muzzle: 'マズル', grip: 'グリップ', side: 'ライト・レーザー', mag: '弾倉', stock: '銃床', finish: '色' };
+export const SLOT_NAME = { sight: '照準器', boost: 'ブースター', cant: '横・上の照準器', muzzle: 'マズル', grip: 'グリップ', side: 'ライト・レーザー', mag: '弾倉', stock: '銃床', finish: '色' };
+// ブースターを付けられる照準器（等倍のドット・ホロ）と、横・上の照準器を付けられる照準器（倍率の物）
+export const BOOST_OK = new Set(['reddot', 'srs', 'holo']);
+export const cantOK = (sight) => !!(ATTACH.sight[sight] && ATTACH.sight[sight].scope && !ATTACH.sight[sight].flip);
 // 銃の種類ごとに付けられるもの（はじめの物が既定）
 // 見た目と合わせる: 前の握りが元から付いている銃（AUG・MP9・MP5K・MP7）はグリップなし、レールのない拳銃はライトなし など
 // 小銃の照準器（実銃の取り付け方に合わせる）:
@@ -394,13 +422,15 @@ function rifleMuzzles(W) {
 export const isSupp = (k) => !!(ATTACH.muzzle[k] && ATTACH.muzzle[k].supp);
 function rifleSights(wid, W) {
   const m = W.model, md = W.mdl || {};
-  if (m === 'g36') return ['reddot', 'holo', 'acog2', 'iron'];
-  if (m === 'g3') return ['iron', 'reddot', 'acog2', 'acog', 'scope6'];
+  // 11-27 16:07（案A）: 本家の照準器だけに（2 倍・ブースター・等倍〜4 倍・等倍〜8 倍は本家にないので外した）
+  if (m === 'g36') return ['reddot', 'holo', 'slip', 'iron'];
+  if (m === 'g3') return ['iron', 'reddot', 'slip', 'acog', 'scope6'];
+  // AK（レールなし）: 横の台に 1P78（本家も AK だけ）
+  if (m === 'ak' && !md.vz && !md.saiga && !md.bizon) return ['iron', 'p78'];
   const rail = !(m === 'ak' && !md.vz) && m !== 'sks' && m !== 'mini14';
   if (!rail) return ['iron'];
-  const out = ['iron', 'reddot', 'srs', 'holo', 'acog2'];
-  if (!md.vz) out.push('mag3');
-  out.push('acog', 'lpvo');
+  const out = ['iron', 'reddot', 'srs', 'holo', 'slip', 'flir', 'prisma', 'burris', 'echo', 'm125', 'acog', 'tri4', 'lpvo'];
+  // 等倍〜8 倍は銃身が長めの物（実物の選抜射手向け）、6 倍の ACOG（TA648）は 7.62mm NATO 用
   if (['m4a1', 'hk416', 'aug', 'tavor', 'scarh', 'hk417'].includes(wid)) out.push('lpvo8');
   if (W.cal === '762x51' && ['scarh', 'hk417'].includes(wid)) out.push('scope6');
   return out;
@@ -416,6 +446,9 @@ export function attachOptions(wid) {
     const fg = (rail && m !== 'aug' && !md.vz) || m === 'g3';
     return {
       sight: rifleSights(wid, W),
+      // ブースターは上のレールが長い物だけ（ドット・ホロの後ろに場所がいる）。横・上の照準器はレールのある物
+      boost: rail && !md.vz && m !== 'g36' && m !== 'g3' ? ['none', 'g33', 'mag6'] : ['none'],
+      cant: rail || m === 'g3' ? ['none', 'cIron', 'cDot', 'tDot'] : ['none'],
       muzzle: rifleMuzzles(W),
       grip: fg ? ['none'].concat(GRIPS_BB, ['bipod']) : ['none'],
       side: SIDE_BB,
@@ -426,7 +459,8 @@ export function attachOptions(wid) {
   }
   if (c === 'sniper') {
     return {
-      sight: ['sniper', 'lpvo8', 'scope6', 'acog', 'lpvo', 'scope15', 'scope20', 'scope40'],
+      sight: ['sniper', 'scope6', 'acog', 'tri4', 'm125', 'lpvo8', 'scope15', 'scope20', 'scope40'],
+      boost: ['none'], cant: ['none', 'cDot', 'tDot'],
       muzzle: ['none', 'basic', 'brake', 'heavy', 'long', 'ranger'].concat(W.cal === '762x51' ? ['dgn', 'sdn6', 'vamb'] : [], ['supp', 'suppL']),
       grip: ['none', 'bipod'],
       side: SIDE_BB,
@@ -441,7 +475,9 @@ export function attachOptions(wid) {
     const gripMag = ['mac10', 'mp9', 'mp7', 'uzi'].includes(m);
     return {
       // 9mm の銃でも 2倍の ACOG（TA47 には 9mm 用の目盛りの型がある）。上のレールが長い MPX・UMP・Vector はブースターも
-      sight: rail || m === 'mp5' ? ['iron', 'reddot', 'srs', 'holo', 'acog2'].concat(['mpx', 'ump', 'vector'].includes(m) ? ['mag3'] : []) : ['iron'],
+      sight: rail || m === 'mp5' ? ['iron', 'reddot', 'srs', 'holo', 'slip'].concat(['mpx', 'ump', 'vector'].includes(m) ? ['prisma'] : []) : ['iron'],
+      boost: ['mpx', 'ump', 'vector'].includes(m) && !md.sd ? ['none', 'g33'] : ['none'],
+      cant: ['mpx', 'ump', 'vector'].includes(m) && !md.sd ? ['none', 'cIron', 'cDot'] : ['none'],
       muzzle: W.integral ? ['none'] : ['none', 'basic', 'comp', 'flash', 'tactical', 'supp', 'suppL'].concat(W.cal === '9mm' ? ['osprey'] : []),
       grip: fg ? ['none'].concat(GRIPS_BB) : ['none'],
       side: m === 'tec9' ? ['none'] : SIDE_BB,
@@ -486,15 +522,37 @@ export function capOf(wid, mag) {
 }
 export const CAT_NAME = { rifle: '小銃', sniper: '狙撃銃', smg: '短機関銃', shotgun: '散弾銃', pistol: '拳銃', less: '非致死' };
 // スコープの倍率（倍率を切り替えられるスコープは、銃ごとに選んだ倍率 wi.zi）
-export function zoomsOf(att) { const x = att && ATTACH.sight[att.sight]; return x && x.zooms ? x.zooms : null; }
-export function zoomOf(wi) { if (!wi) return 1; const zs = zoomsOf(wi.att); if (zs) return zs[(wi.zi || 0) % zs.length]; const x = ATTACH.sight[wi.att && wi.att.sight]; return x && x.zoom ? x.zoom : 1; }
+// のぞき方の一覧（倍率のボタンで順に切り替える）: 照準器の倍率（切り替えられる物は全部）→ ブースターを倒した等倍 → 横・上の照準器
+//  { zoom, kind 照準の模様, scope 倍率の像, wide 等倍のスコープ, thermal 熱, flip ブースターを倒した, cant 横・上の照準器, roll 銃を傾ける角 }
+const _modes = new Map();
+export function sightModes(att) {
+  if (!att) return [{ zoom: 1, kind: 'iron', scope: false }];
+  const key = att.sight + '|' + (att.boost || '') + '|' + (att.cant || '');
+  let out = _modes.get(key); if (out) return out;
+  out = [];
+  const sid = att.sight, x = ATTACH.sight[sid];
+  const bst = att.boost && att.boost !== 'none' && ATTACH.boost && ATTACH.boost[att.boost];
+  if (!x) out.push({ zoom: 1, kind: 'iron', scope: false });
+  else if (bst && BOOST_OK.has(sid)) {
+    out.push({ zoom: bst.zoom, kind: sid === 'holo' ? 'mag3' : 'magdot', scope: true, boost: true });
+    out.push({ zoom: x.zoom || 1, kind: x.ret || sid, scope: false, flip: true });
+  } else for (const z of (x.zooms || [x.zoom || 1])) {
+    if (x.flip && z <= 1) out.push({ zoom: 1, kind: 'holo', scope: false, flip: true });
+    else out.push({ zoom: z, kind: x.ret || sid, scope: !!x.scope, wide: !!(x.wide1 && z <= 1), thermal: !!x.thermal });
+  }
+  const ct = att.cant && att.cant !== 'none' && ATTACH.cant && ATTACH.cant[att.cant];
+  if (ct && cantOK(sid)) out.push({ zoom: 1.05, kind: ct.ret, scope: false, cant: att.cant, roll: ct.roll || 0 });
+  _modes.set(key, out);
+  return out;
+}
+export function zoomsOf(att) { const m = sightModes(att); return m.length > 1 ? m.map(q => q.zoom) : null; }
+export function modeOf(wi) { const m = sightModes(wi && wi.att); return m[((wi && wi.zi) || 0) % m.length]; }
+export function zoomOf(wi) { if (!wi) return 1; return modeOf(wi).zoom || 1; }
 // 今の照準器の状態（HUD・一人称の見え方）: kind 照準の模様、scope 倍率の像（銃を描かずに HUD のスコープの像）、wide 等倍のスコープ（広い視野）
 export function opticOf(wi) {
-  const sid = wi && wi.att ? wi.att.sight : 'iron', x = ATTACH.sight[sid];
-  if (!x) return { kind: 'iron', zoom: 1, scope: false, wide: false };
-  const zoom = zoomOf(wi);
-  if (x.flip && zoom <= 1) return { kind: 'holo', zoom: 1, scope: false, wide: false };
-  return { kind: x.ret || sid, zoom, scope: !!x.scope, wide: !!(x.wide1 && zoom <= 1) };
+  if (!wi || !wi.att || !ATTACH.sight[wi.att.sight]) return { kind: 'iron', zoom: 1, scope: false, wide: false };
+  const q = modeOf(wi);
+  return { kind: q.kind, zoom: q.zoom, scope: !!q.scope, wide: !!q.wide, thermal: !!q.thermal, flip: !!q.flip, boost: !!q.boost, cant: q.cant || null, roll: q.roll || 0 };
 }
 // 構えたときの照準の揺れ（度。立って止まっているとき。11-12 22:05: 実際に沿って、どの銃も構えると揺れる。強さは程よく）。
 // 重い銃ほど大きい（腕で支える重さ）。拳銃は銃床で肩に当てないので大きい。狙撃銃は銃ごとの値（AT308 は 6.4kg で 0.2）

@@ -1,5 +1,5 @@
 // 人（隊員・容疑者・市民・ボット・プレイヤー）。状態は関数を含まないデータだけ。
-import { WEAPONS, attachOptions, capOf, ATTACH } from './data/weapons.js';
+import { WEAPONS, attachOptions, capOf, ATTACH, BOOST_OK, cantOK } from './data/weapons.js';
 import { PLATE, HELMET, GEAR, LONG } from './data/equipment.js';
 
 export const KIND = { SWAT: 'swat', SUS: 'sus', CIV: 'civ', BOT: 'bot' };
@@ -14,7 +14,10 @@ export function makeWeapon(o) {
   const okA = (k, v, d) => (v && ao[k] && ao[k].includes(v) ? v : (ao[k] && ao[k].length ? (ao[k].includes(d) ? d : ao[k][0]) : d));
   // ライト・レーザーの枠: 古い装備（light: true/false）からも作る
   const side0 = o.side != null ? o.side : (o.light === false ? 'none' : 'light');
-  const att = { sight: okA('sight', o.sight, 'iron'), muzzle: W.integral ? W.integral : okA('muzzle', o.muzzle, 'none'), grip: okA('grip', o.grip, 'none'), side: okA('side', side0, 'none'), mag: okA('mag', o.mag, 'std'), stock: okA('stock', o.stock, 'std'), finish: okA('finish', o.finish, 'blk') };
+  const att = { boost: okA('boost', o.boost, 'none'), cant: okA('cant', o.cant, 'none'), sight: okA('sight', o.sight, 'iron'), muzzle: W.integral ? W.integral : okA('muzzle', o.muzzle, 'none'), grip: okA('grip', o.grip, 'none'), side: okA('side', side0, 'none'), mag: okA('mag', o.mag, 'std'), stock: okA('stock', o.stock, 'std'), finish: okA('finish', o.finish, 'blk') };
+  // ブースターはドット・ホロの後ろだけ、横・上の照準器は倍率の照準器と一緒の時だけ（実物の付け方）
+  if (!BOOST_OK.has(att.sight)) att.boost = 'none';
+  if (!cantOK(att.sight)) att.cant = 'none';
   const sd = ATTACH.side[att.side] || {};
   att.light = !!sd.light; att.laser = sd.laser || null;
   const cap = capOf(o.id, att.mag);

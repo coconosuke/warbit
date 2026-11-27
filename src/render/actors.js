@@ -1,7 +1,7 @@
 // 人・持っている銃・落ちている物を描く（renderer のフックに入れる）
 import { personMeshData, lookFor, boneMatrices, SV } from './people.js';
 import { sunVisAt } from '../war/render.js';
-import { gunModel, longModel, shieldModel } from './guns.js';
+import { gunModel, longModel, shieldModel, bipodMatrix } from './guns.js';
 import { makeWorldMesh, drawMesh, delMesh } from './renderer.js';
 import { computePose, NBONE } from '../engine/pose.js';
 import { poseInput } from '../engine/combat.js';
@@ -76,7 +76,7 @@ export class ActorView {
     const g = gunModel(wid, att);
     if (!g) return null;
     let m = this.guns.get(g.key);
-    if (!m) { m = { body: makeWorldMesh(this.gl, g.body), mag: g.mag ? makeWorldMesh(this.gl, g.mag) : null, pump: g.pump ? makeWorldMesh(this.gl, g.pump) : null, flip: g.flip ? makeWorldMesh(this.gl, g.flip) : null, g }; this.guns.set(g.key, m); }
+    if (!m) { m = { body: makeWorldMesh(this.gl, g.body), mag: g.mag ? makeWorldMesh(this.gl, g.mag) : null, pump: g.pump ? makeWorldMesh(this.gl, g.pump) : null, flip: g.flip ? makeWorldMesh(this.gl, g.flip) : null, legs: g.legs ? makeWorldMesh(this.gl, g.legs) : null, g }; this.guns.set(g.key, m); }
     return m;
   }
   // 写真の台（出撃の画面の LOADOUT）: 偽の人 fa を描く。o.gun: 銃だけを置く { wi, x, y, z, yaw }（付属品を選ぶ時の大写し）
@@ -207,7 +207,7 @@ export class ActorView {
     const P = r.P.skin;
     r._bindLight(P, f);
     gl.uniformMatrix4fv(P.u.uVP, false, r.vp);
-    gl.uniform3f(P.u.uFlash, 0, 0, 0);
+    { const th = r.thermal ? 18 : 0; gl.uniform3f(P.u.uFlash, th, th, th); }
     for (const e of this.list) {
       if (e.drone) continue;
       if (!aabbVisible(r.planes, e.x - 1.2, e.y - 0.3, e.z - 1.2, e.x + 1.2, e.y + 2.1, e.z + 1.2)) continue;
@@ -245,6 +245,8 @@ export class ActorView {
       gl.uniformMatrix4fv(W.u.uModel, false, M);
       gl.uniform1f(W.u.uRoomOverride, Math.max(0, e.room));
       drawMesh(gl, gm.body); if (gm.mag && e.a.ws.st !== 'reload') drawMesh(gl, gm.mag); if (gm.pump && !(e.gun.long === 'rpg' && e.a.inv.rpg && !e.a.inv.rpg.in)) drawMesh(gl, gm.pump); if (gm.flip) drawMesh(gl, gm.flip);
+      // バイポッドの脚: 立てている人は下へ開く（ほかの人から見える。少しずつ）
+      if (gm.legs) { const a2 = e.a; a2._bipK = (a2._bipK || 0) + ((a2.bip ? 1 : 0) - (a2._bipK || 0)) * 0.25; gl.uniformMatrix4fv(W.u.uModel, false, bipodMatrix(M, this._Mb || (this._Mb = new Float32Array(16)), a2._bipK, gm.g.pts.bipPivot)); drawMesh(gl, gm.legs); }
       r.stats.draws++;
     }
     // 手に持った物（右の手首の少し先。体の向きにそろえる）
