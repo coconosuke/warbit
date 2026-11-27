@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-27T03:59:56.283Z）
+HARD ENTRY ソース一式（2026-11-27T04:42:13.718Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 179254
+@@@@ FILE DESIGN.md text 181139
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -407,6 +407,9 @@ HARD ENTRY ソース一式（2026-11-27T03:59:56.283Z）
 - 11-27 WAR BIT 0.1.62: ボットが建物に入る（04:09「AI 建物の中に入ってこない。まだまだ人間っぽくない」。research の 68）: 建物ごとの中の道（war/inav.js。0.5m の格子を階ごとに・階段でつなぐ・出入り口・窓・出入り口から行けない屋根の上は使わない）を、要る時に少しずつ作り（1 ステップ 12 区切りまで。量で区切るので同じ種なら毎回同じに動く）、外の道と出入り口でつなぐ。建物の中に隠れた敵は、最後に見た所（2 階も）まで階段を上って探しに行き、いなければ忘れる（組の片方か 20m より近い者・分隊の見つけた敵なら 40m まで）。拠点の近くの建物では、守る時は 4 割ほどが敵の来る方へ向いた窓から見張り、2 割ほどが円の中の建物にこもる。取りに来た時は 3 割ほどが円の中の建物に入る。建物の中で撃ち合う時は近くの窓を遮蔽物にして、のぞいて撃つ・しゃがんで隠れる（外の遮蔽物を探しに出ていかない）。点検: 2 階にこもった動かない敵を、0.1.61 のボットは 2 分で一度も探しに入らなかった → 0.1.62 は出入り口から入り階段を上って倒した。詰まり（ボットが進めない）: 橋の下の川床で橋脚に向かって止まり続けていた → 橋の下にいる時は橋脚でふさがった地図で道を作る・道が作り直され続けても 4 秒で 1.2m 動けなければ、同じ高さで歩ける向きへ抜け出す（中規模 5 分で詰まり 3.3% → 1.2%）。1 ステップの計算の重さは 0.1.61 と同じ（中規模 3.1ms）。建物の中の道探しは二分ヒープ（大きい建物で 8ms → 2ms 以下）・どの建物の中かは 16m の升目で引く。マップの形は試合をまたいで使い回すので、建物の道の作り終わりは試合ごとに数える（前の試合で作った道があっても、作るのと同じ区切りを数えるまで使わない。同じ種なら同じ結果）。中で敵を探す時、10m より近くなったら最後に見た所へ銃を向けて進む。
 - 11-27 WAR BIT 0.1.63: 爆発は味方に当たらない（BattleBit は味方撃ちなし。research の 69）。ボットの点検（中規模 5 分・tools の aiaudit）で、キル 112 のうち 16 が味方の手榴弾・RPG などの爆発だった → 0 に。自分の爆発は自分に当たる・よろめきと耳鳴りは味方にも。ほかの点検の数字（変えていない）: 遮蔽物でも守りの場所でもない所で 4 秒より長く止まっている 0.4%・味方と 1.5m 以内 3.7%（近い味方まで平均 8.4m）・撃った弾のうち動きながら 38%・遮蔽物から 39%・構えて 87%。引きずる人の見た目（ほかの人から）: 腰を少し落として前かがみになり、左手を倒れた人の胸元へ伸ばす・銃は右手で下げる（参加側にも送る）。
 - 11-27 WAR BIT 0.1.64: ボットの弾も減る（人のように弾を気にする）。それまでは弾が尽きた時の動きがなく、ボットの予備は減らなかった。主の銃が空になったら拳銃へ持ち替え、主の銃に弾が戻って撃ち合っていなければ戻す。予備が 1/4 以下（か主の銃が空）なら、45m 以内の味方の弾薬箱へ行き、9 割まで満ちるまで立つ（走ると補給されない）。弾薬箱は人にもボットにも補給する。ボットの援護・突撃は、近くの仲間（人もボットも・自分も）の予備の弾倉が 2 本以下なら弾薬箱を置く。どちらの銃も空のまま 40 秒たっても箱がない時は、倒れた人から拾ったことにして主の銃に 1 本（ボットだけの近道）。点検（中規模 5 分・tools/aiaudit）: 拳銃を持っている 4.3%・両方空 0.6%・弾薬箱へ向かう 2.4%・置かれた弾薬箱 31。ほかの数字（棒立ち・撃ち合い・キル）はほぼ同じ。弾薬箱を置く「少ない」は、2 本以下で出撃した時の半分より少ない時（もともと予備の少ない銃で、出撃した所に箱を置き続けないように）。ほかの人から見た体: 跳んでいる間はひざを曲げて足を引き上げ、乗り越えは越える間に足をそろえて振り上げ、左手を物の上につく（参加側にも乗り越え中の印と宙にいる時間を送る）。
+- 11-27 WAR BIT 0.1.65: 本家の次の大きな手直し 3.0 の方向に合わせる（13:2x の判断。research の 70）。衛生は引きずるのが速い（1.9 m/s）・衛生が起こすと体力 3/4。引きずる間は後ろ向きでも遅くならない（速さは引きずる速さの上限で決まる）。引きずられる体は、つかんだ胸元を中心に頭が引く人の方へ回る（前は倒れた向きのままで、足が引く人の足もとに重なって押し返し、引く速さが 2 割落ちていた）。伏せていく途中で撃つと反動 1.8 倍（伏せの小さい反動は伏せ終わってから）。宙（0.08 秒より長く）では向きを急に変えられない（地面の 1/4）。縦のグリップは縦の反動と初弾の跳ね、斜めのグリップは横の反動を抑える。DMR は速く撃つほど反動が大きい。数字はどれも推測。
+- 11-27 WAR BIT 0.1.65（続き）: 援護の M249 を足した（research の 71。それまで銃の表に名前だけあって選べなかった）: 100 発の箱・700 発/分・リロード 6.67 秒・走る速さ 0.9・縦より横に暴れる・撃ち続けるほど反動を抑えやすい。形は箱型の機関部と上ぶた（レール）・放熱の覆い・持ち手・たたんだ二脚・下に 100 発の箱。
+- 11-27 WAR BIT 0.1.65（直し・13:23「ゲーム始めると真っ暗」）: 出撃の画面に始まりの暗転（黒い幕）が残り、出撃するまで真っ暗だった。0.1.61 で出撃の画面の下の 3D を描かなくした時、暗転を明ける処理が描く処理の中にあったため。暗転は描く処理の外（毎こま・参加側も）で進め、出撃の画面ではすぐ明ける。テスト一式に「出撃の画面は暗くない」を足した（黒い幕の濃さが 0.05 より下）。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -562,7 +565,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 171884
+@@@@ FILE src/app/game.js text 172252
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -730,6 +733,12 @@ export class Match {
     this._rk = (this._rk || 0) + 1;
     const cover = this.hud.deployOn ? 2 : fo.input === false ? 1 : 0;
     const drawNow = cover === 0 || (cover === 1 && this._rk % 4 === 0);
+    // 始まりの暗転（1.2 秒で明ける）は、描かないこまでも進める。出撃の画面ではすぐ明ける
+    //  （11-27 13:23「ゲーム始めると真っ暗」: 0.1.61 で出撃の画面の下を描かなくした時、暗転を明けるのが描く処理の中にあって、出撃するまで黒い幕が残っていた）
+    if (this.intro > 0) {
+      if (cover === 2) this.intro = 0; else this.intro -= dt;
+      this.app.fade(Math.max(0, this.intro / 1.2));
+    }
     try { if (drawNow) this._render(dt, inp); } finally { if (keep) { ws.sx = keep[0]; ws.sy = keep[1]; ws.ry = keep[2]; ws.rp = keep[3]; } }
     const tH = performance.now();
     this._hud(dt);
@@ -1971,7 +1980,6 @@ export class Match {
       vm: fp ? { fov: (st.vmFov || 54) * DEG, room } : null, pip: this._pip, shadows: st.shadows !== 'off' && st.quality !== 'low',
       ambMin: nvg ? 0.02 : 0,
     });
-    if (this.intro > 0) { this.intro -= dt; this.app.fade(Math.max(0, this.intro / 1.2)); if (this.intro <= 0) this.app.fade(0); }
   }
   // 撃ち合いの熱（0..1）: 近くの銃声・かすめた弾・当たった・爆発で上がり、14秒ほどで冷める
   _heatUp(k) { this.heat = Math.min(1, (this.heat || 0) + k); }
@@ -3167,7 +3175,7 @@ export function netMixin(App) {
   };
 }
 
-@@@@ FILE src/app/netgame.js text 9514
+@@@@ FILE src/app/netgame.js text 9791
 // オンラインの試合の動かし方（Match に混ぜる）。
 //  ホスト: エンジンを動かし、ゲストの入力と動作をエンジンへ渡し、写しを配る。ゲストが切れたら止めて待つ。
 //  ゲスト: エンジンは動かさず、ホストの写しを補間して表示する。自分の移動と銃（反動・弾の見た目）だけは手元で先に動かし、ホストの位置へなめらかに寄せる。
@@ -3309,6 +3317,8 @@ export function netMixin(Match) {
     // 出来事: 手元の分＋ホストの分（自分の銃の音などは手元の分を使う）
     const hostEv = sess.takeEvents().filter(e => !(LOCAL_EV.has(e.e) && e.id === me.id));
     this._events(ev.filter(e => LOCAL_EV.has(e.e)).concat(hostEv));
+    // 始まりの暗転（ホストの frame と同じ。描く処理の外で進める。出撃の画面ではすぐ明ける）
+    if (this.intro > 0) { if (S.war && this.hud.deployOn) this.intro = 0; else this.intro -= dt; this.app.fade(Math.max(0, this.intro / 1.2)); }
     this._render(dt, inp);
     this._hud(dt);
   };
@@ -7817,11 +7827,11 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.64';
+export const VERSION = '0.1.65';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
-@@@@ FILE src/engine/data/weapons.js text 56028
+@@@@ FILE src/engine/data/weapons.js text 57247
 // 銃のデータ（実銃の諸元＋ゲームの扱い）。資料室はここから作る。
 // rpm: 発射速度（毎分）、vel: 銃口の弾の速さ m/s、kg: 重さ、mag: 装弾数、spare: 予備の弾倉の数
 // ads/draw: 構える・持ち替えの時間（秒）、move: 移動の速さの倍率
@@ -8048,6 +8058,12 @@ export const WEAPONS = {
     ads: 0.42, draw: 0.85, move: 0.88, rc: { v: 0.95, h: 0.5, bias: 0.12, first: 1.3, ctrl: 7.5, kick: 1.15 }, sp: { hip: 3.2, ads: 0.12, move: 2.4 }, rl: { tac: 4.2, fast: 3.6, empty: 0.6 },
     pvp: { dmg: 45, fall: [26, 42, 0.72] }, model: 'ak', mdl: { rpk: true }, snd: 'r762',
     desc: 'AKの銃身を長く重くした分隊支援火器。75発のドラム弾倉で撃ち続ける。重く、振り向くのが遅い。' }),
+  // M249（11-27。BattleBit Wiki の M249: 援護の軽機関銃・100 発・700 発/分・弾の速さ 690・リロード 6.67 秒・構え 0.3 秒・
+  //  走る速さ 0.93（10% 遅い）・縦の反動より横の反動が大きい・予備の弾倉は少ない。反動の数字はこのゲームの尺度に直した推測）
+  m249: W({ name: 'M249', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 100, spare: 2, chamber: false, modes: ['auto', 'semi'], rpm: 700, vel: 690, kg: 7.5, len: 1.04,
+    ads: 0.3, draw: 1.0, move: 0.9, rc: { v: 0.9, h: 0.78, bias: 0.12, first: 1.0, ctrl: 7, kick: 1.1 }, sp: { hip: 3.3, ads: 0.12, move: 2.5 }, rl: { tac: 6.67, fast: 6.0, empty: 0.6 },
+    pvp: { dmg: 41, fall: [26, 42, 0.72] }, model: 'm249', mdl: { lmg: true }, snd: 'r556',
+    desc: '援護の軽機関銃。100 発の箱で長く撃ち続けられるが、リロードが遅く、予備の箱は少ない。重く、走るのが遅い。縦より横に暴れる。' }),
   bizon: W({ name: 'PP-19 Bizon', cat: 'smg', side: 'sus', cal: '9x18', ammo: ['ap', 'jhp'], mag: 64, spare: 3, chamber: true, modes: ['auto', 'semi'], rpm: 680, vel: 400, kg: 2.7, len: 0.66, fold: true,
     ads: 0.26, draw: 0.48, move: 0.97, rc: { v: 0.45, h: 0.4, bias: 0.05, first: 1.3, ctrl: 11, kick: 0.8 }, sp: { hip: 2.3, ads: 0.17, move: 1.6 }, rl: { tac: 3.0, fast: 2.5, empty: 0.5 },
     pvp: { dmg: 24, fall: [12, 24, 0.58] }, model: 'ak', mdl: { bizon: true }, snd: 'p9',
@@ -8128,8 +8144,9 @@ export const ATTACH = {
   },
   grip: {
     none: { name: 'なし' },
-    vert: { name: '縦のグリップ', rcv: 0.88, ads: 0.01, desc: '縦の反動を抑える。' },
-    angled: { name: '斜めのグリップ', rcfirst: 0.85, ads: -0.02, desc: '構えが速く、初弾の跳ねが小さい。' },
+    // BattleBit 3.0 の予定（研究メモ 70）: 縦のグリップは縦の反動と初弾の跳ねを、斜めのグリップは横の反動を抑える。倍率は推測
+    vert: { name: '縦のグリップ', rcv: 0.88, rcfirst: 0.9, ads: 0.01, desc: '縦の反動と初弾の跳ねを抑える。' },
+    angled: { name: '斜めのグリップ', rch: 0.82, ads: -0.01, desc: '横の反動を抑える。構えも少し速い。' },
     stubby: { name: '短い縦のグリップ', rcv: 0.93, rch: 0.9, desc: '縦と横の反動を少しずつ抑える。' },
     handstop: { name: 'ハンドストップ', ads: -0.03, rcfirst: 0.92, desc: '手を前で止めて押し込む。構えがいちばん速い。' },
     // 二脚（11-27。BattleBit: 伏せるか、物に銃を当てると自動で立つ。立っている間は印が出る。research の 50・66）。立っている間の効き目は推測
@@ -8187,7 +8204,7 @@ export function attachOptions(wid) {
   const fin = ['blk', 'fde', 'od', 'gry'];
   if (c === 'rifle') {
     const rail = !(m === 'ak' && !md.vz) && m !== 'sks' && m !== 'mini14' && m !== 'g3';
-    const box = W.mag >= 20 && !md.rpk;
+    const box = W.mag >= 20 && !md.rpk && !md.lmg;
     const fg = (rail && m !== 'aug' && !md.vz) || m === 'g3';
     return {
       sight: rifleSights(wid, W),
@@ -8673,15 +8690,16 @@ export function detonateC2(S, w, did, ev) {
   return true;
 }
 
-@@@@ FILE src/engine/drag.js text 2880
+@@@@ FILE src/engine/drag.js text 3906
 // 倒れた味方を引きずる（大規模戦。BattleBit: 倒れた味方を見て F。引きずりながら動けるが遅い。引きずりながら起こし始められる）
 // research/WARBIT.md の 65。速さ・つなぐ長さは推測（本家の数字は見つからなかった）
 //  - 引きずる人: 走れず撃てず構えられない。速さ 1.4m/s まで
-//  - 倒れた人: 胴が、引きずる人から DRAG.len より離れないように引かれる（綱のように。近づくのは自由）。体の向きは変えない
+//  - 倒れた人: 胴が、引きずる人から DRAG.len より離れないように引かれる（綱のように。近づくのは自由）。体は頭が引く人の方へ回る（11-27）
 //  - やめる: もう一度押す・引きずる人が倒れる/死ぬ・倒れた人が起きる/死ぬ・体が物に引っかかって離れすぎる
 import { groundAt, pushOut } from './world.js';
 
-export const DRAG = { speed: 1.4, len: 1.0, max: 2.6 };
+// medic: 衛生は引きずるのが速い（BattleBit 3.0 の予定。研究メモ 70。速さは推測）
+export const DRAG = { speed: 1.4, medic: 1.9, len: 1.0, max: 2.6 };
 
 // off: 倒れた体の原点から胴までのずれ（x, z）。interact.js が始めるときに測る
 export function startDrag(S, a, b, off, ev) {
@@ -8706,7 +8724,21 @@ export function stepDrag(S, w, ev) {
     if (a.drag == null) continue;
     const b = S.byId[a.drag];
     if (!a.alive || a.down || a.dead || !b || !b.alive || !b.down || b.dragBy !== a.id) { stopDrag(S, a, ev); continue; }
-    const off = a.dragOff || [0, 0];
+    const off = a.dragOff || (a.dragOff = [0, 0]);
+    // 体の向き: 頭を引く人の方へ（胸元をつかんで引くので、足は後ろに続く。前は倒れた向きのままで、足が引く人の足もとに
+    //  重なって押し返し、引く速さが 2 割落ちていた）。つかんだ所を中心に 1 秒に 3 rad まで回す
+    const L = Math.hypot(off[0], off[1]);
+    if (L > 0.2) {
+      const gx = b.x + off[0], gz = b.z + off[1];
+      let d = Math.atan2(a.x - gx, a.z - gz) - Math.atan2(off[0], off[1]);
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      const lim = 3 * S.dt; d = Math.max(-lim, Math.min(lim, d));
+      if (Math.abs(d) > 1e-4) {
+        const c = Math.cos(d), sn = Math.sin(d), nx = off[0] * c + off[1] * sn, nz = off[1] * c - off[0] * sn;
+        off[0] = nx; off[1] = nz; b.fallYaw = (b.fallYaw || 0) + d;
+        b.x = gx - nx; b.z = gz - nz;
+      }
+    }
     const tx = b.x + off[0], tz = b.z + off[1];
     // 見た目: 引きずる人の左手の行き先（倒れた人の胸元）
     if (!a.dragPt) a.dragPt = [0, 0, 0];
@@ -8910,7 +8942,7 @@ export function load(o) {
 }
 export { CS, LH };
 
-@@@@ FILE src/engine/interact.js text 68994
+@@@@ FILE src/engine/interact.js text 69336
 // 調べる・使う: 見ている物（扉・人・落ちている物・爆弾・壁）と、そのときできる操作。時間のかかる動作の進み。
 import { placeAmmo } from './ammobox.js';
 import { placeMine } from './mines.js';
@@ -8929,6 +8961,8 @@ import { curW } from './actor.js';
 import { startReload, switchTo, m320Next, cancelReload } from './weapon.js';
 import { ACT_POSE, REACH_D, STAND_D, ALIGN_T } from './data/acts.js';
 import { depSpot, placeDep, removeDep, DEP_WHY } from './deploy.js';
+// 起きた時の体力（最大の割合）。衛生が起こすと多い（BattleBit 3.0 の予定。研究メモ 70）
+export const REVIVE_HP = { base: 0.5, medic: 0.75 };
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
 export const REACH = 2.3;
@@ -9689,9 +9723,9 @@ function finishOp(S, w, a, x, ev) {
     if (k === 'report') { b.reported = true; ev.push({ e: 'report', id: b.id, by: a.id, kind: b.kind, st: b.dead ? 'dead' : b.down ? 'down' : 'cuffed' }); return; }
     if (k === 'revive') {
       if (b.down && b.alive) {
-        // 大規模戦: 包帯を1つ使い、体力の半分で起きる（出血も止まる）
+        // 大規模戦: 包帯を1つ使い、体力の半分で起きる（出血も止まる）。衛生が起こすと 3/4（3.0 の予定: 衛生が起こした味方は体力が多い。割合は推測）
         if (S.war) { const g = a.inv && a.inv.gear.find(q => q.id === 'bandage' && q.n > 0); if (!g) return; g.n--; }
-        b.down = false; b.dbno = 0; b.hp = S.war ? Math.round(b.maxHp * 0.5) : 20; b.bleed = 0; b.stateT = 0; b.revivedT = S.t; ev.push({ e: 'revive', id: b.id, by: a.id });
+        b.down = false; b.dbno = 0; b.hp = S.war ? Math.round(b.maxHp * (a.warCls === 'medic' ? REVIVE_HP.medic : REVIVE_HP.base)) : 20; b.bleed = 0; b.stateT = 0; b.revivedT = S.t; ev.push({ e: 'revive', id: b.id, by: a.id });
       }
       return;
     }
@@ -13766,7 +13800,7 @@ export default {
   },
 };
 
-@@@@ FILE src/engine/move.js text 34495
+@@@@ FILE src/engine/move.js text 35086
 // 移動: RoN の速さ（歩き2.4・ゆっくり0.96・しゃがみ1.2）、しゃがみ・伏せ・リーン・乗り越え・飛び降り・落下・階段・PvPのダッシュ
 import { groundAt, standAt, ceilAt, pushOut, raycast, STEP, CS, LH, BH, NB, levelOfY, cellType, C, leafEnd, inMap, isWallish } from './world.js';
 import { hurt, pvpDamage, breakGlass } from './combat.js';
@@ -13849,7 +13883,7 @@ function warSpeed(S, a, st) {
   if (a.stun > 0 || a.flash > 0.5) v *= 0.45;
   if (a.down || a.dead) v = a.down && a.dbno && a.dragBy == null ? 0.35 : 0;
   // 倒れた味方を引きずっている（11-27。BattleBit: 引きずりながら動けるが遅い）
-  if (a.drag != null) v = Math.min(v, DRAG.speed);
+  if (a.drag != null) v = Math.min(v, a.warCls === 'medic' ? DRAG.medic : DRAG.speed);
   if (a.act && a.act.still) v = 0;
   return v;
 }
@@ -13932,7 +13966,8 @@ export function moveActor(S, w, a, inp, dt, ev) {
   // 後ろ・横は遅い
   let dirMul = 1;
   const SP = S.war ? WAR_SPEED : SPEED;
-  if (mag > 0.01) { const fz = mz / mag, fx = mx / mag; dirMul = fz >= 0 ? 1 - (1 - SP.side) * Math.abs(fx) : SP.back + (SP.side - SP.back) * Math.abs(fx); }
+  // 引きずっている間は向きで変えない（後ろ向きに歩いて引くのがふつう。速さは引きずる速さの上限で決まる）
+  if (mag > 0.01 && a.drag == null) { const fz = mz / mag, fx = mx / mag; dirMul = fz >= 0 ? 1 - (1 - SP.side) * Math.abs(fx) : SP.back + (SP.side - SP.back) * Math.abs(fx); }
   const tgt = vmax * mag * dirMul;
   // ローカル → 世界（前 = (sin yaw, cos yaw)、右 = (-cos yaw, sin yaw)）
   const sy = Math.sin(a.yaw), cy = Math.cos(a.yaw);
@@ -13945,9 +13980,12 @@ export function moveActor(S, w, a, inp, dt, ev) {
     let ux = 0, uz = 0; if (mag > 0.01 && tgt > 1e-4) { ux = dvx / tgt; uz = dvz / tgt; }
     const along = a.vx * ux + a.vz * uz;
     let qx = a.vx - ux * along, qz = a.vz - uz * along;
-    const ql = Math.hypot(qx, qz), qd = (ux || uz ? 30 : 22) * dt;
+    // 跳んでいる間（0.08 秒より長く宙にいる）は、向きを急に変えられない（BattleBit 3.0 の予定「空中で急に向きを変えると一瞬止まる」。
+    //  研究メモ 70）: 横へずれた分を消す・速さを変えるのが 1/4 ほどになる
+    const jmp = a.ground === false && (a.airT || 0) > 0.08 ? 0.25 : 1;
+    const ql = Math.hypot(qx, qz), qd = (ux || uz ? 30 : 22) * dt * jmp;
     if (ql <= qd) { qx = 0; qz = 0; } else { qx *= (ql - qd) / ql; qz *= (ql - qd) / ql; }
-    const na = tgt > along ? Math.min(tgt, along + 12 * dt) : Math.max(tgt, along - 18 * dt);
+    const na = tgt > along ? Math.min(tgt, along + 12 * dt * jmp) : Math.max(tgt, along - 18 * dt * jmp);
     a.vx = ux * na + qx; a.vz = uz * na + qz;
   } else {
     const ac = (tgt >= cur ? accelOf(S, a) : 10) * dt * (air ? 0.12 : 1); // 宙では向きをほとんど変えられない
@@ -15264,7 +15302,7 @@ export function stepStatus(S, w, dt, ev) {
   }
 }
 
-@@@@ FILE src/engine/weapon.js text 29305
+@@@@ FILE src/engine/weapon.js text 30337
 // 銃の動き: 撃つ・弾倉（1本ずつ残弾）・通常/速いリロード・1発ずつ込める・ポンプ・持ち替え・反動（BattleBit式）・散らばり
 import { WEAPONS, AMMO, ATTACH, zoomsOf, zoomOf, swayOf } from './data/weapons.js';
 import { LONG, HAND_LONG, GEAR } from './data/equipment.js';
@@ -15316,6 +15354,7 @@ export function spreadDeg(S, a, W, wi) {
 
 // 二脚が立つか（伏せ: 銃の前 0.8m の地面が体の高さから ±0.3m。立ち・しゃがみ: 止まっていて、銃の 0.6m 先の真下 0.3m 以内に物の面があり、銃の先が壁に入っていない）
 export const BIPOD = { recoil: 0.6 };
+export const DROPSHOT = { recoil: 1.8 };
 const _bh = [];
 const minT = (h) => { let t = 1e9; for (const q of h) if (q.t0 < t) t = q.t0; return t; };
 function bipodUp(S, w, a) {
@@ -15705,8 +15744,18 @@ function tryFire(S, w, a, W, wi, inp, ev) {
   let kv = W.rc.v * (sh === 0 ? W.rc.first * m.rcfirst : 1) * m.rcv;
   let kh = (hrand(a.id, seed, 77) * 2 - 1) * W.rc.h * m.rch + W.rc.bias * W.rc.h * 0.6;
   let mul = 1 - 0.2 * a.ads;
-  if (a.st > 1.5) mul *= 0.7; else if (a.st > 0.5) mul *= 0.85;
+  // 伏せ撃ち（ドロップショット）: 大規模戦では、伏せていく途中は反動が強く、伏せの小さい反動は伏せ終わってから
+  //  （BattleBit 3.0 の予定「ドロップショットは反動が強くなる」。研究メモ 70。倍率は推測）
+  const dropping = S.war && a.stance === 2 && a.st < 1.95;
+  if (dropping) mul *= DROPSHOT.recoil;
+  else if (a.st > 1.5) mul *= 0.7; else if (a.st > 0.5) mul *= 0.85;
   if (a.inj.arm) mul *= 1.6;
+  // BattleBit 3.0 の予定（研究メモ 70。倍率は推測）: DMR（単発だけの小銃）は速く撃つほど反動が大きい（0.35 秒より短い間隔で最大 1.7 倍）。
+  //  M249 は撃ち続けるほど反動を抑えやすい（1 発ごとに 1.5% 小さく、0.7 倍まで）
+  if (S.war && W.cat === 'rifle' && (W.modes || []).length && !(W.modes || []).includes('auto') && ws.lastShot != null) {
+    const gap = (S.t - ws.lastShot) * S.dt; if (gap < 0.35) mul *= 1 + 0.7 * (0.35 - gap) / 0.35;
+  }
+  if (S.war && wi.id === 'm249') mul *= Math.max(0.7, 1 - 0.015 * sh);
   // 二脚が立っている: 反動が小さい（0.6 倍。数字は推測）
   if (a.bip) mul *= BIPOD.recoil;
   if (S.rules && S.rules.recoil) mul *= S.rules.recoil;
@@ -18919,7 +18968,7 @@ void main(){
 }`;
 export function drawFS(gl) { gl.bindVertexArray(null); gl.drawArrays(gl.TRIANGLES, 0, 3); }
 
-@@@@ FILE src/render/guns.js text 77104
+@@@@ FILE src/render/guns.js text 79114
 // 銃の見た目（ローポリの実銃）。ローカル: X=左、Y=上、Z=前（銃口）。原点は引き金の上の銃身の軸。
 // 部品: 本体・弾倉（リロードで動く）・前の握り（ポンプ）。照準の高さと目の位置（ADS）、手の位置、銃口の位置も返す。
 import { MeshBuilder, hex, mulc, cross, nrm } from './build.js';
@@ -19051,6 +19100,30 @@ const MODELS = {
     P.boreY = 0.006; P.sightY = 0.064; P.eyeZ = -0.24; P.muzzle = 0.12 + bl + 0.045; P.railZ = [-0.1, 0.1]; P.rail2 = [hz + 0.05, hz + hg - 0.03]; P.foreY = -0.032;
     P.gripR = [0, -0.1, -0.08]; P.gripL = [0, -0.04, hz + hg * 0.6]; P.magWell = [0, -0.08, 0.04];
     P.mag = mdl.mag762 ? (M) => sbx(M, 0.0145, -0.075, 0.0, -0.235, 0.088, K.blk) : (M) => curvedMag(M, 0.003, 0.08, -0.075, 0.17, 0.035, 0.012, o.fde ? K.fde : K.blk);
+  },
+  // M249（軽機関銃）: 箱型の機関部と上ぶた（上にレール）、長い銃身と放熱の覆い、持ち手、たたんだ二脚、下に 100 発の箱
+  m249(B, P, o) {
+    const d = K.dg, b = K.blk;
+    sbx(B, 0.024, -0.05, -0.14, 0.05, 0.12, d, LAYER.metal);        // 機関部
+    sbx(B, 0.022, 0.05, -0.12, 0.068, 0.1, b);                      // 上ぶた
+    sbx(B, 0.011, 0.068, -0.1, 0.076, 0.08, b);                     // 上のレール
+    sbx(B, 0.026, -0.034, 0.12, 0.03, 0.3, b, LAYER.rubber);        // 前の覆い（ハンドガード）
+    tz(B, 0.3, 0.54, 0.0105, 0.008, d);                             // 銃身
+    tz(B, 0.3, 0.42, 0.016, 0.008, b, 8);                           // 放熱の覆い
+    tz(B, 0.54, 0.585, 0.014, 0.008, b, 6);                         // 消炎器
+    tz(B, 0.3, 0.47, 0.007, -0.022, d);                             // ガスの筒
+    sbx(B, 0.005, 0.03, 0.2, 0.1, 0.23, b); sbx(B, 0.006, 0.09, 0.16, 0.1, 0.27, b); // 持ち手
+    sbx(B, 0.004, 0.02, 0.52, 0.05, 0.535, b); post(B, 0.06, 0.528, b, 0.05);        // 照星
+    peep(B, 0.084, -0.08, b, 0.076);
+    for (const sx of [1, -1]) bx(B, sx * 0.004, -0.03, 0.36, sx * 0.012, -0.016, 0.5, b); // たたんだ二脚
+    tz(B, -0.14, -0.26, 0.016, 0.0, b);
+    stk(B, o, () => { sbx(B, 0.02, -0.065, -0.38, 0.03, -0.22, b, LAYER.rubber); sbx(B, 0.022, -0.075, -0.39, 0.035, -0.37, d); });
+    grip(B, -0.05, -0.06, -0.15, -0.1, 0.015, 0.019, b);
+    sbx(B, 0.004, -0.078, -0.05, -0.072, 0.0, b);                    // 用心金
+    P.boreY = 0.008; P.sightY = 0.084; P.eyeZ = -0.25; P.muzzle = 0.585; P.railZ = [-0.08, 0.06]; P.railY = 0.076; P.rail2 = [0.15, 0.28]; P.foreY = -0.034;
+    P.gripR = [0, -0.1, -0.08]; P.gripL = [0, -0.034, 0.22]; P.magWell = [0, -0.05, 0.0];
+    // 100 発の箱（機関部の下・左寄り）
+    P.mag = (M) => { sbx(M, 0.034, -0.17, -0.04, -0.05, 0.08, hex('#3a3f2c'), LAYER.rubber); sbx(M, 0.036, -0.172, -0.042, -0.164, 0.082, b); };
   },
   g36(B, P, o) {
     const c = K.grn;
@@ -30417,7 +30490,7 @@ function fixItems(ww, gone, made, hid) {
   for (const d of hid) { let x = 0, z = 0; for (const p of d.pts) { x += p[0]; z += p[2]; } drop(C.it[ck(x / d.pts.length, z / d.pts.length)].decos, d); }
 }
 
-@@@@ FILE src/war/guns.js text 2108
+@@@@ FILE src/war/guns.js text 2118
 // 大規模戦の銃の効き方（BattleBit 寄り。research/WARBIT.md の 5）
 // 体力 100。頭の倍率: SMG・拳銃 1.2（重い拳銃は 1.5）、狙撃 1.9、ほか 1.5（BattleBit Wiki の Stats）。手足 0.75（独自）。
 // 距離の減衰: 連射の速い銃ほど早く落ちる。DMR はほとんど落ちず、狙撃は遠いほど上がる（800m で胴1発。BattleBit の偵察兵の説明）。
@@ -30425,7 +30498,7 @@ function fixItems(ww, gone, made, hid) {
 import { WEAPONS } from '../engine/data/weapons.js';
 
 const CAL = { '556': 30, '545': 31, '762x39': 34, '762x51': 40, '9mm': 27, '46': 25, '45': 33, '57': 24, '9x18': 24, '32': 21, '357': 48, '50ae': 70, '12g': 13, saw: 13 };
-const BY_ID = { m4a1: 30, g36c: 31, mp5: 29, mp7: 25, ump45: 35, scarh: 42, deagle: 72, at308: 65 };
+const BY_ID = { m4a1: 30, g36c: 31, mp5: 29, mp7: 25, ump45: 35, scarh: 42, deagle: 72, at308: 65, m249: 31 };
 const cache = new Map();
 export function warGun(id) {
   let g = cache.get(id);
@@ -33760,7 +33833,7 @@ export async function runTests(filter) {
   return res;
 }
 
-@@@@ FILE tests/run_all.mjs text 103307
+@@@@ FILE tests/run_all.mjs text 103827
 // テスト一式: node tests/run_all.mjs [--quick] [--no-sizes] → test-results/summary.md
 //  1 ビルド  2 単体  3 マップ（WAR BIT: 本陣・拠点・出撃の場所が範囲の中・本陣から拠点まで歩ける）  4 音
 //  5 自動の試合（コンクエスト・ドミネーション・TDM をボットだけで最後まで・同じシードで同じ結果・人数ごとの速さ）
@@ -34489,6 +34562,10 @@ try {
     await tapAt(await center('.screen.play.on [data-m="conquest"][data-k="small"]'), 71);
     await page.waitForFunction(() => window.__app.mode === 'game' && window.__app.game && document.querySelector('#hud .hud-deploy.on .dps-go'), null, { timeout: 240000 });
     await page.waitForTimeout(500);
+    // 11-27 13:23「ゲーム始めると真っ暗」: 出撃の画面に始まりの暗転（黒い幕）が残らない
+    { const fd = await page.waitForFunction(() => +getComputedStyle(document.querySelector('#fade')).opacity < 0.05, null, { timeout: 8000 }).then(() => true).catch(() => false);
+      const op = await page.evaluate(() => getComputedStyle(document.querySelector('#fade')).opacity);
+      rec('WAR BIT', '出撃の画面は暗くない（始まりの暗転が明ける）', fd, 'opacity ' + op); }
     await shot('WAR-出撃の画面');
     const dp = await page.evaluate(() => { const g = window.__app.game; return { alive: g.p.alive, cls: document.querySelectorAll('#hud .dps-c').length, sq: document.querySelectorAll('#hud .dps-m').length, pts: [...document.querySelectorAll('#hud .dps-p')].map(e => e.dataset.sub), n: g.S.actors.length, bots: g.S.actors.filter(a => a.ai).length }; });
     rec('WAR BIT', '試合は出撃の画面から始まる（兵科6つ・分隊8人・地図の出撃の場所・ボット31体）', !dp.alive && dp.cls === 6 && dp.sq === 8 && dp.pts.includes('hq') && dp.n === 32 && dp.bots === 31, JSON.stringify(dp));
@@ -37391,7 +37468,7 @@ test('穴を開けたとき、描く塊ごとの物の表は変わった物だ�
   restoreWorld(ww);
 });
 
-@@@@ FILE tests/unit/war_drag.test.mjs text 5388
+@@@@ FILE tests/unit/war_drag.test.mjs text 6278
 // 11-27: 倒れた味方を引きずる（BattleBit の F）。引きずる人は遅く（1.4m/s まで）・撃てず・走れない。もう一度押すと離す
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
@@ -37427,13 +37504,16 @@ test('倒れた味方を引きずると、歩いた方へついて来る。遅�
   eq(me.drag, mate.id, '引きずり始めた ' + JSON.stringify(ev.filter(e => e.e === 'deny')));
   eq(mate.dragBy, me.id);
   // 後ろ（-z）へ 3 秒歩く（向きは倒れた人の方のまま。走るを押しても走らない）
-  const z0 = mate.z, mz0 = me.z, shots0 = me.stats.sh;
+  const z0 = personPoint(S, mate)[2], mz0 = me.z, shots0 = me.stats.sh;
   let vmax = 0;
   for (let i = 0; i < Math.round(3 / S.dt); i++) { const zb = me.z; step(G, { [me.id]: idle(me, { mz: -1, sprint: true, fire: true }) }); vmax = Math.max(vmax, Math.abs(me.z - zb) / S.dt); }
-  ok(vmax <= DRAG.speed + 0.05, '速さ ' + vmax.toFixed(2));
+  ok(vmax <= DRAG.speed + 0.05 && vmax > DRAG.speed - 0.2, '速さ（後ろ向きでも引きずる速さ） ' + vmax.toFixed(2));
   ok(!me.sprint, '走らない');
   eq(me.stats.sh, shots0, '撃っていない');
-  ok(z0 - mate.z > 1.0 && Math.abs((z0 - mate.z) - (mz0 - me.z)) < 1.2, `体がついて来た ${(z0 - mate.z).toFixed(2)}m（歩いたのは ${(mz0 - me.z).toFixed(2)}m）`);
+  // 胴（つかんだ所）がついて来る。体は頭が引く人の方へ回る（足が後ろ）
+  const z1 = personPoint(S, mate)[2];
+  ok(z0 - z1 > 1.0 && Math.abs((z0 - z1) - (mz0 - me.z)) < 1.2, `体がついて来た ${(z0 - z1).toFixed(2)}m（歩いたのは ${(mz0 - me.z).toFixed(2)}m）`);
+  ok(mate.z > personPoint(S, mate)[2] + 0.3, '足は後ろ（引く向きの反対）' + mate.z.toFixed(2) + ' / ' + personPoint(S, mate)[2].toFixed(2));
   ok(mate.down && mate.alive, 'まだ倒れている');
   const tp = personPoint(S, mate);
   ok(Math.hypot(tp[0] - me.x, tp[2] - me.z) <= DRAG.len + 0.15, '胴は手の届く所');
@@ -37480,6 +37560,65 @@ test('引きずる人の見た目: 左手が倒れた人の胸元へ下りる・
   ok(row && row[25] === 10, '送る形に drag（10）' + (row ? row[25] : '-'));
   step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'drag' }] }) });
   ok(me.drag == null && !me.dragPt, '離すと戻る');
+});
+
+test('衛生は引きずるのが速い（3.0 の予定。1.9m/s まで）', () => {
+  const { G, S, me, mate } = setup();
+  me.warCls = 'medic';
+  step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'drag' }] }) });
+  let vmax = 0;
+  for (let i = 0; i < Math.round(2.5 / S.dt); i++) { const zb = me.z; step(G, { [me.id]: idle(me, { mz: -1 }) }); vmax = Math.max(vmax, Math.abs(me.z - zb) / S.dt); }
+  ok(vmax > DRAG.speed + 0.2 && vmax <= DRAG.medic + 0.05, '速さ ' + vmax.toFixed(2));
+});
+
+@@@@ FILE tests/unit/war_dropshot.test.mjs text 3188
+// 11-27: 伏せ撃ち（ドロップショット）は反動が強い（BattleBit 3.0 の予定。研究メモ 70）。伏せ終わってからは伏せの小さい反動
+import { test, ok } from '../lib/t.mjs';
+import { createGame, step } from '../../src/engine/engine.js';
+import { heightAt } from '../../src/war/world.js';
+import { DROPSHOT } from '../../src/engine/weapon.js';
+
+const idle = (a, o = {}) => Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o);
+// stance0 で構えて待ち、stance1 に切り替えた n ステップ目に 1 発撃った反動
+function kick(stance0, stance1, wait) {
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false });
+  const S = G.S, me = S.actors[0];
+  step(G, {});
+  const x = 790, z = 705; Object.assign(me, { x, z, y: heightAt(G.w, x, z), vx: 0, vz: 0, yaw: 0 });
+  me.inv.w[0].att.grip = 'none';
+  for (let i = 0; i < 120; i++) step(G, { [me.id]: idle(me, { stance: stance0 }) });
+  for (let i = 0; i < wait; i++) step(G, { [me.id]: idle(me, { stance: stance1 }) });
+  const rp0 = me.ws.rp, sh = me.stats.sh, st = me.st;
+  for (let i = 0; i < 4 && me.stats.sh === sh; i++) step(G, { [me.id]: idle(me, { stance: stance1, fire: true }) });
+  return { k: me.ws.rp - rp0, st };
+}
+test('伏せていく途中で撃つと反動が強い・伏せ終わると小さい', () => {
+  const stand = kick(0, 0, 10), drop = kick(0, 2, 20), prone = kick(2, 2, 10);
+  ok(drop.st > 0.2 && drop.st < 1.9, '伏せていく途中 ' + drop.st.toFixed(2));
+  ok(Math.abs(drop.k / stand.k - DROPSHOT.recoil) < 0.15, `途中 ${drop.k.toFixed(3)} / 立ち ${stand.k.toFixed(3)}`);
+  ok(prone.k < stand.k * 0.8, `伏せ終わり ${prone.k.toFixed(3)} / 立ち ${stand.k.toFixed(3)}`);
+});
+
+test('DMR は速く撃つほど反動が大きい（3.0 の予定）', async () => {
+  const { makeWeapon } = await import('../../src/engine/actor.js');
+  const shot2 = (gapSteps) => {
+    const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false });
+    const S = G.S, me = S.actors[0];
+    step(G, {});
+    const x = 790, z = 705; Object.assign(me, { x, z, y: heightAt(G.w, x, z), vx: 0, vz: 0, yaw: 0 });
+    me.inv.w[0] = makeWeapon({ id: 'hk417' }); me.ws.slot = 0; me.ws.st = 'ready';
+    for (let i = 0; i < 60; i++) step(G, { [me.id]: idle(me) });
+    // 撃ったこまの反動の跳ね（そのこまの前後の差）
+    const fire1 = () => { const sh = me.stats.sh; let k = 0; for (let i = 0; i < 30 && me.stats.sh === sh; i++) { const b = me.ws.rp; step(G, { [me.id]: idle(me, { fire: true }) }); k = me.ws.rp - b; } return me.stats.sh > sh ? k : NaN; };
+    fire1();
+    for (let i = 0; i < gapSteps; i++) step(G, { [me.id]: idle(me) });
+    // 比べやすく: 戻りの強さ（跳ね上がった分に比例）をそろえる
+    me.ws.rp = 0;
+    return fire1();
+  };
+  // どちらも 0.25 秒より短い間隔（初弾の跳ねに戻らない）。0.13 秒と 0.23 秒
+  const fast = shot2(7), slow = shot2(13);
+  ok(fast > slow * 1.1, `速く ${fast.toFixed(3)} / ゆっくり ${slow.toFixed(3)}`);
 });
 
 @@@@ FILE tests/unit/war_engine.test.mjs text 9079
@@ -38022,7 +38161,7 @@ test('乗り越えとジャンプを分けた時: 乗り越えのボタン（ove
   done(b);
 });
 
-@@@@ FILE tests/unit/war_jump.test.mjs text 3643
+@@@@ FILE tests/unit/war_jump.test.mjs text 4552
 import { test, ok, near } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
 
@@ -38093,6 +38232,22 @@ test('反動の押さえ: 下へ引いた分（inp.rc 度）は反動の分か�
   ok(a.ws.rp === 0, '0 より下にはならない');
 });
 
+test('跳んでいる間は向きを急に変えられない（3.0 の予定: 一瞬止まる）', () => {
+  // 前へ歩いて跳び、宙で後ろへ入れる → 0.15 秒後も前への速さが地面よりずっと残る
+  const run = (jump) => {
+    const G = game(), a = G.S.actors[0];
+    for (let i = 0; i < 30; i++) step(G, inp(a));
+    for (let i = 0; i < 40; i++) step(G, inp(a, { mz: 1 }));
+    if (jump) { step(G, inp(a, { mz: 1, act: [{ a: 'vault', jump: 1 }] })); for (let i = 0; i < 8; i++) step(G, inp(a, { mz: 1 })); }
+    for (let i = 0; i < 9; i++) step(G, inp(a, { mz: -1 }));
+    const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
+    return { v: a.vx * fx + a.vz * fz, air: !a.ground };
+  };
+  const air = run(true), gnd = run(false);
+  ok(air.air, '宙にいる');
+  ok(air.v > gnd.v + 0.8, `宙では前への速さが残る ${air.v.toFixed(2)}（地面 ${gnd.v.toFixed(2)}）`);
+});
+
 @@@@ FILE tests/unit/war_lod.test.mjs text 3032
 // 11-26: 形を作る道具と大規模戦の形の段。頂点の書き方を変えても形は同じ・近い形は少しずつ作れて結果は同じ・遠い形の2段目は三角形が少ない
 import { test, ok, eq } from '../lib/t.mjs';
@@ -38146,6 +38301,49 @@ test('遠い形の2段目: どの塊も作れて、三角形は遠い形より�
     ok(f2.i.length <= f.i.length, '塊 ' + k + ' で増えない');
   }
   ok(t2 < t1 * 0.7, `遠い形 ${t1} → 2段目 ${t2}`);
+});
+
+@@@@ FILE tests/unit/war_m249.test.mjs text 2458
+// 11-27: 援護の M249（BattleBit Wiki: 100 発・700 発/分・リロード 6.67 秒・走る速さ 0.93）。撃ち続けるほど反動を抑えやすい（3.0 の予定）
+import { test, ok, eq } from '../lib/t.mjs';
+import { WEAPONS, attachOptions } from '../../src/engine/data/weapons.js';
+import { classGuns } from '../../src/war/classes.js';
+import { warGun } from '../../src/war/guns.js';
+import { gunModel } from '../../src/render/guns.js';
+import { createGame, step } from '../../src/engine/engine.js';
+import { makeWeapon } from '../../src/engine/actor.js';
+import { heightAt } from '../../src/war/world.js';
+
+test('M249: 援護が選べる・Wiki の数字・箱の弾倉は替えられない・形が作れる', () => {
+  const W = WEAPONS.m249;
+  ok(W, '定義がある');
+  ok(classGuns('support').includes('m249'), '援護の銃');
+  eq(W.mag, 100); eq(W.rpm, 700); eq(W.vel, 690); eq(W.rl.tac, 6.67);
+  eq(warGun('m249').dmg, 31);
+  eq(attachOptions('m249').mag.join(','), 'std', '弾倉は箱のまま');
+  ok(attachOptions('m249').grip.includes('bipod'), '二脚を付けられる');
+  const g = gunModel('m249', {});
+  ok(g && g.body && g.mag, '形');
+});
+
+test('M249 は撃ち続けるほど 1 発の反動が小さくなる', () => {
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: false });
+  const S = G.S, me = S.actors[0];
+  step(G, {});
+  const x = 790, z = 705; Object.assign(me, { x, z, y: heightAt(G.w, x, z), vx: 0, vz: 0, yaw: 0 });
+  me.inv.w[0] = makeWeapon({ id: 'm249' }); me.ws.slot = 0; me.ws.st = 'ready';
+  for (let i = 0; i < 90; i++) step(G, { [me.id]: { mx: 0, mz: 0, yaw: 0, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null } });
+  const kicks = [];
+  for (let i = 0; i < 240 && kicks.length < 25; i++) {
+    const sh = me.stats.sh, b = me.ws.rp;
+    step(G, { [me.id]: { mx: 0, mz: 0, yaw: 0, pitch: 0, stance: 0, lean: 0, sprint: false, fire: true, ads: true, act: null } });
+    if (me.stats.sh > sh) kicks.push(me.ws.rp - b + 0);
+  }
+  ok(kicks.length >= 20, '撃てた ' + kicks.length);
+  // 戻りの影響を除くため、跳ねの大きさは連射の 2〜4 発目と 18〜20 発目の平均で比べる
+  const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+  const early = avg(kicks.slice(1, 4)), late = avg(kicks.slice(17, 20));
+  ok(late < early, `後の方が小さい ${early.toFixed(3)} → ${late.toFixed(3)}`);
 });
 
 @@@@ FILE tests/unit/war_medkit.test.mjs text 3009
@@ -38749,7 +38947,7 @@ test('落ちた弾倉は地面の上に置かれ、拾うボタンで拾える�
   ok(ev2.some(e => e.e === 'magFull'), 'いっぱいの知らせ');
 });
 
-@@@@ FILE tests/unit/war_revive.test.mjs text 4790
+@@@@ FILE tests/unit/war_revive.test.mjs text 4909
 // 11-26: 大規模戦で人が倒れた味方を起こす（本家: どの兵科も包帯 1 つで起こす・衛生は 2 倍速・起きると体力は約半分）
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
@@ -38795,13 +38993,14 @@ test('包帯を1つ使って起こす（突撃は 4 秒）。起きると体力�
   ok(ev.some(e => e.e === 'revive' && e.by === me.id), '起こした出来事');
 });
 
-test('衛生は 2 倍速（2 秒）', () => {
+test('衛生は 2 倍速（2 秒）。衛生が起こすと体力は 3/4（3.0 の予定）', () => {
   const { G, S, me, mate } = setup('medic');
   step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'revive' }] }) });
   let t = 0;
   while (mate.down && t < 6 / S.dt) { step(G, { [me.id]: idle(me) }); t++; }
   ok(!mate.down, '起きた');
   ok(Math.abs(t * S.dt - 2) < 0.3, '約 2 秒 ' + (t * S.dt).toFixed(2));
+  eq(mate.hp, Math.round(mate.maxHp * 0.75), '体力は 3/4');
 });
 
 test('倒れていられるのは 30 秒。起こしている間は減らない', () => {
