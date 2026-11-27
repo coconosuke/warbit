@@ -23,7 +23,7 @@ export function packEvent(e) {
   for (const k in e) { const v = e[k]; if (k === 's') continue; o[k] = isNum(v) && !Number.isInteger(v) ? Math.round(v * 100) / 100 : v; }
   return o;
 }
-const FL = { alive: 1, dead: 2, down: 4, cuffed: 8, c1: 16, c2: 32, stun: 64, cower: 128, sprint: 256, ground: 512, light: 1024, nvg: 2048, carry: 4096, reported: 8192, blind: 16384, gas: 32768, spot: 65536, staged: 131072 };
+const FL = { alive: 1, dead: 2, down: 4, cuffed: 8, c1: 16, c2: 32, stun: 64, cower: 128, sprint: 256, ground: 512, light: 1024, nvg: 2048, carry: 4096, reported: 8192, blind: 16384, gas: 32768, spot: 65536, staged: 131072, vault: 262144 };
 const SIDE = ['', 'swat', 'sus'];
 function attKey(w) { return w ? [w.id, w.att.sight || 'iron', w.att.muzzle || 'none', w.att.grip || 'none', w.att.side || (w.att.light ? 'light' : 'none'), w.am, w.att.mag || 'std', w.att.stock || 'std', w.att.finish || 'blk'] : null; }
 // attKey の配列 → makeWeapon の装備
@@ -48,7 +48,7 @@ export function packSnap(S, w, events, mePids, withBlocks) {
     if (a.sprint) f |= FL.sprint; if (a.ground) f |= FL.ground;
     const wi = a.inv.w[a.ws.slot] || null;
     if (wi && wi.lightOn) f |= FL.light; if (a.nvgOn) f |= FL.nvg; if (a.carry === 'defuser') f |= FL.carry; if (a.reported) f |= FL.reported;
-    if (a.flash > 0.4) f |= FL.blind; if (a.gas > 0) f |= FL.gas; if (a.spot > 0) f |= FL.spot; if (a.staged) f |= FL.staged;
+    if (a.flash > 0.4) f |= FL.blind; if (a.gas > 0) f |= FL.gas; if (a.spot > 0) f |= FL.spot; if (a.staged) f |= FL.staged; if (a.vault) f |= FL.vault;
     const rel = a.ws.st === 'reload' && a.ws.rd ? Math.round((1 - a.ws.t / a.ws.rd) * 100) : -1;
     A.push([a.id, r2(a.x), r2(a.y), r2(a.z), r3(a.yaw), r3(a.pitch + (a.ws.rp || 0) * Math.PI / 180), r2(a.st), r2(a.lean), r2(a.mvx || 0), r2(a.mvz || 0), r2(a.phase || 0), r2(a.ads || 0), r2(a.low || 0), f, r2(a.stateT || 0), r2(a.fallYaw || 0), rel, r2(a.fireK || 0), r2(a.throwT || 0), a.ws.slot, Math.round(100 * a.hp / (a.maxHp || 100)), r2(a.spd || 0), SIDE.indexOf(a.pvpSide || ''), a.spotTeam ?? -1, a._lookV || 0, ...actRow(a)]);
   }
@@ -189,7 +189,9 @@ export class Mirror {
       a.comply = f & FL.c2 ? 2 : f & FL.c1 ? 1 : 0; a.stun = f & FL.stun ? 0.5 : 0; a.tased = 0;
       if (a.ai) a.ai.cower = !!(f & FL.cower);
       a.sprint = !!(f & FL.sprint); a.ground = !!(f & FL.ground); a.nvgOn = !!(f & FL.nvg); a.carry = f & FL.carry ? 'defuser' : null; a.reported = !!(f & FL.reported);
-      a.flash = f & FL.blind ? 1 : 0; a.gas = f & FL.gas ? 1 : 0; a.spot = f & FL.spot ? 1 : 0; a.spotTeam = r1[23]; a.staged = !!(f & FL.staged);
+      a.flash = f & FL.blind ? 1 : 0; a.gas = f & FL.gas ? 1 : 0; a.spot = f & FL.spot ? 1 : 0; a.spotTeam = r1[23]; a.staged = !!(f & FL.staged); a.vaultNet = !!(f & FL.vault);
+      // 宙にいる時間（参加側で数える。足を引き上げる見た目を、段差を下りる一瞬では出さない）
+      a.airT = a.ground ? 0 : (a.airT || 0) + 0.016;
       const side = SIDE[r1[22]] || undefined;
       if (side !== a.pvpSide || r1[24] !== a._lookV) { a.pvpSide = side; a._lookV = r1[24]; }
       if (a.id !== meId) {

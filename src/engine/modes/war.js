@@ -482,12 +482,13 @@ export default {
       h.hp = Math.min(h.maxHp, h.hp + 20 * dt); h.bleed = 0;
       if ((S.t + b.id) % Math.max(1, Math.round(0.5 / S.dt)) === 0) ev.push({ e: 'medkit', id: b.id, tgt: h.id, hp: Math.round(h.hp) });
     }
-    // ボットの援護・突撃: 近く（8m）の仲間の人の予備の弾倉が2本以下で、敵を追っていない時に弾薬箱を置く（2 秒ごとに調べる）
+    // ボットの援護・突撃: 近く（8m）の仲間（人もボットも・自分も）の予備の弾倉が2本以下で、敵を追っていない時に弾薬箱を置く（2 秒ごとに調べる）
     if (m.mode !== 'range' && S.t % Math.max(1, Math.round(2 / S.dt)) === 1) {
       for (const b of S.actors) {
         if (!b.ai || !b.alive || b.down || b.ai.tgt != null || !b.inv || !b.inv.gear) continue;
         const g = b.inv.gear.find(x => (x.id === 'ammobig' || x.id === 'ammosmall') && x.n > 0); if (!g) continue;
-        const h = S.actors.find(a => a.pid != null && a.team === b.team && a.alive && !a.down && Math.hypot(a.x - b.x, a.z - b.z) < 8 && a.inv && a.inv.w[0] && a.inv.w[0].mags && a.inv.w[0].mags.length <= 2);
+        // 少ない: 2 本以下で、出撃した時の半分より少ない（もともと予備の少ない銃は、出撃したばかりで少ないと見なさない）
+        const h = S.actors.find(a => a.team === b.team && a.alive && !a.down && Math.hypot(a.x - b.x, a.z - b.z) < 8 && a.inv && a.inv.w[0] && a.inv.w[0].mags && a.inv.w[0].mags.length <= 2 && a.inv.w[0].mags.length < (a.inv.w[0].spare0 || 0) * 0.5);
         if (!h || (S.ammo || []).some(x => x.team === b.team && Math.hypot(x.x - h.x, x.z - h.z) < 10)) continue;
         g.n--; placeAmmo(S, b, g.id, ev);
       }

@@ -230,6 +230,8 @@ function think(S, w, a, dt, ctx) {
       if (!tgt) { ai.look = [gx, b.y + 1.3, gz]; ai.lookT = S.t; }
     }
   }
+  // 弾が尽きる（11-27 からボットの弾も減る）: 主の銃が空なら拳銃へ、戻ったら主の銃へ。少なくなったら近くの弾薬箱へ
+  ammoSwitch(S, a, inp, tgt);
   // 弾倉（敵が見えていないときに込める）
   const wi = curWeapon(a);
   const lowMag = wi ? (() => { const [inMag] = ammoCount(wi); const cap = wi.cap || (curW(a) || {}).mag || 30; return inMag < cap * 0.45; })() : false;
@@ -239,6 +241,7 @@ function think(S, w, a, dt, ctx) {
     if (tryRevive(S, w, a, inp, ctx, sk, dt)) return inp;
     if (a.hp < a.maxHp * 0.5 && S.t - (ai.seenT ?? -1e9) > SEC(S, 3) && a.inv.gear.some(g => g.id === 'bandage' && g.n > 0) && a.ws.st === 'ready' && !ai.reviving) { pushAct(inp, { a: 'gear', id: 'bandage' }); inp.stance = 1; return inp; }
     if (lowMag && a.ws.st === 'ready') pushAct(inp, { a: 'reload' });
+    if (S.t - (ai.seenT ?? -1e9) > SEC(S, 3) && toAmmo(S, w, a, inp, ctx, sk, dt)) return inp;
   }
 
   // ---- 撃ち合い
@@ -250,6 +253,42 @@ function think(S, w, a, dt, ctx) {
   objective(S, w, a, inp, ctx, sk, dt);
   ai.lookLock = false;
   return inp;
+}
+
+// ---- 弾（11-27: ボットの弾も減る。BattleBit の人のように、主の銃が尽きたら拳銃・少なくなったら弾薬箱）
+const rounds = (wi) => { if (!wi) return 0; const [m, r] = ammoCount(wi); return m + r; };
+// 予備がどれだけ残っているか（出撃した時を 1）
+const spareK = (wi) => !wi ? 1 : wi.mags ? wi.mags.length / Math.max(1, wi.spare0 || 1) : (wi.res || 0) / Math.max(1, wi.spare0 || 1);
+function ammoSwitch(S, a, inp, tgt) {
+  const ai = a.ai, w0 = a.inv.w[0], w1 = a.inv.w[1];
+  if (a.ws.st !== 'ready' || (ai.selT && S.t - ai.selT < SEC(S, 1))) return;
+  if (a.ws.slot === 0 && w0 && rounds(w0) === 0 && w1 && rounds(w1) > 0) { ai.selT = S.t; pushAct(inp, { a: 'switch', slot: 1 }); }
+  // 拳銃のまま: 主の銃に弾が戻り、撃ち合っていなければ戻す
+  else if (a.ws.slot === 1 && w0 && rounds(w0) > 0 && !tgt) { ai.selT = S.t; pushAct(inp, { a: 'switch', slot: 0 }); }
+}
+// 弾が少ない（予備が 1/4 以下・拳銃に持ち替えた）: 45m 以内の味方の弾薬箱へ行って、満ちるまで立つ（走ると補給されない）。
+//  どちらの銃も空で、40 秒たっても箱がない時は、倒れた人から拾ったことにして主の銃に 1 本（ボットだけの近道）
+function toAmmo(S, w, a, inp, ctx, sk, dt) {
+  const ai = a.ai, w0 = a.inv.w[0], w1 = a.inv.w[1];
+  if (!w0) return false;
+  const empty = rounds(w0) === 0 && rounds(w1) === 0;
+  if (empty) { if (ai.dryT == null) ai.dryT = S.t; if (S.t - ai.dryT > SEC(S, 40)) { ai.dryT = null; if (w0.mags) w0.mags.push(w0.cap || 30); else w0.res = (w0.res || 0) + (w0.cap || 8); } }
+  else ai.dryT = null;
+  // 行き始めたら 9 割まで満ちるのを待つ（1/4 を越えたところで離れない）
+  const low = spareK(w0) <= 0.25 || rounds(w0) === 0;
+  if (spareK(w0) >= 0.9 || (!low && ai.boxGo == null)) { ai.boxGo = null; return false; }
+  let box = ai.boxGo != null ? (S.ammo || []).find(b => b.id === ai.boxGo && b.left > 0) : null;
+  if (!box) {
+    let bd = 45;
+    for (const b of S.ammo || []) { if (b.team !== a.team || b.left <= 0) continue; const d = Math.hypot(b.x - a.x, b.z - a.z); if (d < bd && Math.abs(b.y - a.y) < 6) { bd = d; box = b; } }
+    ai.boxGo = box ? box.id : null;
+  }
+  if (!box) return false;
+  const d = Math.hypot(box.x - a.x, box.z - a.z);
+  if (d > 1.2) { moveToPoint(S, w, a, inp, [box.x, box.z, box.y], ctx, sk, dt, { sprint: d > 12, face: true }); return true; }
+  // 着いた: 走らずに立って、まわりを見る
+  inp.mx = 0; inp.mz = 0; inp.sprint = false; inp.stance = 0;
+  return true;
 }
 
 // ---- 撃ち合い（見えている敵）。true: この入力で決まり

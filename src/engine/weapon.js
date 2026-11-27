@@ -196,8 +196,8 @@ export function cancelReload(a, ev) {
 //  速さ 1.25 倍 → 時間 0.8 倍、1.2 倍 → 0.833 倍
 export const CLS = { reloadK: 0.8, adsK: 1 / 1.2, swapK: 0.8 };
 export const CLS_FAST = CLS.reloadK;
-// 予備の弾が減らない: 対戦（作り直す前のモード）・射撃場・大規模戦のボット
-function infAmmo(S, a) { return !!S.pvp && (!S.war || (S.m && S.m.mode === 'range') || a.pid == null); }
+// 予備の弾が減らない: 対戦（作り直す前のモード）・射撃場。大規模戦のボットも 11-27 から減る（拳銃へ持ち替え・弾薬箱へ行く。war/ai.js）
+function infAmmo(S, a) { return !!S.pvp && (!S.war || (S.m && S.m.mode === 'range')); }
 function finishState(S, a, ev) {
   const ws = a.ws, wi = curWeapon(a), W = curW(a);
   const st = ws.st;
@@ -220,8 +220,8 @@ function finishState(S, a, ev) {
       }
     }
     // 対戦: 予備の弾倉は減らない（TDM で弾が尽きると死ぬしかなくなるため。作戦は RoN のとおり減る）
-    // 大規模戦（11-19 23:27）: 人の弾は減る（BattleBit のとおり。抜いた弾倉は残り、まとめられる。補給は出撃し直すと満タン・弾薬箱は次に作る）。
-    //  射撃場と、ボット（弾が尽きた時の動きがまだない）は減らない
+    // 大規模戦（11-19 23:27）: 人の弾は減る（BattleBit のとおり。抜いた弾倉は残り、まとめられる。補給は出撃し直すと満タン・弾薬箱）。
+    //  射撃場は減らない。ボットも減る（11-27）
     if (infAmmo(S, a)) { if (wi.mags) wi.mags = new Array(Math.max(1, wi.spare0 || W.spare || 1)).fill(magCap(wi)); else wi.res = Math.max(wi.res, wi.spare0 || W.spare || 0); }
     ws.st = 'ready'; ws.t = 0; ws.rk = null;
     if (ev) ev.push({ e: 'reloaded', id: a.id });

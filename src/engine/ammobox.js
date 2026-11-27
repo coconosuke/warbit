@@ -43,7 +43,8 @@ export function stepAmmo(S, ev, award) {
     const b = L[i];
     if (b.left <= 0 || S.t - b.t > life) { L.splice(i, 1); if (ev) ev.push({ e: 'ammoBox', k: 'gone', id: b.id }); continue; }
     for (const a of S.actors) {
-      if (a.pid == null || a.team !== b.team || !a.alive || a.down || a.sprint) continue;
+      // 人もボットも（ボットの弾も 11-27 から減る）
+      if (a.team !== b.team || !a.alive || a.down || a.sprint) continue;
       if (Math.abs(a.y - b.y) > 1.6 || Math.hypot(a.x - b.x, a.z - b.z) > AMMOBOX.r) continue;
       const due = a._ammoT == null || S.t - a._ammoT >= every;
       if (!due) continue;

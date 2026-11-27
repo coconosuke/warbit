@@ -34,6 +34,11 @@ export function poseInput(a, o = {}) {
   o.actT = x ? Math.min(1, x.t / Math.max(0.05, x.dur)) : a.peek ? 1 : a.dragPt ? 0.5 : 0;
   o.actP = toLocal(a, x ? x.tgt : a.peek ? [a.peek.x, a.peek.y, a.peek.z] : a.dragPt || null, o.actP);
   if (o.act === 'drag') o.low = 1;
+  // 跳ぶ・乗り越える（ほかの人から見た体）: 乗り越えの進み（0〜1・なければ -1）と手をつく所、跳んでいる強さ
+  const v = a.vault || (a.vaultNet ? { net: true } : null);
+  o.vaultU = v ? (v.net ? 0.5 : Math.max(0, Math.min(1, (v.t - (v.pre || 0)) / Math.max(0.05, v.dur - (v.pre || 0))))) : -1;
+  o.vaultP = v && !v.net && v.x1 != null ? toLocal(a, [(v.x0 + v.x1) / 2, v.top, (v.z0 + v.z1) / 2], o.vaultP) : null;
+  o.air = !v && a.ground === false && !a.down && a.alive !== false ? Math.max(0, Math.min(1, ((a.airT ?? 0.25) - 0.05) / 0.15)) : 0;
   o.gest = a.gest ? a.gest.k : null; o.gestT = a.gest ? Math.min(1, a.gest.t / a.gest.dur) : 0;
   o.gestP = toLocal(a, a.gest ? a.gest.tgt : null, o.gestP);
   o.cuffT = a.cuffK || 0;

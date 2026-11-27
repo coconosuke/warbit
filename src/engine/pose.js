@@ -228,6 +228,18 @@ export function computePose(p, out) {
     kneeHintR = norm(lerp3(kneeHintR, v3(0, 0.6, 1), kickUp));
     ankL = madd(ankL, v3(0, 0, 1), -0.08 * s * kickUp);
   }
+  // 跳んでいる: ひざを曲げて足を引き上げる（左を高く）。乗り越え: 越える弧の間、両足をそろえて右へ振り上げる（片手をついて横へ越える形）
+  const airK = clamp(p.air || 0, 0, 1) * (1 - prone), vu = p.vaultU == null ? -1 : p.vaultU;
+  const varc = vu >= 0 ? Math.sin(Math.PI * Math.min(1, vu * 1.15)) : 0;
+  if (airK > 0) {
+    ankL = madd(madd(ankL, up, 0.24 * s * airK), fwd, -0.05 * s * airK); ankR = madd(madd(ankR, up, 0.15 * s * airK), fwd, 0.05 * s * airK);
+    kneeHintL = norm(lerp3(kneeHintL, v3(0, -0.2, 1), airK)); kneeHintR = norm(lerp3(kneeHintR, v3(0, -0.2, 1), airK));
+  }
+  if (varc > 0) {
+    const swing = v3(-0.2 * s, 0.34 * s, 0.06 * s);
+    ankL = madd(ankL, swing, varc); ankR = madd(ankR, swing, varc * 0.85);
+    kneeHintL = norm(lerp3(kneeHintL, v3(-0.4, 0, 1), varc)); kneeHintR = norm(lerp3(kneeHintR, v3(-0.4, 0, 1), varc));
+  }
   const kneeL = ik2(hipL, ankL, legL, legS, kneeHintL);
   const kneeR = ik2(hipR, ankR, legL, legS, kneeHintR);
   // つま先
@@ -291,6 +303,16 @@ export function computePose(p, out) {
       const off = sub(tgt, shL), dl = len(off), maxR = (ua + fa) * 0.97;
       if (dl > maxR) tgt = madd(shL, off, maxR / dl);
       wristL = lerp3(wristL, tgt, reachK); handDirL = norm(lerp3(handDirL, norm(off), reachK)); elbowHintL = norm(lerp3(elbowHintL, v3(1, -0.6, 0), reachK));
+    }
+    // 乗り越え: 越え始めから半ばまで、左手を物の上につく（銃は右手）
+    if (vu >= 0 && p.vaultP) {
+      const k = sm((vu - 0.04) / 0.12) * (1 - sm((vu - 0.5) / 0.15));
+      if (k > 0) {
+        let tgt = v3(p.vaultP[0], p.vaultP[1], p.vaultP[2]);
+        const off = sub(tgt, shL), dl = len(off), maxR = (ua + fa) * 0.97;
+        if (dl > maxR) tgt = madd(shL, off, maxR / dl);
+        wristL = lerp3(wristL, tgt, k); handDirL = norm(lerp3(handDirL, v3(0, -1, 0.3), k)); elbowHintL = norm(lerp3(elbowHintL, v3(1, 0.2, -0.3), k));
+      }
     }
     // 引きずる: 左手を倒れた人の胸元へ（届く所まで伸ばす）。銃は右手で下げたまま
     if (act === 'drag' && aP) {

@@ -6,11 +6,13 @@ const { createGame, step } = await import('../src/engine/engine.js');
 const G = createGame({ map: 'riverbend', mode: 'war', size, seed, roster: [] });
 const S = G.S, w = G.w;
 const still = new Map(); // id → {x,z,t}
+let pistol = 0, dry = 0, toBox = 0, boxes = 0;
 let samples = 0, idleOpen = 0, idleLong = 0, crowd = 0, nnSum = 0, nnN = 0, shots = 0, shotsMove = 0, shotsCover = 0, shotsADS = 0, prone = 0, crouch = 0, sprint = 0, fighting = 0, nades = 0, revives = 0, kills = 0, tk = 0;
 const lastFire = new Map();
 for (let i = 0; i < 60 * secs; i++) {
   const ev = step(G, {});
   for (const e of ev) {
+    if (e.e === 'ammoBox' && e.k === 'place') boxes++;
     if (e.e === 'shot' || e.e === 'fire') { const a = S.byId[e.id]; if (a && a.ai) { shots++; const v = Math.hypot(a.vx, a.vz); if (v > 1) shotsMove++; if (a.ai.cov && Math.hypot(a.ai.cov.x - a.x, a.ai.cov.z - a.z) < 1.2) shotsCover++; if (a.ads > 0.5) shotsADS++; } }
     if (e.e === 'nade' || e.e === 'throw') nades++;
     if (e.e === 'revive' || e.e === 'revived') revives++;
@@ -22,6 +24,9 @@ for (let i = 0; i < 60 * secs; i++) {
     samples++;
     const v = Math.hypot(a.vx, a.vz);
     if (a.st > 1.5) prone++; else if (a.st > 0.5) crouch++;
+    if (a.ws.slot === 1) pistol++;
+    if (a.ai.boxGo != null) toBox++;
+    { const t = (wi) => !wi ? 0 : wi.mag + (wi.ch || 0) + (wi.mags ? wi.mags.reduce((x, y) => x + y, 0) : wi.res || 0); if (t(a.inv.w[0]) + t(a.inv.w[1]) === 0) dry++; }
     if (a.sprint) sprint++;
     if (a.ai.tgt != null) fighting++;
     // 近い味方
@@ -38,4 +43,4 @@ for (let i = 0; i < 60 * secs; i++) {
   }
 }
 const pc = (n, d = samples) => (100 * n / Math.max(1, d)).toFixed(1) + '%';
-console.log(`${secs}s ${size} seed ${seed}: idleOpen ${pc(idleOpen)} (>10s ${pc(idleLong)}) crowd<1.5m ${pc(crowd, nnN)} nnAvg ${(nnSum / nnN).toFixed(1)}m prone ${pc(prone)} crouch ${pc(crouch)} sprint ${pc(sprint)} fighting ${pc(fighting)} | shots ${shots} moving ${pc(shotsMove, shots)} cover ${pc(shotsCover, shots)} ads ${pc(shotsADS, shots)} | nades ${nades} revives ${revives} kills ${kills} tk ${tk}`);
+console.log(`${secs}s ${size} seed ${seed}: idleOpen ${pc(idleOpen)} (>10s ${pc(idleLong)}) crowd<1.5m ${pc(crowd, nnN)} nnAvg ${(nnSum / nnN).toFixed(1)}m prone ${pc(prone)} crouch ${pc(crouch)} sprint ${pc(sprint)} fighting ${pc(fighting)} | shots ${shots} moving ${pc(shotsMove, shots)} cover ${pc(shotsCover, shots)} ads ${pc(shotsADS, shots)} | nades ${nades} revives ${revives} kills ${kills} tk ${tk} | pistol ${pc(pistol)} dry ${pc(dry)} toBox ${pc(toBox)} boxesPlaced ${boxes}`);
