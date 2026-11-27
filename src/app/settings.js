@@ -7,13 +7,14 @@ export const DEFAULTS = {
   // 視点と照準
   sens: 1.0, sensAds: 0.75, sensScope: 0.45, sensFire: 1.0, invertY: false, fireLook: true,
   // 倍率ごとの感度（BattleBit の 1x・2x・4x・8x… の感度に合わせ、倍率ごとに選べる。11-20）。間の倍率は近い下の値を倍率で割って同じ画面の速さに
-  sensZ: { 2: 0.72, 3: 0.6, 4: 0.45, 6: 0.3, 8: 0.225 },
+  // 倍率ごとの感度。15・20・40 倍（11-27 に足したスコープ）は、それまでの「8 倍以上」を倍率で割った値と同じにしてある
+  sensZ: { 2: 0.72, 3: 0.6, 4: 0.45, 6: 0.3, 8: 0.225, 15: 0.12, 20: 0.09, 40: 0.045 },
   aimAssist: 'mid', // off | weak | mid | strong | max（大規模戦。タッチだけ。11-19 23:27）
   gyro: 'off', gyroSens: 1.0, gyroInvX: false, gyroInvY: false,
   // 操作
   reloadDrop: false, // 大規模戦: 1回押しのリロードで弾倉を落とす（速い）。2回押しはいつも落とす
   adsMode: 'tap', // tap（押すたび切替）| hold（押している間）| mixed（短く押すと切替・長く押すと押している間）
-  leanMode: 'toggle', breathMode: 'toggle', adsBreath: true, breathBtn: true, jumpBtn: false, fineAim: 'mid', stickMode: 'float', stickSprint: true, handed: 'right', leftFire: true, stickLock: false, radialScale: 1, confirm: 'auto',
+  leanMode: 'toggle', breathMode: 'toggle', adsBreath: true, adsBreathMode: 'hold', breathBtn: true, jumpBtn: false, fineAim: 'mid', stickMode: 'float', stickSprint: true, handed: 'right', leftFire: true, stickLock: false, radialScale: 1, confirm: 'auto',
   // HUD
   hud: {}, hudOpacity: 0.85, hudScale: 1.0, crosshair: 'cross', crossColor: '#ffffff', minimap: true, subtitles: true, subBg: 0.42, hitMarker: true,
   // BattleBit のゲームの設定に合わせて足した物（11-20）: 照準の大きさ・濃さ、ヒットマーカーの色（体・頭・防具・倒した）、倒れたら自動で出撃、描画距離

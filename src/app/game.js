@@ -350,9 +350,12 @@ export class Match {
           if (e.mouse) { this.adsOn = k === 'down'; break; }
           // ADS 長押しで息止め（11-26 の要望・大規模戦）: 押したままにすると息を止め、離すと戻る。構えは切替のまま残す。
           //  切替: 構えている時に押すと、離した時（短押し）に構えをやめる（長押しなら息止めだけ）
+          //  息止めの仕方（11-27 14:11）: 長押し＝押している間だけ止める・切替＝長押しで止め、もう一度長押しで戻す（離しても止めたまま）
           if (this.S && this.S.war && st.adsBreath !== false) {
-            if (k === 'long') { this._adsBr = true; break; }
-            if (k !== 'down') this._adsBr = false;
+            const tgl = st.adsBreathMode === 'toggle';
+            if (k === 'long') { this._adsBr = tgl ? !this._adsBr : true; this._adsBrT = this.time; break; }
+            if (k !== 'down' && !tgl) this._adsBr = false;
+            if (k === 'longup' && tgl) break;
             if (mode === 'tap') { if (k === 'down') { this._adsPress = !this.adsOn; this.adsOn = true; } else if (k === 'tap' && !this._adsPress) this.adsOn = false; break; }
             if (mode === 'hold') { this.adsOn = k === 'down'; break; }
           }
@@ -475,7 +478,12 @@ export class Match {
     //  走り出した時だけ（ダッシュの固定の間にリーンを押したときは、前と同じく走りを止めてリーンする）
     if (inp.sprint && !this._sprWas && this.leanSide && !this.adsOn) this.leanSide = 0;
     this._sprWas = !!inp.sprint;
-    if (this._adsBr && (!inp.hold.has('ads') || !this.adsOn)) this._adsBr = false;
+    // ADS 長押しの息止め: 長押しの方式は離したら戻す。切替の方式は、構えをやめた・倒れた・息が切れた（止めているはずが止まっていない）時に戻す
+    if (this._adsBr) {
+      const tgl = this.app.settings.adsBreathMode === 'toggle', ws2 = p && p.ws;
+      if (!this.adsOn || !p || !p.alive || p.down || (!tgl && !inp.hold.has('ads'))) this._adsBr = false;
+      else if (tgl && ((ws2 && ws2.gasp > 0) || (!(ws2 && ws2.holding) && this.time - (this._adsBrT || 0) > 0.35))) this._adsBr = false;
+    }
     const brBtn = ((this.app.settings.breathMode || 'toggle') === 'hold' ? inp.hold.has('breath') : !!this.breathOn) || !!this._adsBr;
     // 構える・構えをやめる: 銃を上げ下げする小さな音（自分だけ・大規模戦）
     if (this.adsOn !== this._adsWas) { if (this._adsWas != null && this.S && this.S.war && p && p.alive && !p.down) this.au.sfx('act', null, { vol: 0.1, rate: this.adsOn ? 1.4 : 1.2 }); this._adsWas = this.adsOn; }

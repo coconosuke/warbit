@@ -522,11 +522,13 @@ export class Screens {
     const ch = (k, list, path) => binds.push(() => chips(body.querySelector(`[data-k="${k}"]`), list, getP(S, path || k), (v) => { setP(S, path || k, v); save(); }));
     const sl = (k, min, max, step, fmt, path) => binds.push(() => slider(this.stage, body.querySelector(`[data-k="${k}"]`), { min, max, step, value: getP(S, path || k), fmt, label: k, onInput: (v) => { setP(S, path || k, v); save(); } }));
     const pct = (v) => Math.round(v * 100) + '%';
+    const pct1 = (v) => (Math.round(v * 1000) / 10) + '%'; // 小さい値（15 倍より上の感度）は小数 1 けた
     if (tab === 'ctrl') {
       row('ADS', '照準ボタン', 'adsMode'); ch('adsMode', [['tap', '切替'], ['hold', '長押し'], ['mixed', '両方']]);
       row('リーン', '', 'leanMode'); ch('leanMode', [['toggle', '切替'], ['hold', '長押し']]);
       row('息止め', '大規模戦・構えている間', 'breathMode'); ch('breathMode', [['toggle', '切替'], ['hold', '長押し']]);
-      row('ADS 長押しで息止め', '構えのボタンを押したままにすると息を止める（離すと戻る。構えはそのまま）', 'adsBreath'); ch('adsBreath', [[true, 'オン'], [false, 'オフ']]);
+      row('ADS 長押しで息止め', '構えのボタンを長押しすると息を止める（構えはそのまま）', 'adsBreath'); ch('adsBreath', [[true, 'オン'], [false, 'オフ']]);
+      row('ADS 長押しの息止め', '長押し: 押している間だけ止める／切替: 長押しで止め、もう一度長押しで戻す', 'adsBreathMode'); ch('adsBreathMode', [['hold', '長押し'], ['toggle', '切替']]);
       row('息止めボタン', 'ADS 長押しだけで使うなら消せる', 'breathBtn'); ch('breathBtn', [[true, '表示'], [false, '非表示']]);
       row('乗り越えとジャンプ', '本家は1つのボタン（越える物がなければ跳ぶ・跳んで届く低い台には乗る）。分けると乗り越えのボタンは越えるだけ、ジャンプのボタンが別に出る', 'jumpBtn'); ch('jumpBtn', [[false, 'まとめる'], [true, '分ける']]);
       row('移動スティック', '', 'stickMode'); ch('stickMode', [['float', '可変'], ['fixed', '固定']]);
@@ -540,7 +542,7 @@ export class Screens {
       row('視点', '', 'sens'); sl('sens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ADS', '等倍', 'sensAds'); sl('sensAds', 0.2, 1.5, 0.05, pct);
       // 倍率ごと（BattleBit のように倍率ごとに選べる。間の倍率は下の倍率の値を倍率で割る）
-      for (const [z, lb] of [[2, '2倍'], [3, '3倍'], [4, '4倍'], [6, '6倍'], [8, '8倍以上']]) { row('スコープ ' + lb, z === 2 ? '構えている時（倍率ごと）' : '', 'sz' + z); sl('sz' + z, 0.05, 1.5, 0.01, pct, 'sensZ.' + z); }
+      for (const [z, lb] of [[2, '2倍'], [3, '3倍'], [4, '4倍'], [6, '6倍'], [8, '8倍'], [15, '15倍'], [20, '20倍'], [40, '40倍']]) { row('スコープ ' + lb, z === 2 ? '構えている時（倍率ごと）' : '', 'sz' + z); sl('sz' + z, z >= 15 ? 0.01 : 0.05, 1.5, z >= 15 ? 0.005 : 0.01, z >= 15 ? pct1 : pct, 'sensZ.' + z); }
       row('射撃中', '射撃ボタンで視点移動', 'sensFire'); sl('sensFire', 0.3, 1.5, 0.05, pct);
       row('スコープの細かい操作', '3倍以上をのぞいている間、指をゆっくり動かすと細かく動く（速く動かすといつもの感度）', 'fineAim'); ch('fineAim', [['off', 'オフ'], ['weak', '弱'], ['mid', '中'], ['strong', '強']]);
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);

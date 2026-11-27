@@ -546,6 +546,24 @@ try {
       const hid = await page.evaluate(() => { const a = window.__app; a.settings.breathBtn = false; a.applySettings(false); a.game.adsOn = true; return new Promise(r => setTimeout(() => { const e = document.querySelector('[data-btn="breath"]'); r(!e || e.classList.contains('hidden') || getComputedStyle(e).display === 'none'); a.settings.breathBtn = true; a.applySettings(false); a.game.adsOn = false; }, 300)); });
       rec('操作', 'ADS 長押しで息止め: 押している間だけ止め、離すと戻って構えは残る・短押しで構えをやめる・息止めボタンを設定で消せる', h1 && !after.hold && after.ads && off && hid, JSON.stringify({ h1, after, off, hid }));
     }
+    // ADS 長押しの息止めの切替（11-27 14:11）: 長押しで止め、離しても止めたまま・もう一度長押しで戻す（構えは残る）
+    {
+      await page.evaluate(() => { const a = window.__app; a.settings.adsBreathMode = 'toggle'; a.applySettings(false); a.game.adsOn = true; });
+      await page.waitForFunction(() => window.__app.game.p.ws.br > 0.5, null, { timeout: 15000 }).catch(() => {});
+      const A = await btn('ads');
+      await touch('touchStart', [{ x: A.x, y: A.y, id: 75 }]);
+      const t1 = await page.waitForFunction(() => !!window.__app.game.p.ws.holding, null, { timeout: 12000 }).then(() => true).catch(() => false);
+      await touch('touchEnd', []);
+      await page.waitForTimeout(600);
+      const t2 = await page.evaluate(() => !!window.__app.game.p.ws.holding && window.__app.game.adsOn);
+      await touch('touchStart', [{ x: A.x, y: A.y, id: 76 }]);
+      const t3 = await page.waitForFunction(() => !window.__app.game.p.ws.holding, null, { timeout: 12000 }).then(() => true).catch(() => false);
+      await touch('touchEnd', []);
+      await page.waitForTimeout(300);
+      const t4 = await page.evaluate(() => window.__app.game.adsOn);
+      await page.evaluate(() => { const a = window.__app; a.settings.adsBreathMode = 'hold'; a.applySettings(false); a.game.adsOn = false; });
+      rec('操作', 'ADS 長押しの息止めを「切替」にできる: 長押しで止め、離しても止めたまま・もう一度長押しで戻す（構えは残る）', t1 && t2 && t3 && t4, JSON.stringify({ t1, t2, t3, t4 }));
+    }
     // 反動の押さえ（research の 19）: 反動で上がっている間に下へ引いた分は反動から引き、体の向きは下げない。上がっていなければ向きが下がる
     {
       const rc = await page.evaluate(() => {

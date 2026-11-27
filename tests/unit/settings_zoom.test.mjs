@@ -31,3 +31,15 @@ test('前の「画面の揺れ: 弱」は揺れ 50% に移す。新しい項目�
     eq(loadSettings().shakeK, 0.2, '新しい値があればそのまま');
   } finally { globalThis.localStorage = prev; }
 });
+
+test('15・20・40 倍は倍率ごとに感度を決められる（既定は前と同じ効き方）', () => {
+  const st = { sensZ: { ...DEFAULTS.sensZ } };
+  for (const z of [15, 20, 40]) {
+    ok(DEFAULTS.sensZ[z] != null, z + '倍の項目');
+    ok(Math.abs(sensForZoom(st, z) - DEFAULTS.sensZ[8] * 8 / z) < 0.0005, z + '倍の既定は前（8 倍の値 × 8/倍率）と同じ ' + sensForZoom(st, z).toFixed(4));
+  }
+  st.sensZ[20] = 0.2;
+  eq(sensForZoom(st, 20), 0.2, '20倍だけ変わる');
+  ok(Math.abs(sensForZoom(st, 15) - DEFAULTS.sensZ[15]) < 1e-9, '15倍はそのまま');
+  ok(Math.abs(sensForZoom(st, 40) - DEFAULTS.sensZ[40]) < 1e-9, '40倍はそのまま');
+});
