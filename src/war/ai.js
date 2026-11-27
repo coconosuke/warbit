@@ -7,11 +7,14 @@
 // 倒れた仲間を起こす（近くに敵が見えないとき。衛生兵と近い者が先）。体力が減ったら隠れて包帯。
 // 拠点: 中の遮蔽物の後ろに散って、敵の来る方を見張る（ときどき場所を変える）。
 // 茂みと麦畑の伏せは見つけにくい。考える重い処理（見る・道・遮蔽物探し）は数ステップに1回、交代で。
+// 建物（11-27）: 中の道（inav.js）と出入り口で外の道とつなぐ。拠点の近くの建物の窓から見張る・中で撃ち合う時は窓を遮蔽物に・
+//   建物の中に隠れた敵は中へ入って探す。
 import { baseInput, pushAct, steerToward, turnToward, trigger, SKILL, angDiff, yawTo } from '../engine/ai/common.js';
 import { eyeAI } from '../engine/combat.js';
 import { curW, curWeapon, ammoCount } from '../engine/actor.js';
-import { los as wLos, heightAt, ceilAt } from './world.js';
+import { los as wLos, heightAt, ceilAt, groundAt, pushOut } from './world.js';
 import { buildWarNav, findWarPath, navCellOf, navCenter, NS } from './nav.js';
+import { bldOf, bldNav, navStep, navReady, cellOf, findInPath } from './inav.js';
 import { hrand } from '../engine/rng.js';
 import { smokeBetween, ROCKET } from '../engine/nades.js';
 
@@ -171,7 +174,8 @@ export function warThink(S, w, dt) {
   for (let t = 0; t < 2; t++) for (const b of live[t]) { const k = Math.floor(b.x / 4) * 8192 + Math.floor(b.z / 4); let L = near[t].get(k); if (!L) near[t].set(k, L = []); L.push(b); }
   // 道を作る予算（11-26）: 1 ステップで調べるマスは合わせて 16000 まで（前は 4 本まで・1 本 24000 マスで、長い道が重なると
   //  1 ステップ 12〜24ms 止まった。予算を超えた分は次のステップへ回す）
-  const ctx = { nav, cv, live, near, paths: 4, pathBudget: 16000, covers: 6 };
+  // inavN: 建物の中の道を作り進めるのは 1 ステップ 12 区切りまで（パソコンで 2〜3ms。アパートは全部で 100ms ほど）
+  const ctx = { nav, cv, live, near, paths: 4, pathBudget: 16000, covers: 6, inavN: 12, M: matchMem(S) };
   for (const a of S.actors) {
     if (a.pid != null || !a.ai || a.ai.type !== 'war') continue;
     if (!a.alive) continue;
@@ -239,7 +243,7 @@ function think(S, w, a, dt, ctx) {
 
   // ---- 撃ち合い
   if (tgt) { if (fight(S, w, a, inp, tgt, ctx, sk, dt, rEff, rMax)) return inp; }
-  else if (ai.tgtPos && S.t - (ai.seenT ?? -1e9) < SEC(S, 9) && ai.tgtId != null) { if (lost(S, w, a, inp, ctx, sk, dt)) return inp; }
+  else if (ai.tgtPos && S.t - (ai.seenT ?? -1e9) < SEC(S, ai.clearing != null ? 22 : 9) && ai.tgtId != null) { if (lost(S, w, a, inp, ctx, sk, dt)) return inp; }
   else if (ai.look && S.t - ai.lookT < SEC(S, 1.5)) { const e = eyeAI(S, a); inp.yaw = turnToward(a.yaw, yawTo(ai.look[0] - e[0], ai.look[2] - e[2]), sk.turn * Math.PI / 180 * dt); inp.pitch = a.pitch * 0.9; ai.lookLock = true; }
 
   // ---- 目標の拠点へ（または拠点で守る）。音の方へ振り向いている間は、向きを変えずに歩く（振り向きを道の向きで消さない）
@@ -254,7 +258,7 @@ function fight(S, w, a, inp, tgt, ctx, sk, dt, rEff, rMax) {
   const d = Math.hypot(tgt.x - a.x, tgt.z - a.z);
   const visible = S.t - ai.seenT < SCAN_EVERY * 2;
   const ready = S.t >= (ai.reactAt || 0);
-  ai.tgtPos = [tgt.x, tgt.y, tgt.z]; ai.tgtId = tgt.id;
+  ai.tgtPos = [tgt.x, tgt.y, tgt.z]; ai.tgtId = tgt.id; ai.clearing = null;
   // 遠すぎる敵（交戦距離の外）は撃たずに進む（ときどき止まって撃つ）
   if (d > rMax) return false;
   // 遠い敵（ちょうどよい距離の 2 倍より先）: 撃たれていなければ、3秒ごとに半分だけ止まって撃ち、ほかは目標へ進む
@@ -263,13 +267,15 @@ function fight(S, w, a, inp, tgt, ctx, sk, dt, rEff, rMax) {
   if (d > rEff * 2 && !shotAt && hrand(a.id, Math.floor(S.t / SEC(S, 3)), 5) >= 0.5) return false;
   const err = aimAtTgt(S, a, inp, visible ? tgt : null, sk, dt, visible);
   // 遮蔽物: 撃たれた・開けた所に立っている・前の遮蔽物が向きに合わない → 探す（2.5秒ごと）
-  const cvNow = ai.cov && ai.cov.k === navCellOf(ctx.nav, a.x, a.z) ? coverAgainst(ctx.nav, ctx.cv, ai.cov.k, tgt.x, tgt.z) : 0;
-  if ((ai.wantCover || !ai.cov || coverAgainst(ctx.nav, ctx.cv, ai.cov.k, tgt.x, tgt.z) === 0) && S.t >= (ai.covT || 0) && ctx.covers > 0 && d > 9) {
+  const cvNow = ai.cov && (ai.cov.win ? covAt(ai.cov, a) : ai.cov.k === navCellOf(ctx.nav, a.x, a.z)) ? covKind(ctx, ai.cov, tgt.x, tgt.z) : 0;
+  // 建物の中: 外の遮蔽物を探すと外へ出てしまうので、同じ建物の近い窓（敵の方へ向いた）を遮蔽物にする
+  const inB = bldOf(w, a.x, a.z);
+  if ((ai.wantCover || !ai.cov || covKind(ctx, ai.cov, tgt.x, tgt.z) === 0) && S.t >= (ai.covT || 0) && ctx.covers > 0 && d > 9) {
     ctx.covers--; ai.covT = S.t + SEC(S, 2.5); ai.wantCover = false;
-    const c = findCover(S, w, a, ctx, tgt.x, tgt.z, { R: d < 25 ? 9 : 14, pref: rEff * 0.7, goal: goalOf(S, a) });
-    if (c) { claimCell(S, a, c.k, SEC(S, 12)); ai.cov = c; ai.peek = null; }
+    const c = inB ? windowSpot(S, w, a, ctx, tgt.x, tgt.z, { blds: [inB], near: [a.x, a.z, 9] }) : findCover(S, w, a, ctx, tgt.x, tgt.z, { R: d < 25 ? 9 : 14, pref: rEff * 0.7, goal: goalOf(S, a) });
+    if (c) { if (c.win) S.m.claim.set(c.key, { id: a.id, until: S.t + SEC(S, 12) }); else claimCell(S, a, c.k, SEC(S, 12)); ai.cov = c; ai.peek = null; }
   }
-  const inCover = ai.cov && Math.hypot(ai.cov.x - a.x, ai.cov.z - a.z) < 1.0;
+  const inCover = ai.cov && covAt(ai.cov, a);
   // 開けた所で撃たれている（制圧）・近くに遮蔽物がない: 敵との間に発煙弾（BattleBit の人と同じく、身を隠して動く。20秒に1回）
   if (!inCover && (a.supp || 0) > 0.5 && d > 25 && d < 120 && S.t >= (ai.smokeT || 0) && a.inv.gear.some(g => g.id === 'smoke' && g.n > 0)
     && (!ai.cov || Math.hypot(ai.cov.x - a.x, ai.cov.z - a.z) > 10)) {
@@ -281,7 +287,7 @@ function fight(S, w, a, inp, tgt, ctx, sk, dt, rEff, rMax) {
   // 撃つ・のぞく
   let canShoot = visible && ready;
   if (inCover) {
-    const kind = cvNow || coverAgainst(ctx.nav, ctx.cv, ai.cov.k, tgt.x, tgt.z);
+    const kind = cvNow || covKind(ctx, ai.cov, tgt.x, tgt.z);
     // のぞく（撃つ）と隠れるをくり返す。撃たれている（制圧）と隠れる時間が長い
     if (!ai.peek || S.t >= ai.peek.until) {
       const out = !ai.peek || !ai.peek.out;
@@ -300,7 +306,7 @@ function fight(S, w, a, inp, tgt, ctx, sk, dt, rEff, rMax) {
     inp.mx = 0; inp.mz = 0;
   } else if (ai.cov && Math.hypot(ai.cov.x - a.x, ai.cov.z - a.z) < 16) {
     // 遮蔽物へ移りながら撃つ（遠いときは走る）
-    moveToPoint(S, w, a, inp, [ai.cov.x, ai.cov.z], ctx, sk, dt, { sprint: d > 60 && !visible, face: false });
+    moveToPoint(S, w, a, inp, ptOf(ai.cov), ctx, sk, dt, { sprint: d > 60 && !visible, face: false });
     inp.stance = 0;
   } else if (d < 20) {
     // 近い: 横へ動きながら撃つ（ときどき前後）
@@ -365,17 +371,32 @@ function lost(S, w, a, inp, ctx, sk, dt) {
     const fx = tx - ux * 22 + -uz * side * 26, fz = tz - uz * 22 + ux * side * 26;
     ai.flank = { x: fx, z: fz, until: S.t + SEC(S, 25) };
   }
+  // 建物の中に隠れた敵: 中へ入って探す（組の片方か近い者。最後に見た所まで行って、いなければ忘れる）。11-27
+  const tb = bldOf(w, tx, tz);
+  if (tb && since > 1.5 && d < 45 && (a.sqIdx % 2 === 0 || d < 20)) {
+    ai.clearing = tb.id;
+    if (Math.hypot(tx - a.x, tz - a.z) < 1.5 && Math.abs(ty - a.y) < 1.2) { ai.tgtPos = null; ai.tgtId = null; ai.clearing = null; return false; }
+    moveToPoint(S, w, a, inp, [tx, tz, ty], ctx, sk, dt, { sprint: false, face: true });
+    inp.stance = 0; inp.ads = d < 18;
+    // 同じ建物の中で 10m より近い: 歩く向きではなく、最後に見た所（同じ階なら）へ銃を向けて進む（角の先を見ながら）
+    if (d < 10 && bldOf(w, a.x, a.z) === tb && Math.abs(ty - a.y) < 1.5 && !ai.lookLock) {
+      const e = eyeAI(S, a);
+      inp.yaw = turnToward(a.yaw, yawTo(tx - e[0], tz - e[2]), sk.turn * 0.7 * Math.PI / 180 * dt); inp.pitch = a.pitch * 0.85;
+    }
+    return true;
+  }
+  ai.clearing = null;
   if (ai.flank) {
     if (S.t > ai.flank.until || Math.hypot(ai.flank.x - a.x, ai.flank.z - a.z) < 3) { ai.flank = null; }
     else { moveToPoint(S, w, a, inp, [ai.flank.x, ai.flank.z], ctx, sk, dt, { sprint: true, face: true }); return true; }
   }
   // 遮蔽物の後ろなら見張る（最後に見た所へ向く）
-  const inCover = ai.cov && Math.hypot(ai.cov.x - a.x, ai.cov.z - a.z) < 1.0;
+  const inCover = ai.cov && covAt(ai.cov, a);
   if (inCover && since < 7) {
     const e = eyeAI(S, a);
     inp.yaw = turnToward(a.yaw, yawTo(tx - e[0], tz - e[2]), sk.turn * 0.5 * Math.PI / 180 * dt);
     inp.pitch = a.pitch * 0.9;
-    const kind = coverAgainst(ctx.nav, ctx.cv, ai.cov.k, tx, tz);
+    const kind = covKind(ctx, ai.cov, tx, tz);
     inp.stance = kind === 1 ? 1 : 0;
     inp.ads = since < 3;
     return true;
@@ -389,30 +410,55 @@ function objective(S, w, a, inp, ctx, sk, dt) {
   if (!goalF) return;
   const threat = nearestIntel(S, a, 120);
   const inside = Math.hypot(a.x - goalF.x, a.z - goalF.z) < goalF.r;
-  // 拠点の中: 遮蔽物の後ろに散る（敵の来る方へ向けて）。20〜40秒で場所を変える
-  if (inside || Math.hypot(a.x - goalF.x, a.z - goalF.z) < goalF.r + 6) {
+  // 分隊が見つけた敵が建物の中（40m まで・8 秒以内）: 組の片方は中へ探しに行く（建物にこもった敵を放っておかない。11-27）
+  if (threat && threat.y != null && a.sqIdx % 2 === 0) {
+    const tb = bldOf(w, threat.x, threat.z), dT = Math.hypot(threat.x - a.x, threat.z - a.z);
+    if (tb && dT < 40 && dT > 1.5) { moveToPoint(S, w, a, inp, [threat.x, threat.z, threat.y], ctx, sk, dt, { sprint: false, face: true }); inp.stance = 0; return; }
+  }
+  // 拠点の中: 遮蔽物の後ろに散る（敵の来る方へ向けて）。20〜40秒で場所を変える。
+  //  建物の窓・中の場所へ向かっている間も守る側のまま（窓は拠点の円の外のこともある）
+  const toIn = ai.hold && ai.hold.y != null && ai.hold.f === goalF.id && S.t <= ai.hold.until;
+  if (inside || toIn || Math.hypot(a.x - goalF.x, a.z - goalF.z) < goalF.r + 6) {
     const tz0 = threat || (() => { const h = S.m.hq[1 - a.team]; return { x: h[0], z: h[1] }; })();
-    if (!ai.hold || ai.hold.f !== goalF.id || S.t > ai.hold.until || (threat && ai.hold.tx !== threat.x)) {
+    // 建物の中の場所へ向かっている間は、敵の場所が変わっても選び直さない（着く前に行き先が変わり続ける）
+    if (!ai.hold || ai.hold.f !== goalF.id || S.t > ai.hold.until || (threat && ai.hold.tx !== threat.x && !(ai.hold.y != null && !ai.hold.at))) {
       if (ctx.covers > 0) {
         ctx.covers--;
-        const c = findCover(S, w, a, ctx, tz0.x, tz0.z, { R: goalF.r * 0.9, center: [goalF.x, goalF.z], pref: 0, spread: 4 });
+        // 拠点の近くに建物があれば、建物を使う:
+        //  守る（自分の拠点）: 4 割ほどは敵の来る方へ向いた窓から見張る（円から 15m まで・2 階も）、2 割ほどは円の中の建物にこもる
+        //  取りに来た: 3 割ほどは円の中の建物に入る（取る数に入る）、1 割ほどは円の中の窓
+        const bl = bldsNear(S, w, goalF), r = hrand(a.id, Math.floor(S.t / SEC(S, 20)), 73), own = goalF.owner === a.team;
+        let wn = null;
+        if (bl.length) {
+          const pw = own ? 0.4 : 0.1, pi2 = own ? 0.6 : 0.4;
+          if (r < pw) wn = windowSpot(S, w, a, ctx, tz0.x, tz0.z, { blds: bl, f: goalF, fR: own ? 15 : 2, maxD: 40 });
+          else if (r < pi2) wn = insideSpot(S, w, a, ctx, goalF, bl);
+        }
+        const c = wn || findCover(S, w, a, ctx, tz0.x, tz0.z, { R: goalF.r * 0.9, center: [goalF.x, goalF.z], pref: 0, spread: 4 });
         const sp = c ? [c.x, c.z] : spotIn(S, a, goalF);
-        if (c) claimCell(S, a, c.k, SEC(S, 40));
-        ai.hold = { f: goalF.id, x: sp[0], z: sp[1], k: c ? c.k : -1, side: c ? c.side : 1, until: S.t + SEC(S, 20 + 20 * hrand(a.id, S.t, 71)), tx: threat ? threat.x : null, lx: tz0.x, lz: tz0.z };
-        if (c) ai.cov = { ...c };
+        if (wn) S.m.claim.set(wn.key, { id: a.id, until: S.t + SEC(S, 40) }); else if (c) claimCell(S, a, c.k, SEC(S, 40));
+        // 建物の中は着くまでが長い（階段・遠回り）ので、歩く時間の分だけ長く守る
+        const trip = wn ? Math.hypot(wn.x - a.x, wn.z - a.z) / 2.5 + Math.abs(wn.y - a.y) * 1.5 + 6 : 0;
+        ai.hold = { f: goalF.id, x: sp[0], z: sp[1], y: wn ? wn.y : null, win: wn && wn.win ? wn.n : null, k: c && !wn ? c.k : -1, side: c ? c.side : 1, until: S.t + SEC(S, 20 + 20 * hrand(a.id, S.t, 71) + trip), tx: threat ? threat.x : null, lx: tz0.x, lz: tz0.z };
+        if (c && (!wn || wn.win)) ai.cov = { ...c };
       }
     }
     if (ai.hold) {
-      const dh = Math.hypot(ai.hold.x - a.x, ai.hold.z - a.z);
-      if (dh > 1.0) { moveToPoint(S, w, a, inp, [ai.hold.x, ai.hold.z], ctx, sk, dt, { sprint: dh > 18 && !threat, face: true }); return; }
-      // 着いた: 敵の来る方へクレイモア・対人地雷を1つ置く（守る場所ごとに1回。敵が近い時は置かない）
-      if (!threat && !ai.tgt && ai.mineAt !== ai.hold.until && placeMineAt(S, a, inp, ai.hold.lx, ai.hold.lz, sk, dt)) return;
+      const dh = Math.hypot(ai.hold.x - a.x, ai.hold.z - a.z), ind = ai.hold.y != null;
+      const far = ind ? dh > 0.6 || Math.abs(ai.hold.y - a.y) > 1.2 : dh > 1.0;
+      if (far) { moveToPoint(S, w, a, inp, ind ? [ai.hold.x, ai.hold.z, ai.hold.y] : [ai.hold.x, ai.hold.z], ctx, sk, dt, { sprint: dh > 18 && !threat, face: true }); return; }
+      // 建物の中の場所に着いた: そこから 20 秒は守る
+      if (ind && !ai.hold.at) { ai.hold.at = S.t; ai.hold.until = Math.max(ai.hold.until, S.t + SEC(S, 20)); }
+      // 着いた: 敵の来る方へクレイモア・対人地雷を1つ置く（守る場所ごとに1回。敵が近い時は置かない。窓ではしない）
+      if (!ind && !threat && !ai.tgt && ai.mineAt !== ai.hold.until && placeMineAt(S, a, inp, ai.hold.lx, ai.hold.lz, sk, dt)) return;
       // 着いた: 敵の来る方を見張る（しゃがむ・ときどき向きを少し変える）
       if (!ai.watchT || S.t > ai.watchT) { ai.watchT = S.t + SEC(S, 2.5 + 3 * hrand(a.id, S.t, 15)); ai.watchOff = (hrand(a.id, S.t, 16) - 0.5) * 1.4; }
       const lx = threat ? threat.x : ai.hold.lx, lz = threat ? threat.z : ai.hold.lz;
       inp.yaw = turnToward(a.yaw, yawTo(lx - a.x, lz - a.z) + (threat ? 0 : ai.watchOff), sk.turn * 0.4 * Math.PI / 180 * dt);
       inp.pitch = a.pitch * 0.9;
-      inp.stance = ai.hold.k >= 0 && coverAgainst(ctx.nav, ctx.cv, ai.hold.k, lx, lz) === 1 ? 1 : (hrand(a.id, Math.floor(S.t / SEC(S, 8)), 14) < 0.5 ? 1 : 0);
+      inp.stance = ai.hold.win ? 0 : ind ? (hrand(a.id, Math.floor(S.t / SEC(S, 8)), 14) < 0.6 ? 1 : 0) : ai.hold.k >= 0 && coverAgainst(ctx.nav, ctx.cv, ai.hold.k, lx, lz) === 1 ? 1 : (hrand(a.id, Math.floor(S.t / SEC(S, 8)), 14) < 0.5 ? 1 : 0);
+      // 窓: 窓の外を見る（敵の来る方が窓の向きから外れていたら、窓の向きのまま少し振る）
+      if (ai.hold.win && !threat) { const n = ai.hold.win; inp.yaw = turnToward(a.yaw, yawTo(n[0], n[1]) + ai.watchOff * 0.8, sk.turn * 0.4 * Math.PI / 180 * dt); }
       return;
     }
   }
@@ -433,7 +479,7 @@ function objective(S, w, a, inp, ctx, sk, dt) {
   let to = ai.lane.via || spotIn(S, a, goalF);
   if (ai.lane.via && (Math.hypot(ai.lane.via[0] - a.x, ai.lane.via[1] - a.z) < 12 || Math.hypot(goalF.x - a.x, goalF.z - a.z) < Math.hypot(goalF.x - ai.lane.via[0], goalF.z - ai.lane.via[1]))) { ai.lane.via = null; to = spotIn(S, a, goalF); }
   // 敵が近い: 跳び跳びに進む（遮蔽物まで進み、2〜3秒見回してまた進む）
-  if (threat && Math.hypot(threat.x - a.x, threat.z - a.z) < 110) {
+  if (threat && Math.hypot(threat.x - a.x, threat.z - a.z) < 110 && !bldOf(w, a.x, a.z)) {
     if (ai.bound && S.t < ai.bound.until) {
       if (Math.hypot(ai.bound.x - a.x, ai.bound.z - a.z) > 1.0) { moveToPoint(S, w, a, inp, [ai.bound.x, ai.bound.z], ctx, sk, dt, { sprint: false, face: true }); return; }
       const e = eyeAI(S, a); inp.yaw = turnToward(a.yaw, yawTo(threat.x - e[0], threat.z - e[2]), sk.turn * 0.5 * Math.PI / 180 * dt); inp.pitch = a.pitch * 0.9; inp.stance = 1;
@@ -574,28 +620,175 @@ function separate(S, a, inp, ctx, R = 3) {
   const L = Math.hypot(inp.mx, inp.mz); if (L > 1) { inp.mx /= L; inp.mz /= L; }
 }
 
+// ---- 建物（11-27「AI が建物の中に入ってこない」）
+// 建物の中の道（作ってあるか、このステップの予算で作れるなら）
+//  まだなら 1 ステップに 12 区切り（マス 200〜400 個）まで作り進める（アパートは 30 ステップほど。その間は null）
+const _ns = { used: 0 };
+function navFor(w, bd, ctx) {
+  if (navReady(ctx.M, bd)) return bldNav(w, bd);
+  if (ctx.inavN > 0) { const nav = navStep(w, bd, ctx.inavN, _ns, ctx.M); ctx.inavN -= _ns.used; return nav; }
+  return null;
+}
+// 試合ごとの覚え（建物の道の進み・拠点の近くの建物）。S.m の中に置くと dump で JSON にされるので、外の WeakMap に
+const MST = new WeakMap();
+export function matchMem(S) { let o = MST.get(S.m); if (!o) MST.set(S.m, o = {}); return o; }
+// 出入り口を選ぶ: 外の点 (px, pz) に近く、中の点 (qx, qz) にも近い所
+function pickExit(nav, px, pz, qx, qz) {
+  let best = null, bs = Infinity;
+  for (const e of nav.exits) { const s = Math.hypot(e.x - px, e.z - pz) + Math.hypot(e.ix - qx, e.iz - qz) * 0.7; if (s < bs) { bs = s; best = e; } }
+  return best;
+}
+// 道を作る: 外どうしは外の格子。始まりか終わりが建物の中なら、中の格子と出入り口でつなぐ（出る→外→入る）。
+//  to: [x, z] か [x, z, 高さ]（2 階の窓など）。null: 建物の中の道がまだ作れない（次のステップで）
+function planPath(S, w, a, to, ctx) {
+  // 橋の下にいる（頭の上に板がある）なら、橋脚でふさがった地図で（外へ出てから橋を渡る）
+  const low = sx0 => sx0 && groundAt(w, a.x, a.z, a.y + 8) > a.y + 1.5;
+  const outP = (sx, sz, tx, tz) => { const q = findWarPath(ctx.nav, sx, sz, tx, tz, Math.min(24000, ctx.pathBudget), low(sx === a.x && sz === a.z)); ctx.pathBudget -= ctx.nav.lastExp || 0; return q || [[tx, tz]]; };
+  const bs = bldOf(w, a.x, a.z), bt = bldOf(w, to[0], to[1]);
+  if (!bs && !bt) return outP(a.x, a.z, to[0], to[1]);
+  const ns = bs ? navFor(w, bs, ctx) : null, nt = bt ? (bt === bs ? ns : navFor(w, bt, ctx)) : null;
+  if ((bs && !ns) || (bt && !nt)) return null;
+  const ty = to.length > 2 && to[2] != null ? to[2] : bt ? bt.y : 0;
+  if (bs && bs === bt) return findInPath(ns, cellOf(ns, a.x, a.y, a.z), cellOf(ns, to[0], ty, to[1])) || [[to[0], to[1], 1]];
+  const P = [];
+  let sx = a.x, sz = a.z;
+  if (bs) {
+    const e = pickExit(ns, to[0], to[1], a.x, a.z);
+    if (e) { const ip = findInPath(ns, cellOf(ns, a.x, a.y, a.z), e.k); if (ip) P.push(...ip); P.push([e.ix, e.iz, 1], [e.x, e.z, 1]); sx = e.x; sz = e.z; }
+  }
+  if (bt) {
+    const e = pickExit(nt, sx, sz, to[0], to[1]);
+    if (!e) { P.push(...outP(sx, sz, to[0], to[1])); return P; }
+    const op = outP(sx, sz, e.x, e.z); op[op.length - 1] = [e.x, e.z, 1]; P.push(...op, [e.ix, e.iz, 1]);
+    const ip = findInPath(nt, e.k, cellOf(nt, to[0], ty, to[1]));
+    if (ip) P.push(...ip); else P.push([to[0], to[1], 1]);
+  } else P.push(...outP(sx, sz, to[0], to[1]));
+  return P;
+}
+// 拠点の近くの建物（拠点の円から 8m まで）。拠点ごとに覚えておく
+function bldsNear(S, w, f) {
+  const mm = matchMem(S), C = mm.fbld || (mm.fbld = new Map());
+  let L = C.get(f.id);
+  if (!L) {
+    L = [];
+    for (const bd of w.blds || []) { const r = bd.rect, dx = Math.max(r[0] - f.x, 0, f.x - r[2]), dz = Math.max(r[1] - f.z, 0, f.z - r[3]); if (Math.hypot(dx, dz) < f.r + 8) L.push(bd); }
+    C.set(f.id, L);
+  }
+  return L.filter(bd => !bd.down);
+}
+// 窓の場所を選ぶ: 敵の来る方 (tx, tz) へ向いた窓（取られていない・仲間と離れる）。
+//  o: { blds: 探す建物, near: [x, z, 半径]（この近くだけ）, f: 拠点（近いほどよい） }
+function windowSpot(S, w, a, ctx, tx, tz, o) {
+  let best = null, bsc = -Infinity;
+  for (const bd of o.blds) {
+    const nav = navFor(w, bd, ctx); if (!nav) continue;
+    for (const wn of nav.wins) {
+      if (o.near && Math.hypot(wn.x - o.near[0], wn.z - o.near[1]) > o.near[2]) continue;
+      // 拠点を守る窓は拠点の円から o.fR（守る時 15m・取りに来た時 2m）まで。向かう間も「守る」のまま（objective）。遠すぎる窓は着くまでが長い
+      if (o.f && Math.hypot(wn.x - o.f.x, wn.z - o.f.z) > o.f.r + (o.fR ?? 15)) continue;
+      if (o.maxD && Math.hypot(wn.x - a.x, wn.z - a.z) > o.maxD) continue;
+      const dx = tx - wn.x, dz = tz - wn.z, d = Math.hypot(dx, dz) || 1;
+      const face = (wn.n[0] * dx + wn.n[1] * dz) / d; if (face < 0.35 || d < 6) continue;
+      const key = 'w' + bd.id + ':' + wn.k, c = S.m.claim.get(key); if (c && c.id !== a.id && S.t < c.until) continue;
+      // 2 階はよい・高すぎる（塔の上など）は上るのに長くかかるので少し悪い
+      const up = wn.y - bd.y;
+      let sc = face + (up > 2 && up < 8 ? 0.25 : 0) - Math.max(0, up - 8) * 0.05 - Math.hypot(wn.x - a.x, wn.z - a.z) * 0.02 + hrand(a.id, wn.k, 74) * 0.3;
+      if (o.f) sc -= Math.hypot(wn.x - o.f.x, wn.z - o.f.z) / (o.f.r + 15) * 0.5;
+      for (const b of ctx.live[a.team]) if (b !== a && Math.hypot(b.x - wn.x, b.z - wn.z) < 2.5 && Math.abs(b.y - wn.y) < 1.5) sc -= 0.6;
+      if (sc > bsc) { bsc = sc; best = { x: wn.x, z: wn.z, y: wn.y, n: wn.n, key, win: true, k: -1, kind: 1, side: 1 }; }
+    }
+  }
+  return best;
+}
+// 拠点の円の中にある建物の中の場所（立てるマスから運で選ぶ。仲間から離れる・取られていない）。拠点を取る数に入る
+function insideSpot(S, w, a, ctx, f, bl) {
+  let best = null, bsc = -Infinity;
+  for (const bd of bl) {
+    const nav = navFor(w, bd, ctx); if (!nav) continue;
+    for (let n = 0; n < 24; n++) {
+      const k = Math.floor(hrand(a.id + bd.id * 31, Math.floor(S.t / SEC(S, 20)), 90 + n) * nav.open.length);
+      if (!nav.open[k]) continue;
+      const l = Math.floor(k / nav.NC), c = k % nav.NC, i = c % nav.W, j = (c - i) / nav.W, x = nav.cx(i), z = nav.cz(j), y = nav.lv[l];
+      if (Math.hypot(x - f.x, z - f.z) > f.r - 1 || Math.abs(y - f.y) > 10) continue;
+      const key = 'i' + bd.id + ':' + k, cl = S.m.claim.get(key); if (cl && cl.id !== a.id && S.t < cl.until) continue;
+      let sc = hrand(a.id, k, 91) - Math.hypot(x - a.x, z - a.z) * 0.01;
+      for (const b of ctx.live[a.team]) if (b !== a && Math.hypot(b.x - x, b.z - z) < 3 && Math.abs(b.y - y) < 1.5) sc -= 0.6;
+      if (sc > bsc) { bsc = sc; best = { x, z, y, key, k: -1, kind: 0, side: 1 }; }
+    }
+  }
+  return best;
+}
+// 遮蔽物の向きの強さ（窓: 外へ向いて敵の方なら低い物と同じ 1）
+function covKind(ctx, c, tx, tz) {
+  if (c.win) return (c.n[0] * (tx - c.x) + c.n[1] * (tz - c.z)) / (Math.hypot(tx - c.x, tz - c.z) || 1) > 0.2 ? 1 : 0;
+  return c.k >= 0 ? coverAgainst(ctx.nav, ctx.cv, c.k, tx, tz) : 0;
+}
+const covAt = (c, a) => Math.hypot(c.x - a.x, c.z - a.z) < (c.win ? 0.6 : 1.0) && (c.y == null || Math.abs(c.y - a.y) < 1.2);
+const ptOf = (c) => c.y != null ? [c.x, c.z, c.y] : [c.x, c.z];
+// 窓の見張りの場所に着いている
+
+// 抜け出す向き: 8 方向へ 1m ずつ 8m まで、足元が今の高さ ±0.6m のまま・壁に当たらない所までの長さ。いちばん長い向きの先
+function escapeDir(w, a) {
+  let best = null, bl = 2;
+  for (let k = 0; k < 8; k++) {
+    const an = k * Math.PI / 4 + 0.3, dx = Math.sin(an), dz = Math.cos(an);
+    let L = 0, y = a.y;
+    for (let r = 1; r <= 8; r++) {
+      const x = a.x + dx * r, z = a.z + dz * r, g = groundAt(w, x, z, y + 0.7);
+      if (!isFinite(g) || Math.abs(g - y) > 0.6) break;
+      pushOut(w, x, z, g + 0.3, g + 1.6, 0.3, _esc); if (_esc[2]) break;
+      L = r; y = g;
+    }
+    if (L > bl) { bl = L; best = [a.x + dx * L, a.z + dz * L]; }
+  }
+  return best;
+}
+const _esc = [0, 0, 0];
+
 // 点へ歩く（道を作り、詰まったら乗り越え・横へずれる・作り直す）
 function moveToPoint(S, w, a, inp, to, ctx, sk, dt, o = {}) {
   const ai = a.ai;
-  const need = !ai.path || !ai.pathTo || Math.hypot(ai.pathTo[0] - to[0], ai.pathTo[1] - to[1]) > 4 || S.t - ai.pathT > 900 || ai.repath;
+  // 抜け出し中（橋の下の溝など、道の点が上の段にあって進めない時）: 同じ高さで歩ける向きへ少し歩いてから道を作り直す
+  if (ai.esc && S.t < ai.esc.until) {
+    steerToward(a, inp, ai.esc.x, ai.esc.z, 1);
+    if (o.face && !ai.lookLock) inp.yaw = turnToward(a.yaw, yawTo(ai.esc.x - a.x, ai.esc.z - a.z), sk.turn * Math.PI / 180 * dt);
+    inp.sprint = false;
+    if (Math.hypot(ai.esc.x - a.x, ai.esc.z - a.z) > 1) return;
+  }
+  if (ai.esc) { ai.esc = null; ai.repath = true; }
+  const need = !ai.path || !ai.pathTo || Math.hypot(ai.pathTo[0] - to[0], ai.pathTo[1] - to[1]) > (to[2] != null ? 1 : 4) || (to[2] != null && Math.abs((ai.pathTo[2] ?? -99) - to[2]) > 1) || S.t - ai.pathT > 900 || ai.repath;
   if (need && ctx.paths > 0 && ctx.pathBudget > 1500) {
     ctx.paths--;
-    ai.path = findWarPath(ctx.nav, a.x, a.z, to[0], to[1], Math.min(24000, ctx.pathBudget)) || [to]; ai.pi = 0; ai.pathTo = to.slice(); ai.pathT = S.t; ai.repath = false;
-    ctx.pathBudget -= ctx.nav.lastExp || 0;
+    const np = planPath(S, w, a, to, ctx);
+    // 建物の中の道がまだない（このステップでは作れない）: 前の道のまま、次のステップで作り直す
+    if (np) { ai.path = np; ai.pi = 0; ai.pathTo = to.slice(); ai.pathT = S.t; ai.repath = false; } else ai.repath = true;
   }
   const P = ai.path || [to];
-  while (ai.pi < P.length - 1 && Math.hypot(P[ai.pi][0] - a.x, P[ai.pi][1] - a.z) < 2.0) ai.pi++;
+  // 中の点（3つめが 1: 建物の中・出入り口）は 0.45m まで寄ってから次へ（角を切ると壁に引っかかる）
+  while (ai.pi < P.length - 1 && Math.hypot(P[ai.pi][0] - a.x, P[ai.pi][1] - a.z) < (P[ai.pi][2] ? 0.45 : 2.0)) ai.pi++;
   const p = P[Math.min(ai.pi || 0, P.length - 1)];
   if (o.face && !ai.lookLock) { inp.yaw = turnToward(a.yaw, yawTo(p[0] - a.x, p[1] - a.z), sk.turn * Math.PI / 180 * dt); inp.pitch = a.pitch * 0.85; }
   steerToward(a, inp, p[0], p[1], 1);
-  separate(S, a, inp, ctx, 2.8);
-  inp.sprint = !!o.sprint && Math.abs(angDiff(inp.yaw, a.yaw)) < 0.3 && inp.mz > 0.5;
+  separate(S, a, inp, ctx, p[2] ? 1.2 : 2.8);
+  inp.sprint = !!o.sprint && !p[2] && Math.abs(angDiff(inp.yaw, a.yaw)) < 0.3 && inp.mz > 0.5;
   // 詰まり: 進みたいのに遅い
   const want = Math.hypot(inp.mx, inp.mz) > 0.3;
   if (want && a.spd < 0.4) ai.stuckT = (ai.stuckT || 0) + dt; else ai.stuckT = Math.max(0, (ai.stuckT || 0) - dt * 2);
   if (ai.stuckT > 0.8 && ai.stuckT - dt <= 0.8) pushAct(inp, { a: 'vault' });
   if (ai.stuckT > 1.6) { inp.mx = (a.id % 2 ? 1 : -1); inp.mz = -0.2; }
   if (ai.stuckT > 3) { ai.stuckT = 0; ai.repath = true; ai.pi = Math.min((ai.pi || 0) + 1, P.length - 1); }
+  // 進んでいない（横へずれると速さは出るので、上の数え方では詰まりと分からない。溝の底など）: 4 秒、点へ 0.4m も近づけなければ、
+  //  乗り越えを試して、次の点へ・道を作り直す（11-27）
+  const dNow = Math.hypot(p[0] - a.x, p[1] - a.z);
+  // 中の点のすぐそば（1m 以内）で 1.5 秒進めない（壁ぎわ・階段の端で 0.45m まで寄れない）: 次の点へ
+  if (p[2] && dNow < 1.0 && ai.prog && ai.prog.P === P && ai.prog.pi === ai.pi && S.t - ai.prog.t > SEC(S, 1.5) && ai.pi < P.length - 1) { ai.pi++; ai.prog = null; }
+  if (!want || (dNow < 0.8 && !p[2]) || !ai.prog || ai.prog.P !== P || ai.prog.pi !== ai.pi || dNow < ai.prog.d - 0.4) ai.prog = { P, pi: ai.pi, d: dNow, t: S.t };
+  else if (S.t - ai.prog.t > SEC(S, 4)) { ai.prog = null; ai.repath = true; ai.pi = Math.min((ai.pi || 0) + 1, P.length - 1); pushAct(inp, { a: 'vault' }); }
+  // 道が作り直され続けても、4 秒で 1.2m も動けていなければ（橋脚の角に向かって押し続ける など）: 抜け出す向きへ 2.5 秒歩く
+  //  （8 方向で、同じ高さのまま歩ける距離がいちばん長い向き）
+  if (!want) ai.mv = null;
+  else if (!ai.mv || Math.hypot(a.x - ai.mv.x, a.z - ai.mv.z) > 1.2) ai.mv = { x: a.x, z: a.z, t: S.t };
+  else if (S.t - ai.mv.t > SEC(S, 4)) { ai.mv = null; ai.repath = true; const e = escapeDir(w, a); if (e) ai.esc = { x: e[0], z: e[1], until: S.t + SEC(S, 2.5) }; }
 }
 
 // 見回す: 近い敵から順に、視野・音・見通しで探す。見つけたら反応の遅れを置いて狙う。茂みの向こう・麦畑の伏せは見つけにくい
@@ -788,3 +981,6 @@ export function bushesBetween(w, ax, ay, az, bx, by, bz) {
   const k = concealK(w, [ax, ay, az], { x: bx, z: bz, st: 0 }, by);
   return k >= 0.99 ? 0 : k > 0.2 ? 1 : 2;
 }
+
+// テスト用（中の決まりを直接確かめる）
+export const _aiT = { planPath, windowSpot, insideSpot, bldsNear };

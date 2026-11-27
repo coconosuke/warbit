@@ -36,6 +36,8 @@ export function buildWarNav(ww, rect) {
   }
   // 木（幹）
   for (const c of ww.cyls) if (c.alive) mark(c.x - c.r, c.z - c.r, c.x + c.r, c.z + c.r, 0.25);
+  // 橋の下（川床）を歩く人の地図: 橋の板を開ける前の形（橋脚でふさがる）。11-27: 橋の下で橋脚に向かって止まり続けていた
+  const blockLow = block.slice();
   // 橋（坂の板）の上は歩ける: 欄干だけが上で止める。坂の下の川床は通れるまま
   for (const r of ww.ramps) if (r.kind === 'bridge') {
     const i0 = Math.floor(r.x0 / NS), i1 = Math.floor(r.x1 / NS), j0 = Math.floor(r.z0 / NS) + 1, j1 = Math.floor(r.z1 / NS) - 1;
@@ -52,7 +54,7 @@ export function buildWarNav(ww, rect) {
     }
     if (near === 1) cost[k] = 2.2; else if (near === 2) cost[k] = 1.4;
   }
-  const nav = { key, W, D, block, cost, g: new Float32Array(N), from: new Int32Array(N), seen: new Uint32Array(N), closed: new Uint32Array(N), gen: 1, heap: new Int32Array(N), hf: new Float32Array(N) };
+  const nav = { key, W, D, block, blockLow, cost, g: new Float32Array(N), from: new Int32Array(N), seen: new Uint32Array(N), closed: new Uint32Array(N), gen: 1, heap: new Int32Array(N), hf: new Float32Array(N) };
   ww._nav = nav;
   return nav;
 }
@@ -70,7 +72,12 @@ export function nearestOpen(nav, x, z, r = 6) {
 }
 
 // A*。戻り値: 点の列 [[x,z], ...]（短縮ずみ）。届かなければ一番近づける所まで。max: 展開の上限
-export function findWarPath(nav, sx, sz, tx, tz, max = 24000) {
+// low: 橋の下（川床）を歩いている人の道（橋脚でふさがった地図で探す）
+export function findWarPath(nav, sx, sz, tx, tz, max = 24000, low = false) {
+  if (low && nav.blockLow && nav.blockLow !== nav.block) {
+    const b = nav.block; nav.block = nav.blockLow;
+    try { return findWarPath(nav, sx, sz, tx, tz, max, false); } finally { nav.block = b; }
+  }
   nav.lastExp = 0;
   let s = navCellOf(nav, sx, sz), t = navCellOf(nav, tx, tz);
   if (s < 0 || nav.block[s]) s = nearestOpen(nav, sx, sz, 4);

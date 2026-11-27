@@ -3,7 +3,9 @@
 //  - 階段: 下の端の手前と上の端の先のマスをつなぐ（道の点は階段の両端。歩けば坂を上り下りする）
 //  - 出入り口: 1 階の壁ぎわのマスのうち、外へ 0.7m 出た所に立てて、間に壁がない所
 //  - 窓: 壁ぎわのマスのうち、目の高さで外へ見通せ（ガラスか何もない）、腰の高さに壁がある所（外向きの向きつき）
-// 作るのは、その建物が初めて要るとき（1 つ 10〜40ms。ボットの考えの予算で 1 ステップ 1 つまで）
+//  - 出入り口から歩いて行けないマス（上れない屋根の上など）は立てないことにする
+// 作るのは、その建物が初めて要るとき。大きい建物（アパート・事務所）は 50〜150ms かかるので、ボットは少しずつ作る
+//  （navStep: 1 ステップに少しずつ。できるまでは外の道を使う）。bldNav はその場で全部作る（テスト・試合の前）
 import { groundAt, ceilAt, pushOut, raycast } from './world.js';
 import { M } from '../engine/data/materials.js';
 
@@ -11,16 +13,71 @@ export const IS = 0.5;
 const UP = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
 const SQ2 = Math.SQRT2;
 const _po = [0, 0, 0], _rh = [];
+const HMAX = 65536, _hk = new Int32Array(HMAX), _hf = new Float64Array(HMAX);
 
+// 16m の升目ごとに、かかる建物を覚えておく（ボットが 1 ステップに何十回も聞くので、全部の建物を見ない）
+const BG = 16;
+function bldGrid(ww) {
+  const n = (ww.blds || []).length;
+  if (ww._bg && ww._bg.n === n) return ww._bg;
+  const m = new Map();
+  for (const bd of ww.blds || []) {
+    const r = bd.rect;
+    for (let j = Math.floor(r[1] / BG); j <= Math.floor(r[3] / BG); j++) for (let i = Math.floor(r[0] / BG); i <= Math.floor(r[2] / BG); i++) {
+      const k = i * 65536 + j; let L = m.get(k); if (!L) m.set(k, L = []); L.push(bd);
+    }
+  }
+  return (ww._bg = { n, m });
+}
 export function bldOf(ww, x, z) {
-  for (const bd of ww.blds || []) { const r = bd.rect; if (!bd.down && x > r[0] + 0.05 && x < r[2] - 0.05 && z > r[1] + 0.05 && z < r[3] - 0.05) return bd; }
+  const L = bldGrid(ww).m.get(Math.floor(x / BG) * 65536 + Math.floor(z / BG));
+  if (L) for (const bd of L) { const r = bd.rect; if (!bd.down && x > r[0] + 0.05 && x < r[2] - 0.05 && z > r[1] + 0.05 && z < r[3] - 0.05) return bd; }
   return null;
 }
 export function hasNav(ww, bd) { return !!(ww._inav && ww._inav.has(bd.id)); }
 
+// その場で全部作る
 export function bldNav(ww, bd) {
   ww._inav = ww._inav || new Map();
   const old = ww._inav.get(bd.id); if (old) return old;
+  const job = newJob(ww, bd);
+  while (!job.done) step1(job);
+  return job.nav;
+}
+// 少しずつ作る（試合ごとに数える）: n 区切り（1 区切りはマス 16〜32 個）だけ進める。時計ではなく量で区切る。
+//  M: その試合の進み。マップの形は試合をまたいで使い回すので、前の試合で作った道があっても、
+//  この試合では作るのと同じ区切りの数を数え終わるまで使わない（同じ種なら毎回同じに動く）。
+//  できたら道（nav）を返す。まだなら null。o.used に使った区切りの数
+export function navStep(ww, bd, n, o, M) {
+  const P = M.prog || (M.prog = new Map());
+  const st = P.get(bd.id);
+  ww._inav = ww._inav || new Map();
+  if (st === true) { if (o) o.used = 0; return ww._inav.get(bd.id); }
+  const cached = ww._inav.get(bd.id);
+  if (cached) {
+    const c = st || 0, give = Math.max(0, Math.min(n, cached.units - c));
+    if (o) o.used = give;
+    if (c + give >= cached.units) { P.set(bd.id, true); return cached; }
+    P.set(bd.id, c + give); return null;
+  }
+  const J = M.jobs || (M.jobs = new Map());
+  let job = J.get(bd.id); if (!job) { job = newJob(ww, bd); J.set(bd.id, job); }
+  let k = 0;
+  while (!job.done && k < n) { step1(job); k++; }
+  if (o) o.used = k;
+  if (job.done) { J.delete(bd.id); P.set(bd.id, true); return job.nav; }
+  return null;
+}
+// この試合で使えるようになっている
+export function navReady(M, bd) { return !!(M.prog && M.prog.get(bd.id) === true); }
+function newJob(ww, bd) { return { it: build(ww, bd), done: false, nav: null, n: 0 }; }
+function step1(job) {
+  job.n++;
+  const r = job.it.next();
+  if (r.done) { job.done = true; job.nav = r.value; if (!job.nav.units) job.nav.units = job.n; }
+}
+// 作る本体（ジェネレーター: 何マスかごとに yield して、続きは次の呼び出しで）
+function* build(ww, bd) {
   const [x0, z0, x1, z1] = bd.rect, W = Math.max(1, Math.round((x1 - x0) / IS)), D = Math.max(1, Math.round((z1 - z0) / IS));
   // 高さ: 1 階・床の上面・階段の上と下（近い物はまとめる）
   const hs = [bd.y];
@@ -31,9 +88,11 @@ export function bldNav(ww, bd) {
   const lv = []; for (const h of hs) if (!lv.length || h - lv[lv.length - 1] > 0.3) lv.push(h);
   const L = lv.length, NC = W * D, open = new Uint8Array(L * NC);
   const cx = (i) => x0 + (i + 0.5) * (x1 - x0) / W, cz = (j) => z0 + (j + 0.5) * (z1 - z0) / D;
+  let tick = 0;
   for (let l = 0; l < L; l++) {
     const F = lv[l];
     for (let j = 0; j < D; j++) for (let i = 0; i < W; i++) {
+      if ((++tick & 31) === 0) yield;
       const x = cx(i), z = cz(j), g = groundAt(ww, x, z, F + 0.25);
       if (!(Math.abs(g - F) < 0.22)) continue;
       if (ceilAt(ww, x, z, g) - g < 1.85) continue;
@@ -71,12 +130,30 @@ export function bldNav(ww, bd) {
   const exits = [], l0 = lvOf(bd.y) >= 0 ? lvOf(bd.y) : 0, F0 = lv[l0];
   for (let j = 0; j < D; j++) for (let i = 0; i < W; i++) {
     const k = l0 * NC + j * W + i; if (!open[k]) continue;
+    if ((++tick & 15) === 0) yield;
     const x = cx(i), z = cz(j), e = edgeN(x, z); if (e.d > 0.8) continue;
     const ox = x + e.n[0] * (e.d + 0.7), oz = z + e.n[1] * (e.d + 0.7), g = groundAt(ww, ox, oz, F0 + 0.4);
     if (!(Math.abs(g - F0) < 0.45)) continue;
     pushOut(ww, ox, oz, g, g + 1.7, 0.3, _po); if (_po[2]) continue;
     const mx = x + e.n[0] * e.d, mz = z + e.n[1] * e.d; pushOut(ww, mx, mz, F0, F0 + 1.7, 0.24, _po); if (_po[2]) continue;
     exits.push({ k, x: ox, z: oz, ix: x, iz: z });
+  }
+  // 出入り口から歩いて行けないマス（上れない屋根の上・閉じた小部屋）は使わない（そこの窓を選ぶと着けない）
+  {
+    const reach = new Uint8Array(L * NC), q = [];
+    for (const e of exits) if (!reach[e.k]) { reach[e.k] = 1; q.push(e.k); }
+    while (q.length) {
+      const k = q.pop(), l = Math.floor(k / NC), c = k % NC, i = c % W, j = (c - i) / W;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        if (!di && !dj) continue;
+        const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= D) continue;
+        const n = l * NC + jj * W + ii; if (!open[n] || reach[n]) continue;
+        if (di && dj && (!open[l * NC + j * W + ii] || !open[l * NC + jj * W + i])) continue;
+        reach[n] = 1; q.push(n);
+      }
+      const ls = links.get(k); if (ls) for (const e of ls) if (!reach[e.to]) { reach[e.to] = 1; q.push(e.to); }
+    }
+    for (let k = 0; k < open.length; k++) if (open[k] && !reach[k]) open[k] = 0;
   }
   // 窓（どの高さでも）: 目の高さで外へ見通せて、腰の高さに壁がある
   const wins = [];
@@ -85,6 +162,7 @@ export function bldNav(ww, bd) {
     for (let j = 0; j < D; j++) for (let i = 0; i < W; i++) {
       const k = l * NC + j * W + i; if (!open[k]) continue;
       const x = cx(i), z = cz(j), e = edgeN(x, z); if (e.d > 0.8) continue;
+      if ((++tick & 15) === 0) yield;
       const reach = e.d + 0.5;
       const eye = raycast(ww, x, F + 1.45, z, e.n[0], 0, e.n[1], reach, { out: _rh });
       let clear = true; for (const h of eye) if (h.t0 < reach && !(h.kind === 'box' && h.mat === M.GLASS)) { clear = false; break; }
@@ -96,6 +174,9 @@ export function bldNav(ww, bd) {
   }
   const nav = { bd, x0, z0, x1, z1, W, D, L, NC, lv, open, links, exits, wins, cellAt, nearOpen, lvOf, cx, cz,
     g: new Float32Array(L * NC), from: new Int32Array(L * NC), via: new Int32Array(L * NC), seen: new Uint32Array(L * NC), closed: new Uint32Array(L * NC), gen: 1 };
+  ww._inav = ww._inav || new Map();
+  // 別の試合が先に作り終えていたら、そちらを使う（中身は同じ）
+  const had = ww._inav.get(bd.id); if (had) return had;
   ww._inav.set(bd.id, nav);
   return nav;
 }
@@ -112,13 +193,15 @@ export function findInPath(nav, s, t, max = 6000) {
   const gen = ++nav.gen;
   const tl = Math.floor(t / NC), tc = t % NC, ti = tc % W, tj = (tc - ti) / W;
   const hOf = (k) => { const l = Math.floor(k / NC), c = k % NC, i = c % W, j = (c - i) / W; return (Math.hypot(i - ti, j - tj) + Math.abs(l - tl) * 6) * IS; };
-  const open2 = [s]; seen[s] = gen; g[s] = 0; from[s] = -1; via[s] = -1;
+  seen[s] = gen; g[s] = 0; from[s] = -1; via[s] = -1;
   let exp = 0;
-  // 小さい格子なので、配列の線形の取り出しで足りる（数百マス）
-  const f = new Map([[s, hOf(s)]]);
-  while (open2.length && exp < max) {
-    let bi = 0, bf = Infinity; for (let q = 0; q < open2.length; q++) { const v = f.get(open2[q]); if (v < bf) { bf = v; bi = q; } }
-    const k = open2[bi]; open2[bi] = open2[open2.length - 1]; open2.pop();
+  // 二分ヒープ（大きい建物は数千マス。線形の取り出しだと 1 回 8ms かかった）
+  const hk = _hk, hf = _hf; let hn = 0;
+  const push = (k, fv) => { let i = hn++; while (i > 0) { const p = (i - 1) >> 1; if (hf[p] <= fv) break; hk[i] = hk[p]; hf[i] = hf[p]; i = p; } hk[i] = k; hf[i] = fv; };
+  const pop = () => { const k = hk[0], lk = hk[--hn], lf = hf[hn]; let i = 0; for (;;) { let c = 2 * i + 1; if (c >= hn) break; if (c + 1 < hn && hf[c + 1] < hf[c]) c++; if (hf[c] >= lf) break; hk[i] = hk[c]; hf[i] = hf[c]; i = c; } hk[i] = lk; hf[i] = lf; return k; };
+  push(s, hOf(s));
+  while (hn && exp < max && hn < HMAX - 16) {
+    const k = pop();
     if (closed[k] === gen) continue; closed[k] = gen; exp++;
     if (k === t) break;
     const l = Math.floor(k / NC), c = k % NC, i = c % W, j = (c - i) / W;
@@ -129,14 +212,14 @@ export function findInPath(nav, s, t, max = 6000) {
       if (di && dj && (!open[l * NC + j * W + ii] || !open[l * NC + jj * W + i])) continue;
       const ng = g[k] + (di && dj ? SQ2 : 1) * IS;
       if (seen[q] === gen && ng >= g[q]) continue;
-      seen[q] = gen; g[q] = ng; from[q] = k; via[q] = -1; f.set(q, ng + hOf(q)); open2.push(q);
+      seen[q] = gen; g[q] = ng; from[q] = k; via[q] = -1; push(q, ng + hOf(q));
     }
     const ls = links.get(k);
     if (ls) for (let li = 0; li < ls.length; li++) {
       const e = ls[li], q = e.to; if (closed[q] === gen) continue;
       const ng = g[k] + e.cost;
       if (seen[q] === gen && ng >= g[q]) continue;
-      seen[q] = gen; g[q] = ng; from[q] = k; via[q] = li; f.set(q, ng + hOf(q)); open2.push(q);
+      seen[q] = gen; g[q] = ng; from[q] = k; via[q] = li; push(q, ng + hOf(q));
     }
   }
   if (closed[t] !== gen) return null;

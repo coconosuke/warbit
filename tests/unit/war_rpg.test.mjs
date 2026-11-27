@@ -118,6 +118,9 @@ test('ボットの工兵: 固まった敵（40m）へ RPG を撃ち、撃った�
     const n0 = S.rocketN || 0;
     let fired = -1, back = false;
     for (let i = 0; i < 20 / S.dt; i++) {
+      // 初めの 3 秒は敵の方から音がしたことにして、そちらを向かせる（向いていないと見つけるのは運しだい。
+      //  0.1.61 までは建物の壁に引っかかっている間に北へずれて、たまたま見つけていた）
+      if (i < 3 / S.dt) { eng.ai.look = [790, foes[1].y + 1.4, 730]; eng.ai.lookT = S.t; }
       step(G, {});
       for (const b of foes) { b.hp = b.maxHp; b.down = false; b.alive = true; b.dead = false; }
       if (fired < 0 && (S.rocketN || 0) > n0) fired = i;
