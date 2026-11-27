@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-27T04:42:13.718Z）
+HARD ENTRY ソース一式（2026-11-27T05:29:59.875Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 181139
+@@@@ FILE DESIGN.md text 181748
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -410,6 +410,7 @@ HARD ENTRY ソース一式（2026-11-27T04:42:13.718Z）
 - 11-27 WAR BIT 0.1.65: 本家の次の大きな手直し 3.0 の方向に合わせる（13:2x の判断。research の 70）。衛生は引きずるのが速い（1.9 m/s）・衛生が起こすと体力 3/4。引きずる間は後ろ向きでも遅くならない（速さは引きずる速さの上限で決まる）。引きずられる体は、つかんだ胸元を中心に頭が引く人の方へ回る（前は倒れた向きのままで、足が引く人の足もとに重なって押し返し、引く速さが 2 割落ちていた）。伏せていく途中で撃つと反動 1.8 倍（伏せの小さい反動は伏せ終わってから）。宙（0.08 秒より長く）では向きを急に変えられない（地面の 1/4）。縦のグリップは縦の反動と初弾の跳ね、斜めのグリップは横の反動を抑える。DMR は速く撃つほど反動が大きい。数字はどれも推測。
 - 11-27 WAR BIT 0.1.65（続き）: 援護の M249 を足した（research の 71。それまで銃の表に名前だけあって選べなかった）: 100 発の箱・700 発/分・リロード 6.67 秒・走る速さ 0.9・縦より横に暴れる・撃ち続けるほど反動を抑えやすい。形は箱型の機関部と上ぶた（レール）・放熱の覆い・持ち手・たたんだ二脚・下に 100 発の箱。
 - 11-27 WAR BIT 0.1.65（直し・13:23「ゲーム始めると真っ暗」）: 出撃の画面に始まりの暗転（黒い幕）が残り、出撃するまで真っ暗だった。0.1.61 で出撃の画面の下の 3D を描かなくした時、暗転を明ける処理が描く処理の中にあったため。暗転は描く処理の外（毎こま・参加側も）で進め、出撃の画面ではすぐ明ける。テスト一式に「出撃の画面は暗くない」を足した（黒い幕の濃さが 0.05 より下）。
+- 11-27 WAR BIT 0.1.66（14:11 の要望）: 感度の「スコープ」に 15 倍・20 倍・40 倍を足し、倍率ごとに決められるように（それまでは「8 倍以上」で、8 倍の値を倍率で割っていた。既定はその値と同じ: 12%・9%・4.5%。下の端は 1%・刻みは 0.5%）。「ADS 長押しの息止め」を 長押し（押している間だけ止める）／切替（長押しで止め、離しても止めたまま・もう一度長押しで戻す。構えをやめる・倒れる・息が切れると戻る）から選べるように（既定は長押し）。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -565,7 +566,7 @@ export async function getAssetURL(name, type) {
   return URL.createObjectURL(new Blob([buf], { type }));
 }
 
-@@@@ FILE src/app/game.js text 172252
+@@@@ FILE src/app/game.js text 173080
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
@@ -918,9 +919,12 @@ export class Match {
           if (e.mouse) { this.adsOn = k === 'down'; break; }
           // ADS 長押しで息止め（11-26 の要望・大規模戦）: 押したままにすると息を止め、離すと戻る。構えは切替のまま残す。
           //  切替: 構えている時に押すと、離した時（短押し）に構えをやめる（長押しなら息止めだけ）
+          //  息止めの仕方（11-27 14:11）: 長押し＝押している間だけ止める・切替＝長押しで止め、もう一度長押しで戻す（離しても止めたまま）
           if (this.S && this.S.war && st.adsBreath !== false) {
-            if (k === 'long') { this._adsBr = true; break; }
-            if (k !== 'down') this._adsBr = false;
+            const tgl = st.adsBreathMode === 'toggle';
+            if (k === 'long') { this._adsBr = tgl ? !this._adsBr : true; this._adsBrT = this.time; break; }
+            if (k !== 'down' && !tgl) this._adsBr = false;
+            if (k === 'longup' && tgl) break;
             if (mode === 'tap') { if (k === 'down') { this._adsPress = !this.adsOn; this.adsOn = true; } else if (k === 'tap' && !this._adsPress) this.adsOn = false; break; }
             if (mode === 'hold') { this.adsOn = k === 'down'; break; }
           }
@@ -1043,7 +1047,12 @@ export class Match {
     //  走り出した時だけ（ダッシュの固定の間にリーンを押したときは、前と同じく走りを止めてリーンする）
     if (inp.sprint && !this._sprWas && this.leanSide && !this.adsOn) this.leanSide = 0;
     this._sprWas = !!inp.sprint;
-    if (this._adsBr && (!inp.hold.has('ads') || !this.adsOn)) this._adsBr = false;
+    // ADS 長押しの息止め: 長押しの方式は離したら戻す。切替の方式は、構えをやめた・倒れた・息が切れた（止めているはずが止まっていない）時に戻す
+    if (this._adsBr) {
+      const tgl = this.app.settings.adsBreathMode === 'toggle', ws2 = p && p.ws;
+      if (!this.adsOn || !p || !p.alive || p.down || (!tgl && !inp.hold.has('ads'))) this._adsBr = false;
+      else if (tgl && ((ws2 && ws2.gasp > 0) || (!(ws2 && ws2.holding) && this.time - (this._adsBrT || 0) > 0.35))) this._adsBr = false;
+    }
     const brBtn = ((this.app.settings.breathMode || 'toggle') === 'hold' ? inp.hold.has('breath') : !!this.breathOn) || !!this._adsBr;
     // 構える・構えをやめる: 銃を上げ下げする小さな音（自分だけ・大規模戦）
     if (this.adsOn !== this._adsWas) { if (this._adsWas != null && this.S && this.S.war && p && p.alive && !p.down) this.au.sfx('act', null, { vol: 0.1, rate: this.adsOn ? 1.4 : 1.2 }); this._adsWas = this.adsOn; }
@@ -3447,7 +3456,7 @@ export class TitleScene {
   }
 }
 
-@@@@ FILE src/app/settings.js text 7141
+@@@@ FILE src/app/settings.js text 7363
 // 設定の既定値と保存。sv: 設定の形の版（形を変えたら上げて、古い値を直す）
 import { load, save } from './save.js';
 import { LOADOUTS, PVP_LOADOUTS } from '../engine/data/npc.js';
@@ -3457,13 +3466,14 @@ export const DEFAULTS = {
   // 視点と照準
   sens: 1.0, sensAds: 0.75, sensScope: 0.45, sensFire: 1.0, invertY: false, fireLook: true,
   // 倍率ごとの感度（BattleBit の 1x・2x・4x・8x… の感度に合わせ、倍率ごとに選べる。11-20）。間の倍率は近い下の値を倍率で割って同じ画面の速さに
-  sensZ: { 2: 0.72, 3: 0.6, 4: 0.45, 6: 0.3, 8: 0.225 },
+  // 倍率ごとの感度。15・20・40 倍（11-27 に足したスコープ）は、それまでの「8 倍以上」を倍率で割った値と同じにしてある
+  sensZ: { 2: 0.72, 3: 0.6, 4: 0.45, 6: 0.3, 8: 0.225, 15: 0.12, 20: 0.09, 40: 0.045 },
   aimAssist: 'mid', // off | weak | mid | strong | max（大規模戦。タッチだけ。11-19 23:27）
   gyro: 'off', gyroSens: 1.0, gyroInvX: false, gyroInvY: false,
   // 操作
   reloadDrop: false, // 大規模戦: 1回押しのリロードで弾倉を落とす（速い）。2回押しはいつも落とす
   adsMode: 'tap', // tap（押すたび切替）| hold（押している間）| mixed（短く押すと切替・長く押すと押している間）
-  leanMode: 'toggle', breathMode: 'toggle', adsBreath: true, breathBtn: true, jumpBtn: false, fineAim: 'mid', stickMode: 'float', stickSprint: true, handed: 'right', leftFire: true, stickLock: false, radialScale: 1, confirm: 'auto',
+  leanMode: 'toggle', breathMode: 'toggle', adsBreath: true, adsBreathMode: 'hold', breathBtn: true, jumpBtn: false, fineAim: 'mid', stickMode: 'float', stickSprint: true, handed: 'right', leftFire: true, stickLock: false, radialScale: 1, confirm: 'auto',
   // HUD
   hud: {}, hudOpacity: 0.85, hudScale: 1.0, crosshair: 'cross', crossColor: '#ffffff', minimap: true, subtitles: true, subBg: 0.42, hitMarker: true,
   // BattleBit のゲームの設定に合わせて足した物（11-20）: 照準の大きさ・濃さ、ヒットマーカーの色（体・頭・防具・倒した）、倒れたら自動で出撃、描画距離
@@ -7827,7 +7837,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.65';
+export const VERSION = '0.1.66';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -26945,7 +26955,7 @@ export class LookResampler {
   pending() { return [this.cx - this.ox, this.cy - this.oy]; }
 }
 
-@@@@ FILE src/ui/screens.js text 61683
+@@@@ FILE src/ui/screens.js text 62105
 // 画面: 読み込み・タイトル（WAR BIT）・PLAY（モードと人数）・一時停止・地図（タブレット）・結果・設定。
 // メニューの形と表記は BattleBit に合わせる（英語の大文字に日本語を小さく添える。research/WARBIT.md の 10）。
 // 旧 HARD ENTRY の画面（作戦・対戦・訓練・ロビー・資料室）はメニューから外した（11-13 03:10・03:15 の要望）。中身は後で消す
@@ -27470,11 +27480,13 @@ export class Screens {
     const ch = (k, list, path) => binds.push(() => chips(body.querySelector(`[data-k="${k}"]`), list, getP(S, path || k), (v) => { setP(S, path || k, v); save(); }));
     const sl = (k, min, max, step, fmt, path) => binds.push(() => slider(this.stage, body.querySelector(`[data-k="${k}"]`), { min, max, step, value: getP(S, path || k), fmt, label: k, onInput: (v) => { setP(S, path || k, v); save(); } }));
     const pct = (v) => Math.round(v * 100) + '%';
+    const pct1 = (v) => (Math.round(v * 1000) / 10) + '%'; // 小さい値（15 倍より上の感度）は小数 1 けた
     if (tab === 'ctrl') {
       row('ADS', '照準ボタン', 'adsMode'); ch('adsMode', [['tap', '切替'], ['hold', '長押し'], ['mixed', '両方']]);
       row('リーン', '', 'leanMode'); ch('leanMode', [['toggle', '切替'], ['hold', '長押し']]);
       row('息止め', '大規模戦・構えている間', 'breathMode'); ch('breathMode', [['toggle', '切替'], ['hold', '長押し']]);
-      row('ADS 長押しで息止め', '構えのボタンを押したままにすると息を止める（離すと戻る。構えはそのまま）', 'adsBreath'); ch('adsBreath', [[true, 'オン'], [false, 'オフ']]);
+      row('ADS 長押しで息止め', '構えのボタンを長押しすると息を止める（構えはそのまま）', 'adsBreath'); ch('adsBreath', [[true, 'オン'], [false, 'オフ']]);
+      row('ADS 長押しの息止め', '長押し: 押している間だけ止める／切替: 長押しで止め、もう一度長押しで戻す', 'adsBreathMode'); ch('adsBreathMode', [['hold', '長押し'], ['toggle', '切替']]);
       row('息止めボタン', 'ADS 長押しだけで使うなら消せる', 'breathBtn'); ch('breathBtn', [[true, '表示'], [false, '非表示']]);
       row('乗り越えとジャンプ', '本家は1つのボタン（越える物がなければ跳ぶ・跳んで届く低い台には乗る）。分けると乗り越えのボタンは越えるだけ、ジャンプのボタンが別に出る', 'jumpBtn'); ch('jumpBtn', [[false, 'まとめる'], [true, '分ける']]);
       row('移動スティック', '', 'stickMode'); ch('stickMode', [['float', '可変'], ['fixed', '固定']]);
@@ -27488,7 +27500,7 @@ export class Screens {
       row('視点', '', 'sens'); sl('sens', 0.2, 3, 0.05, (v) => v.toFixed(2));
       row('ADS', '等倍', 'sensAds'); sl('sensAds', 0.2, 1.5, 0.05, pct);
       // 倍率ごと（BattleBit のように倍率ごとに選べる。間の倍率は下の倍率の値を倍率で割る）
-      for (const [z, lb] of [[2, '2倍'], [3, '3倍'], [4, '4倍'], [6, '6倍'], [8, '8倍以上']]) { row('スコープ ' + lb, z === 2 ? '構えている時（倍率ごと）' : '', 'sz' + z); sl('sz' + z, 0.05, 1.5, 0.01, pct, 'sensZ.' + z); }
+      for (const [z, lb] of [[2, '2倍'], [3, '3倍'], [4, '4倍'], [6, '6倍'], [8, '8倍'], [15, '15倍'], [20, '20倍'], [40, '40倍']]) { row('スコープ ' + lb, z === 2 ? '構えている時（倍率ごと）' : '', 'sz' + z); sl('sz' + z, z >= 15 ? 0.01 : 0.05, 1.5, z >= 15 ? 0.005 : 0.01, z >= 15 ? pct1 : pct, 'sensZ.' + z); }
       row('射撃中', '射撃ボタンで視点移動', 'sensFire'); sl('sensFire', 0.3, 1.5, 0.05, pct);
       row('スコープの細かい操作', '3倍以上をのぞいている間、指をゆっくり動かすと細かく動く（速く動かすといつもの感度）', 'fineAim'); ch('fineAim', [['off', 'オフ'], ['weak', '弱'], ['mid', '中'], ['strong', '強']]);
       row('上下反転', '', 'invertY'); ch('invertY', [[false, 'オフ'], [true, 'オン']]);
@@ -33833,7 +33845,7 @@ export async function runTests(filter) {
   return res;
 }
 
-@@@@ FILE tests/run_all.mjs text 103827
+@@@@ FILE tests/run_all.mjs text 105416
 // テスト一式: node tests/run_all.mjs [--quick] [--no-sizes] → test-results/summary.md
 //  1 ビルド  2 単体  3 マップ（WAR BIT: 本陣・拠点・出撃の場所が範囲の中・本陣から拠点まで歩ける）  4 音
 //  5 自動の試合（コンクエスト・ドミネーション・TDM をボットだけで最後まで・同じシードで同じ結果・人数ごとの速さ）
@@ -34381,6 +34393,24 @@ try {
       const off = await page.evaluate(() => !window.__app.game.adsOn);
       const hid = await page.evaluate(() => { const a = window.__app; a.settings.breathBtn = false; a.applySettings(false); a.game.adsOn = true; return new Promise(r => setTimeout(() => { const e = document.querySelector('[data-btn="breath"]'); r(!e || e.classList.contains('hidden') || getComputedStyle(e).display === 'none'); a.settings.breathBtn = true; a.applySettings(false); a.game.adsOn = false; }, 300)); });
       rec('操作', 'ADS 長押しで息止め: 押している間だけ止め、離すと戻って構えは残る・短押しで構えをやめる・息止めボタンを設定で消せる', h1 && !after.hold && after.ads && off && hid, JSON.stringify({ h1, after, off, hid }));
+    }
+    // ADS 長押しの息止めの切替（11-27 14:11）: 長押しで止め、離しても止めたまま・もう一度長押しで戻す（構えは残る）
+    {
+      await page.evaluate(() => { const a = window.__app; a.settings.adsBreathMode = 'toggle'; a.applySettings(false); a.game.adsOn = true; });
+      await page.waitForFunction(() => window.__app.game.p.ws.br > 0.5, null, { timeout: 15000 }).catch(() => {});
+      const A = await btn('ads');
+      await touch('touchStart', [{ x: A.x, y: A.y, id: 75 }]);
+      const t1 = await page.waitForFunction(() => !!window.__app.game.p.ws.holding, null, { timeout: 12000 }).then(() => true).catch(() => false);
+      await touch('touchEnd', []);
+      await page.waitForTimeout(600);
+      const t2 = await page.evaluate(() => !!window.__app.game.p.ws.holding && window.__app.game.adsOn);
+      await touch('touchStart', [{ x: A.x, y: A.y, id: 76 }]);
+      const t3 = await page.waitForFunction(() => !window.__app.game.p.ws.holding, null, { timeout: 12000 }).then(() => true).catch(() => false);
+      await touch('touchEnd', []);
+      await page.waitForTimeout(300);
+      const t4 = await page.evaluate(() => window.__app.game.adsOn);
+      await page.evaluate(() => { const a = window.__app; a.settings.adsBreathMode = 'hold'; a.applySettings(false); a.game.adsOn = false; });
+      rec('操作', 'ADS 長押しの息止めを「切替」にできる: 長押しで止め、離しても止めたまま・もう一度長押しで戻す（構えは残る）', t1 && t2 && t3 && t4, JSON.stringify({ t1, t2, t3, t4 }));
     }
     // 反動の押さえ（research の 19）: 反動で上がっている間に下へ引いた分は反動から引き、体の向きは下げない。上がっていなければ向きが下がる
     {
@@ -36111,7 +36141,7 @@ console.log(`\n${all.length - bad.length}/${all.length} 合格`);
 if (process.env.UNIT_JSON) fs.writeFileSync(process.env.UNIT_JSON, JSON.stringify(all, null, 1));
 process.exit(bad.length ? 1 : 0);
 
-@@@@ FILE tests/unit/settings_zoom.test.mjs text 2251
+@@@@ FILE tests/unit/settings_zoom.test.mjs text 2935
 // 倍率ごとの感度（BattleBit のように倍率ごとに選べる）
 import { test, ok, eq } from '../lib/t.mjs';
 import { DEFAULTS, sensForZoom } from '../../src/app/settings.js';
@@ -36144,6 +36174,18 @@ test('前の「画面の揺れ: 弱」は揺れ 50% に移す。新しい項目�
     mem['hardentry.v1.settings'] = JSON.stringify({ shake: false, shakeK: 0.2 });
     eq(loadSettings().shakeK, 0.2, '新しい値があればそのまま');
   } finally { globalThis.localStorage = prev; }
+});
+
+test('15・20・40 倍は倍率ごとに感度を決められる（既定は前と同じ効き方）', () => {
+  const st = { sensZ: { ...DEFAULTS.sensZ } };
+  for (const z of [15, 20, 40]) {
+    ok(DEFAULTS.sensZ[z] != null, z + '倍の項目');
+    ok(Math.abs(sensForZoom(st, z) - DEFAULTS.sensZ[8] * 8 / z) < 0.0005, z + '倍の既定は前（8 倍の値 × 8/倍率）と同じ ' + sensForZoom(st, z).toFixed(4));
+  }
+  st.sensZ[20] = 0.2;
+  eq(sensForZoom(st, 20), 0.2, '20倍だけ変わる');
+  ok(Math.abs(sensForZoom(st, 15) - DEFAULTS.sensZ[15]) < 1e-9, '15倍はそのまま');
+  ok(Math.abs(sensForZoom(st, 40) - DEFAULTS.sensZ[40]) < 1e-9, '40倍はそのまま');
 });
 
 @@@@ FILE tests/unit/sniper.test.mjs text 10634
