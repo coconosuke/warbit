@@ -33,13 +33,16 @@ test('倒れた味方を引きずると、歩いた方へついて来る。遅�
   eq(me.drag, mate.id, '引きずり始めた ' + JSON.stringify(ev.filter(e => e.e === 'deny')));
   eq(mate.dragBy, me.id);
   // 後ろ（-z）へ 3 秒歩く（向きは倒れた人の方のまま。走るを押しても走らない）
-  const z0 = mate.z, mz0 = me.z, shots0 = me.stats.sh;
+  const z0 = personPoint(S, mate)[2], mz0 = me.z, shots0 = me.stats.sh;
   let vmax = 0;
   for (let i = 0; i < Math.round(3 / S.dt); i++) { const zb = me.z; step(G, { [me.id]: idle(me, { mz: -1, sprint: true, fire: true }) }); vmax = Math.max(vmax, Math.abs(me.z - zb) / S.dt); }
-  ok(vmax <= DRAG.speed + 0.05, '速さ ' + vmax.toFixed(2));
+  ok(vmax <= DRAG.speed + 0.05 && vmax > DRAG.speed - 0.2, '速さ（後ろ向きでも引きずる速さ） ' + vmax.toFixed(2));
   ok(!me.sprint, '走らない');
   eq(me.stats.sh, shots0, '撃っていない');
-  ok(z0 - mate.z > 1.0 && Math.abs((z0 - mate.z) - (mz0 - me.z)) < 1.2, `体がついて来た ${(z0 - mate.z).toFixed(2)}m（歩いたのは ${(mz0 - me.z).toFixed(2)}m）`);
+  // 胴（つかんだ所）がついて来る。体は頭が引く人の方へ回る（足が後ろ）
+  const z1 = personPoint(S, mate)[2];
+  ok(z0 - z1 > 1.0 && Math.abs((z0 - z1) - (mz0 - me.z)) < 1.2, `体がついて来た ${(z0 - z1).toFixed(2)}m（歩いたのは ${(mz0 - me.z).toFixed(2)}m）`);
+  ok(mate.z > personPoint(S, mate)[2] + 0.3, '足は後ろ（引く向きの反対）' + mate.z.toFixed(2) + ' / ' + personPoint(S, mate)[2].toFixed(2));
   ok(mate.down && mate.alive, 'まだ倒れている');
   const tp = personPoint(S, mate);
   ok(Math.hypot(tp[0] - me.x, tp[2] - me.z) <= DRAG.len + 0.15, '胴は手の届く所');
@@ -86,4 +89,13 @@ test('引きずる人の見た目: 左手が倒れた人の胸元へ下りる・
   ok(row && row[25] === 10, '送る形に drag（10）' + (row ? row[25] : '-'));
   step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'drag' }] }) });
   ok(me.drag == null && !me.dragPt, '離すと戻る');
+});
+
+test('衛生は引きずるのが速い（3.0 の予定。1.9m/s まで）', () => {
+  const { G, S, me, mate } = setup();
+  me.warCls = 'medic';
+  step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'drag' }] }) });
+  let vmax = 0;
+  for (let i = 0; i < Math.round(2.5 / S.dt); i++) { const zb = me.z; step(G, { [me.id]: idle(me, { mz: -1 }) }); vmax = Math.max(vmax, Math.abs(me.z - zb) / S.dt); }
+  ok(vmax > DRAG.speed + 0.2 && vmax <= DRAG.medic + 0.05, '速さ ' + vmax.toFixed(2));
 });

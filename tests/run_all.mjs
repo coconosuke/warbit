@@ -726,6 +726,10 @@ try {
     await tapAt(await center('.screen.play.on [data-m="conquest"][data-k="small"]'), 71);
     await page.waitForFunction(() => window.__app.mode === 'game' && window.__app.game && document.querySelector('#hud .hud-deploy.on .dps-go'), null, { timeout: 240000 });
     await page.waitForTimeout(500);
+    // 11-27 13:23「ゲーム始めると真っ暗」: 出撃の画面に始まりの暗転（黒い幕）が残らない
+    { const fd = await page.waitForFunction(() => +getComputedStyle(document.querySelector('#fade')).opacity < 0.05, null, { timeout: 8000 }).then(() => true).catch(() => false);
+      const op = await page.evaluate(() => getComputedStyle(document.querySelector('#fade')).opacity);
+      rec('WAR BIT', '出撃の画面は暗くない（始まりの暗転が明ける）', fd, 'opacity ' + op); }
     await shot('WAR-出撃の画面');
     const dp = await page.evaluate(() => { const g = window.__app.game; return { alive: g.p.alive, cls: document.querySelectorAll('#hud .dps-c').length, sq: document.querySelectorAll('#hud .dps-m').length, pts: [...document.querySelectorAll('#hud .dps-p')].map(e => e.dataset.sub), n: g.S.actors.length, bots: g.S.actors.filter(a => a.ai).length }; });
     rec('WAR BIT', '試合は出撃の画面から始まる（兵科6つ・分隊8人・地図の出撃の場所・ボット31体）', !dp.alive && dp.cls === 6 && dp.sq === 8 && dp.pts.includes('hq') && dp.n === 32 && dp.bots === 31, JSON.stringify(dp));

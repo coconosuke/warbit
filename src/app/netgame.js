@@ -139,6 +139,8 @@ export function netMixin(Match) {
     // 出来事: 手元の分＋ホストの分（自分の銃の音などは手元の分を使う）
     const hostEv = sess.takeEvents().filter(e => !(LOCAL_EV.has(e.e) && e.id === me.id));
     this._events(ev.filter(e => LOCAL_EV.has(e.e)).concat(hostEv));
+    // 始まりの暗転（ホストの frame と同じ。描く処理の外で進める。出撃の画面ではすぐ明ける）
+    if (this.intro > 0) { if (S.war && this.hud.deployOn) this.intro = 0; else this.intro -= dt; this.app.fade(Math.max(0, this.intro / 1.2)); }
     this._render(dt, inp);
     this._hud(dt);
   };

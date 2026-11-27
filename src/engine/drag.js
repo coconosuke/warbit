@@ -1,11 +1,12 @@
 // 倒れた味方を引きずる（大規模戦。BattleBit: 倒れた味方を見て F。引きずりながら動けるが遅い。引きずりながら起こし始められる）
 // research/WARBIT.md の 65。速さ・つなぐ長さは推測（本家の数字は見つからなかった）
 //  - 引きずる人: 走れず撃てず構えられない。速さ 1.4m/s まで
-//  - 倒れた人: 胴が、引きずる人から DRAG.len より離れないように引かれる（綱のように。近づくのは自由）。体の向きは変えない
+//  - 倒れた人: 胴が、引きずる人から DRAG.len より離れないように引かれる（綱のように。近づくのは自由）。体は頭が引く人の方へ回る（11-27）
 //  - やめる: もう一度押す・引きずる人が倒れる/死ぬ・倒れた人が起きる/死ぬ・体が物に引っかかって離れすぎる
 import { groundAt, pushOut } from './world.js';
 
-export const DRAG = { speed: 1.4, len: 1.0, max: 2.6 };
+// medic: 衛生は引きずるのが速い（BattleBit 3.0 の予定。研究メモ 70。速さは推測）
+export const DRAG = { speed: 1.4, medic: 1.9, len: 1.0, max: 2.6 };
 
 // off: 倒れた体の原点から胴までのずれ（x, z）。interact.js が始めるときに測る
 export function startDrag(S, a, b, off, ev) {
@@ -30,7 +31,21 @@ export function stepDrag(S, w, ev) {
     if (a.drag == null) continue;
     const b = S.byId[a.drag];
     if (!a.alive || a.down || a.dead || !b || !b.alive || !b.down || b.dragBy !== a.id) { stopDrag(S, a, ev); continue; }
-    const off = a.dragOff || [0, 0];
+    const off = a.dragOff || (a.dragOff = [0, 0]);
+    // 体の向き: 頭を引く人の方へ（胸元をつかんで引くので、足は後ろに続く。前は倒れた向きのままで、足が引く人の足もとに
+    //  重なって押し返し、引く速さが 2 割落ちていた）。つかんだ所を中心に 1 秒に 3 rad まで回す
+    const L = Math.hypot(off[0], off[1]);
+    if (L > 0.2) {
+      const gx = b.x + off[0], gz = b.z + off[1];
+      let d = Math.atan2(a.x - gx, a.z - gz) - Math.atan2(off[0], off[1]);
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      const lim = 3 * S.dt; d = Math.max(-lim, Math.min(lim, d));
+      if (Math.abs(d) > 1e-4) {
+        const c = Math.cos(d), sn = Math.sin(d), nx = off[0] * c + off[1] * sn, nz = off[1] * c - off[0] * sn;
+        off[0] = nx; off[1] = nz; b.fallYaw = (b.fallYaw || 0) + d;
+        b.x = gx - nx; b.z = gz - nz;
+      }
+    }
     const tx = b.x + off[0], tz = b.z + off[1];
     // 見た目: 引きずる人の左手の行き先（倒れた人の胸元）
     if (!a.dragPt) a.dragPt = [0, 0, 0];

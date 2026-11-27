@@ -67,3 +67,19 @@ test('反動の押さえ: 下へ引いた分（inp.rc 度）は反動の分か�
   step(G, inp(a, { ads: true, rc: 50 }));
   ok(a.ws.rp === 0, '0 より下にはならない');
 });
+
+test('跳んでいる間は向きを急に変えられない（3.0 の予定: 一瞬止まる）', () => {
+  // 前へ歩いて跳び、宙で後ろへ入れる → 0.15 秒後も前への速さが地面よりずっと残る
+  const run = (jump) => {
+    const G = game(), a = G.S.actors[0];
+    for (let i = 0; i < 30; i++) step(G, inp(a));
+    for (let i = 0; i < 40; i++) step(G, inp(a, { mz: 1 }));
+    if (jump) { step(G, inp(a, { mz: 1, act: [{ a: 'vault', jump: 1 }] })); for (let i = 0; i < 8; i++) step(G, inp(a, { mz: 1 })); }
+    for (let i = 0; i < 9; i++) step(G, inp(a, { mz: -1 }));
+    const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
+    return { v: a.vx * fx + a.vz * fz, air: !a.ground };
+  };
+  const air = run(true), gnd = run(false);
+  ok(air.air, '宙にいる');
+  ok(air.v > gnd.v + 0.8, `宙では前への速さが残る ${air.v.toFixed(2)}（地面 ${gnd.v.toFixed(2)}）`);
+});

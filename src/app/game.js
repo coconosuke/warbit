@@ -165,6 +165,12 @@ export class Match {
     this._rk = (this._rk || 0) + 1;
     const cover = this.hud.deployOn ? 2 : fo.input === false ? 1 : 0;
     const drawNow = cover === 0 || (cover === 1 && this._rk % 4 === 0);
+    // 始まりの暗転（1.2 秒で明ける）は、描かないこまでも進める。出撃の画面ではすぐ明ける
+    //  （11-27 13:23「ゲーム始めると真っ暗」: 0.1.61 で出撃の画面の下を描かなくした時、暗転を明けるのが描く処理の中にあって、出撃するまで黒い幕が残っていた）
+    if (this.intro > 0) {
+      if (cover === 2) this.intro = 0; else this.intro -= dt;
+      this.app.fade(Math.max(0, this.intro / 1.2));
+    }
     try { if (drawNow) this._render(dt, inp); } finally { if (keep) { ws.sx = keep[0]; ws.sy = keep[1]; ws.ry = keep[2]; ws.rp = keep[3]; } }
     const tH = performance.now();
     this._hud(dt);
@@ -1406,7 +1412,6 @@ export class Match {
       vm: fp ? { fov: (st.vmFov || 54) * DEG, room } : null, pip: this._pip, shadows: st.shadows !== 'off' && st.quality !== 'low',
       ambMin: nvg ? 0.02 : 0,
     });
-    if (this.intro > 0) { this.intro -= dt; this.app.fade(Math.max(0, this.intro / 1.2)); if (this.intro <= 0) this.app.fade(0); }
   }
   // 撃ち合いの熱（0..1）: 近くの銃声・かすめた弾・当たった・爆発で上がり、14秒ほどで冷める
   _heatUp(k) { this.heat = Math.min(1, (this.heat || 0) + k); }

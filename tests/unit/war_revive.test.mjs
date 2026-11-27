@@ -43,13 +43,14 @@ test('包帯を1つ使って起こす（突撃は 4 秒）。起きると体力�
   ok(ev.some(e => e.e === 'revive' && e.by === me.id), '起こした出来事');
 });
 
-test('衛生は 2 倍速（2 秒）', () => {
+test('衛生は 2 倍速（2 秒）。衛生が起こすと体力は 3/4（3.0 の予定）', () => {
   const { G, S, me, mate } = setup('medic');
   step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'revive' }] }) });
   let t = 0;
   while (mate.down && t < 6 / S.dt) { step(G, { [me.id]: idle(me) }); t++; }
   ok(!mate.down, '起きた');
   ok(Math.abs(t * S.dt - 2) < 0.3, '約 2 秒 ' + (t * S.dt).toFixed(2));
+  eq(mate.hp, Math.round(mate.maxHp * 0.75), '体力は 3/4');
 });
 
 test('倒れていられるのは 30 秒。起こしている間は減らない', () => {

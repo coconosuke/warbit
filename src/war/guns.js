@@ -5,7 +5,7 @@
 import { WEAPONS } from '../engine/data/weapons.js';
 
 const CAL = { '556': 30, '545': 31, '762x39': 34, '762x51': 40, '9mm': 27, '46': 25, '45': 33, '57': 24, '9x18': 24, '32': 21, '357': 48, '50ae': 70, '12g': 13, saw: 13 };
-const BY_ID = { m4a1: 30, g36c: 31, mp5: 29, mp7: 25, ump45: 35, scarh: 42, deagle: 72, at308: 65 };
+const BY_ID = { m4a1: 30, g36c: 31, mp5: 29, mp7: 25, ump45: 35, scarh: 42, deagle: 72, at308: 65, m249: 31 };
 const cache = new Map();
 export function warGun(id) {
   let g = cache.get(id);

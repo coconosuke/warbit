@@ -16,6 +16,8 @@ import { curW } from './actor.js';
 import { startReload, switchTo, m320Next, cancelReload } from './weapon.js';
 import { ACT_POSE, REACH_D, STAND_D, ALIGN_T } from './data/acts.js';
 import { depSpot, placeDep, removeDep, DEP_WHY } from './deploy.js';
+// 起きた時の体力（最大の割合）。衛生が起こすと多い（BattleBit 3.0 の予定。研究メモ 70）
+export const REVIVE_HP = { base: 0.5, medic: 0.75 };
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
 export const REACH = 2.3;
@@ -776,9 +778,9 @@ function finishOp(S, w, a, x, ev) {
     if (k === 'report') { b.reported = true; ev.push({ e: 'report', id: b.id, by: a.id, kind: b.kind, st: b.dead ? 'dead' : b.down ? 'down' : 'cuffed' }); return; }
     if (k === 'revive') {
       if (b.down && b.alive) {
-        // 大規模戦: 包帯を1つ使い、体力の半分で起きる（出血も止まる）
+        // 大規模戦: 包帯を1つ使い、体力の半分で起きる（出血も止まる）。衛生が起こすと 3/4（3.0 の予定: 衛生が起こした味方は体力が多い。割合は推測）
         if (S.war) { const g = a.inv && a.inv.gear.find(q => q.id === 'bandage' && q.n > 0); if (!g) return; g.n--; }
-        b.down = false; b.dbno = 0; b.hp = S.war ? Math.round(b.maxHp * 0.5) : 20; b.bleed = 0; b.stateT = 0; b.revivedT = S.t; ev.push({ e: 'revive', id: b.id, by: a.id });
+        b.down = false; b.dbno = 0; b.hp = S.war ? Math.round(b.maxHp * (a.warCls === 'medic' ? REVIVE_HP.medic : REVIVE_HP.base)) : 20; b.bleed = 0; b.stateT = 0; b.revivedT = S.t; ev.push({ e: 'revive', id: b.id, by: a.id });
       }
       return;
     }

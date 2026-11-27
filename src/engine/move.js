@@ -80,7 +80,7 @@ function warSpeed(S, a, st) {
   if (a.stun > 0 || a.flash > 0.5) v *= 0.45;
   if (a.down || a.dead) v = a.down && a.dbno && a.dragBy == null ? 0.35 : 0;
   // 倒れた味方を引きずっている（11-27。BattleBit: 引きずりながら動けるが遅い）
-  if (a.drag != null) v = Math.min(v, DRAG.speed);
+  if (a.drag != null) v = Math.min(v, a.warCls === 'medic' ? DRAG.medic : DRAG.speed);
   if (a.act && a.act.still) v = 0;
   return v;
 }
@@ -163,7 +163,8 @@ export function moveActor(S, w, a, inp, dt, ev) {
   // 後ろ・横は遅い
   let dirMul = 1;
   const SP = S.war ? WAR_SPEED : SPEED;
-  if (mag > 0.01) { const fz = mz / mag, fx = mx / mag; dirMul = fz >= 0 ? 1 - (1 - SP.side) * Math.abs(fx) : SP.back + (SP.side - SP.back) * Math.abs(fx); }
+  // 引きずっている間は向きで変えない（後ろ向きに歩いて引くのがふつう。速さは引きずる速さの上限で決まる）
+  if (mag > 0.01 && a.drag == null) { const fz = mz / mag, fx = mx / mag; dirMul = fz >= 0 ? 1 - (1 - SP.side) * Math.abs(fx) : SP.back + (SP.side - SP.back) * Math.abs(fx); }
   const tgt = vmax * mag * dirMul;
   // ローカル → 世界（前 = (sin yaw, cos yaw)、右 = (-cos yaw, sin yaw)）
   const sy = Math.sin(a.yaw), cy = Math.cos(a.yaw);
@@ -176,9 +177,12 @@ export function moveActor(S, w, a, inp, dt, ev) {
     let ux = 0, uz = 0; if (mag > 0.01 && tgt > 1e-4) { ux = dvx / tgt; uz = dvz / tgt; }
     const along = a.vx * ux + a.vz * uz;
     let qx = a.vx - ux * along, qz = a.vz - uz * along;
-    const ql = Math.hypot(qx, qz), qd = (ux || uz ? 30 : 22) * dt;
+    // 跳んでいる間（0.08 秒より長く宙にいる）は、向きを急に変えられない（BattleBit 3.0 の予定「空中で急に向きを変えると一瞬止まる」。
+    //  研究メモ 70）: 横へずれた分を消す・速さを変えるのが 1/4 ほどになる
+    const jmp = a.ground === false && (a.airT || 0) > 0.08 ? 0.25 : 1;
+    const ql = Math.hypot(qx, qz), qd = (ux || uz ? 30 : 22) * dt * jmp;
     if (ql <= qd) { qx = 0; qz = 0; } else { qx *= (ql - qd) / ql; qz *= (ql - qd) / ql; }
-    const na = tgt > along ? Math.min(tgt, along + 12 * dt) : Math.max(tgt, along - 18 * dt);
+    const na = tgt > along ? Math.min(tgt, along + 12 * dt * jmp) : Math.max(tgt, along - 18 * dt * jmp);
     a.vx = ux * na + qx; a.vz = uz * na + qz;
   } else {
     const ac = (tgt >= cur ? accelOf(S, a) : 10) * dt * (air ? 0.12 : 1); // 宙では向きをほとんど変えられない

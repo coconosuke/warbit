@@ -224,6 +224,12 @@ export const WEAPONS = {
     ads: 0.42, draw: 0.85, move: 0.88, rc: { v: 0.95, h: 0.5, bias: 0.12, first: 1.3, ctrl: 7.5, kick: 1.15 }, sp: { hip: 3.2, ads: 0.12, move: 2.4 }, rl: { tac: 4.2, fast: 3.6, empty: 0.6 },
     pvp: { dmg: 45, fall: [26, 42, 0.72] }, model: 'ak', mdl: { rpk: true }, snd: 'r762',
     desc: 'AKの銃身を長く重くした分隊支援火器。75発のドラム弾倉で撃ち続ける。重く、振り向くのが遅い。' }),
+  // M249（11-27。BattleBit Wiki の M249: 援護の軽機関銃・100 発・700 発/分・弾の速さ 690・リロード 6.67 秒・構え 0.3 秒・
+  //  走る速さ 0.93（10% 遅い）・縦の反動より横の反動が大きい・予備の弾倉は少ない。反動の数字はこのゲームの尺度に直した推測）
+  m249: W({ name: 'M249', cat: 'rifle', side: 'swat', cal: '556', ammo: ['ap', 'jhp'], mag: 100, spare: 2, chamber: false, modes: ['auto', 'semi'], rpm: 700, vel: 690, kg: 7.5, len: 1.04,
+    ads: 0.3, draw: 1.0, move: 0.9, rc: { v: 0.9, h: 0.78, bias: 0.12, first: 1.0, ctrl: 7, kick: 1.1 }, sp: { hip: 3.3, ads: 0.12, move: 2.5 }, rl: { tac: 6.67, fast: 6.0, empty: 0.6 },
+    pvp: { dmg: 41, fall: [26, 42, 0.72] }, model: 'm249', mdl: { lmg: true }, snd: 'r556',
+    desc: '援護の軽機関銃。100 発の箱で長く撃ち続けられるが、リロードが遅く、予備の箱は少ない。重く、走るのが遅い。縦より横に暴れる。' }),
   bizon: W({ name: 'PP-19 Bizon', cat: 'smg', side: 'sus', cal: '9x18', ammo: ['ap', 'jhp'], mag: 64, spare: 3, chamber: true, modes: ['auto', 'semi'], rpm: 680, vel: 400, kg: 2.7, len: 0.66, fold: true,
     ads: 0.26, draw: 0.48, move: 0.97, rc: { v: 0.45, h: 0.4, bias: 0.05, first: 1.3, ctrl: 11, kick: 0.8 }, sp: { hip: 2.3, ads: 0.17, move: 1.6 }, rl: { tac: 3.0, fast: 2.5, empty: 0.5 },
     pvp: { dmg: 24, fall: [12, 24, 0.58] }, model: 'ak', mdl: { bizon: true }, snd: 'p9',
@@ -304,8 +310,9 @@ export const ATTACH = {
   },
   grip: {
     none: { name: 'なし' },
-    vert: { name: '縦のグリップ', rcv: 0.88, ads: 0.01, desc: '縦の反動を抑える。' },
-    angled: { name: '斜めのグリップ', rcfirst: 0.85, ads: -0.02, desc: '構えが速く、初弾の跳ねが小さい。' },
+    // BattleBit 3.0 の予定（研究メモ 70）: 縦のグリップは縦の反動と初弾の跳ねを、斜めのグリップは横の反動を抑える。倍率は推測
+    vert: { name: '縦のグリップ', rcv: 0.88, rcfirst: 0.9, ads: 0.01, desc: '縦の反動と初弾の跳ねを抑える。' },
+    angled: { name: '斜めのグリップ', rch: 0.82, ads: -0.01, desc: '横の反動を抑える。構えも少し速い。' },
     stubby: { name: '短い縦のグリップ', rcv: 0.93, rch: 0.9, desc: '縦と横の反動を少しずつ抑える。' },
     handstop: { name: 'ハンドストップ', ads: -0.03, rcfirst: 0.92, desc: '手を前で止めて押し込む。構えがいちばん速い。' },
     // 二脚（11-27。BattleBit: 伏せるか、物に銃を当てると自動で立つ。立っている間は印が出る。research の 50・66）。立っている間の効き目は推測
@@ -363,7 +370,7 @@ export function attachOptions(wid) {
   const fin = ['blk', 'fde', 'od', 'gry'];
   if (c === 'rifle') {
     const rail = !(m === 'ak' && !md.vz) && m !== 'sks' && m !== 'mini14' && m !== 'g3';
-    const box = W.mag >= 20 && !md.rpk;
+    const box = W.mag >= 20 && !md.rpk && !md.lmg;
     const fg = (rail && m !== 'aug' && !md.vz) || m === 'g3';
     return {
       sight: rifleSights(wid, W),

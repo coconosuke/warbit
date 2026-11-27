@@ -49,6 +49,7 @@ export function spreadDeg(S, a, W, wi) {
 
 // 二脚が立つか（伏せ: 銃の前 0.8m の地面が体の高さから ±0.3m。立ち・しゃがみ: 止まっていて、銃の 0.6m 先の真下 0.3m 以内に物の面があり、銃の先が壁に入っていない）
 export const BIPOD = { recoil: 0.6 };
+export const DROPSHOT = { recoil: 1.8 };
 const _bh = [];
 const minT = (h) => { let t = 1e9; for (const q of h) if (q.t0 < t) t = q.t0; return t; };
 function bipodUp(S, w, a) {
@@ -438,8 +439,18 @@ function tryFire(S, w, a, W, wi, inp, ev) {
   let kv = W.rc.v * (sh === 0 ? W.rc.first * m.rcfirst : 1) * m.rcv;
   let kh = (hrand(a.id, seed, 77) * 2 - 1) * W.rc.h * m.rch + W.rc.bias * W.rc.h * 0.6;
   let mul = 1 - 0.2 * a.ads;
-  if (a.st > 1.5) mul *= 0.7; else if (a.st > 0.5) mul *= 0.85;
+  // 伏せ撃ち（ドロップショット）: 大規模戦では、伏せていく途中は反動が強く、伏せの小さい反動は伏せ終わってから
+  //  （BattleBit 3.0 の予定「ドロップショットは反動が強くなる」。研究メモ 70。倍率は推測）
+  const dropping = S.war && a.stance === 2 && a.st < 1.95;
+  if (dropping) mul *= DROPSHOT.recoil;
+  else if (a.st > 1.5) mul *= 0.7; else if (a.st > 0.5) mul *= 0.85;
   if (a.inj.arm) mul *= 1.6;
+  // BattleBit 3.0 の予定（研究メモ 70。倍率は推測）: DMR（単発だけの小銃）は速く撃つほど反動が大きい（0.35 秒より短い間隔で最大 1.7 倍）。
+  //  M249 は撃ち続けるほど反動を抑えやすい（1 発ごとに 1.5% 小さく、0.7 倍まで）
+  if (S.war && W.cat === 'rifle' && (W.modes || []).length && !(W.modes || []).includes('auto') && ws.lastShot != null) {
+    const gap = (S.t - ws.lastShot) * S.dt; if (gap < 0.35) mul *= 1 + 0.7 * (0.35 - gap) / 0.35;
+  }
+  if (S.war && wi.id === 'm249') mul *= Math.max(0.7, 1 - 0.015 * sh);
   // 二脚が立っている: 反動が小さい（0.6 倍。数字は推測）
   if (a.bip) mul *= BIPOD.recoil;
   if (S.rules && S.rules.recoil) mul *= S.rules.recoil;
