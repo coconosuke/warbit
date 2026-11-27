@@ -336,8 +336,9 @@ export class Renderer {
     const gl = this.gl;
     for (const [k, what] of D) {
       const ch = this.chunks.find(c => c.k === k); if (!ch || !('far' in ch)) continue;
-      // 作っている途中の近い形は古い世界で作っているので捨てて作り直す
-      if (what !== 'glass' && this._job && this._job.ch === ch) this._job = null;
+      // 作っている途中の近い形: 捨てずに作り終え、そのあと壊れた所（箱）だけ作り直す（11-27 20:22 の階段の描画の乱れ:
+      //  撃ち合いで壁が削れ続ける塊は、作りかけを捨てて最初からを繰り返し、いつまでも遠い形（外の殻だけ）のままだった）
+      if (what !== 'glass' && this._job && this._job.ch === ch) this._job.dirty = true;
       if (ch.near) {
         if (what !== 'glass') {
           ch.farDirty = true;
@@ -373,12 +374,14 @@ export class Renderer {
     let fd = null;
     for (const ch of this.chunks) {
       ch.d = Math.hypot((ch.x0 + ch.x1) / 2 - c.x, (ch.z0 + ch.z1) / 2 - c.z);
+      // 塊の四角までの距離（中にいれば 0）: 自分のいる塊・すぐ隣を先に作る
+      ch.dr = Math.hypot(Math.max(ch.x0 - c.x, 0, c.x - ch.x1), Math.max(ch.z0 - c.z, 0, c.z - ch.z1));
       if (ch.d < N && !ch.near) want.push(ch);
       else if (ch.near && ch.d > N + 110) { delMesh(gl, ch.near); delMesh(gl, ch.nearBox); delMesh(gl, ch.nearGlass); ch.near = null; ch.nearBox = null; ch.nearGlass = null; ch.nearTris = 0; }
       // 壊れた所の遠い形: 遠い形に切り替わる前に作り直す（1こまに1つ。下で、時間が余っていれば）
       if (ch.farDirty && (!ch.near || ch.d >= N + 30) && (!fd || ch.d < fd.d)) fd = ch;
     }
-    want.sort((a, b) => a.d - b.d);
+    want.sort((a, b) => (a.dr < 12 ? a.dr : 12 + a.d) - (b.dr < 12 ? b.dr : 12 + b.d));
     const done = (ch, r) => { ch.near = makeWorldMesh(gl, r.B); ch.nearBox = makeWorldMesh(gl, r.BX); ch.nearGlass = makeWorldMesh(gl, buildWarGlass(this.war, ch.k)); ch.nearTris = (ch.near ? ch.near.n / 3 : 0) + (ch.nearBox ? ch.nearBox.n / 3 : 0); };
     let used = 0;
     // 壊れた遠めの塊の作り直し（少しずつ。近い形を作るのと同じ時間の枠を先に使う）
@@ -397,13 +400,19 @@ export class Renderer {
     else if (used < 3 || (want.length && want[0].d < 70)) {
       const J = this._job;
       // もう要らない（離れた・もうできている）、またはずっと近い塊が要る時は、作りかけを捨てる
-      if (J && (J.ch.near || J.ch.d > N + 60 || (want.length && want[0] !== J.ch && want[0].d + 40 < J.ch.d))) this._job = null;
+      if (J && (J.ch.near || J.ch.d > N + 60 || (want.length && want[0] !== J.ch && (want[0].dr < 12 ? 0 : want[0].d + 40) < J.ch.d && J.ch.dr >= 12))) this._job = null;
       if (!this._job && want.length) this._job = { ch: want[0], g: buildWarNearJob(this.war, want[0].k, { lite: this.warLite, split: true }) };
       if (this._job) {
-        const t0 = performance.now(), lim = Math.max(1, (this._job.ch.d < 70 ? 8 : 3) - used);
+        // 自分のいる塊（12m まで）の近い形がない: 中の階段・壁が描けず外の殻が見えるので、1こまに 30ms まで使って急いで作る
+        const own = this._job.ch.dr < 12;
+        const t0 = performance.now(), lim = own ? 30 : Math.max(1, (this._job.ch.d < 70 ? 8 : 3) - used);
         let r;
         do r = this._job.g.next(); while (!r.done && performance.now() - t0 < lim);
-        if (r.done) { done(this._job.ch, r.value); this._job = null; }
+        if (r.done) {
+          const J2 = this._job; done(J2.ch, r.value); this._job = null;
+          // 作っている間に壊れた: 箱だけ作り直す（少しずつ）
+          if (J2.dirty) { J2.ch.farDirty = true; (this._boxJobs || (this._boxJobs = new Map())).set(J2.ch, buildWarNearBoxesJob(this.war, J2.ch.k, { lite: this.warLite })); }
+        }
         used += performance.now() - t0;
       }
     }

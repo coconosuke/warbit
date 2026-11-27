@@ -20,6 +20,7 @@ import { RALLY, rallyOf, rallyKey } from '../rally.js';
 import { pickMags } from '../weapon.js';
 import { stepAmmo, placeAmmo } from '../ammobox.js';
 import { stepMines } from '../mines.js';
+import { request, stepRequests } from '../../war/requests.js';
 
 export const OUT_LIMIT = 10;
 // 落ちた弾倉の落ちる先（11-20）: 前は落とした人の足の高さに置いていて、坂や段の上では地面に埋まった。
@@ -318,7 +319,7 @@ export function spotEnemy(S, w, a, ev, o = {}) {
     if (!warLos(w, e[0], e[1], e[2], b.x, ty, b.z) || smokeBetween(S, e[0], e[1], e[2], b.x, ty, b.z) >= 0.6) continue;
     bc = c; best = b;
   }
-  if (!best) { const f = orderFlag(S, a, ev); if (!f && ev) ev.push({ e: 'spot', id: -1, by: a.id }); return null; }
+  if (!best) { if (o.noFlag) return null; const f = orderFlag(S, a, ev); if (!f && ev) ev.push({ e: 'spot', id: -1, by: a.id }); return null; }
   const m = S.m, L = m.spots || (m.spots = []);
   const old = L.find(q => q.id === best.id && q.team === a.team);
   const until = S.t + Math.round(SPOT_T / S.dt);
@@ -456,6 +457,8 @@ export default {
     if (ac.a === 'warClass') { if (!a.alive) setClass(a, ac.cls, ac.gun, ac.sec, ac.att, ac.gad); return true; }
     // 敵に印をつける（BattleBit の中ボタン。分隊に見える。11-19・research の 24）: 狙っている向きから 5° 以内・450m 以内・見えている敵のうち一番まっすぐの1人
     if (ac.a === 'spot') { spotEnemy(S, w, a, ev); return true; }
+    // 要請（11-27 16:51。弾薬・衛生兵・ついて来い・ここを守れ・敵発見・ありがとう）
+    if (ac.a === 'req') { request(S, w, a, ac.k, ev, spotEnemy); return true; }
     if (ac.a === 'rally') { placeRally(S, w, a, ev); return true; }
     if (ac.a === 'warRedeploy') {
       if (!a.alive) return true;
@@ -488,10 +491,13 @@ export default {
     if (S.mdrops && S.mdrops.length) { settleDrops(S, w); pickMags(S, ev); }
     if (S.ammo && S.ammo.length) stepAmmo(S, ev, (a, pts, why, ex) => award(S, a, pts, why, ev, ex));
     if (S.mines && S.mines.length) stepMines(S, ev);
+    if (m.mode !== 'range') stepRequests(S, w, ev);
     // ボットの衛生: 近く（2.5m）の仲間の人が傷ついていて、敵を追っていない時に医療キットで治す（1 秒に 20。持ち替えの見た目は省く）
     if (m.mode !== 'range') for (const b of S.actors) {
       if (!b.ai || b.warCls !== 'medic' || !b.alive || b.down || b.ai.tgt != null) continue;
-      const h = S.actors.find(a => a.pid != null && a.team === b.team && a.alive && !a.down && a.hp < a.maxHp * 0.85 && Math.hypot(a.x - b.x, a.z - b.z) < 2.5 && Math.abs(a.y - b.y) < 1.5);
+      //  「衛生兵」と頼まれた人は満タンまで（ほかは 85% まで）
+      const rq = b.ai.req && b.ai.req.k === 'medic' ? b.ai.req.id : -1;
+      const h = S.actors.find(a => a.pid != null && a.team === b.team && a.alive && !a.down && a.hp < a.maxHp * (a.id === rq ? 0.999 : 0.85) && Math.hypot(a.x - b.x, a.z - b.z) < 2.5 && Math.abs(a.y - b.y) < 1.5);
       if (!h) continue;
       h.hp = Math.min(h.maxHp, h.hp + 20 * dt); h.bleed = 0;
       if ((S.t + b.id) % Math.max(1, Math.round(0.5 / S.dt)) === 0) ev.push({ e: 'medkit', id: b.id, tgt: h.id, hp: Math.round(h.hp) });

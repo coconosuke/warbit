@@ -608,7 +608,9 @@ export function pvpDamage(S, a, d, shooter, part, dx, dz, ev, kind) {
   if (canDown) {
     a.hp = 0; a.down = true; a.dbno = 20; a.dbnoCount++; a.downT = 0; a.stateT = 0; a.ads = 0; a.adsOn = false; a.sprint = false;
     a.bleedOut = 0;
-    ev.push({ e: 'down', id: a.id, by: shooter ? shooter.id : -1, dbno: 1, part });
+    // w: 倒した武器（本家は倒れた時、左下に倒された武器を出す。11-27 20:22。research/WARBIT.md の 78）
+    const sw = shooter && shooter.inv && shooter.ws && shooter.ws.slot >= 0 && shooter.ws.slot < 2 ? shooter.inv.w[shooter.ws.slot] : null;
+    ev.push({ e: 'down', id: a.id, by: shooter ? shooter.id : -1, dbno: 1, part, w: kind === 'blast' ? 'blast' : sw ? sw.id : null });
     return;
   }
   killActor(S, a, shooter, ev, kind, part);

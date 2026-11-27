@@ -352,9 +352,10 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-rf { position: absolute; left: 50%; top: calc(50% + 46px); transform: translateX(-50%); padding: 1px 6px; border-radius: 3px; background: rgba(0,0,0,.4); color: #ff6a52; font: 800 12px var(--f-head); letter-spacing: .04em; opacity: 0; pointer-events: none; }
 .hud-rf.on { opacity: 1; }
 /* バイポッドの印: 本家は画面の下に小さく出る（research の 72） */
-.hud-bip { position: absolute; left: 50%; bottom: calc(var(--sb) + 78px); transform: translateX(-50%); display: flex; align-items: center; gap: 3px; padding: 1px 6px 1px 3px; border-radius: 3px; background: rgba(0,0,0,.45); color: #e8f0d8; font: 800 11px var(--f-body); opacity: 0; transition: opacity .2s; pointer-events: none; }
-.hud-bip svg { width: 14px; height: 14px; }
-.hud-bip.on { opacity: 1; }
+.hud-ammo .row { display: flex; align-items: center; }
+.hud-ammo .bipi { display: none; width: 17px; height: 17px; margin-left: 6px; vertical-align: -1px; color: #e8edf1; opacity: .9; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.hud-ammo .bipi svg { width: 100%; height: 100%; display: block; }
+.hud-ammo .bipi.on { display: inline-block; }
 .hud-breath i { display: block; height: 100%; width: 100%; border-radius: 2px; background: #dfe8ee; }
 .hud-breath.gasp i { background: #e2574c; }
 .hb.ads-off { visibility: hidden; pointer-events: none; }
@@ -457,9 +458,13 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-peek .pk-x { position: absolute; right: calc(max(var(--sr), 10px) + 12px); top: calc(var(--st) + 44px); pointer-events: auto; padding: 9px 18px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.4); border-radius: 6px; font: 700 14px/1 var(--f-body); }
 #hud.peeking .hud-cross, #hud.peeking .hud-reticle, #hud.peeking .hud-scope, #hud.peeking .hud-prompt, #hud.peeking .hud-ammo { display: none !important; }
 /* 倒れている間: 這うスティック・一時停止・GIVE UP・倒れている表示だけ（11-27 14:22: スティックも出す） */
-#hud.downed .hb:not([data-btn="pause"]), #hud.downed .hud-cross, #hud.downed .hud-reticle, #hud.downed .hud-scope, #hud.downed .hud-ammo, #hud.downed .hud-breath, #hud.downed .hud-bip, #hud.downed .hud-prompt { visibility: hidden !important; pointer-events: none !important; }
+#hud.downed .hb:not([data-btn="pause"]):not([data-btn="comm"]), #hud.downed .hud-cross, #hud.downed .hud-reticle, #hud.downed .hud-scope, #hud.downed .hud-ammo, #hud.downed .hud-breath, #hud.downed .hud-prompt { visibility: hidden !important; pointer-events: none !important; }
 .hud-downp { position: absolute; left: 50%; bottom: calc(var(--sb) + 196px); transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 4px; min-width: 190px; padding: 6px 14px 7px; background: rgba(8,12,18,.62); border-radius: 6px; font-family: var(--f-body); color: #fff; pointer-events: none; z-index: 3; }
 .hud-downp.on { display: flex; }
+.hud-downw { position: absolute; left: calc(max(var(--sl), 10px) + 14px); top: calc(var(--st) + 150px); display: none; flex-direction: column; gap: 1px; padding: 5px 10px 6px; background: rgba(8,10,12,.55); border-left: 2px solid #c8463a; border-radius: 2px; text-shadow: 0 1px 2px #000; }
+.hud-downw.on { display: flex; }
+.hud-downw small { font-size: 10px; letter-spacing: .08em; color: #d9b3ad; font-family: var(--f-body); }
+.hud-downw b { font-size: 15px; letter-spacing: .03em; color: #fff; }
 .hud-downp .t { font-size: 14px; letter-spacing: .06em; color: #ff8a7a; }
 .hud-downp.rev .t { color: #8fe08a; }
 .hud-downp .bar { width: 170px; height: 5px; background: rgba(255,255,255,.18); border-radius: 3px; overflow: hidden; }

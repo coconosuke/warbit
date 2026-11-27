@@ -31,7 +31,7 @@ export function onRepeat(el, fn) {
   el.addEventListener('pointerup', stop); el.addEventListener('pointercancel', stop); el.addEventListener('pointerleave', stop);
 }
 
-const DRAG_MENU = new Set(['nade', 'gad', 'gear']); // ずらすと選ぶ円が出るボタン
+const DRAG_MENU = new Set(['nade', 'gad', 'gear', 'comm']); // ずらすと選ぶ円が出るボタン
 // 下投げにする、射撃の指をずらす距離（画面の基準 844×390 の点。射撃のボタンの半径 43 の少し外）
 const UNDER_D = 52;
 const LONG = 360; // 長押し（ms）。11-20: 420 → 360（伏せ・投げ物を選ぶ・弾倉をまとめる の長押しが遅く感じる）
@@ -55,7 +55,7 @@ export class Input {
     this.mouseBtn = { l: false, r: false };
     this.touchUsed = false;
     // ダッシュを入れた回数（押し直した・スティックを押し込み直した。このこまの分）。リロードの最中ならやめる（game.js が動作 'sprint' を送る）
-    this.sprintArm = false; this.sprintLock = false; this.sprPress = 0;
+    this.sprintArm = false; this.sprintLock = false; this.sprPress = 0; this.firePress = 0;
     this.toggles = { ads: false, leanL: false, leanR: false, crouch: false, prone: false, low: false };
     this.gyro = { on: false, ok: false, x: 0, y: 0, last: 0 };
     this.onStick = null; this.onRadial = null; this.onBtn = null; this.onDragMenu = null; this.onUnderRing = null;
@@ -69,7 +69,7 @@ export class Input {
   reset() {
     this.mx = this.mz = this.lookDX = this.lookDY = 0; this.lk = new LookResampler();
     this.ptr.clear(); this.stick = null; this.hold.clear(); this.edges.length = 0; this.keys.clear();
-    this.sprintArm = false; this.sprintLock = false; this.sprPress = 0;
+    this.sprintArm = false; this.sprintLock = false; this.sprPress = 0; this.firePress = 0;
     this.mouseBtn = { l: false, r: false };
     this.radial = null; if (this.onRadial) this.onRadial(null);
     if (this.onStick) this.onStick(null);
@@ -109,6 +109,9 @@ export class Input {
         if (this.sprintLock && !KEEP_LOCK.has(b)) { this.sprintLock = false; this.sprintArm = false; if (this.onStick) this.onStick(null); }
         this.hold.add(b); el.classList.add('down');
         if (b === 'sprint') this.sprPress++;
+        // 11-27 20:22「射撃ボタンが全く反応しないタイミングがある」: 押して離すのが 1 こまの間（重いこま・素早いタップ）だと、
+        //  こまの始めに押している指がなく、引き金が一度も引かれなかった。押したことを次のこまの 1 回分は覚えておく
+        if (b === 'fire' || b === 'fireL') this.firePress = (this.firePress || 0) + 1;
         this.edges.push({ b, k: 'down', sub: el.dataset.sub || null });
         if (this.onBtn) this.onBtn(b, 'down', p);
         return;
@@ -254,7 +257,7 @@ export class Input {
     });
     window.addEventListener('blur', () => { this.keys.clear(); this.mouseBtn = { l: false, r: false }; });
     document.addEventListener('mousemove', (e) => { if (!this.enabled || document.pointerLockElement !== this.area) return; this.lookDX += e.movementX; this.lookDY += e.movementY; });
-    a.addEventListener('mousedown', (e) => { if (!this.enabled || !document.pointerLockElement) return; if (e.button === 0) this.mouseBtn.l = true; if (e.button === 1) { e.preventDefault(); this.edges.push({ b: 'spot', k: 'down', mouse: true }); } if (e.button === 2) { this.mouseBtn.r = true; this.edges.push({ b: 'ads', k: 'down', mouse: true }); } });
+    a.addEventListener('mousedown', (e) => { if (!this.enabled || !document.pointerLockElement) return; if (e.button === 0) { this.mouseBtn.l = true; this.firePress = (this.firePress || 0) + 1; } if (e.button === 1) { e.preventDefault(); this.edges.push({ b: 'spot', k: 'down', mouse: true }); } if (e.button === 2) { this.mouseBtn.r = true; this.edges.push({ b: 'ads', k: 'down', mouse: true }); } });
     window.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouseBtn.l = false; if (e.button === 2) { this.mouseBtn.r = false; if (this.enabled) this.edges.push({ b: 'ads', k: 'up', mouse: true }); } });
     a.addEventListener('contextmenu', (e) => e.preventDefault());
     a.addEventListener('wheel', (e) => { if (this.enabled && document.pointerLockElement) this.edges.push({ b: e.deltaY > 0 ? 'wpn2' : 'wpn1', k: 'tap', wheel: true }); }, { passive: true });
@@ -385,7 +388,7 @@ export class Input {
     const [tgx, tgy] = this.gk ? this.gk.take(performance.now()) : [0, 0];
     const out = {
       mx, mz, lookDX: this.lookDX + tlx, lookDY: this.lookDY + tly, gyroX: this.gyro.x + tgx, gyroY: this.gyro.y + tgy,
-      fire: this.hold.has('fire') || this.hold.has('fireL') || this.mouseBtn.l,
+      fire: this.hold.has('fire') || this.hold.has('fireL') || this.mouseBtn.l || this.firePress > 0,
       // 下投げ（11-26）: 射撃の指を一定の距離より外へずらして離した・右ボタンを押したまま左を離した
       under: this._underRel || (this.mouseBtn.r && !this.mouseBtn.l),
       sprint: this.sprintArm || this.sprintLock || K.has('ShiftLeft') || this.hold.has('sprint'), sprPress: this.sprPress,
@@ -393,7 +396,7 @@ export class Input {
       mouse: !!document.pointerLockElement, touch: this.touchUsed,
     };
     this.lookDX = 0; this.lookDY = 0; this.gyro.x = 0; this.gyro.y = 0;
-    this.edges.length = 0; this.sprPress = 0; this._underRel = false;
+    this.edges.length = 0; this.sprPress = 0; this._underRel = false; this.firePress = 0;
     // 長押しの判定（押している最中）。こまが大きく遅れたとき（0.25秒より長い）は次のこまで判定する
     // （遅れている間に指を離した出来事が待っているかもしれない。離していれば短押し）
     const now = performance.now();

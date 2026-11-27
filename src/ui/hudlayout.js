@@ -29,6 +29,8 @@ export const BTN = {
   pick: { name: '拾う・引きずる（近くに落ちた弾倉・倒れた味方がいる間）', ax: 'r', ay: 'b', x: 250, y: 196, s: 46, icon: 'pick', warOnly: true },
   fmode: { name: '射撃モード', ax: 'r', ay: 't', x: 214, y: 92, s: 36, icon: 'fmode' },
   spot: { name: '敵に印（分隊に知らせる）', ax: 'l', ay: 't', x: 170, y: 40, s: 40, icon: 'spot', warOnly: true },
+  // 要請（11-27 16:51）: タップ・ずらす・長押しで円を開き、弾薬・衛生兵・ついて来い・ここを守れ・敵発見・ありがとうを選ぶ
+  comm: { name: '要請（弾薬・衛生兵など。円で選ぶ）', ax: 'l', ay: 't', x: 170, y: 90, s: 40, icon: 'comm', warOnly: true },
   rally: { name: 'ビーコンを置く（分隊長・分隊ポイント 200）', ax: 'l', ay: 't', x: 218, y: 40, s: 40, icon: 'rally', warOnly: true },
   zoom: { name: 'スコープの倍率', ax: 'r', ay: 't', x: 258, y: 92, s: 36, icon: 'zoom', zoomOnly: true },
   light: { name: 'ライト', ax: 'r', ay: 't', x: 170, y: 92, s: 36, icon: 'light' },
@@ -55,7 +57,10 @@ export const INFO = {
 export const ICONS = {
   loadout: '<path d="M4 8h11l2-2h3v4h-3l-1 1H8l-1 3H5l1-3H4z" fill="currentColor"/><path d="M6 17h12M15 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   cams: '<path d="M3 8l12-3 2 6-12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="15.2" cy="9.2" r="1.3" fill="currentColor"/><path d="M8 13l1 4H5M17 9l4-1v4l-4 1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
-  melee: '<path d="M5 19l9-9M14 10l2-6 4 4-6 2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 17.5l3 3" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M17 15l2.5 1M15.5 18l1.5 2M19.5 12l2 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  // 要請: 吹き出しと無線の波
+  comm: '<path d="M4 5.5h12a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H10l-4 3.5V15H4a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2z" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 7.8v3.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="13" r="1.1" fill="currentColor"/><path d="M20 6.5a5 5 0 0 1 0 6.5M22.2 4.5a8 8 0 0 1 0 10.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  // 近接（11-27 20:22「もっとわかりやすく。拳とか」）: 握った拳
+  melee: '<path d="M5.4 12V9.9a1.65 1.65 0 0 1 3.3 0v-.6a1.65 1.65 0 0 1 3.3 0v.1a1.65 1.65 0 0 1 3.3 0v.5a1.6 1.6 0 0 1 3.2 0V15c0 2.6-1.7 4.6-4.1 5.1H9.6c-2.5-.5-4.2-2.5-4.2-5.1z" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.7 10v2.4M12 9.5v2.9M15.3 10v2.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5.5 13.9c1.7-.7 3.8-.8 5.6-.3 1.2.3 1.4 1.7.4 2.3-.9.6-2.3.7-3.6.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.4 20.3v2.4h5.2v-2.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
   zone: '<path d="M12 22s7-7.2 7-12.5A7 7 0 0 0 5 9.5C5 14.8 12 22 12 22z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="9.5" r="2.6" fill="currentColor"/>',
   board: '<path d="M4 5h16M4 10h16M4 15h16M4 20h16M9 3v19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   expand: '<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',

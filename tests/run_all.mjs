@@ -315,6 +315,21 @@ try {
     rec('タップ', 'スティックの指はボタンの上へ動かしても切れず、離すと止まる。「離した」が届かず残ったスティックがあっても、次に触れた指がスティックになる', mid.stick && Math.hypot(mid.mx, mid.mz) > 0.5 && !after.stick && after.mz === 0 && st2.id !== 777 && st2.mz > 0.4 && mv > 0.2, JSON.stringify({ mid, after, st2, mv: +mv.toFixed(2) }));
   }
   const btn = (id) => center(`#hud [data-btn="${id}"]`);
+  // 11-27 20:22「射撃ボタンが全く反応しないタイミングがある」: 1 こまの間に押して離した（素早いタップ・重いこま）でも 1 発は出る
+  //  （この環境は 1 こまが長いので、25ms のタップは必ずこまの間に収まる。前は引き金が一度も引かれなかった）
+  {
+    await page.waitForFunction(() => window.__app.game.p.ws.st === 'ready', null, { timeout: 15000 }).catch(() => {});
+    // 人形に当てない（あとの射撃場の試しの人形を倒さない）: 足もとの地面へ向けて撃ち、向きは戻す
+    const aim0 = await page.evaluate(() => { const g = window.__app.game, a = [g.yaw, g.pitch]; g.yaw += Math.PI / 2; g.pitch = -1.2; return a; });
+    const q0 = await page.evaluate(() => window.__app.game.p.stats.sh);
+    const F = await btn('fire');
+    const a = touch('touchStart', [{ x: F.x, y: F.y, id: 119 }]); await new Promise(r => setTimeout(r, 25)); const b = touch('touchEnd', []); await Promise.all([a, b]);
+    await page.waitForFunction((q) => window.__app.game.p.stats.sh > q, q0, { timeout: 8000 }).catch(() => {});
+    const q1 = await page.evaluate(() => window.__app.game.p.stats.sh);
+    await page.evaluate((a) => { const g = window.__app.game; g.yaw = a[0]; g.pitch = a[1]; }, aim0);
+    await page.waitForTimeout(300);
+    rec('操作', '射撃ボタンの素早いタップ（1 こまの間に押して離す）でも撃てる', q1 > q0, `撃った数 ${q0} → ${q1}`);
+  }
   {
     const s0 = await page.evaluate(() => window.__app.game.p.stats.sh);
     await holdAt(await btn('fire'), 900, 21);
@@ -369,11 +384,21 @@ try {
     await tapAt(await btn('crouch'), 29);
     await page.waitForFunction(() => window.__app.game.p.stance === 1, null, { timeout: 15000 }).catch(() => {});
     const st1 = await page.evaluate(() => window.__app.game.p.stance);
+    // 11-27 20:22「しゃがみから長押しで伏せたいのに一度立ってからになる」: しゃがみからの長押しは、立つを通らずに伏せへ
+    await page.evaluate(() => { const g = window.__app.game; let v = g.stance; g.__stH = []; Object.defineProperty(g, 'stance', { configurable: true, get() { return v; }, set(x) { if (x !== v) g.__stH.push(x); v = x; } }); });
     await holdAt(await btn('crouch'), 700, 30);
     await page.waitForFunction(() => window.__app.game.p.stance === 2, null, { timeout: 15000 }).catch(() => {});
     const st2 = await page.evaluate(() => window.__app.game.p.stance);
-    await tapAt(await btn('crouch'), 31); await tapAt(await btn('crouch'), 32);
-    rec('操作', 'しゃがむ（押す）・伏せ（長押し）', st1 === 1 && st2 === 2, `押す→${st1}・長押し→${st2}`);
+    const stH = await page.evaluate(() => { const g = window.__app.game, h = g.__stH.slice(), v = g.stance; delete g.stance; g.stance = v; return h; });
+    // 伏せ→しゃがみ→立つ: 押した・短く離したをそのまま入れる（この環境は 1 こまが長く、指を離したのが届く時刻が遅れて
+    //  短いタップが長押しに数えられることがあるので、ボタンの判定そのものは上の 2 つで確かめ、ここは姿勢の決まりだけを見る）
+    const tapEdge = () => page.evaluate(() => { window.__app.input.edges.push({ b: 'crouch', k: 'down', sub: null }, { b: 'crouch', k: 'tap', sub: null, dur: 60 }); });
+    await tapEdge();
+    await page.waitForFunction(() => window.__app.game.p.stance === 1, null, { timeout: 15000 }).catch(() => {});
+    await tapEdge();
+    await page.waitForFunction(() => window.__app.game.p.stance === 0, null, { timeout: 15000 }).catch(() => {});
+    const st3 = await page.evaluate(() => window.__app.game.p.stance);
+    rec('操作', 'しゃがむ（押す）・しゃがみから長押しで伏せ（立つを通らない）・伏せ→しゃがみ→タップで立つ', st1 === 1 && st2 === 2 && stH.join() === '2' && st3 === 0, `押す→${st1}・長押し→${st2}（途中 ${stH.join('→')}）・戻す→${st3}`);
     await tapAt(await btn('wpn2'), 33);
     await page.waitForFunction(() => window.__app.game.p.ws.slot === 1, null, { timeout: 8000 }).catch(() => {});
     const slot = await page.evaluate(() => window.__app.game.p.ws.slot);
@@ -961,6 +986,40 @@ try {
     // 11-26 22:33: メニューを開いても試合は止まらない（オンラインと同じ）
     rec('画面', '大規模戦: メニューを開いても試合は進む（止まらない）', t1 > t0 + 5, `${t0} → ${t1}`);
   }
+  // 11-27 16:51「弾薬箱をくれ等の指示や要請ができるボタン。アイテム選択同様ホイールで」: 要請のボタンをタップすると円が開く・選ぶと出来事の欄に出る
+  {
+    await tapAt(await center('#hud [data-btn="comm"]'), 140);
+    await page.waitForFunction(() => !!window.__app.input.radial, null, { timeout: 20000 }).catch(() => {});
+    const rr = await page.evaluate(() => { const R = window.__app.input.radial; if (!R) return null; window.__cm = R.items; return { t: R.title, items: R.items.map(i => i.label) }; });
+    await page.evaluate(() => { window.__app.input.closeRadial(); if (window.__cm) window.__cm[5].go(); });
+    await page.waitForFunction(() => [...document.querySelectorAll('#hud .hud-feed > *')].some(e => /ありがとう/.test(e.textContent)), null, { timeout: 15000 }).catch(() => {});
+    const fd = await page.evaluate(() => [...document.querySelectorAll('#hud .hud-feed > *')].some(e => /ありがとう/.test(e.textContent)));
+    rec('WAR BIT', '要請の円: タップで開く（弾薬をくれ・衛生兵・ついて来い・ここを守れ・敵発見・ありがとう）・選ぶと出来事の欄に出る', !!rr && rr.t === '要請' && rr.items.length === 6 && rr.items[0] === '弾薬をくれ' && fd, `${JSON.stringify(rr)}・欄 ${fd}`);
+  }
+  // 11-27 20:22「階段でグラフィックの乱れ」: 遠くの建物の階段へ移ると、自分のいる塊の近い形（中の階段・壁）を急いで作る
+  //  （前は 1こま 8ms ずつで、撃ち合いで壁が削れると作りかけを捨てて最初からになり、外の殻だけの遠い形が見え続けた）
+  {
+    const at = await page.evaluate(() => {
+      const g = window.__app.game, ww = g.w, p = g.p;
+      const L = ww.ramps.filter(r => r.kind === 'stair' && r.bld >= 0), dd = (r) => Math.hypot((r.x0 + r.x1) / 2 - p.x, (r.z0 + r.z1) / 2 - p.z);
+      L.sort((a, b) => dd(b) - dd(a)); const st = L[0]; if (!st) return null;
+      const x = (st.x0 + st.x1) / 2, z = (st.z0 + st.z1) / 2, d0 = Math.round(dd(st));
+      Object.assign(p, { x, z, y: (st.y0 + st.y1) / 2 + 0.05, vx: 0, vy: 0, vz: 0 });
+      // 撃ち合いで壁が削れ続けるのと同じに、その塊を 0.3 秒ごとに「壊れた」にする（前は作りかけを捨て続けて終わらなかった）
+      const ch = (g.r.chunks || []).find(q => x >= q.x0 && x < q.x1 && z >= q.z0 && z < q.z1);
+      window.__dirtyT = ch ? setInterval(() => g.r.rebuildWarChunks([ch.k], 'all'), 300) : null;
+      window.__stTo = [x, z];
+      return { d: d0, k: ch ? ch.k : null };
+    });
+    // カメラが移った後で調べる（移る前のこまの塊を見ない）
+    await page.waitForFunction(() => { const c = window.__app.game.cam, t = window.__stTo; return c && t && Math.hypot(c.x - t[0], c.z - t[1]) < 3; }, null, { timeout: 20000 }).catch(() => {});
+    const own = () => page.evaluate(() => { const g = window.__app.game, c = g.cam, ch = (g.r.chunks || []).find(q => c.x >= q.x0 && c.x < q.x1 && c.z >= q.z0 && c.z < q.z1); return ch ? { near: !!ch.near, use: !!ch.near && ch.mesh === ch.near && ch.mesh2 === ch.nearBox } : null; });
+    const t0 = Date.now();
+    await page.waitForFunction(() => { const g = window.__app.game, c = g.cam, ch = (g.r.chunks || []).find(q => c.x >= q.x0 && c.x < q.x1 && c.z >= q.z0 && c.z < q.z1); return ch && ch.near && ch.mesh === ch.near && ch.mesh2 === ch.nearBox; }, null, { timeout: 30000 }).catch(() => {});
+    const o = await own();
+    await page.evaluate(() => { if (window.__dirtyT) clearInterval(window.__dirtyT); });
+    rec('WAR BIT', '遠くの建物の階段へ移っても（壁が削れ続けていても）、自分のいる塊はすぐ近い形（中の階段・壁）で描く', !!(at && o && o.use), `${JSON.stringify(at)}・${JSON.stringify(o)}・${((Date.now() - t0) / 1000).toFixed(1)}秒`);
+  }
   // ダウン中にあきらめる（11-19 18:16）: GIVE UP を2回押すとすぐ出撃の画面へ
   {
     // 流れ弾や手榴弾で途中で倒れきらないよう、ダウンの残りを大きくしておく（テストの間だけ）
@@ -977,6 +1036,11 @@ try {
       const dp = await page.evaluate(() => { const d = document.querySelector('#hud .hud-downp'), st = document.querySelector('#hud .hud-stick'), r = d && d.getBoundingClientRect();
         return { panel: !!(d && d.classList.contains('on') && r.width > 50 && r.height > 20), txt: d ? d.textContent.replace(/\s+/g, ' ').trim() : '', stick: !!st && getComputedStyle(st).visibility !== 'hidden' && st.getBoundingClientRect().width > 20 }; });
       rec('画面', 'ダウン中: 倒れている表示（残りの帯と秒）と這うスティックが出る', dp.panel && dp.stick && /倒れた|起こされている/.test(dp.txt), JSON.stringify(dp));
+      // 11-27: 倒れている間も要請のボタン（衛生兵・ありがとう）は出る。倒された武器（本家は左下）を出す
+      const cm = await page.evaluate(() => { const g = window.__app.game, b = document.querySelector('#hud [data-btn="comm"]'); g._events([{ e: 'down', id: g.p.id, by: -1, w: 'm4a1' }]); return !!b && getComputedStyle(b).visibility === 'visible' && getComputedStyle(b).display !== 'none'; });
+      await page.waitForFunction(() => document.querySelector('#hud .hud-downw.on'), null, { timeout: 5000 }).catch(() => {});
+      const dw = await page.evaluate(() => (document.querySelector('#hud .hud-downw.on') || {}).textContent || '');
+      rec('画面', 'ダウン中: 要請のボタンが出る・倒された武器を出す', cm && /M4A1/.test(dw), `ボタン ${cm}・「${dw}」`);
     }
     const c = await center('#hud .hud-giveup');
     let arm = false, dep = {};

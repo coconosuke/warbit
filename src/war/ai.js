@@ -204,7 +204,7 @@ function think(S, w, a, dt, ctx) {
   const ai = a.ai, sk = SKILL[ai.skill || 'bot2'];
   const inp = baseInput(a);
   inp.stance = 0;
-  if (a.down) { inp.mx = 0; inp.mz = 0; return inp; }
+  if (a.down) return downThink(S, w, a, inp, ctx, sk, dt);
   if (a.act) { inp.mx = 0; inp.mz = 0; inp.stance = a.act.k === 'revive' ? 1 : a.stance; return inp; }
   // 地雷を置いた: 銃へ戻す
   if (ai.mineBack && S.t >= ai.mineBack) { ai.mineBack = 0; pushAct(inp, { a: 'switch', slot: 0 }); }
@@ -239,6 +239,8 @@ function think(S, w, a, dt, ctx) {
   // ---- 倒れた仲間を起こす・自分の手当て（敵が見えていないとき）
   if (!tgt) {
     if (tryRevive(S, w, a, inp, ctx, sk, dt)) return inp;
+    // 味方の要請（11-27 16:51。requests.js）: 弾薬箱を届ける・治しに行く・ついて行く・守る
+    if (ai.req && serveReq(S, w, a, inp, ctx, sk, dt)) return inp;
     if (a.hp < a.maxHp * 0.5 && S.t - (ai.seenT ?? -1e9) > SEC(S, 3) && a.inv.gear.some(g => g.id === 'bandage' && g.n > 0) && a.ws.st === 'ready' && !ai.reviving) { pushAct(inp, { a: 'gear', id: 'bandage' }); inp.stance = 1; return inp; }
     if (lowMag && a.ws.st === 'ready') pushAct(inp, { a: 'reload' });
     if (S.t - (ai.seenT ?? -1e9) > SEC(S, 3) && toAmmo(S, w, a, inp, ctx, sk, dt)) return inp;
@@ -315,11 +317,15 @@ function fight(S, w, a, inp, tgt, ctx, sk, dt, rEff, rMax) {
     if (c) { if (c.win) S.m.claim.set(c.key, { id: a.id, until: S.t + SEC(S, 12) }); else claimCell(S, a, c.k, SEC(S, 12)); ai.cov = c; ai.peek = null; }
   }
   const inCover = ai.cov && covAt(ai.cov, a);
-  // 開けた所で撃たれている（制圧）・近くに遮蔽物がない: 敵との間に発煙弾（BattleBit の人と同じく、身を隠して動く。20秒に1回）
-  if (!inCover && (a.supp || 0) > 0.5 && d > 25 && d < 120 && S.t >= (ai.smokeT || 0) && a.inv.gear.some(g => g.id === 'smoke' && g.n > 0)
-    && (!ai.cov || Math.hypot(ai.cov.x - a.x, ai.cov.z - a.z) > 10)) {
+  // 発煙弾（11-27 20:22「AI のスモークの使い方・使うタイミングをもっと賢く。むやみに使いすぎ」）: 開けた所で撃たれ続けていて（1 秒）、
+  //  離れた遮蔽物（12m より先）へ移るか、体力が減っている時だけ、自分と敵の間に。敵が近すぎる（30m まで）・遠すぎる（150m より先）・
+  //  建物の中・もう煙がある時は投げない。1 人 60 秒・分隊 25 秒に 1 回（smokeOK）
+  if (!inCover && !inB) { if ((a.supp || 0) > 0.45) ai.suppT = (ai.suppT || 0) + dt; else ai.suppT = 0; }
+  if (ai.smokePlan || (!inCover && !inB && (ai.suppT || 0) > 1.0 && d > 30 && d < 150
+    && ((ai.cov && Math.hypot(ai.cov.x - a.x, ai.cov.z - a.z) > 12) || (!ai.cov && a.hp < a.maxHp * 0.7)))) {
     const ux = (tgt.x - a.x) / d, uz = (tgt.z - a.z) / d;
-    if (throwAt(S, a, inp, dt, 'smoke', a.x + ux * 9, a.z + uz * 9)) { if (inp.fire) ai.smokeT = S.t + SEC(S, 20); return true; }
+    if (!ai.smokePlan && smokeOK(S, a, a.x + ux * 8, a.z + uz * 8)) ai.smokePlan = { x: a.x + ux * 8, z: a.z + uz * 8, until: S.t + SEC(S, 3), r: 'move' };
+    if (ai.smokePlan && smokeGo(S, a, inp, dt)) return true;
   }
   // 工兵の RPG
   if (rpgAt(S, a, inp, tgt, d, visible && ready, sk, dt)) return true;
@@ -411,8 +417,9 @@ function lost(S, w, a, inp, ctx, sk, dt) {
     ai.flank = { x: fx, z: fz, until: S.t + SEC(S, 25) };
   }
   // 建物の中に隠れた敵: 中へ入って探す（組の片方か近い者。最後に見た所まで行って、いなければ忘れる）。11-27
+  //  （11-27 16:51「自分が建物に入った時だけ極端に複数人入ってくる」: 自分で見た・撃ち合った相手だけ。建物ごとにチームで 2 人まで、ほかは外から見張る）
   const tb = bldOf(w, tx, tz);
-  if (tb && since > 1.5 && d < 45 && (a.sqIdx % 2 === 0 || d < 20)) {
+  if (tb && since > 1.5 && d < 45 && (a.sqIdx % 2 === 0 || d < 20) && huntSlot(S, a, tb.id)) {
     ai.clearing = tb.id;
     if (Math.hypot(tx - a.x, tz - a.z) < 1.5 && Math.abs(ty - a.y) < 1.2) { ai.tgtPos = null; ai.tgtId = null; ai.clearing = null; return false; }
     moveToPoint(S, w, a, inp, [tx, tz, ty], ctx, sk, dt, { sprint: false, face: true });
@@ -450,9 +457,10 @@ function objective(S, w, a, inp, ctx, sk, dt) {
   const threat = nearestIntel(S, a, 120);
   const inside = Math.hypot(a.x - goalF.x, a.z - goalF.z) < goalF.r;
   // 分隊が見つけた敵が建物の中（40m まで・8 秒以内）: 組の片方は中へ探しに行く（建物にこもった敵を放っておかない。11-27）
-  if (threat && threat.y != null && a.sqIdx % 2 === 0) {
+  //  11-27 16:51: 自分の分隊が見た・撃ち合った敵だけ（チームのほかの分隊の知らせでは入らない）、新しい知らせ（5 秒）だけ、建物ごとにチームで 2 人まで
+  if (threat && threat.y != null && a.sqIdx % 2 === 0 && threat.sq === a.squad && S.t - threat.t < SEC(S, 5)) {
     const tb = bldOf(w, threat.x, threat.z), dT = Math.hypot(threat.x - a.x, threat.z - a.z);
-    if (tb && dT < 40 && dT > 1.5) { moveToPoint(S, w, a, inp, [threat.x, threat.z, threat.y], ctx, sk, dt, { sprint: false, face: true }); inp.stance = 0; return; }
+    if (tb && dT < 40 && dT > 1.5 && huntSlot(S, a, tb.id)) { moveToPoint(S, w, a, inp, [threat.x, threat.z, threat.y], ctx, sk, dt, { sprint: false, face: true }); inp.stance = 0; return; }
   }
   // 拠点の中: 遮蔽物の後ろに散る（敵の来る方へ向けて）。20〜40秒で場所を変える。
   //  建物の窓・中の場所へ向かっている間も守る側のまま（窓は拠点の円の外のこともある）
@@ -469,7 +477,8 @@ function objective(S, w, a, inp, ctx, sk, dt) {
         const bl = bldsNear(S, w, goalF), r = hrand(a.id, Math.floor(S.t / SEC(S, 20)), 73), own = goalF.owner === a.team;
         let wn = null;
         if (bl.length) {
-          const pw = own ? 0.4 : 0.1, pi2 = own ? 0.6 : 0.4;
+          // 11-27 16:51「普段からも自然に出入りして建物や屋上を利用する」: 少し多めに（守る: 窓 42%・中 26%、取りに来た: 窓 15%・中 30%）
+          const pw = own ? 0.42 : 0.15, pi2 = own ? 0.68 : 0.45;
           if (r < pw) wn = windowSpot(S, w, a, ctx, tz0.x, tz0.z, { blds: bl, f: goalF, fR: own ? 15 : 2, maxD: 40 });
           else if (r < pi2) wn = insideSpot(S, w, a, ctx, goalF, bl);
         }
@@ -513,10 +522,14 @@ function objective(S, w, a, inp, ctx, sk, dt) {
       via = [a.x + ux * dg * t - uz * side * off, a.z + uz * dg * t + ux * side * off];
       const R = S.m.rect; via[0] = Math.max(R[0] + 10, Math.min(R[2] - 10, via[0])); via[1] = Math.max(R[1] + 10, Math.min(R[3] - 10, via[1]));
     }
+    // 町の中を通る時は、ときどき途中の建物の中（2 階・屋上も）を通り抜ける（11-27 16:51「普段から自然に出入りして建物や屋上を使う」）
+    if (!via && dg > 40 && hrand(S.seed + a.id, pair, 84) < 0.3) via = bldVia(S, w, a, ctx, a.x + (goalF.x - a.x) * 0.5, a.z + (goalF.z - a.z) * 0.5, pair);
     ai.lane = { f: goalF.id, via };
   }
   let to = ai.lane.via || spotIn(S, a, goalF);
-  if (ai.lane.via && (Math.hypot(ai.lane.via[0] - a.x, ai.lane.via[1] - a.z) < 12 || Math.hypot(goalF.x - a.x, goalF.z - a.z) < Math.hypot(goalF.x - ai.lane.via[0], goalF.z - ai.lane.via[1]))) { ai.lane.via = null; to = spotIn(S, a, goalF); }
+  //  建物の中の中継点（高さつき）は、そこまで行ってから次へ
+  const viaIn = ai.lane.via && ai.lane.via.length > 2;
+  if (ai.lane.via && (viaIn ? Math.hypot(ai.lane.via[0] - a.x, ai.lane.via[1] - a.z) < 1.2 && Math.abs(ai.lane.via[2] - a.y) < 1.2 : Math.hypot(ai.lane.via[0] - a.x, ai.lane.via[1] - a.z) < 12 || Math.hypot(goalF.x - a.x, goalF.z - a.z) < Math.hypot(goalF.x - ai.lane.via[0], goalF.z - ai.lane.via[1]))) { ai.lane.via = null; to = spotIn(S, a, goalF); }
   // 敵が近い: 跳び跳びに進む（遮蔽物まで進み、2〜3秒見回してまた進む）
   if (threat && Math.hypot(threat.x - a.x, threat.z - a.z) < 110 && !bldOf(w, a.x, a.z)) {
     if (ai.bound && S.t < ai.bound.until) {
@@ -617,9 +630,131 @@ function tryRevive(S, w, a, inp, ctx, sk, dt) {
   }
   if (!b) return false;
   const d = Math.hypot(b.x - a.x, b.z - a.z);
+  // 起こしに行く間、倒した敵（分隊が知っている・8 秒以内）から見える所なら、敵との間に発煙弾（起こす時の煙は本家でもよく使う）
+  if (ai.smokePlan && smokeGo(S, a, inp, dt)) return true;
+  //  衛生だけ・新しい知らせ（4 秒）・敵が 20〜100m（近すぎると煙より撃ち合い、遠いと煙が届かない）・半分ほど（人によって使わない）
+  if (a.warCls === 'medic' && d > 3 && d < 35 && (S.t + a.id) % 10 === 0 && hrand(S.seed + a.id, b.id, 88) < 0.5) {
+    const th = nearestIntel(S, b, 100);
+    if (th && S.t - th.t < SEC(S, 4) && Math.hypot(th.x - b.x, th.z - b.z) > 20 && wLos(w, th.x, (th.y ?? heightAt(w, th.x, th.z)) + 1.5, th.z, b.x, b.y + 0.4, b.z) && smokeBetween(S, th.x, (th.y ?? b.y) + 1.5, th.z, b.x, b.y + 0.4, b.z) < 0.5) {
+      const L = Math.hypot(th.x - b.x, th.z - b.z), sx = b.x + (th.x - b.x) / L * 5, sz = b.z + (th.z - b.z) / L * 5;
+      if (Math.hypot(sx - a.x, sz - a.z) < 30 && smokeOK(S, a, sx, sz)) { ai.smokePlan = { x: sx, z: sz, until: S.t + SEC(S, 3), r: 'revive' }; if (smokeGo(S, a, inp, dt)) return true; }
+    }
+  }
   if (d > 1.3) { moveToPoint(S, w, a, inp, [b.x, b.z], ctx, sk, dt, { sprint: d > 6, face: true }); return true; }
   inp.stance = 1;
   pushAct(inp, { a: 'op', k: 'person', id: b.id, op: 'revive' });
+  return true;
+}
+
+// ---- 倒れている（11-27 20:22「ダウン中の AI 全く動かない。賢く戦況に合わせて蘇生しやすい位置に移動するなど」）:
+//  本家と同じくゆっくり這える。倒した敵（見ている・分隊が知っている）から見えていれば、近く（6m まで）の遮蔽物の陰へ。
+//  見えていなければ、近くの衛生（なければ味方）の方へ少し（5m まで）寄る。起こされている・引きずられている・
+//  起こしに来る味方がすぐそば（6m）にいる時は動かない（起こす人が追いかけなくてよいように）
+function downThink(S, w, a, inp, ctx, sk, dt) {
+  const ai = a.ai;
+  inp.mx = 0; inp.mz = 0; inp.fire = false; inp.ads = false;
+  if (a.dragBy != null || (a.revT != null && S.t - a.revT < SEC(S, 1))) { ai.dgo = null; return inp; }
+  const helper = S.actors.find(q => q !== a && q.ai && q.ai.reviving === a.id && q.alive && !q.down);
+  if (helper && Math.hypot(helper.x - a.x, helper.z - a.z) < 6) { ai.dgo = null; return inp; }
+  if (ai.dgo && (S.t > ai.dgo.until || Math.hypot(ai.dgo.x - a.x, ai.dgo.z - a.z) < 0.6)) ai.dgo = null;
+  if (!ai.dgo && (S.t + a.id) % 20 === 0) {
+    const tb = ai.tgt != null ? S.byId[ai.tgt] : null;
+    const th = tb && tb.alive && !tb.down ? tb : nearestIntel(S, a, 150);
+    let goal = null;
+    if (th && wLos(w, th.x, (th.y ?? heightAt(w, th.x, th.z)) + 1.5, th.z, a.x, a.y + 0.35, a.z)) {
+      if (ctx.covers > 0) { ctx.covers--; const c = findCover(S, w, a, ctx, th.x, th.z, { R: 6, pref: 0 }); if (c) goal = [c.x, c.z]; }
+    } else {
+      let best = null, bs = 40;
+      for (const q of ctx.live[a.team]) { if (q === a) continue; const sc = Math.hypot(q.x - a.x, q.z - a.z) * (q.warCls === 'medic' ? 0.6 : 1); if (sc < bs) { bs = sc; best = q; } }
+      if (best) {
+        const d = Math.hypot(best.x - a.x, best.z - a.z);
+        if (d > 5) { const k = Math.min(5, d - 3) / d, gx = a.x + (best.x - a.x) * k, gz = a.z + (best.z - a.z) * k; if (!th || !wLos(w, th.x, (th.y ?? heightAt(w, th.x, th.z)) + 1.5, th.z, gx, heightAt(w, gx, gz) + 0.35, gz)) goal = [gx, gz]; }
+      }
+    }
+    if (goal) ai.dgo = { x: goal[0], z: goal[1], until: S.t + SEC(S, 14) };
+  }
+  // 這う: 行きたい方を見て前へ（倒れている時の這う向きは見ている向き。move.js）
+  if (ai.dgo) { inp.yaw = yawTo(ai.dgo.x - a.x, ai.dgo.z - a.z); inp.mz = 1; }
+  return inp;
+}
+
+// ---- 味方の要請に応える（requests.js が ai.req を置く）。true: この入力で決まり
+//  行き先は人が 3m 動くまで変えない（動く人を追うたびに道を作り直さない）
+function serveReq(S, w, a, inp, ctx, sk, dt) {
+  const ai = a.ai, r = ai.req, R = S.byId[r.id];
+  if (S.t > r.until || (r.k !== 'guard' && (!R || !R.alive))) { ai.req = null; return false; }
+  const goTo = (x, z, y, run, near) => {
+    if (r.gx == null || Math.hypot(r.gx - x, r.gz - z) > 3 || Math.abs((r.gy ?? y) - y) > 1.5) { r.gx = x; r.gz = z; r.gy = y; }
+    const d = Math.hypot(r.gx - a.x, r.gz - a.z), dy = Math.abs(r.gy - a.y);
+    if (d <= near && dy < 2) return false;
+    moveToPoint(S, w, a, inp, [r.gx, r.gz, r.gy], ctx, sk, dt, { sprint: run || d > 12, face: true });
+    return true;
+  };
+  if (r.k === 'ammo') {
+    if (goTo(R.x, R.z, R.y, false, 2.6)) return true;
+    // 着いた: 人の方を向いて足もとへ箱を置く（requests.js の stepRequests）
+    inp.mx = 0; inp.mz = 0; inp.stance = 1; inp.yaw = turnToward(a.yaw, yawTo(R.x - a.x, R.z - a.z), sk.turn * Math.PI / 180 * dt);
+    r.drop = true; return true;
+  }
+  if (r.k === 'medic') {
+    if (R.down) { ai.reviving = R.id; return tryRevive(S, w, a, inp, ctx, sk, dt); }
+    if (goTo(R.x, R.z, R.y, false, 1.6)) return true;
+    // そばで治す（war.js の衛生の治療は、敵を追っていない衛生が 2.5m 以内の人を治す）
+    inp.mx = 0; inp.mz = 0; inp.stance = 1; inp.yaw = turnToward(a.yaw, yawTo(R.x - a.x, R.z - a.z), sk.turn * Math.PI / 180 * dt);
+    return true;
+  }
+  if (r.k === 'follow') {
+    // 人の後ろに扇に並ぶ（3.5m + 1.3m × 順番）。人が走れば走る、しゃがめばしゃがむ。人の見ている方を見る
+    const n = r.n || 0, side = (n % 2 ? 1 : -1) * (0.5 + 0.25 * Math.floor(n / 2)), D = 3.5 + 1.3 * n;
+    const ang = R.yaw + Math.PI + side;
+    const gx = R.x + Math.sin(ang) * D, gz = R.z + Math.cos(ang) * D;
+    if (goTo(gx, gz, R.y, !!R.sprint, 2.2)) return true;
+    inp.mx = 0; inp.mz = 0; inp.stance = R.stance === 2 ? 1 : R.stance || 0;
+    if (!lookSound(S, a, inp, sk, dt)) inp.yaw = turnToward(a.yaw, R.yaw + side * 0.6, sk.turn * 0.5 * Math.PI / 180 * dt);
+    inp.pitch = a.pitch * 0.9;
+    return true;
+  }
+  if (r.k === 'guard') {
+    // 言われた場所のまわり（2.5〜5m の輪）に散って、言った人が見ていた方を見張る
+    const n = r.n || 0, ang = r.yaw + (n - 2.5) * 0.7, D = 2.5 + (n % 3) * 1.2;
+    const gx = r.x + Math.sin(ang) * D, gz = r.z + Math.cos(ang) * D;
+    if (goTo(gx, gz, r.y, false, 1.4)) return true;
+    inp.mx = 0; inp.mz = 0; inp.stance = 1;
+    if (!ai.watchT || S.t > ai.watchT) { ai.watchT = S.t + SEC(S, 2.5 + 3 * hrand(a.id, S.t, 15)); ai.watchOff = (hrand(a.id, S.t, 16) - 0.5) * 1.4; }
+    if (!lookSound(S, a, inp, sk, dt)) inp.yaw = turnToward(a.yaw, r.yaw + (n - 2.5) * 0.35 + ai.watchOff, sk.turn * 0.4 * Math.PI / 180 * dt);
+    inp.pitch = a.pitch * 0.9;
+    return true;
+  }
+  ai.req = null; return false;
+}
+
+// 音・撃たれた向き・「敵発見」の方を見る（1.5 秒）。true: 見ている
+function lookSound(S, a, inp, sk, dt) {
+  const ai = a.ai; if (!ai.look || S.t - ai.lookT >= SEC(S, 1.5)) return false;
+  const e = eyeAI(S, a); inp.yaw = turnToward(a.yaw, yawTo(ai.look[0] - e[0], ai.look[2] - e[2]), sk.turn * Math.PI / 180 * dt);
+  return true;
+}
+
+// 発煙弾を投げてよいか: 持っている・自分（60 秒）と分隊（25 秒）の間をあけた・その場所の近く（14m）にもう煙（立っている・飛んでいる）がない
+function smokeOK(S, a, x, z) {
+  const ai = a.ai;
+  if (S.t < (ai.smokeT || 0) || !a.inv.gear.some(g => g.id === 'smoke' && g.n > 0)) return false;
+  const Q = matchMem(S).sqSmoke || (matchMem(S).sqSmoke = new Map());
+  if (S.t < (Q.get(a.team + ':' + a.squad) || 0)) return false;
+  for (const c of S.clouds || []) if (c.type === 'smoke' && Math.hypot(c.x - x, c.z - z) < 14) return false;
+  for (const n of S.nades || []) if (n.type === 'smoke' && n.team === a.team && Math.hypot(n.x - x, n.z - z) < 20) return false;
+  return true;
+}
+// 決めた発煙弾を投げる（持ち替え → 向く → 投げる）。投げたら自分と分隊の間をあける。3 秒で投げられなければやめる
+function smokeGo(S, a, inp, dt) {
+  const ai = a.ai, P = ai.smokePlan;
+  if (!P || S.t > P.until || !a.inv.gear.some(g => g.id === 'smoke' && g.n > 0)) { ai.smokePlan = null; return false; }
+  throwAt(S, a, inp, dt, 'smoke', P.x, P.z);
+  if (inp.fire) {
+    const M = matchMem(S); (M.smokeWhy || (M.smokeWhy = {}))[P.r] = (M.smokeWhy[P.r] || 0) + 1;
+    ai.smokePlan = null; ai.smokeT = S.t + SEC(S, 60);
+    const Q = matchMem(S).sqSmoke || (matchMem(S).sqSmoke = new Map()); Q.set(a.team + ':' + a.squad, S.t + SEC(S, 25));
+  }
   return true;
 }
 
@@ -703,6 +838,30 @@ function planPath(S, w, a, to, ctx) {
     if (ip) P.push(...ip); else P.push([to[0], to[1], 1]);
   } else P.push(...outP(sx, sz, to[0], to[1]));
   return P;
+}
+// 建物の中の敵を探しに入る人: チームで建物ごとに 2 人まで（3 秒ごとに入り直す。倒れた・離れた人の枠は空く）
+function huntSlot(S, a, bid) {
+  const mm = matchMem(S), H = mm.hunt || (mm.hunt = new Map()), key = a.team + ':' + bid;
+  const L = (H.get(key) || []).filter(q => q.until > S.t && q.id !== a.id && S.byId[q.id] && S.byId[q.id].alive && !S.byId[q.id].down);
+  if (L.length >= 2) { H.set(key, L); return false; }
+  L.push({ id: a.id, until: S.t + SEC(S, 3) }); H.set(key, L);
+  return true;
+}
+// 通り抜ける建物の中の点（x, z の近く 30m までの建物。立てるマスから運で。上の階・屋上も 4 割）。中の道がまだなければ null
+function bldVia(S, w, a, ctx, x, z, pair) {
+  let bd = null, bdD = 30;
+  for (const b of w.blds || []) { if (b.down) continue; const r = b.rect, dd = Math.hypot(Math.max(r[0] - x, 0, x - r[2]), Math.max(r[1] - z, 0, z - r[3])); if (dd < bdD) { bdD = dd; bd = b; } }
+  if (!bd) return null;
+  const nav = navFor(w, bd, ctx); if (!nav || !nav.open.length) return null;
+  const up = hrand(S.seed + a.id, pair, 85) < 0.4;
+  for (let n = 0; n < 30; n++) {
+    const k = Math.floor(hrand(S.seed + a.id + n, pair, 86) * nav.open.length);
+    if (!nav.open[k]) continue;
+    const l = Math.floor(k / nav.NC); if (up !== (l > 0)) continue;
+    const c = k % nav.NC, i = c % nav.W, j = (c - i) / nav.W;
+    return [nav.cx(i), nav.cz(j), nav.lv[l]];
+  }
+  return null;
 }
 // 拠点の近くの建物（拠点の円から 8m まで）。拠点ごとに覚えておく
 function bldsNear(S, w, f) {

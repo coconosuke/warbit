@@ -50,7 +50,7 @@ export class Hud {
     this.info.feed = el('div', 'hud-feed');
     this.info.squad = el('div', 'hud-squad');
     this.info.vitals = el('div', 'hud-vitals', '<div class="sqp"><span>分隊ポイント</span><b>0</b><em></em></div><div class="hp"><i></i><b></b></div><div class="plates"></div><div class="st"></div>');
-    this.info.ammo = el('div', 'hud-ammo', '<div class="mode"></div><div class="cnt"><b>0</b><span>/0</span></div><div class="mags"></div>');
+    this.info.ammo = el('div', 'hud-ammo', '<div class="mode"></div><div class="row"><div class="cnt"><b>0</b><span>/0</span></div></div><div class="mags"></div>');
     this.info.subs = el('div', 'hud-subs'); this.subs = this.info.subs;
     for (const [id, e] of Object.entries(this.info)) { e.dataset.info = id; r.appendChild(e); }
     // 中央の物
@@ -60,7 +60,9 @@ export class Hud {
     this.breathEl = el('div', 'hud-breath', '<i></i>'); r.appendChild(this.breathEl);
     // バイポッドが立っている印（11-27。BattleBit も立つと画面の下に印が出る）
     this.rfEl = el('div', 'hud-rf'); r.appendChild(this.rfEl);
-    this.bipEl = el('div', 'hud-bip', '<svg viewBox="0 0 24 24"><path d="M4 7h16M12 7l-5 12M12 7l5 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><b>バイポッド</b>'); r.appendChild(this.bipEl);
+    // バイポッドを立てている間だけ、残弾の数字の右に小さな印（11-27 20:22「『バイポット』の文字は邪魔。残弾の横に展開時のみ小さいアイコン」）
+    this.bipEl = el('i', 'bipi', '<svg viewBox="0 0 24 24"><path d="M2 7.5h20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="12" y="6" width="5" height="4" rx="1" fill="currentColor"/><path d="M14.5 10l-4.5 10M14.5 10l4.5 10M8.5 20h3M18 20h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>');
+    this.info.ammo.querySelector('.row').appendChild(this.bipEl);
     this.hitm = el('div', 'hud-hit', '<i></i><i></i><i></i><i></i>'); r.appendChild(this.hitm);
     // 点（大規模戦）: 照準の下に合計と内訳。続けて入ると足していく
     this.ptsEl = el('div', 'hud-pts', '<div class="kl"></div><div class="tot"></div><div class="rs"></div>'); r.appendChild(this.ptsEl);
@@ -68,6 +70,8 @@ export class Hud {
     this.giveup = el('div', 'hud-giveup', '<b>GIVE UP</b><span>出撃の画面へ</span>'); this.giveup.dataset.btn = 'giveup'; this.giveup.setAttribute('role', 'button'); r.appendChild(this.giveup);
     // 倒れている間の表示（大規模戦）: 「倒れた」・残りの帯と秒・起こしている人／近い味方と衛生
     this.downP = el('div', 'hud-downp', '<b class="t">倒れた</b><div class="bar"><i></i></div><div class="s"><span class="sec"></span><span class="sub"></span></div>'); r.appendChild(this.downP);
+    // 倒された武器（本家は左下に出す）
+    this.downW = el('div', 'hud-downw'); r.appendChild(this.downW);
     this.dmg = el('div', 'hud-dmg'); r.appendChild(this.dmg);
     this.prog = el('div', 'hud-prog', '<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg"/></svg><div class="lb"></div>'); r.appendChild(this.prog);
     this.prompt = el('div', 'hud-prompt'); r.appendChild(this.prompt);
@@ -283,13 +287,14 @@ export class Hud {
       this.cross.classList.toggle('dot', this.S.crosshair === 'dot');
     }
     {
-      const di = v.downInfo, key = di ? [Math.round(di.k * 200), di.sec, di.rev, di.drag, di.near, di.med].join('|') : '';
+      const di = v.downInfo, key = di ? [Math.round(di.k * 200), di.sec, di.rev, di.drag, di.near, di.med, di.dw].join('|') : '';
       if (this.cache.downP !== key) {
-        this.cache.downP = key; this.downP.classList.toggle('on', !!di);
+        this.cache.downP = key; this.downP.classList.toggle('on', !!di); this.downW.classList.toggle('on', !!(di && di.dw));
         if (di) {
           this.downP.querySelector('.bar i').style.transform = `scaleX(${di.k.toFixed(3)})`;
           this.downP.classList.toggle('rev', !!di.rev); this.downP.classList.toggle('low', !di.rev && di.k < 0.3);
           this.downP.querySelector('.t').textContent = di.rev ? '起こされている' : '倒れた';
+          this.downW.innerHTML = di.dw ? `<small>倒された武器</small><b>${di.dw}</b>` : '';
           this.downP.querySelector('.sec').textContent = di.rev ? '' : di.sec + ' 秒';
           this.downP.querySelector('.sub').textContent = di.rev ? di.rev : di.drag ? di.drag + ' が引きずっている' : (di.med != null ? '衛生 ' + di.med + 'm' : di.near != null ? '味方 ' + di.near + 'm' : '近くに味方がいない');
         }
@@ -646,6 +651,22 @@ export class Hud {
           c.fillStyle = '#ffd84a'; c.fillText(m.goal, m.x, m.y - 25.5);
         }
         if (m.d != null) { c.font = '700 10px Inter, sans-serif'; c.fillStyle = 'rgba(235,240,245,0.9)'; c.fillText(Math.round(m.d) + 'm', m.x, m.y + 20); }
+      } else if (m.k === 'req') {
+        // 味方の要請（11-27 16:51）: 頭の上に小さな札（黄色）と距離
+        c.globalAlpha = this._mA; c.font = '800 10px "Noto Sans JP", sans-serif';
+        const tw = c.measureText(m.t).width + 10;
+        c.fillStyle = 'rgba(8,12,18,0.72)'; c.fillRect(m.x - tw / 2, m.y - 9, tw, 15);
+        c.fillStyle = '#ffd84a'; c.fillRect(m.x - tw / 2, m.y + 6, tw, 1.5);
+        c.beginPath(); c.moveTo(m.x - 4, m.y + 7.5); c.lineTo(m.x + 4, m.y + 7.5); c.lineTo(m.x, m.y + 12); c.closePath(); c.fill();
+        c.fillStyle = '#ffe9a0'; c.fillText(m.t, m.x, m.y - 1);
+        if (m.d != null) { c.font = '700 9px Inter, sans-serif'; c.fillStyle = 'rgba(235,240,245,0.85)'; c.fillText(Math.round(m.d) + 'm', m.x, m.y - 16); }
+      } else if (m.k === 'ping') {
+        // 「敵発見」の場所（分隊）: 赤いひし形と距離
+        c.globalAlpha = 0.95; c.strokeStyle = '#ff3b2f'; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(m.x, m.y - 9); c.lineTo(m.x + 7, m.y); c.lineTo(m.x, m.y + 9); c.lineTo(m.x - 7, m.y); c.closePath();
+        c.fillStyle = 'rgba(255,59,47,0.25)'; c.fill(); c.stroke();
+        c.font = '800 9px "Noto Sans JP", sans-serif'; c.fillStyle = '#ff6a5c'; c.fillText('敵', m.x, m.y + 0.5);
+        if (m.d != null) { c.font = '700 10px Inter, sans-serif'; c.fillStyle = 'rgba(235,240,245,0.9)'; c.fillText(Math.round(m.d) + 'm', m.x, m.y + 19); }
       } else if (m.k === 'sign') {
         // 射撃場の距離の札
         c.globalAlpha = 0.9; c.font = '800 11px Inter, sans-serif';

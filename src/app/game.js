@@ -79,7 +79,7 @@ export class Match {
     // 大規模戦: 投げ物・道具のボタンで選んでいる物（円の並びの順で最初に持っている物）
     this.nadeSel = null; this.gadSel = null; this._fixSlots();
     // 投げ物・道具のボタンを指でずらしたら、その場で選ぶ円を出す（input.js）
-    this.app.input.onDragMenu = (btn, pid, x, y) => { if (!this.p.alive) return; if (btn === 'gear') this._gearMenu({ pid, x, y }); else this._slotMenu(btn === 'nade' ? 'nade' : 'gad', pid, x, y); };
+    this.app.input.onDragMenu = (btn, pid, x, y) => { if (!this.p.alive) return; if (btn === 'comm') this._commMenu({ pid, x, y }); else if (btn === 'gear') this._gearMenu({ pid, x, y }); else this._slotMenu(btn === 'nade' ? 'nade' : 'gad', pid, x, y); };
     this.acts = [];
     this.shake = 0; this.flashW = 0; this.dmgK = 0; this.suppK = 0; this.exposure = 1; this.blurK = 0;
     this.ctx = null; this.ctxT = 0;
@@ -95,7 +95,17 @@ export class Match {
     if (this.net && this.net.role === 'host') this.netInitHost();
     if (this.net && this.net.role === 'guest') this.netInitGuest(o);
     // 音: 壁ごしはこもる（視線が通らない）、屋内と屋外で残響、環境音とBGM
-    this.au.occluder = (x, y, z) => { const c = this.cam; if (!c) return 0; const d = Math.hypot(x - c.x, z - c.z); if (d < 1.5) return 0; return los(this.w, c.x, c.y, c.z, x, y, z, this.S.doors) ? 0 : Math.min(1, 0.55 + d / 60); };
+    // 音のこもり（間に壁があるか）: 同じ所（1m のマス）からの音は 0.2 秒・カメラが 0.5m 動くまで、調べた答えを使い回す
+    //  （11-27 20:22 ボタンの反応: 大人数の足音・装備の音ごとに線を引いていた）
+    this.au.occluder = (x, y, z) => {
+      const c = this.cam; if (!c) return 0; const d = Math.hypot(x - c.x, z - c.z); if (d < 1.5) return 0;
+      const O = this._occ || (this._occ = { m: new Map(), t: 0, x: 0, y: 0, z: 0 }), now = performance.now();
+      if (now - O.t > 200 || Math.abs(c.x - O.x) + Math.abs(c.y - O.y) + Math.abs(c.z - O.z) > 0.5) { O.m.clear(); O.t = now; O.x = c.x; O.y = c.y; O.z = c.z; }
+      const key = Math.floor(x) * 73856093 ^ Math.floor(y * 2) * 19349663 ^ Math.floor(z) * 83492791;
+      let v = O.m.get(key);
+      if (v == null) { v = los(this.w, c.x, c.y, c.z, x, y, z, this.S.doors) ? 0 : Math.min(1, 0.55 + d / 60); O.m.set(key, v); }
+      return v;
+    };
     this.fx.onClink = (x, y, z) => this.au.sfx('shell', [x, y, z], { vol: 0.35 });
     this.startT = performance.now();
     this.intro = o.dump ? 0 : 1.2;
@@ -139,6 +149,9 @@ export class Match {
     const hostNet = this.net && this.net.role === 'host';
     const waiting = hostNet && this.netWaiting();
     const tS = performance.now();
+    // 引き金を引いたのに、このこまはステップが進まなかった（速いこま）: 次のこまへ持ち越す（素早いタップを捨てない。input.js の firePress）
+    if (this._fireCarry) { inp.fire = true; this._fireCarry = false; }
+    if (inp.fire && this.acc < step0 && !(inp.hold && (inp.hold.has('fire') || inp.hold.has('fireL'))) && !(this.app.input.mouseBtn && this.app.input.mouseBtn.l)) this._fireCarry = true;
     while (this.acc >= step0 && n < 4) {
       const cmd = this._command(inp);
       if (waiting) { this.acc -= step0; n++; continue; }
@@ -258,6 +271,16 @@ export class Match {
       const m = PRONE_TURN * dt; if (Math.abs(dYaw) > m) dYaw = Math.sign(dYaw) * m;
       const d = Math.atan2(Math.sin(this.yaw - p.yaw), Math.cos(this.yaw - p.yaw)), lim = 0.25; // 体より先へ行きすぎない
       if (Math.abs(d + dYaw) > lim && Math.sign(dYaw) === Math.sign(d + dYaw)) dYaw = Math.sign(dYaw) * Math.max(0, lim - Math.abs(d));
+    }
+    // 倒れている（大規模戦）: 見回さず・這っていなければ、撃たれた方へ視点がゆっくり向く（本家: 頭を動かさないと倒した相手の方へ向く。research の 78）
+    if (this.S.war && p.alive && p.down && this._dk && this._dk.x != null && dt > 0) {
+      const idle = !dx && !dy && Math.hypot(inp.mx || 0, inp.mz || 0) < 0.1;
+      this._dkIdle = idle ? (this._dkIdle || 0) + dt : 0;
+      if (this._dkIdle > 0.7) {
+        const c = this.cam || p, ty = Math.atan2(this._dk.x - c.x, this._dk.z - c.z), tp = Math.atan2(this._dk.y - (c.y ?? p.y + 0.4), Math.hypot(this._dk.x - c.x, this._dk.z - c.z));
+        const k = Math.min(1, dt * 1.6), dyw = Math.atan2(Math.sin(ty - this.yaw), Math.cos(ty - this.yaw));
+        dYaw += dyw * k; dP += (clamp(tp, -0.6, 0.6) - this.pitch) * k;
+      }
     }
     this.yaw += dYaw;
     // 反動の押さえ（大規模戦。BattleBit の 2024 の手直し・research の 19）: 反動で上がっている間に下へ引いた分は、
@@ -390,7 +413,16 @@ export class Match {
           else if (k === 'tap' && wi && wi.mags) { this.hud.feed(`弾倉: ${[wi.mag + (wi.ch ? '+1' : '')].concat(wi.mags.slice().sort((a, b) => b - a).map(String)).join(' / ')}`, 'ok'); this.au.ui('tap'); }
           break;
         }
-        case 'crouch': if (k === 'down') { this._stWas = this.stance; this.stance = this.stance === 0 ? 1 : this.stance === 1 ? 0 : 1; } else if (k === 'long' && !e.key) this.stance = this._stWas === 2 ? 0 : 2; break;
+        // 姿勢（11-27 20:22「しゃがみから長押しで伏せたいのに、一度立ってからしゃがむ時がある。タップで立つ・長押しで伏せを、きっちり分けて」）:
+        //  立ち → 押した時にしゃがむ（長押しでそのまま伏せ）。伏せ → 押した時にしゃがむ（長押しでそのまま立つ）。どちらも同じ向きへ動くだけ。
+        //  しゃがみ → 押した時は動かさず、離した（短い）ら立つ・長押しで伏せ（前は押した時に立ち上がりかけてから伏せていた）
+        case 'crouch':
+          if (e.key) { if (k === 'down') this.stance = this.stance === 1 ? 0 : 1; break; }
+          if (k === 'down') { this._stWas = this.stance; this._stPend = this.stance === 1; if (!this._stPend) this.stance = 1; }
+          else if (k === 'long') { this._stPend = false; this.stance = this._stWas === 2 ? 0 : 2; }
+          else if (k === 'tap' || k === 'up') { if (this._stPend && this.stance === 1) this.stance = 0; this._stPend = false; }
+          else if (k === 'cancel') this._stPend = false;
+          break;
         case 'prone': if (k === 'down') this.stance = this.stance === 2 ? 0 : 2; break;
         // 乗り越え・跳ぶ（大規模戦。BattleBit と同じく1つのボタン。越える物がなければ跳ぶ）
         // ダウン中にあきらめる（大規模戦）: 2.5 秒以内にもう一度押すと、倒れたことにして出撃の画面へ
@@ -439,6 +471,8 @@ export class Match {
         case 'zoom': if (k === 'down') this.acts.push({ a: 'zoom' }); break;
         // 敵に印をつける（大規模戦。PC は中ボタン）
         case 'spot': if (k === 'down' && this.S.war && p.alive && !p.down) this.acts.push({ a: 'spot' }); break;
+        // 要請（11-27 16:51）: タップで円を開いて選ぶ（画面のまん中）・ずらすか長押しでその指で選ぶ（投げ物の円と同じ）
+        case 'comm': if (!this.S.war || !p.alive) break; if (k === 'tap') this._commMenu({ pid: null, x: this.app.stage.w / 2, y: this.app.stage.h / 2 }); else if (k === 'long' && !this.app.input.radial) this._commMenu({ pid: e.pid, x: e.x, y: e.y }); break;
         case 'rally': if (k === 'down' && this.S.war && p.alive && !p.down) { this.acts.push({ a: 'rally' }); this.au.ui('tap'); } break;
         case 'light': if (k === 'down') this.acts.push({ a: 'light' }); break;
         case 'nvg': if (k === 'down' && p.armor.head === 'nvg') { this.nvgOn = !this.nvgOn; p.nvgOn = this.nvgOn; this.au.sfx('nvg', null, { vol: 0.5 }); } break;
@@ -703,6 +737,38 @@ export class Match {
     this.acts.push({ a: 'cmd', team: this.team, ...o });
     this.app.audio.ui('cmd');
   }
+  // 要請の出来事: 自分の要請には返事（だれが・何 m）、味方の要請は出来事の欄と頭の上の印
+  _onReq(e) {
+    const S = this.S, p = this.p, hud = this.hud, au = this.au, A = S.byId[e.id];
+    const nmA = (a) => (a && a.name) || '味方';
+    (this._reqMarks = this._reqMarks || []).push({ id: e.id, k: e.k, sq: e.sq, x: e.x, y: e.y, z: e.z, until: this.time + 8 });
+    if (this._reqMarks.length > 24) this._reqMarks.shift();
+    const say = REQ[e.k] ? REQ[e.k].say : '';
+    if (A !== p) { if (e.k !== 'thanks' || e.sq === p.squad) hud.feed(`<b style="color:${e.sq === p.squad ? '#6ee07a' : '#9cc8ff'}">${nmA(A)}</b>: ${say}`, 'cmd'); if (e.sq === p.squad && Math.hypot(A.x - p.x, A.z - p.z) < 200) au.ui('radio'); return; }
+    hud.feed(`<b style="color:#6ee07a">自分</b>: ${say}`, 'cmd');
+    const B = e.to && e.to.length ? S.byId[e.to[0]] : null, dB = B ? Math.round(Math.hypot(B.x - p.x, B.z - p.z)) : 0;
+    let re = '';
+    if (e.k === 'ammo') re = e.why === 'box' ? '近くに弾薬箱がある' : B ? `<b>${nmA(B)}</b>: 了解、弾薬箱を持っていく（${dB}m）` : '弾薬箱を持った味方が近くにいない';
+    else if (e.k === 'medic') re = e.why === 'fine' ? 'けがはしていない' : B ? `<b>${nmA(B)}</b>: ${p.down ? '今起こしに行く' : '今行く'}（${dB}m）` : '近くに衛生兵がいない';
+    else if (e.k === 'follow') { if (e.off) { this._follow = 0; re = '分隊: 了解、ここで離れる'; } else if (B) { this._follow = this.time + 90; re = `<b>${nmA(B)}</b>${e.to.length > 1 ? ` ほか ${e.to.length - 1} 人` : ''}: 了解、ついて行く`; } else re = '近くに分隊の仲間がいない'; }
+    else if (e.k === 'guard') re = B ? `<b>${nmA(B)}</b>${e.to.length > 1 ? ` ほか ${e.to.length - 1} 人` : ''}: 了解、ここを守る` : '近くに分隊の仲間がいない';
+    else if (e.k === 'enemy') { re = e.tgt >= 0 ? '敵に印をつけた' : '照準の先を分隊に知らせた'; au.ui('spot'); }
+    if (re) setTimeout(() => { if (this.hud) { hud.feed(re, B ? 'ok' : ''); if (B) au.ui('radio'); } }, B ? 650 : 250);
+  }
+  // 要請の円（11-27 16:51「弾薬箱をくれ等の指示や要請ができるボタン。アイテム選択同様ホイールで選ぶ。ai もそれに反応するように」）
+  //  弾薬をくれ・衛生兵・ついて来い・ここを守れ・敵発見・ありがとう（requests.js）。倒れている間は衛生兵とありがとうだけ
+  _commMenu(e) {
+    const p = this.p; if (!this.S.war || !p.alive) return;
+    const fol = this._follow && this._follow > this.time;
+    const items = REQ_ORDER.map(k => ({
+      label: k === 'follow' && fol ? 'ついて来なくていい' : REQ[k].label,
+      sub: k === 'ammo' ? '弾薬箱' : k === 'medic' ? (p.down ? '起こして' : '治して') : k === 'follow' ? '分隊' : k === 'guard' ? '分隊・この場所' : k === 'enemy' ? '照準の先' : '',
+      disabled: p.down && k !== 'medic' && k !== 'thanks',
+      go: () => { this.acts.push({ a: 'req', k }); this.au.ui('radio'); },
+    }));
+    this.app.input.openRadial('comm', items, e.pid, e.x, e.y);
+    if (this.app.input.radial) this.app.input.radial.title = '要請';
+  }
   _gearMenu(e) {
     const p = this.p;
     const items = p.inv.gear.filter(g => g.n > 0).map(g => ({ label: GEAR[g.id].name.replace(/（.*）/, ''), sub: '×' + g.n, go: () => { this.gearSel = g.id; if (GEAR[g.id].kind === 'nade' || GEAR[g.id].kind === 'spray' || GEAR[g.id].kind === 'heal') this.acts.push({ a: 'gear', id: g.id }); } }));
@@ -932,6 +998,9 @@ export class Match {
           if (v === p && !S.war) { hud.showBanner(S.pvp ? 'ダウン — 救助待ち' : '行動不能', 3000, 'bad'); } // 大規模戦は倒れた時の案内（残り時間）だけ
           if (v && S.pvp) hud.feed(`${nm(S.byId[e.by])} が ${nm(v)} を倒した（ダウン）`);
           if (S.war && e.by === me && e.id !== me) { hud.hit('kill'); (this._downBy = this._downBy || new Map()).set(e.id, this.time); }
+          // 自分が倒れた（大規模戦）: 本家と同じく、倒した相手を光らせたり印をつけたりはしない。倒された武器を左下に出し、
+          //  見回していなければ、撃たれた方（倒れた時の相手の場所）へ視点がゆっくり向く（research/WARBIT.md の 78）
+          if (S.war && v === p) { const k = S.byId[e.by]; this._dk = k && k !== p ? { x: k.x, y: k.y + 1.3, z: k.z, w: e.w } : { w: e.w }; this._dkIdle = 0; }
           break;
         }
         case 'cuffed': { const v = S.byId[e.id]; hud.feed(`${v.kind === 'sus' ? '容疑者' : '市民'}を拘束（${nm(S.byId[e.by])}）`, 'ok'); au.sfx('cuffs', [v.x, v.y + 0.8, v.z]); if (e.by !== me) this._say(S.byId[e.by], v.kind === 'sus' ? 'swat_cuffsus' : 'swat_cuffciv'); break; }
@@ -1060,6 +1129,9 @@ export class Match {
         } break;
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
+        // 要請（11-27 16:51。requests.js）: 出来事の欄に言葉と、応えたボットの返事（無線の音）。味方の頭の上に印
+        case 'req': if (S.war && e.team === p.team) this._onReq(e); break;
+        case 'reqDone': if (S.war && e.to === me) { const b = S.byId[e.id]; hud.feed(`<b style="color:#8fe08a">${nm(b)}</b>: ${e.k === 'ammo' ? '弾薬箱を置いたぞ' : '治療完了'}`, 'ok'); au.ui('radio'); } break;
         case 'score': if (e.id === me && S.war) this._score(e); break;
         case 'ammoBox': if (e.k === 'place') { au.sfx('boxDown', [e.x, e.y + 0.2, e.z], { vol: 0.75 }); if (e.by === me) (S.war ? () => {} : hud.feed.bind(hud))(`${e.big ? '大きい' : '小さい'}弾薬箱を置いた（近くに立つと弾倉を補給）`, 'ok'); } break;
         case 'medkit': if (e.id === me) { au.sfx('bandage', null, { vol: 0.35, rate: 1.2 }); const t = S.byId[e.tgt]; (S.war ? () => {} : hud.feed.bind(hud))(t === p ? `自分を手当て（体力 ${e.hp}）` : `${t ? t.name : '仲間'} を手当て（体力 ${e.hp}）`, 'ok'); } else if (e.tgt === me) (S.war ? () => {} : hud.feed.bind(hud))(`${S.byId[e.id] ? S.byId[e.id].name : '衛生'} が手当てしている（体力 ${e.hp}）`, 'ok'); break;
@@ -1079,7 +1151,7 @@ export class Match {
           else if (e.k === 'gone') { if (mine) hud.feed('ビーコンが壊された', 'warn'); fx.debris(e.x, e.y + 0.35, e.z, [0.29, 0.32, 0.21]); au.sfx('impMetal', [e.x, e.y + 0.3, e.z], { vol: 1 }); }
           break;
         }
-        case 'revive': if (this._downBy) this._downBy.delete(e.id); if (e.by === me || e.id === me) hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
+        case 'revive': if (this._downBy) this._downBy.delete(e.id); if (e.id === me) this._dk = null; if (e.by === me || e.id === me) hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
         case 'bandaged': if (e.id === me) au.sfx('bandage', null); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 8)) au.sfx('bandage', [a.x, a.y + 0.9, a.z], { vol: 0.35 }); } break;
         // 息が切れた（あえぐ）: 近くの人にも小さく聞こえる
         case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 7)) au.sfx('gasp', [a.x, a.y + 1.5, a.z], { vol: 0.3 }); } break;
@@ -1746,7 +1818,8 @@ export class Match {
     let near = null, nm = '';
     for (const a of S.actors) { if (a === p || a.team !== p.team || !a.alive || a.down) continue; const d = Math.hypot(a.x - p.x, a.z - p.z); if (near == null || d < near) { near = d; nm = a.warCls === 'medic' ? '衛生' : '味方'; } }
     let med = null; for (const a of S.actors) { if (a === p || a.team !== p.team || !a.alive || a.down || a.warCls !== 'medic') continue; const d = Math.hypot(a.x - p.x, a.z - p.z); if (med == null || d < med) med = d; }
-    return { k, sec, rev, drag: p.dragBy != null ? ((S.byId[p.dragBy] || {}).name || '味方') : null, near: near == null ? null : Math.round(near), nearK: nm, med: med == null ? null : Math.round(med) };
+    const dw = this._dk && this._dk.w ? (this._dk.w === 'blast' ? '爆発' : (WEAPONS[this._dk.w] || {}).name || '') : '';
+    return { k, sec, rev, drag: p.dragBy != null ? ((S.byId[p.dragBy] || {}).name || '味方') : null, near: near == null ? null : Math.round(near), nearK: nm, med: med == null ? null : Math.round(med), dw };
   }
   // 大規模戦: 拠点の中の案内（確保中・奪い合い・中立に戻している）
   _warPrompt(prompt) {
@@ -1826,6 +1899,22 @@ export class Match {
       const d = Math.hypot(a.x - cam.x, a.z - cam.z);
       const pr = proj(a.x, a.y + bodyH(a) + 0.55, a.z); if (!pr || pr[0] < -20 || pr[0] > W + 20 || pr[1] < -20 || pr[1] > H + 20) continue;
       list.push({ k: 'spot', x: pr[0], y: pr[1], col: '#ff3b2f', d });
+    }
+    // 要請（11-27 16:51）: 味方の頭の上に「弾薬」「衛生兵」など（8 秒）。「敵発見」は照準の先の場所に赤い印（分隊・8 秒）
+    if (this._reqMarks && this._reqMarks.length) {
+      this._reqMarks = this._reqMarks.filter(r => r.until > this.time);
+      for (const r of this._reqMarks) {
+        if (r.k === 'enemy') {
+          if (r.sq !== p.squad) continue;
+          const pr = proj(r.x, r.y + 0.6, r.z); if (!pr || pr[0] < -20 || pr[0] > W + 20 || pr[1] < -20 || pr[1] > H + 20) continue;
+          list.push({ k: 'ping', x: pr[0], y: pr[1], d: Math.hypot(r.x - cam.x, r.z - cam.z) });
+        } else {
+          const a = S.byId[r.id]; if (!a || a === p || !a.alive) continue;
+          const d = Math.hypot(a.x - cam.x, a.z - cam.z); if (d > 200) continue;
+          const pr = proj(a.x, a.y + bodyH(a) + 0.95, a.z); if (!pr || pr[0] < -20 || pr[0] > W + 20 || pr[1] < -20 || pr[1] > H + 20) continue;
+          list.push({ k: 'req', x: pr[0], y: pr[1], t: REQ_TAG[r.k] || '', d });
+        }
+      }
     }
     this.hud.warMarks(list);
   }
@@ -2138,6 +2227,8 @@ export class Match {
 import { endMission } from '../engine/modes/pve.js';
 import { attackZones, OUT_GRACE, mapCams, CAM_YAW, CAM_PITCH } from '../engine/modes/pvp.js';
 import { netMixin } from './netgame.js';
+import { REQ, REQ_ORDER } from '../war/requests.js';
+const REQ_TAG = { ammo: '弾薬', medic: '衛生兵', follow: '集合', guard: '守れ', thanks: '感謝' };
 netMixin(Match);
 function import_end(S) { endMission(S, S.m.softDone ? 'done' : 'abort', 'player', []); }
 

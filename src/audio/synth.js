@@ -453,6 +453,15 @@ function heart(sr, seed) {
   lp(out, 180, sr);
   return fadeEdges(normalize(out, 0.9), sr, 0.002, 0.03);
 }
+// 無線（要請の円・返事）: 送信ボタンを押す小さなカチッ、帯域の狭い雑音が短く鳴って切れる、離すカチッ（電子音にしない）
+function radioSq(sr, seed) {
+  const r = rng(seed), out = buf(sr, 0.22);
+  mixInto(out, clack(sr, r, 2600, 0.025, 0.6), 0, 0.5);
+  const n = S(sr, 0.14), z = noise(n, r); bp(z, 1700, 0.8, sr); hp(z, 420, sr); mulEnv(z, env(n, sr, 0.004, 0.13, 2.2)); sat(z, 1.6);
+  mixInto(out, z, S(sr, 0.012), 0.32);
+  mixInto(out, clack(sr, r, 2100, 0.02, 0.5), S(sr, 0.165), 0.35);
+  return fadeEdges(normalize(out, 0.45), sr);
+}
 export const SFX = {
   // 銃（近い）
   ...Object.fromEntries(Object.keys(GUNS).map(k => [k, [(sr, i) => gunNear(sr, 1000 + i * 17 + k.length * 3 + k.charCodeAt(1), k), 3]])),
@@ -490,7 +499,7 @@ export const SFX = {
   ui_tap: [(sr) => tones(sr, [[1400, 0, 0.035]], 0.3), 1], ui_back: [(sr) => tones(sr, [[900, 0, 0.04], [700, 0.04, 0.05]], 0.3), 1], ui_deny: [(sr) => tones(sr, [[300, 0, 0.09], [240, 0.09, 0.12]], 0.4), 1],
   ui_ok: [(sr) => tones(sr, [[880, 0, 0.08], [1320, 0.08, 0.14]], 0.4), 1], ui_cmd: [(sr) => tones(sr, [[1200, 0, 0.04], [1600, 0.05, 0.05]], 0.3), 1],
   ui_hit: [(sr) => tones(sr, [[2600, 0, 0.03]], 0.35), 1], ui_hitArmor: [(sr) => tones(sr, [[1500, 0, 0.04, 1], [3000, 0, 0.04, 0.4]], 0.35), 1], ui_kill: [(sr) => tones(sr, [[2200, 0, 0.05], [3300, 0.04, 0.07]], 0.4), 1],
-  ui_alarm: [(sr) => tones(sr, [[1000, 0, 0.15], [700, 0.18, 0.15], [1000, 0.36, 0.15], [700, 0.54, 0.15]], 0.45), 1], ui_spot: [(sr) => tones(sr, [[1800, 0, 0.05], [1800, 0.08, 0.05]], 0.3), 1],
+  ui_alarm: [(sr) => tones(sr, [[1000, 0, 0.15], [700, 0.18, 0.15], [1000, 0.36, 0.15], [700, 0.54, 0.15]], 0.45), 1], ui_spot: [(sr) => tones(sr, [[1800, 0, 0.05], [1800, 0.08, 0.05]], 0.3), 1], ui_radio: [(sr, i) => radioSq(sr, 911 + i), 2],
   ui_go: [(sr) => tones(sr, [[660, 0, 0.12], [990, 0.12, 0.2]], 0.45), 1], ui_win: [(sr) => tones(sr, [[523, 0, 0.18], [659, 0.15, 0.18], [784, 0.3, 0.4]], 0.5), 1], ui_lose: [(sr) => tones(sr, [[392, 0, 0.25], [330, 0.22, 0.25], [262, 0.44, 0.5]], 0.5), 1],
   ui_pickup: [(sr) => tones(sr, [[1000, 0, 0.05], [1500, 0.05, 0.07]], 0.35), 1], ui_tick: [(sr) => tones(sr, [[1250, 0, 0.06]], 0.35), 1],
   amb_out: [(sr) => ambOut(sr, 1), 1], amb_in: [(sr) => ambIn(sr, 2), 1],

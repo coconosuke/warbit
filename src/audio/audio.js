@@ -101,21 +101,20 @@ export class AudioSys {
     const names = Object.keys(SFX);
     // よく使う音から先に（銃・足音・画面）
     names.sort((a, b) => pri(a) - pri(b));
+    // 11-27 20:22（ボタンの反応が悪い）: 1 つの音の作り分け（数種類）ごとに区切る。前は名前ごとで、重い音（爆発・伏せ）は
+    //  1 回で 50〜60ms（スマホでは 200ms ほど）止まり、その間のタップが遅れた。音が全部そろうまでは、そろった種類から鳴らす
+    const jobs = []; for (const nm of names) { const [, count] = SFX[nm]; for (let i = 0; i < count; i++) jobs.push([nm, i]); }
     let k = 0;
     const step = () => {
       const t0 = performance.now();
-      while (k < names.length && performance.now() - t0 < 10) {
-        const nm = names[k++];
-        const [, count] = SFX[nm];
-        this.buf[nm] = [];
-        for (let i = 0; i < count; i++) {
-          const data = renderSfx(nm, i, sr);
-          const b = this.ctx.createBuffer(1, data.length, sr);
-          b.copyToChannel(data, 0);
-          this.buf[nm].push(b);
-        }
+      while (k < jobs.length && performance.now() - t0 < 8) {
+        const [nm, i] = jobs[k++];
+        const data = renderSfx(nm, i, sr);
+        const b = this.ctx.createBuffer(1, data.length, sr);
+        b.copyToChannel(data, 0);
+        (this.buf[nm] || (this.buf[nm] = [])).push(b);
       }
-      if (k < names.length) setTimeout(step, 0); else { this.genDone = true; if (this.onReady) this.onReady(); }
+      if (k < jobs.length) setTimeout(step, 0); else { this.genDone = true; if (this.onReady) this.onReady(); }
     };
     this.genDone = 'busy';
     step();
