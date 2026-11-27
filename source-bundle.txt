@@ -1,8 +1,8 @@
-HARD ENTRY ソース一式（2026-11-27T01:54:52.731Z）
+HARD ENTRY ソース一式（2026-11-27T03:38:43.838Z）
 復元: node tools/unbundle.mjs source-bundle.txt <出力先>
 （tools/unbundle.mjs がない場合は、下の "@@@@ FILE " の区切りごとにファイルへ書き出す。base64 と書かれたものはデコードする）
 
-@@@@ FILE DESIGN.md text 176917
+@@@@ FILE DESIGN.md text 177755
 # WAR BIT 設計メモ（旧 HARD ENTRY）
 
 ## 文脈が消えたら最初に読む
@@ -405,6 +405,7 @@ HARD ENTRY ソース一式（2026-11-27T01:54:52.731Z）
 - 11-26 WAR BIT 0.1.60: 22:38 壁にくっつく・リーン・伏せで中や向こう側が見える → 目を壁・天井・地面から 0.16m 離す（war/world.js の camClear）。22:39 階段でのっぺり → 面の向きで空の光を変える・屋内の天井を暗く・照り返し・窓からの日・中の壁の床ぎわ天井ぎわの陰・階段の踏む面とけこみの差と縁（research の 62）。22:40 乗り越えとジャンプ → 跳んで届く低い台には乗る・設定で分けられる（research の 60）。大規模戦の押し出しで段差が二重に効き 0.4〜0.7m の物を通り抜けていたのを直した。22:42 ADS の長押しで息止め・息止めボタンを設定で消せる。22:48 高い倍率の細かい狙い → 設定「スコープの細かい操作」（ゆっくり動かすと細かく）・高い倍率は揺れを少し小さく。22:50 下投げの輪はボタンのまん中が起点、22:51 選択メニューもボタンのまん中が起点（ボタンの縁を点線で出す）。22:56 リロード中はリロードのボタンに進みの輪。22:58 倒れている間の視点（体が回らない・見回す範囲・地面に入らない）。22:33 出撃の画面でスコア表・メニューを開いても試合は止まらない。22:35 出撃は分隊のビーコン（前の集合）と分隊の仲間からも・出る所は立てる所だけ（research の 61）。出撃の画面の仲間の印は動いても作り直さず位置だけ動かし、本陣・拠点の印の下に置く（作り直すと押した指が外れ、重なった仲間の印が選ばれていた）。22:31 伏せ → 向きを変える速さに上限 120°/s（本家で確かめられた分だけ。仰向け・伏せのリーン・自分の脚は未確認で入れない。research の 63）
 - 11-27 WAR BIT 0.1.61: 倒れた味方を引きずる（BattleBit の F。research の 65）: 倒れた味方の近くでは「拾う」のボタンが「引きずる」・引きずる間は「離す」（V）。1.4m/s まで・走れず撃てず（銃を下げる）・引きずりながら起こせる（drag.js）。対人地雷・クレイモアは撃たれると爆発し、届く距離・誘爆の距離・ダメージ・1 人 4 つまでを wiki に合わせた（research の 64）。倒れている間は、まわりをぐるっと見渡せるように戻した（0.1.60 で見回す角度を絞ったのは要望の読み違い。体が回らない・目が動かない・めり込まないのはそのまま）。倒れている間の画面は、撃つ・動かす類のボタン・照準・弾の数を隠し、GIVE UP・残り時間・地図・メニューだけ（03:54「本家のダウンに近い形で」）。出撃の予約（待ちの間に DEPLOY）は、もう一度押すとやめられる（04:01）。見回しの指が途中で効かなくなる（03:53）: 触れたままの指の記録がなくなっていても、画面の右側で動けばそこから見回しとして受け直す（fps の表示に「受け直し」の回数）。二脚（伏せる・物に載せると自動で立つ・揺れなし・反動 0.6 倍・照準の下に印）と、狙撃銃の 15・20・40 倍スコープ（research の 66）。重くなった・発熱（04:13）: 0.1.60 から大規模戦はメニューを開いても試合が進み、画面いっぱいの出撃の画面やメニューの下でも 3D を毎こま描いていた → 出撃の画面の間は描かない・メニューの間は 4 こまに 1 回。窓から差す日（中の面の画素ごとに影の地図を 4 回読む）は画質「高」だけ。いらない文字（04:13）: 大規模戦では、貼った C4 がない・できない理由（体力が満タンなど）・倒れた時の「救助待ち」・弾倉を拾った/いっぱい/まとめる・補給・手当て・弾薬箱/ビーコンを置いた の文字を出さない（音だけ）。起こした知らせは自分が関わる時だけ。弾薬箱（04:16「メイン武器の弾薬だけ。本家に合わせて」。research の 67）: 主の銃と拳銃をかわるがわる補給する（初めは手に持っている銃）・散弾銃の予備の弾も戻る・包帯と投げ物と道具は箱の別々の枠からそれぞれ戻る。長く遊んだ時の重さ: ブラウザで 8 分歩き回って 10 秒ごとに測り、メモリ（約 80MB）・DOM（909）・効果や状態の配列は増え続けない（1こまの計算は場所で 5〜13ms）。
 - 11-27 WAR BIT 0.1.62: ボットが建物に入る（04:09「AI 建物の中に入ってこない。まだまだ人間っぽくない」。research の 68）: 建物ごとの中の道（war/inav.js。0.5m の格子を階ごとに・階段でつなぐ・出入り口・窓・出入り口から行けない屋根の上は使わない）を、要る時に少しずつ作り（1 ステップ 12 区切りまで。量で区切るので同じ種なら毎回同じに動く）、外の道と出入り口でつなぐ。建物の中に隠れた敵は、最後に見た所（2 階も）まで階段を上って探しに行き、いなければ忘れる（組の片方か 20m より近い者・分隊の見つけた敵なら 40m まで）。拠点の近くの建物では、守る時は 4 割ほどが敵の来る方へ向いた窓から見張り、2 割ほどが円の中の建物にこもる。取りに来た時は 3 割ほどが円の中の建物に入る。建物の中で撃ち合う時は近くの窓を遮蔽物にして、のぞいて撃つ・しゃがんで隠れる（外の遮蔽物を探しに出ていかない）。点検: 2 階にこもった動かない敵を、0.1.61 のボットは 2 分で一度も探しに入らなかった → 0.1.62 は出入り口から入り階段を上って倒した。詰まり（ボットが進めない）: 橋の下の川床で橋脚に向かって止まり続けていた → 橋の下にいる時は橋脚でふさがった地図で道を作る・道が作り直され続けても 4 秒で 1.2m 動けなければ、同じ高さで歩ける向きへ抜け出す（中規模 5 分で詰まり 3.3% → 1.2%）。1 ステップの計算の重さは 0.1.61 と同じ（中規模 3.1ms）。建物の中の道探しは二分ヒープ（大きい建物で 8ms → 2ms 以下）・どの建物の中かは 16m の升目で引く。マップの形は試合をまたいで使い回すので、建物の道の作り終わりは試合ごとに数える（前の試合で作った道があっても、作るのと同じ区切りを数えるまで使わない。同じ種なら同じ結果）。中で敵を探す時、10m より近くなったら最後に見た所へ銃を向けて進む。
+- 11-27 WAR BIT 0.1.63: 爆発は味方に当たらない（BattleBit は味方撃ちなし。research の 69）。ボットの点検（中規模 5 分・tools の aiaudit）で、キル 112 のうち 16 が味方の手榴弾・RPG などの爆発だった → 0 に。自分の爆発は自分に当たる・よろめきと耳鳴りは味方にも。ほかの点検の数字（変えていない）: 遮蔽物でも守りの場所でもない所で 4 秒より長く止まっている 0.4%・味方と 1.5m 以内 3.7%（近い味方まで平均 8.4m）・撃った弾のうち動きながら 38%・遮蔽物から 39%・構えて 87%。引きずる人の見た目（ほかの人から）: 腰を少し落として前かがみになり、左手を倒れた人の胸元へ伸ばす・銃は右手で下げる（参加側にも送る）。
 - 次: WAR BIT M3（兵科の道具: 医療キットと蘇生・弾薬箱・RPG・双眼鏡の印・ラリーポイント、分隊の指示）→ M4（ボットの建物の中・中と大の重さ）→ オンライン（人どうし＋ボット）。オフィスの拡張（研究棟と渡り廊下）は途中まで作ってある（offx）。AI の弱いところ（後で）: 隊長役の AI は「移動の空振り」を続けての回数でなく通った回数で数えていて、何度も通る部屋（港の倉庫）をふさぐ（入れた部屋で数え直すやり方は、途中まで比べたところ、ほかのマップで終わるのが遅くなり完了も増えなかったので、別のやり方を試す）。小さい部屋の中から外へ突入すると、入った隊員が向こう側にいる味方に詰まり、突入した扉を自分で閉めて戻る、をくり返す（ガソリンスタンドの2階の物置）。
 
 @@@@ FILE dev/kitworld.mjs text 2163
@@ -6863,7 +6864,7 @@ export function applyBarsNet(S, w, BR) {
   return changed;
 }
 
-@@@@ FILE src/engine/combat.js text 34855
+@@@@ FILE src/engine/combat.js text 35077
 // 弾と当たり: 弾丸は速さと重力を持ち、1ステップごとの線分で当たりを調べる。材質を貫通して弱まる（RoNの式）。
 // ダメージは PvE（RoN換算・防具・負傷・出血）と PvP（R6寄り・頭は即死・手足75%・ダウン）の2系統。
 import { raycast, CS, LH, levelOfY, glassPane } from './world.js';
@@ -6895,9 +6896,11 @@ export function poseInput(a, o = {}) {
   o.fire = a.fireK || 0; o.state = poseState(a); o.stateT = a.stateT; o.fallYaw = a.fallYaw; o.seed = a.look ? a.look.seed : 0; o.throwT = a.throwT;
   // 動作（拘束・作業・拾う・無線…）とその進み、手の行き先（体の向きの座標）
   const x = a.act;
-  o.act = x ? (x.pose || ACT_POSE[x.k] || null) : a.peek ? 'peek' : null;
-  o.actT = x ? Math.min(1, x.t / Math.max(0.05, x.dur)) : a.peek ? 1 : 0;
-  o.actP = toLocal(a, x ? x.tgt : a.peek ? [a.peek.x, a.peek.y, a.peek.z] : null, o.actP);
+  // 引きずる（大規模戦）: 左手を倒れた人の胸元へ（dragPt は drag.js が毎ステップ置く）。銃は下げる
+  o.act = x ? (x.pose || ACT_POSE[x.k] || null) : a.peek ? 'peek' : a.dragPt ? 'drag' : null;
+  o.actT = x ? Math.min(1, x.t / Math.max(0.05, x.dur)) : a.peek ? 1 : a.dragPt ? 0.5 : 0;
+  o.actP = toLocal(a, x ? x.tgt : a.peek ? [a.peek.x, a.peek.y, a.peek.z] : a.dragPt || null, o.actP);
+  if (o.act === 'drag') o.low = 1;
   o.gest = a.gest ? a.gest.k : null; o.gestT = a.gest ? Math.min(1, a.gest.t / a.gest.dur) : 0;
   o.gestP = toLocal(a, a.gest ? a.gest.tgt : null, o.gestP);
   o.cuffT = a.cuffK || 0;
@@ -7807,7 +7810,7 @@ export const PROPS = {
 
 @@@@ FILE src/engine/data/version.js text 207
 // 版番号: 互換（セーブ・オンラインの相性。上げたら古いセーブは捨てる）と表示用
-export const VERSION = '0.1.62';
+export const VERSION = '0.1.63';
 export const COMPAT = 9;
 export const TITLE = 'WAR BIT';
 
@@ -8663,7 +8666,7 @@ export function detonateC2(S, w, did, ev) {
   return true;
 }
 
-@@@@ FILE src/engine/drag.js text 2609
+@@@@ FILE src/engine/drag.js text 2880
 // 倒れた味方を引きずる（大規模戦。BattleBit: 倒れた味方を見て F。引きずりながら動けるが遅い。引きずりながら起こし始められる）
 // research/WARBIT.md の 65。速さ・つなぐ長さは推測（本家の数字は見つからなかった）
 //  - 引きずる人: 走れず撃てず構えられない。速さ 1.4m/s まで
@@ -8678,6 +8681,7 @@ export function startDrag(S, a, b, off, ev) {
   if (a.drag != null) stopDrag(S, a, ev);
   if (b.dragBy != null) { const o = S.byId[b.dragBy]; if (o) stopDrag(S, o, ev); }
   a.drag = b.id; b.dragBy = a.id; a.dragOff = off || [0, 0];
+  a.dragPt = [b.x + a.dragOff[0], b.y + 0.3, b.z + a.dragOff[1]];
   a.sprint = false; a.adsOn = false;
   if (ev) ev.push({ e: 'drag', id: a.id, tgt: b.id, on: true });
 }
@@ -8685,7 +8689,7 @@ export function stopDrag(S, a, ev) {
   const b = a.drag != null ? S.byId[a.drag] : null;
   if (b && b.dragBy === a.id) b.dragBy = null;
   if (a.drag != null && ev) ev.push({ e: 'drag', id: a.id, tgt: b ? b.id : -1, on: false });
-  a.drag = null; a.dragOff = null;
+  a.drag = null; a.dragOff = null; a.dragPt = null;
 }
 
 const _po = [0, 0, 0];
@@ -8697,6 +8701,9 @@ export function stepDrag(S, w, ev) {
     if (!a.alive || a.down || a.dead || !b || !b.alive || !b.down || b.dragBy !== a.id) { stopDrag(S, a, ev); continue; }
     const off = a.dragOff || [0, 0];
     const tx = b.x + off[0], tz = b.z + off[1];
+    // 見た目: 引きずる人の左手の行き先（倒れた人の胸元）
+    if (!a.dragPt) a.dragPt = [0, 0, 0];
+    a.dragPt[0] = tx; a.dragPt[1] = b.y + 0.3; a.dragPt[2] = tz;
     const dx = a.x - tx, dz = a.z - tz, d = Math.hypot(dx, dz);
     if (d > DRAG.max || Math.abs(a.y - b.y) > 1.2) { stopDrag(S, a, ev); continue; }
     if (d <= DRAG.len) continue;
@@ -14283,7 +14290,7 @@ function pushLeaves(S, w, a, vx, vz, dt) {
   }
 }
 
-@@@@ FILE src/engine/nades.js text 20324
+@@@@ FILE src/engine/nades.js text 20555
 // 投げ物と爆発: 閃光・スティンガー・CSガス・罠（破片）・C2・壁用の爆破薬。ガスの雲。
 import { raycast, los, CS, LH, levelOfY, NB } from './world.js';
 import { hrand } from './rng.js';
@@ -14547,6 +14554,8 @@ export function stepBlasts(S, w, dt, ev) {
       const k = Math.pow(1 - d / b.r, b.fall || 1.3);
       const dmg = b.dmg * k;
       a.stun = Math.max(a.stun, 1.5 * k + 0.5); a.deaf = Math.max(a.deaf, 4);
+      // 大規模戦は味方に当たらない（BattleBit は味方撃ちなし。爆発も。自分の爆発では自分も傷つく。research の 69）
+      if (S.war && by && a.team === by.team && a.id !== by.id) continue;
       if (S.pvp) pvpDamage(S, a, dmg, by, 'chest', a.x - b.x, a.z - b.z, ev, 'blast');
       else {
         let dd = dmg;
@@ -14598,7 +14607,7 @@ export function stepBlasts(S, w, dt, ev) {
   }
 }
 
-@@@@ FILE src/engine/pose.js text 31187
+@@@@ FILE src/engine/pose.js text 31744
 // 人の骨の位置（手続きアニメ）。当たり判定（エンジン）と描画（レンダラー）で同じものを使う。
 // 体の向き: ローカルで +Z が前、+Y が上、+X が左。世界へは yaw で回す（前 = (sin yaw, 0, cos yaw)）。
 // 関節の位置を直接決め（足と腕は2本の骨のIK）、骨の向きは「始点→終点」と前向きのヒントから作る。
@@ -14736,6 +14745,8 @@ export function computePose(p, out) {
   if (act === 'grab') torsoBend += 0.45 * Math.sin(Math.PI * clamp((actT - 0.05) / 0.8, 0, 1));
   if (act === 'place') torsoBend += 0.08 * reachK;
   if (act === 'kick') torsoBend -= 0.16 * kickExt;
+  // 引きずる: 腰を少し落として前かがみ（低い所の襟をつかむ）
+  if (act === 'drag') { torsoBend += 0.3; pelvisY -= 0.1 * s; }
   // ローカルでの関節
   const fwd = v3(0, 0, 1), up = v3(0, 1, 0), left = v3(1, 0, 0);
   let P = v3(0, pelvisY, 0);
@@ -14890,6 +14901,13 @@ export function computePose(p, out) {
       const off = sub(tgt, shL), dl = len(off), maxR = (ua + fa) * 0.97;
       if (dl > maxR) tgt = madd(shL, off, maxR / dl);
       wristL = lerp3(wristL, tgt, reachK); handDirL = norm(lerp3(handDirL, norm(off), reachK)); elbowHintL = norm(lerp3(elbowHintL, v3(1, -0.6, 0), reachK));
+    }
+    // 引きずる: 左手を倒れた人の胸元へ（届く所まで伸ばす）。銃は右手で下げたまま
+    if (act === 'drag' && aP) {
+      let tgt = v3(aP[0], aP[1], aP[2]);
+      const off = sub(tgt, shL), dl = len(off), maxR = (ua + fa) * 0.97;
+      if (dl > maxR) tgt = madd(shL, off, maxR / dl);
+      wristL = tgt; handDirL = norm(off); elbowHintL = norm(v3(1, -0.3, -0.5));
     }
     // 扉を開ける・閉める: 左手をノブへ伸ばして戻す（銃は右手）
     if ((p.gest === 'push' || p.gest === 'grab') && p.gestP) {
@@ -17510,7 +17528,7 @@ export class GuestSession {
   }
 }
 
-@@@@ FILE src/net/snap.js text 23866
+@@@@ FILE src/net/snap.js text 24150
 // 通信の中身: ホストのエンジンの状態 → 小さな写し（数を丸めた配列）。ゲストは写しから「見せるための状態」を作る。
 // 静かな情報（名前・見た目・装備の種類・目的の一覧）は st、動く情報（位置・姿勢・扉・物・出来事）は g。
 import { createActor, makeWeapon } from '../engine/actor.js';
@@ -17612,12 +17630,12 @@ export function packSnap(S, w, events, mePids, withBlocks) {
   return out;
 }
 // 動作の見た目（ほかの人の拘束・作業・ノブ・押す）: 体の動きの種類・進み・手の行き先、拘束されている進み
-const ACTS = ['', 'cuff', 'kneel', 'grab', 'place', 'radio', 'bandage', 'kick', 'knob', 'peek'];
+const ACTS = ['', 'cuff', 'kneel', 'grab', 'place', 'radio', 'bandage', 'kick', 'knob', 'peek', 'drag'];
 function actRow(a) {
   const x = a.act, g = a.gest;
-  const ap = x ? (x.pose || ACT_POSE[x.k] || '') : a.peek ? 'peek' : '';
-  const tg = x && x.tgt ? x.tgt : a.peek ? [a.peek.x, a.peek.y, a.peek.z] : null;
-  return [ACTS.indexOf(ap), x ? Math.round(100 * Math.min(1, x.t / Math.max(0.05, x.dur))) : 0, tg ? r2(tg[0]) : 0, tg ? r2(tg[1]) : 0, tg ? r2(tg[2]) : 0,
+  const ap = x ? (x.pose || ACT_POSE[x.k] || '') : a.peek ? 'peek' : a.dragPt ? 'drag' : '';
+  const tg = x && x.tgt ? x.tgt : a.peek ? [a.peek.x, a.peek.y, a.peek.z] : a.dragPt || null;
+  return [ACTS.indexOf(ap), x ? Math.round(100 * Math.min(1, x.t / Math.max(0.05, x.dur))) : ap === 'drag' ? 50 : 0, tg ? r2(tg[0]) : 0, tg ? r2(tg[1]) : 0, tg ? r2(tg[2]) : 0,
     g ? (g.k === 'push' ? 1 : 2) : 0, g ? Math.round(100 * Math.min(1, g.t / g.dur)) : 0, g && g.tgt ? r2(g.tgt[0]) : 0, g && g.tgt ? r2(g.tgt[1]) : 0, g && g.tgt ? r2(g.tgt[2]) : 0,
     Math.round(100 * (a.cuffK || 0))];
 }
@@ -17718,7 +17736,9 @@ export class Mirror {
         // 動作の見た目
         if (r1.length > 25) {
           const ap = ACTS[r1[25]] || '';
-          a.act = ap && ap !== 'peek' ? { k: '_net', pose: ap, t: r1[26] / 100, dur: 1, tgt: [r1[27] / 100, r1[28] / 100, r1[29] / 100] } : null;
+          a.act = ap && ap !== 'peek' && ap !== 'drag' ? { k: '_net', pose: ap, t: r1[26] / 100, dur: 1, tgt: [r1[27] / 100, r1[28] / 100, r1[29] / 100] } : null;
+          // 引きずる: 動作ではなく手の行き先だけ（参加側の HUD は自分の dg で決まる）
+          a.dragPt = ap === 'drag' ? [r1[27] / 100, r1[28] / 100, r1[29] / 100] : null;
           a.peek = ap === 'peek' ? { x: r1[27] / 100, y: r1[28] / 100, z: r1[29] / 100, k: 'mirror' } : null;
           a.gest = r1[30] ? { k: r1[30] === 1 ? 'push' : 'grab', t: r1[31] / 100, dur: 1, tgt: [r1[32] / 100, r1[33] / 100, r1[34] / 100] } : null;
         }
@@ -33669,7 +33689,7 @@ export async function runTests(filter) {
   return res;
 }
 
-@@@@ FILE tests/run_all.mjs text 103066
+@@@@ FILE tests/run_all.mjs text 103307
 // テスト一式: node tests/run_all.mjs [--quick] [--no-sizes] → test-results/summary.md
 //  1 ビルド  2 単体  3 マップ（WAR BIT: 本陣・拠点・出撃の場所が範囲の中・本陣から拠点まで歩ける）  4 音
 //  5 自動の試合（コンクエスト・ドミネーション・TDM をボットだけで最後まで・同じシードで同じ結果・人数ごとの速さ）
@@ -34565,7 +34585,8 @@ try {
   // メニューの再出撃（11-19 18:16）: 生きている間は REDEPLOY がある
   {
     const t0 = await page.evaluate(() => { window.__app.pauseGame(); return window.__app.game.S.t; });
-    await page.waitForTimeout(800);
+    // 進むのを待つ（描画の遅い環境では 0.8 秒で数こましか進まないことがある。止まっていれば 10 秒たっても進まない）
+    await page.waitForFunction((t) => window.__app.game.S.t > t + 5, t0, { timeout: 10000 }).catch(() => {});
     const hasRd = await page.evaluate(() => !!document.querySelector('[data-a="redeploy"]'));
     const t1 = await page.evaluate(() => window.__app.game.S.t);
     await page.evaluate(() => window.__app.resumeGame());
@@ -37236,7 +37257,7 @@ test('穴を開けたとき、描く塊ごとの物の表は変わった物だ�
   restoreWorld(ww);
 });
 
-@@@@ FILE tests/unit/war_drag.test.mjs text 4049
+@@@@ FILE tests/unit/war_drag.test.mjs text 5388
 // 11-27: 倒れた味方を引きずる（BattleBit の F）。引きずる人は遅く（1.4m/s まで）・撃てず・走れない。もう一度押すと離す
 import { test, ok, eq } from '../lib/t.mjs';
 import { createGame, step } from '../../src/engine/engine.js';
@@ -37244,6 +37265,8 @@ import { pvpDamage } from '../../src/engine/combat.js';
 import { heightAt } from '../../src/war/world.js';
 import { personPoint } from '../../src/engine/interact.js';
 import { DRAG } from '../../src/engine/drag.js';
+import { poseInput } from '../../src/engine/combat.js';
+import { computePose, NBONE } from '../../src/engine/pose.js';
 
 const idle = (a, o = {}) => Object.assign({ mx: 0, mz: 0, yaw: a.yaw, pitch: 0, stance: 0, lean: 0, sprint: false, fire: false, ads: false, act: null }, o);
 function setup() {
@@ -37303,6 +37326,26 @@ test('引きずる人が倒れると離す', () => {
   pvpDamage(S, me, me.hp + 5, null, 'chest', 0, 1, [], 'bullet');
   step(G, {});
   ok(me.drag == null && mate.dragBy == null, '離した');
+});
+
+test('引きずる人の見た目: 左手が倒れた人の胸元へ下りる・銃は下げる（ほかの人の画面にも送る）', async () => {
+  const { G, S, me, mate } = setup();
+  const B = new Float32Array(NBONE * 12);
+  computePose(poseInput(me, {}), B);
+  const hand0 = B[7 * 12 + 1] - me.y;
+  step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'drag' }] }) });
+  ok(me.drag === mate.id && me.dragPt, '引きずり中・手の行き先');
+  const p = poseInput(me, {});
+  ok(p.act === 'drag' && p.low === 1, '動作 drag・銃を下げる ' + p.act + ' ' + p.low);
+  computePose(p, B);
+  const hand1 = B[7 * 12 + 1] - me.y;
+  ok(hand1 < hand0 - 0.15, '左手が下がる ' + hand0.toFixed(2) + '→' + hand1.toFixed(2));
+  // 送る形: ほかの人の画面でも drag の動作になる
+  const { packSnap } = await import('../../src/net/snap.js');
+  const sn = packSnap(S, G.w, [], [me.pid], false), row = sn.A.find(r => r[0] === me.id);
+  ok(row && row[25] === 10, '送る形に drag（10）' + (row ? row[25] : '-'));
+  step(G, { [me.id]: idle(me, { act: [{ a: 'op', k: 'person', id: mate.id, op: 'drag' }] }) });
+  ok(me.drag == null && !me.dragPt, '離すと戻る');
 });
 
 @@@@ FILE tests/unit/war_engine.test.mjs text 9079
@@ -37611,6 +37654,28 @@ test('敵に印（spot）: 狙っている向きの見えている敵に印が�
   ok(ev.some(e => e.e === 'spot' && e.id === foe.id), '狙った敵に印');
   const sp = (S.m.spots || []).find(q => q.id === foe.id);
   ok(sp && sp.team === me.team && Math.abs((sp.until - S.t) * S.dt - SPOT_T) < 0.1, `印は ${SPOT_T} 秒`);
+});
+
+@@@@ FILE tests/unit/war_friendly.test.mjs text 1461
+// 大規模戦は味方撃ちなし（BattleBit: Steam の掲示板「Currently there is no friendly fire」）。爆発も味方には当たらない。自分の爆発は自分に当たる
+import { test, ok } from '../lib/t.mjs';
+import { createGame, step } from '../../src/engine/engine.js';
+import { heightAt } from '../../src/war/world.js';
+
+test('爆発（手榴弾・RPG・C4・地雷）は味方を傷つけない・敵と自分は傷つく', () => {
+  const G = createGame({ map: 'riverbend', mode: 'war', size: 'small', seed: 3, bots: true, per: 3 }); step(G, {});
+  const S = G.S, me = S.actors[0];
+  const mate = S.actors.find(b => b.team === me.team && b !== me), foe = S.actors.find(b => b.team !== me.team);
+  for (const b of S.actors) if (b !== me && b !== mate && b !== foe) { b.alive = false; b.dead = true; }
+  for (const b of [mate, foe]) b.ai = null;
+  const put = (b, x, z) => { b.x = x; b.z = z; b.y = heightAt(G.w, x, z); b.vx = b.vz = 0; };
+  put(me, 790, 690); put(mate, 792, 690); put(foe, 790, 692);
+  const hp0 = [me.hp, mate.hp, foe.hp];
+  S.blasts.push({ x: 791, y: me.y + 0.3, z: 690.8, r: 6, dmg: 60, fall: 0.7, kind: 'frag', by: me.id, t: 0 });
+  step(G, {});
+  ok(mate.hp === hp0[1] && mate.alive && !mate.down, '味方は無傷 ' + hp0[1] + '→' + mate.hp);
+  ok(foe.hp < hp0[2] || foe.down, '敵は傷つく ' + hp0[2] + '→' + foe.hp);
+  ok(me.hp < hp0[0] || me.down, '自分も傷つく ' + hp0[0] + '→' + me.hp);
 });
 
 @@@@ FILE tests/unit/war_glass.test.mjs text 3653
@@ -39353,6 +39418,49 @@ test('world: 扉は閉じていると視線を止め、開くと通す', () => {
 
 @@@@ FILE tools/__pycache__/asr.cpython-313.pyc base64 10242
 8w0NCgAAAAAp5uNqWBEAAOMAAAAAAAAAAAAAAAAJAAAAAAAAAPMcAQAAlQBTAFMBSwByAFMAUwFLAXIBUwBTAUsCcgJTAFMBSwNyA1MAUwFLBHIFUwBTAUsGcgdTAnIIUwNyCVMEcgpTBXILUwZyDFMHGgByDVwIXAlcCzQDUwgaAGoBcg5cDiIANQAAAAAAAAByD1MJGgByEBgAIgBTChoAUws1AgAAAAAAAHIRXBJTDDpYAABhRQAAXBEiAFwAUiYAAAAAAAAAAAAAAAAAAAAAAABTDQUAAAA1AQAAAAAAAHIUXABSJgAAAAAAAAAAAAAAAAAAAAAAAFMOUwEEABMASBwAAHIVXBYiAFwVUw8tAAAAXBQiAFwNIgBcFTUBAAAAAAAANQEAAAAAAAAtAAAAUxBTETkCIABNHgAACwAgAGcBZwEpEukAAAAATmmAPgAAaZABAADpoAAAAOlQAAAAabgLAABjAQAAAAAAAAAAAAAACAAAAAMAAADzBAMAAJUAWwAAAAAAAAAAAFICAAAAAAAAAAAAAAAAAAAAAAAAIgBVADUBAAAAAAAAbxFSBQAAAAAAAAAAAAAAAAAAAAAAADUAAAAAAAAAbyFSBwAAAAAAAAAAAAAAAAAAAAAAADUAAAAAAAAAbzFSCQAAAAAAAAAAAAAAAAAAAAAAADUAAAAAAAAAbgRbCgAAAAAAAAAAUgwAAAAAAAAAAAAAAAAAAAAAAAAiAFUBUg8AAAAAAAAAAAAAAAAAAAAAAABVAVIRAAAAAAAAAAAAAAAAAAAAAAAANQAAAAAAAAA1AQAAAAAAAFsKAAAAAAAAAABSEgAAAAAAAAAAAAAAAAAAAAAAAFsKAAAAAAAAAABSFAAAAAAAAAAAAAAAAAAAAAAAAFMBLgJVBAUAAABTAjkCUhcAAAAAAAAAAAAAAAAAAAAAAABbCgAAAAAAAAAAUhgAAAAAAAAAAAAAAAAAAAAAAAA1AQAAAAAAAG4FWFRTAzpYAABhAgAAUwRPAVMFLRgAAG4FVQNTBjqUAABhIQAAVQVSGwAAAAAAAAAAAAAAAAAAAAAAAFMHVQM1AgAAAAAAAFIdAAAAAAAAAAAAAAAAAAAAAAAAUwY1AQAAAAAAAG4FVQJbHgAAAAAAAAAAOncAAGGOAABbCgAAAAAAAAAAUiAAAAAAAAAAAAAAAAAAAAAAAAAiAFsjAAAAAAAAAABbJQAAAAAAAAAAVQU1AQAAAAAAAFseAAAAAAAAAAAtBQAAVQItCwAANQEAAAAAAAA1AQAAAAAAAFUCLQUAAFseAAAAAAAAAAAtCwAAbgZbCgAAAAAAAAAAUiYAAAAAAAAAAAAAAAAAAAAAAAAiAFUGWwoAAAAAAAAAAFIgAAAAAAAAAAAAAAAAAAAAAAAAIgBbJQAAAAAAAAAAVQU1AQAAAAAAADUBAAAAAAAAVQU1AwAAAAAAAFIXAAAAAAAAAAAAAAAAAAAAAAAAWwoAAAAAAAAAAFIYAAAAAAAAAAAAAAAAAAAAAAAANQEAAAAAAABuBVUFJAApCE4pAukCAAAA6QQAAACpAdoFZHR5cGVyBgAAAGcAAAAAAADgQGcAAAAAAADgQekBAAAA6f////8pFNoEd2F2ZdoEb3BlbtoMZ2V0ZnJhbWVyYXRl2gxnZXRuY2hhbm5lbHPaDGdldHNhbXB3aWR0aNoCbnDaCmZyb21idWZmZXLaCnJlYWRmcmFtZXPaCmdldG5mcmFtZXPaBWludDE22gVpbnQzMtoGYXN0eXBl2gdmbG9hdDMy2gdyZXNoYXBl2gRtZWFu2gJTUtoGYXJhbmdl2gNpbnTaA2xlbtoGaW50ZXJwKQfaAXDaAXfaAnNy2gJjaNoCc3faAXjaAXRzBwAAACAgICAgICDaIy9ob21lL2NsYXVkZS9oYXJkZW50cnkvdG9vbHMvYXNyLnB52ghsb2FkX3dhdnIoAAAACgAAAHMDAQAAgADcCAyPCYoJkCGLDIBBnz6ZPtMbK5Bity6xLtMyQqhSzx7JHtNJWcBC3AgKjw2KDZBhl2yRbKAxpzyhPKM+0xYyvGK/aLlozDLPOMk40TpU0FVX0TpY0QhZ1whg0Qhg1GFj12Fr0WFr0whsgEHYBAWYIZNHiRegHNEELYBB2AcJiEGDdpAxlzmROZhSoBLTEyTXEynREymoIdMTLIhx2AcJjFKDeNwMDo9JikmUY5wjmGGbJqQymSuoAtEaKtMWK9MMLKhy0QwxtELRDDaIAdwMDo9JikmQYZwSnxmaGaQzoHGjNtMZKqhB0wwu1ww10Qw1tGK3arFq0wxBiAHYCwyASPMAAAAAYwMAAAAAAAAAAAAAAAkAAAADAAAA82gCAACVAFMBGgBuA1MCGgBuBFsAAAAAAAAAAABSAgAAAAAAAAAAAAAAAAAAAAAAACIAUwNVAFMELQsAAFMFVQFTBC0CAAAtAAAANQMAAAAAAABuBVUEIgBbAAAAAAAAAAAAUgIAAAAAAAAAAAAAAAAAAAAAAAAiAFUDIgBTAzUBAAAAAAAAVQMiAFUAUwQtCwAANQEAAAAAAABVAlMELQAAADUDAAAAAAAANQEAAAAAAABuBlsAAAAAAAAAAABSBAAAAAAAAAAAAAAAAAAAAAAAACIAVQY1AQAAAAAAAG92UwBTADICUwA0AgUAAABVBVMAUwBTADICNAIFAAAALQoAAG4IWwAAAAAAAAAAAFIGAAAAAAAAAAAAAAAAAAAAAAAAIgBVAlsJAAAAAAAAAABVBTUBAAAAAAAANAI1AQAAAAAAAG4JWwsAAAAAAAAAAFUCNQEAAAAAAAATAEhJAABuCliKBQAAACoAWHoFAAAALQsAAG+4VQpTBC0AAAAFAAAAWHpTBS0AAAAFAAAALQsAAG4MWwAAAAAAAAAAAFIMAAAAAAAAAAAAAAAAAAAAAAAAIgBTA1sAAAAAAAAAAABSDgAAAAAAAAAAAAAAAAAAAAAAACIAWLw1AgAAAAAAADUCAAAAAAAAWJonAAAATUsAAAsAIABTBlUGUwRVAlMELQAAAAQAVQZTAFUCBAAtCgAALQsAAG/ZVQ1TAFMAMgJTADQCBQAAAC0SAABuCVUJUhEAAAAAAAAAAAAAAAAAAAAAAABbAAAAAAAAAAAAUhIAAAAAAAAAAAAAAAAAAAAAAAA1AQAAAAAAACQAKQdOYwEAAAAAAAAAAAAAAAoAAAATAAAA8x4BAACVAFsAAAAAAAAAAABSAgAAAAAAAAAAAAAAAAAAAAAAACIAVQBbAAAAAAAAAAAAUgQAAAAAAAAAAAAAAAAAAAAAAABTATkCbwBTAi0LAABuAVUAUwM6rAAAbgJbAAAAAAAAAAAAUgYAAAAAAAAAAAAAAAAAAAAAAAAiAFUCUwRbAAAAAAAAAAAAUggAAAAAAAAAAAAAAAAAAAAAAAAiAFsAAAAAAAAAAABSCgAAAAAAAAAAAAAAAAAAAAAAACIAVQBTBTUCAAAAAAAAUwMtCwAANQEAAAAAAABbAAAAAAAAAAAAUggAAAAAAAAAAAAAAAAAAAAAAAAiAFMGNQEAAAAAAABTBy0LAAAtCwAALQAAAFUBNQMAAAAAAABvESQAKQhOcggAAADnq6qqqqqqUEDnAAAAAABAj0DnAAAAAAAALkDnu73X2d982z3nmpmZmZmZGUDnAAAAAAAAO0ApBnIRAAAA2gdhc2FycmF52gdmbG9hdDY02gV3aGVyZdoDbG9n2gdtYXhpbXVtKQPaAWbaAW1yNQAAAHMDAAAAICAgcicAAADaCWh6X3RvX21lbNoebWVsX2ZpbHRlcnMuPGxvY2Fscz4uaHpfdG9fbWVsFgAAAHNxAAAAgADcDA6PSopKkHGkAqcKoQrRDCuIAbBpsR+oUdgOD5A2iWuIA5xyn3iaeKgDqFS0QrdGska8Mr86ujrAYcgV0ztP0FJY0TtY0zRZ1F1f111j0l1j0GRn011o0Gtv0V1v0TRw0S1w0HJz0x90mDHQdn5yKQAAAGMBAAAAAAAAAAAAAAAJAAAAEwAAAPP0AAAAlQBbAAAAAAAAAAAAUgIAAAAAAAAAAAAAAAAAAAAAAAAiAFUAWwAAAAAAAAAAAFIEAAAAAAAAAAAAAAAAAAAAAAAAUwE5Am8AUwItBQAAbgFVAFMDOqwAAG4CWwAAAAAAAAAAAFIGAAAAAAAAAAAAAAAAAAAAAAAAIgBVAlMEWwAAAAAAAAAAAFIIAAAAAAAAAAAAAAAAAAAAAAAAIgBbAAAAAAAAAAAAUgoAAAAAAAAAAAAAAAAAAAAAAAAiAFMFNQEAAAAAAABTBi0LAABVAFMDLQoAAC0FAAA1AQAAAAAAAC0FAABVATUDAAAAAAAAbxEkACkHTnIIAAAAciwAAAByLgAAAHItAAAAcjAAAAByMQAAACkGchEAAAByMgAAAHIzAAAAcjQAAADaA2V4cHI1AAAAKQNyOAAAAHI3AAAAcjUAAABzAwAAACAgIHInAAAA2gltZWxfdG9faHraHm1lbF9maWx0ZXJzLjxsb2NhbHM+Lm1lbF90b19oehkAAABzYQAAAIAA3AwOj0qKSpBxpAKnCqEK0QwriAGwabEfqFHYDg+QNIlpiAOcUp9YmligY6g2tEK3RrJGvEK/RrpGwDO7S8gk0TxO0FNU0Fdb0VNb0Ttc0zRd0Std0F9g0x1hmBHQY2tyKQAAAHICAAAAcgYAAAByCgAAAGcAAAAAAAAAQCkKchEAAADaCGxpbnNwYWNl2gRkaWZm2gV6ZXJvc3IeAAAA2gVyYW5nZXI2AAAA2gdtaW5pbXVtchcAAAByGAAAACkOciIAAADaBW5fZmZ02gZuX21lbHNyOQAAAHI9AAAA2gVmZnRfZtoFbWVsX2baAmZk2gVyYW1wc3IhAAAA2gFp2gJsb9oCaGnaBWVub3Jtcw4AAAAgICAgICAgICAgICAgIHInAAAA2gttZWxfZmlsdGVyc3JOAAAAFAAAAHMjAQAAgADyBAIFfwHyBgIFbAH0BgAND49LikuYAZgyoAGZNqAxoHWwAaF6oT7TDDKARdkMFZRil2uSa6EpqEGjLLEJuCK4cbkm0zBBwDbIQcE60xZO0wxPgEXcCQuPF4oXkBWLHoBConGoJKB3oR6wJbgEumG4B7Eu0SFAmBXcCAqPCIoIkCacI5hlmyrQESXTCCaAQdwNEpA2jl2IAdgOE4loiFmYEpkV0Q0eiAKoMahxqTWhXLBCuDGxdbFJ0SU9oALcDxGPeop6mCGcUp9amlqoAtMdL9MPMIgBiwTxBQAOG/AGAA0QkDWYEZg2oEGZOtATJqgVqHewBqge0RM30Qw4gEW4dcJRyATAV7l+0TpNuCHYCwyPOIk4lEKXSpFK0wsf0AQfcikAAABjAQAAAAAAAAAAAAAACQAAAAMAAADzOgQAAJUAWwAAAAAAAAAAAFICAAAAAAAAAAAAAAAAAAAAAAAAIgBVAFsEAAAAAAAAAABTAS0CAABbBAAAAAAAAAAAUwEtAgAANAJTAlMDOQNuAFsAAAAAAAAAAABSBgAAAAAAAAAAAAAAAAAAAAAAACIAWwQAAAAAAAAAAFMELQAAADUBAAAAAAAAUwBTBQQAUgkAAAAAAAAAAAAAAAAAAAAAAABbAAAAAAAAAAAAUgoAAAAAAAAAAAAAAAAAAAAAAAA1AQAAAAAAAG4BUwRbDQAAAAAAAAAAVQA1AQAAAAAAAFsEAAAAAAAAAAAtCgAAWw4AAAAAAAAAAC0CAAAtAAAAbgJbAAAAAAAAAAAAUhAAAAAAAAAAAAAAAAAAAAAAAAAiAFsTAAAAAAAAAABVAjUBAAAAAAAAEwBWA3MCLwBzAhMASB8AAG8wVQNbDgAAAAAAAAAALQUAAFUDWw4AAAAAAAAAAC0FAABbBAAAAAAAAAAALQAAAAQAVQEtBQAAUAJNIQAACwAgAHMCbgM1AQAAAAAAAG4EWwAAAAAAAAAAAFIUAAAAAAAAAAAAAAAAAAAAAAAAIgBbAAAAAAAAAAAAUhYAAAAAAAAAAAAAAAAAAAAAAABSGQAAAAAAAAAAAAAAAAAAAAAAAFUEUwRTBjkCNQEAAAAAAABTAS0IAABuBVUFUhoAAAAAAAAAAAAAAAAAAAAAAABTBwUAAABTBDqUAABhBQAAVQVTAFMFBABPAVUFbgVbHAAAAAAAAAAAVQVSHgAAAAAAAAAAAAAAAAAAAAAAAC0EAABuBlsAAAAAAAAAAABSIAAAAAAAAAAAAAAAAAAAAAAAACIAWwAAAAAAAAAAAFIiAAAAAAAAAAAAAAAAAAAAAAAAIgBVBlMINQIAAAAAAAA1AQAAAAAAAG4HWwAAAAAAAAAAAFIiAAAAAAAAAAAAAAAAAAAAAAAAIgBYd1IlAAAAAAAAAAAAAAAAAAAAAAAANQAAAAAAAABTCS0KAAA1AgAAAAAAAG4HVQdTCi0AAABTCi0LAABuB1UHUhoAAAAAAAAAAAAAAAAAAAAAAABTBAUAAABbJgAAAAAAAAAAOhIAAGFPAABbAAAAAAAAAAAAUgIAAAAAAAAAAAAAAAAAAAAAAAAiAFUHUwtTB1smAAAAAAAAAABVB1IaAAAAAAAAAAAAAAAAAAAAAAAAUwQFAAAALQoAADQCNAJVB1IoAAAAAAAAAAAAAAAAAAAAAAAAKAAAAAAAAABhEAAAVQdSKwAAAAAAAAAAAAAAAAAAAAAAADUAAAAAAAAATwFTB1MMOQNuB1UHUwBTADICUwBbJgAAAAAAAAAAMgI0AgUAAABSCQAAAAAAAAAAAAAAAAAAAAAAAFsAAAAAAAAAAABSCgAAAAAAAAAAAAAAAAAAAAAAADUBAAAAAAAAJABzAiAAcwJuA2YAKQ1OcgYAAADaB3JlZmxlY3QpAdoEbW9kZXIKAAAAcgsAAAApAdoEYXhpc3ICAAAAci8AAABnAAAAAAAAIEBnAAAAAAAAEEApAnICAAAAcgIAAAApAdoPY29uc3RhbnRfdmFsdWVzKRZyEQAAANoDcGFk2gVOX0ZGVNoHaGFubmluZ3IXAAAAchgAAAByHgAAANoDSE9Q2gVzdGFja3JCAAAA2gNhYnPaA2ZmdNoEcmZmdNoFc2hhcGXaA01FTNoBVNoFbG9nMTByNgAAANoDbWF42ghOX0ZSQU1FU9oEc2l6ZdoDbWluKQhyJQAAANoDd2lu2gFuckoAAADaAmZy2gRzcGVj2gNtZWzaAmxncwgAAAAgICAgICAgIHInAAAA2gdsb2dfbWVscmoAAAAnAAAAc6EBAACAANwICo8GigaIcZQ1mEGROpx1qAGZetASKrAZ0Qg7gEHcCgyPKooqlFWYUZFZ0wofoAOgEtAKJNcKK9EKK6xCr0qpStMKN4BD2AgJjFOQEYtWlGWJXqQD0Qwj0QgjgEHcCQuPGIoYvFXAMbxY0xJGuli4AZBRnBORV5hRpBOZV6R1mV/QEy2wA9QTM7lY0RJG0wlHgELcCw2PNoo2lCKXJpEmlyuRK5hioHGQK9ASKdMLKqhh0QsvgETYGByfCpkKoDGZDagB0xgpiDSQA5ASiTmodIBE3AoNkASXBpEGiSyAQ9wJC48YihiUIpcqkiqYU6Al0xIo0wkpgELcCQuPGooakEKfBpkGmwigM5kO0wkngELYCgyIc4kokGPRCRmAQtgHCYd4gXiQAYF7lFjTBx2kQqdGokaoMrAGuBG8SMByx3jBeNBQUcF70TxS0DhT0C9U0HJ013J513J50GZo12Zs0WZs1GZu8AAAQAJBAvEAACVCAphy2AsNimGQGZQokBmIbNELG9cLItELIqQypzqhOtMLLtAELvnyEQATRwFzBgAAAMIdJkgYCGMAAAAAAAAAAAAAAAABAAAAAAAAAPMgAAAAlQBcAHIBUwByAlMBcgNTAhoAcgRTAxoAcgVTBHIGZwUpBtoHV2hpc3Blcuk1AAAAYwIAAAAAAAAAAAAAAAYAAAADAAAA88oCAACVAFsAAAAAAAAAAABSAgAAAAAAAAAAAAAAAAAAAAAAACIANQAAAAAAAABuAlMBVQJsAgAAAAAAAAAAWwAAAAAAAAAAAFIGAAAAAAAAAAAAAAAAAAAAAAAAIgBbCAAAAAAAAAAAUgoAAAAAAAAAAAAAAAAAAAAAAABSDQAAAAAAAAAAAAAAAAAAAAAAAFUBUwI1AgAAAAAAAFUCUwMvAVMEOQNVAGwHAAAAAAAAAABbAAAAAAAAAAAAUgYAAAAAAAAAAAAAAAAAAAAAAAAiAFsIAAAAAAAAAABSCgAAAAAAAAAAAAAAAAAAAAAAAFINAAAAAAAAAAAAAAAAAAAAAAAAVQFTBTUCAAAAAAAAVQJTAy8BUwQ5A1UAbAgAAAAAAAAAAFUAUg4AAAAAAAAAAAAAAAAAAAAAAABSEwAAAAAAAAAAAAAAAAAAAAAAADUAAAAAAAAAUhQAAAAAAAAAAAAAAAAAAAAAAABuA1sXAAAAAAAAAABVA1MGBQAAADUBAAAAAAAAVQBsDAAAAAAAAAAAWxcAAAAAAAAAAFUDUwcFAAAANQEAAAAAAABVAGwNAAAAAAAAAABbFwAAAAAAAAAAVQNTCAUAAAA1AQAAAAAAAFUAbA4AAAAAAAAAADAAVQBsDwAAAAAAAAAAWyEAAAAAAAAAAFsIAAAAAAAAAABSCgAAAAAAAAAAAAAAAAAAAAAAAFINAAAAAAAAAAAAAAAAAAAAAAAAVQFTCTUCAAAAAAAAUwpTCzkCEwBIQwAAbgRVBFIjAAAAAAAAAAAAAAAAAAAAAAAAUwxTDTUCAAAAAAAAdQIAAHBWWyQAAAAAAAAAAFImAAAAAAAAAAAAAAAAAAAAAAAAIgBVBTUBAAAAAAAAVQBSHgAAAAAAAAAAAAAAAAAAAAAAAFsXAAAAAAAAAABVBjUBAAAAAAAAJwAAAE1FAAALACAAZwApDk5yBgAAAHoZYmFzZS5lbi1lbmNvZGVyLmludDgub25ueNoUQ1BVRXhlY3V0aW9uUHJvdmlkZXIpAdoJcHJvdmlkZXJzehliYXNlLmVuLWRlY29kZXIuaW50OC5vbm542gNzb3TaA2VvdNoNbm9fdGltZXN0YW1wc3oSYmFzZS5lbi10b2tlbnMudHh02gR1dGY4KQHaCGVuY29kaW5n2gEgcgoAAAApFNoDb3J02g5TZXNzaW9uT3B0aW9uc9oUaW50cmFfb3BfbnVtX3RocmVhZHPaEEluZmVyZW5jZVNlc3Npb27aAm9z2gRwYXRo2gRqb2lu2gNlbmPaA2RlY9oNZ2V0X21vZGVsbWV0YdoTY3VzdG9tX21ldGFkYXRhX21hcHIdAAAAcnEAAABycgAAANoEbm90c9oDdG9rcg0AAADaBnJzcGxpdNoGYmFzZTY02gliNjRkZWNvZGUpB9oEc2VsZtoBZNoBb9oEbWV0YdoEbGluZdoBYnJKAAAAcwcAAAAgICAgICAgcicAAADaCF9faW5pdF9f2hBXaGlzcGVyLl9faW5pdF9fNgAAAHMNAQAAgADcDA/XDB7SDB7TDCCIAbgxoCHUIjjcExbXEyfSEyesAq8HqQevDKkMsFHQOFPTKFTQVlfQZHrQY3vRE3yIBIwI3BMW1xMn0hMnrAKvB6kHrwypDLBR0DhT0yhU0FZX0GR60GN70RN8iASMCNgPE494iXjXDyXRDyXTDyfXDzvRDzuIBNwTFpB0mEWRe9MTI4gEjAi0A7BEuBWxS9MwQKBUpFjMY9BSVtBXZtFSZ9NOaMAkxCnYExWIBIwI3BQYnBKfF5kXnxyZHKBh0Ck90xk+yBbUFFCIRNgTF5c7kTuYc6BB0xMmiUSIQbw21ztL0jtLyEHTO06oBK8IqQi0E7BRsxbTKDjyAwAVUQFyKQAAAGMCAAAAAAAAAAAAAAANAAAAAwAAAPMmBAAAXgCVAFsBAAAAAAAAAABVATUBAAAAAAAAUwAFAAAAbgJUAFICAAAAAAAAAAAAAAAAAAAAAAAAUgUAAAAAAAAAAAAAAAAAAAAAAABTAFMBVQIwATUCAAAAAAAAdQIAAHA0WwYAAAAAAAAAAFIIAAAAAAAAAAAAAAAAAAAAAAAAIgBTAlsGAAAAAAAAAABSCgAAAAAAAAAAAAAAAAAAAAAAADUCAAAAAAAAbgVbBgAAAAAAAAAAUggAAAAAAAAAAAAAAAAAAAAAAAAiAFMCWwYAAAAAAAAAAFIKAAAAAAAAAAAAAAAAAAAAAAAANQIAAAAAAABuBlQAUgwAAAAAAAAAAAAAAAAAAAAAAABUAFIOAAAAAAAAAAAAAAAAAAAAAAAALwJuB1QAUhAAAAAAAAAAAAAAAAAAAAAAAABSBQAAAAAAAAAAAAAAAAAAAAAAAFMAWwYAAAAAAAAAAFISAAAAAAAAAAAAAAAAAAAAAAAAIgBVBy8BWwYAAAAAAAAAAFIUAAAAAAAAAAAAAAAAAAAAAAAANQIAAAAAAABYVlg0WwYAAAAAAAAAAFISAAAAAAAAAAAAAAAAAAAAAAAAIgBTAy8BWwYAAAAAAAAAAFIUAAAAAAAAAAAAAAAAAAAAAAAANQIAAAAAAABTBC4GNQIAAAAAAAB1AwAAcIVuBi8AbglbFwAAAAAAAAAAVQc1AQAAAAAAAG4KWxkAAAAAAAAAAFMFNQEAAAAAAAATAEjAAABuC1sbAAAAAAAAAABbBgAAAAAAAAAAUhwAAAAAAAAAAAAAAAAAAAAAAAAiAFUIUwYFAAAANQEAAAAAAAA1AQAAAAAAAG4MVQxUAFIeAAAAAAAAAAAAAAAAAAAAAAAAOlgAAGQGAABVDFMHOrwAAGECAAAgAE+HVQlSIQAAAAAAAAAAAAAAAAAAAAAAAFUMNQEAAAAAAAAgAFQAUhAAAAAAAAAAAAAAAAAAAAAAAABSBQAAAAAAAAAAAAAAAAAAAAAAAFMAWwYAAAAAAAAAAFISAAAAAAAAAAAAAAAAAAAAAAAAIgBVDC8BLwFbBgAAAAAAAAAAUhQAAAAAAAAAAAAAAAAAAAAAAAA1AgAAAAAAAFhWWDRbBgAAAAAAAAAAUhIAAAAAAAAAAAAAAAAAAAAAAAAiAFUKLwFbBgAAAAAAAAAAUhQAAAAAAAAAAAAAAAAAAAAAAAA1AgAAAAAAAFMELgY1AgAAAAAAAHUDAABwhW4GVQpTCC0NAABuCk3CAAALACAAUwlSIwAAAAAAAAAAAAAAAAAAAAAAAFUANAFTChoAaghVCRMANQAAAAAAAAA1AQAAAAAAAFIlAAAAAAAAAAAAAAAAAAAAAAAAUwtTDDUCAAAAAAAAUicAAAAAAAAAAAAAAAAAAAAAAAA1AAAAAAAAACQAKQ1OcmgAAAApBOkGAAAAcgoAAABpwAEAAGkAAgAAcgIAAAApBtoGdG9rZW5z2hdpbl9uX2xheWVyX3NlbGZfa19jYWNoZdoXaW5fbl9sYXllcl9zZWxmX3ZfY2FjaGXaD25fbGF5ZXJfY3Jvc3Nfa9oPbl9sYXllcl9jcm9zc1922gZvZmZzZXTpPAAAACkCcgIAAAByCwAAAGlRxAAAcgoAAAByKQAAAGMBAAAAAAAAAAAAAAAFAAAAMwAAAPNcAAAAPgEjACAAlQBVABMASCEAAG4BVAJSAAAAAAAAAAAAAAAAAAAAAAAAAFIDAAAAAAAAAAAAAAAAAAAAAAAAVQFTADUCAAAAAAAAdgCVBSAATSMAAAsAIABnATcDZgEpAnIpAAAATikCcoMAAADaA2dldCkD2gIuMHImAAAAcocAAABzAwAAACAggHInAAAA2gk8Z2VuZXhwcj7aI1doaXNwZXIuX19jYWxsX18uPGxvY2Fscz4uPGdlbmV4cHI+TAAAAHMjAAAA+OkAgADQFzqyY7ARmASfCJkInwyZDKBRqAPXGCzQGCyyY/lzBAAAAIMpLAFydAAAANoHcmVwbGFjZSkUcmoAAAByfgAAANoDcnVuchEAAAByQQAAAHIYAAAAcnEAAAByggAAAHJ/AAAA2gVhcnJhedoFaW50NjRyHgAAAHJCAAAAch0AAADaBmFyZ21heHJyAAAA2gZhcHBlbmRyfQAAANoGZGVjb2Rl2gVzdHJpcCkNcocAAAByJQAAAHJoAAAA2gJja9oCY3baAmtj2gJ2Y9oEdG9rc9oGbG9naXRz2gNvdXTaA29mZtoBX3ImAAAAcw0AAABgICAgICAgICAgICAgcicAAADaCF9fY2FsbF9f2hBXaGlzcGVyLl9fY2FsbF9fPwAAAHPnAQAA+IAA3A4VkGGLapgU0Q4eiAPYERWXGJEYlxyRHJhkoFWoQ6BM0xExiQaIAtwND49YiljQFiasAq8KqQrTDTOIArwivyi6KNBDU9RVV9dVX9FVX9M6YLBS2BAUlwiRCJgknymZKdAPJIgE2BkdnxiZGJ8cmRygZLRyt3iyeMAUwAbMAs8IyQjTN1HQbnDwAABlAmcC9AAASgNMA/cAAEoDUgPyAABKA1ID8AAAVANVA/AAAFMDVgP0AABYA1oD9wAAWANgA/EAAFgDYAPzAABKA2ED8QAALWID8wAAGmMDiQ6IBpBC2A4QiAOcA5hEmwmQI9wRFpBylhmIQdwQE5RCl0mSSZhmoFWZbdMULNMQLYhB2A8QkESXSJFIi32gAaBVowqpRdgMD49KiUqQcYxN2B0hn1iZWJ9cmVyoJLwyvzi6OMBhwFPARcwyzzjJONM7VNBxc/AAAGgCagL0AABNA08D9wAATQNVA/IAAE0DVQPwAABXA1oD8AAAVgNbA/QAAF0DXwP3AABdA2UD8QAAXQNlA/MAAE0DZgPxAAAxZwPzAAAeaAOJTohGmALYDA+QMYlIikPxCwASG/AMABATj3iJeNQXOrFj0xc60w861w9B0Q9BwCbIKdMPVNcPWtEPWtMPXNAIXHIpAAAAKQZyfwAAAHJ+AAAAcnIAAAByggAAAHJxAAAAcoMAAABOKQfaCF9fbmFtZV9f2gpfX21vZHVsZV9f2gxfX3F1YWxuYW1lX1/aD19fZmlyc3RsaW5lbm9fX3KNAAAAcq4AAADaFV9fc3RhdGljX2F0dHJpYnV0ZXNfX6kAcikAAAByJwAAAHJsAAAAcmwAAAA1AAAAcw4AAACGAPICCAVPAfUSDQVdAXIpAAAAcmwAAADaCF9fbWFpbl9fcgoAAAByBgAAANoBCVQpAdoFZmx1c2gpF9oDc3lzcnsAAAByDAAAAHKFAAAA2gVudW1weXIRAAAA2gtvbm54cnVudGltZXJ3AAAAchsAAAByVQAAAHJXAAAA2gZOX01FTFNyYQAAAHIoAAAAck4AAAByXQAAAHJqAAAAcmwAAABysAAAANoEYXJndtoBV3IgAAAA2gVwcmludHK1AAAAcikAAAByJwAAANoIPG1vZHVsZT5ywAAAAAEAAABzpQAAAPADAQEB9wgAAR3XABzbABLbABngBQqAApBDiEWYc5gTqFKgRrhEsBjyBAgBDfAUABQWmFWoNvQAEAEg8SQABxKDbYAD8gIMAS/3HBcBXQHxABcBXQHwMgAEDIh60wMZ2QgPkAOXCJEImBGRC9MIHIBB2A0Qj1iJWJBhkGKLXIgB2QgNiGGQJIlomRGZOKBBmzubHtEOJ6h01Ag08gMADhrwBQAEGnIpAAAA
+@@@@ FILE tools/aiaudit.mjs text 3144
+// ボットの人間らしさの点検: node tools/aiaudit.mjs [秒 300] [small|medium|large] [種 3]
+//  棒立ち（遮蔽物・守りの場所・戦い・作業のどれでもなく 4 秒より長く止まる）・味方との近さ・伏せ/しゃがみ/走り・
+//  撃った弾のうち動きながら/遮蔽物から/構えて・手榴弾・蘇生・キル・味方のキル
+const secs = +(process.argv[2] || 300), size = process.argv[3] || 'medium', seed = +(process.argv[4] || 3);
+const { createGame, step } = await import('../src/engine/engine.js');
+const G = createGame({ map: 'riverbend', mode: 'war', size, seed, roster: [] });
+const S = G.S, w = G.w;
+const still = new Map(); // id → {x,z,t}
+let samples = 0, idleOpen = 0, idleLong = 0, crowd = 0, nnSum = 0, nnN = 0, shots = 0, shotsMove = 0, shotsCover = 0, shotsADS = 0, prone = 0, crouch = 0, sprint = 0, fighting = 0, nades = 0, revives = 0, kills = 0, tk = 0;
+const lastFire = new Map();
+for (let i = 0; i < 60 * secs; i++) {
+  const ev = step(G, {});
+  for (const e of ev) {
+    if (e.e === 'shot' || e.e === 'fire') { const a = S.byId[e.id]; if (a && a.ai) { shots++; const v = Math.hypot(a.vx, a.vz); if (v > 1) shotsMove++; if (a.ai.cov && Math.hypot(a.ai.cov.x - a.x, a.ai.cov.z - a.z) < 1.2) shotsCover++; if (a.ads > 0.5) shotsADS++; } }
+    if (e.e === 'nade' || e.e === 'throw') nades++;
+    if (e.e === 'revive' || e.e === 'revived') revives++;
+    if (e.e === 'kill') { kills++; const k = S.byId[e.by], v = S.byId[e.id]; if (k && v && k.team === v.team && k !== v) tk++; }
+  }
+  if (i % 30) continue;
+  const live = S.actors.filter(a => a.ai && a.alive && !a.down);
+  for (const a of live) {
+    samples++;
+    const v = Math.hypot(a.vx, a.vz);
+    if (a.st > 1.5) prone++; else if (a.st > 0.5) crouch++;
+    if (a.sprint) sprint++;
+    if (a.ai.tgt != null) fighting++;
+    // 近い味方
+    let nn = 1e9; for (const b of live) if (b !== a && b.team === a.team) nn = Math.min(nn, Math.hypot(b.x - a.x, b.z - a.z));
+    if (nn < 1e9) { nnSum += Math.min(nn, 60); nnN++; if (nn < 1.5) crowd++; }
+    // 棒立ち: 4 秒で 0.5m も動かず、遮蔽物・守りの場所・蘇生・戦いのどれでもない
+    const s = still.get(a.id);
+    if (!s || Math.hypot(s.x - a.x, s.z - a.z) > 0.5) still.set(a.id, { x: a.x, z: a.z, t: i });
+    else if (i - s.t > 60 * 4) {
+      const inCov = a.ai.cov && Math.hypot(a.ai.cov.x - a.x, a.ai.cov.z - a.z) < 1.2;
+      const holding = a.ai.hold && Math.hypot(a.ai.hold.x - a.x, a.ai.hold.z - a.z) < 1.2;
+      if (!inCov && !holding && a.ai.tgt == null && !a.act) { idleOpen++; if (i - s.t > 60 * 10) idleLong++; }
+    }
+  }
+}
+const pc = (n, d = samples) => (100 * n / Math.max(1, d)).toFixed(1) + '%';
+console.log(`${secs}s ${size} seed ${seed}: idleOpen ${pc(idleOpen)} (>10s ${pc(idleLong)}) crowd<1.5m ${pc(crowd, nnN)} nnAvg ${(nnSum / nnN).toFixed(1)}m prone ${pc(prone)} crouch ${pc(crouch)} sprint ${pc(sprint)} fighting ${pc(fighting)} | shots ${shots} moving ${pc(shotsMove, shots)} cover ${pc(shotsCover, shots)} ads ${pc(shotsADS, shots)} | nades ${nades} revives ${revives} kills ${kills} tk ${tk}`);
+
 @@@@ FILE tools/asr.py text 4440
 # 声が聞き取れるかの確認: Whisper（base.en, ONNX）で文字に起こす。
 #   python3 -I tools/asr.py <モデルのフォルダ> <wav...>   → 1行ずつ「ファイル<TAB>聞き取った文」
