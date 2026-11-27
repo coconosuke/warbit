@@ -312,6 +312,50 @@ function jumpLand(sr, seed, big) {
   lp(out, 7000, sr); hp(out, 30, sr);
   return fadeEdges(normalize(sat(out, big ? 1.4 : 1.2), big ? 0.95 : 0.85), sr);
 }
+// 構えの切り替え（11-27 14:29「音は重厚感とリアルさ」）。k: prone（伏せる: ひざ→胸が地面に落ちる 2 つの重い音と装備の跳ね）・
+//  rise（伏せから起きる: 腕で押し上げる・布・装備）・crouch（しゃがむ: ひざの軽い音・布・装備）・stand（立つ: 布と装備）
+function stanceS(sr, seed, k) {
+  const r = rng(seed), out = buf(sr, k === 'prone' ? 0.9 : 0.6);
+  const thud = (t, f, g, d) => { mixInto(out, thump(sr, r, f + r() * 8, f * 0.55, d, g), S(sr, t), 1); mixInto(out, thump(sr, r, f * 2.6, f * 1.8, d * 0.5, g * 0.45), S(sr, t), 1); const m = S(sr, 0.05), z = noise(m, r); bp(z, 380 + r() * 120, 0.8, sr); mulEnv(z, expEnv(m, sr, 0.0008, 0.012)); mixInto(out, z, S(sr, t), g * 0.6); };
+  if (k === 'prone') {
+    mixInto(out, rustle(sr, r, 0.6, { f: 1900, dens: 700, peak: 0.3 }), 0, 0.6);
+    thud(0.12, 70, 0.8, 0.14); rattle(out, sr, r, 0.125, 0.08, 6, 0.8);
+    thud(0.3, 60, 1.2, 0.22); rattle(out, sr, r, 0.305, 0.12, 9, 1.0, { buckle: 0.3, mag: 0.4, metal: 0.12, rifle: 0.18 });
+    rattle(out, sr, r, 0.45, 0.3, 3, 0.35);
+  } else if (k === 'rise') {
+    mixInto(out, rustle(sr, r, 0.5, { f: 2000, dens: 650, peak: 0.35 }), 0, 0.65);
+    thud(0.06, 90, 0.4, 0.1); rattle(out, sr, r, 0.1, 0.3, 6, 0.7);
+    mixInto(out, strap(sr, r, 0.18, 1000), S(sr, 0.12), 0.18);
+  } else if (k === 'crouch') {
+    mixInto(out, rustle(sr, r, 0.32, { f: 2100, dens: 600, peak: 0.25 }), 0, 0.6);
+    thud(0.11, 95, 0.45, 0.09); rattle(out, sr, r, 0.1, 0.16, 5, 0.65);
+  } else {
+    mixInto(out, rustle(sr, r, 0.34, { f: 2200, dens: 600, peak: 0.3 }), 0, 0.65);
+    rattle(out, sr, r, 0.06, 0.2, 5, 0.6); mixInto(out, strap(sr, r, 0.14, 1100), S(sr, 0.05), 0.15);
+  }
+  lp(out, 7000, sr); hp(out, 30, sr);
+  return fadeEdges(normalize(sat(out, 1.15), 0.7), sr);
+}
+// 乗り越え: 手を縁につく（手袋の平手が硬い面を打つ）→ 体を振り上げる布と装備 → 向こう側へ足をつく
+function vaultS(sr, seed) {
+  const r = rng(seed), out = buf(sr, 0.9);
+  for (const t of [0, 0.03]) { const m = S(sr, 0.04), z = noise(m, r); bp(z, 1500 + r() * 500, 0.9, sr); mulEnv(z, expEnv(m, sr, 0.0004, 0.008)); mixInto(out, z, S(sr, t), 0.8); mixInto(out, thump(sr, r, 180, 110, 0.05, 0.5), S(sr, t), 1); }
+  mixInto(out, rustle(sr, r, 0.5, { f: 2100, dens: 800, peak: 0.35 }), S(sr, 0.04), 0.75);
+  rattle(out, sr, r, 0.1, 0.3, 8, 0.85);
+  mixInto(out, strap(sr, r, 0.2, 1000), S(sr, 0.12), 0.2);
+  mixInto(out, thump(sr, r, 80, 44, 0.16, 0.8), S(sr, 0.52), 1); rattle(out, sr, r, 0.53, 0.12, 6, 0.7);
+  lp(out, 7500, sr); hp(out, 30, sr);
+  return fadeEdges(normalize(sat(out, 1.2), 0.75), sr);
+}
+// 走る時の装備の揺れ（一歩ごと。弾倉・バックル・スリングの金具が当たり、布がこすれる）
+function gearRun(sr, seed) {
+  const r = rng(seed), out = buf(sr, 0.3);
+  mixInto(out, rustle(sr, r, 0.2, { f: 2100, dens: 500, peak: 0.25 }), 0, 0.45);
+  rattle(out, sr, r, 0.01, 0.12, 5, 0.8, { buckle: 0.35, mag: 0.4, metal: 0.15, rifle: 0.1 });
+  mixInto(out, strap(sr, r, 0.08, 1100), S(sr, 0.01), 0.12);
+  lp(out, 7000, sr);
+  return fadeEdges(normalize(out, 0.6), sr);
+}
 // 重い箱を置く（弾薬箱）: 箱の鈍い音・中の弾の箱がずれる・取っ手の金具
 function boxDown(sr, seed) {
   const r = rng(seed), out = buf(sr, 0.5);
@@ -354,6 +398,8 @@ export const SFX = {
   step_hard: [(sr, i) => step(sr, 200 + i, 'hard'), 4], step_tile: [(sr, i) => step(sr, 210 + i, 'tile'), 4], step_wood: [(sr, i) => step(sr, 220 + i, 'wood'), 4],
   step_soft: [(sr, i) => step(sr, 230 + i, 'soft'), 4], step_grass: [(sr, i) => step(sr, 240 + i, 'grass'), 4], step_dirt: [(sr, i) => step(sr, 250 + i, 'dirt'), 4], step_metal: [(sr, i) => step(sr, 260 + i, 'metal'), 4],
   land: [(sr, i) => landS(sr, 270 + i), 1],
+  stProne: [(sr, i) => stanceS(sr, 1240 + i, 'prone'), 2], stRise: [(sr, i) => stanceS(sr, 1245 + i, 'rise'), 2], stCrouch: [(sr, i) => stanceS(sr, 1250 + i, 'crouch'), 2], stStand: [(sr, i) => stanceS(sr, 1255 + i, 'stand'), 2], vaultS: [(sr, i) => vaultS(sr, 1260 + i), 2],
+  gearRun: [(sr, i) => gearRun(sr, 1270 + i), 4],
   jumpUp: [(sr, i) => jumpUp(sr, 1200 + i), 3], jumpLand: [(sr, i) => jumpLand(sr, 1210 + i, false), 3], fallLand: [(sr, i) => jumpLand(sr, 1220 + i, true), 2], boxDown: [(sr, i) => boxDown(sr, 1230 + i), 2],
   // 当たる
   impHard: [(sr, i) => impact(sr, 300 + i, 'hard'), 3], impWood: [(sr, i) => impact(sr, 310 + i, 'wood'), 3], impMetal: [(sr, i) => impact(sr, 320 + i, 'metal'), 3], impGlass: [(sr, i) => impact(sr, 330 + i, 'glass'), 2], impSoft: [(sr, i) => impact(sr, 340 + i, 'soft'), 2],

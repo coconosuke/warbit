@@ -348,6 +348,9 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-ammo .mags i { width: 5px; height: 12px; border: 1px solid rgba(255,255,255,.6); border-radius: 1px; background: linear-gradient(0deg, #fff calc(var(--f) * 100%), transparent 0); }
 .hud-breath { position: absolute; left: 50%; top: calc(50% + 64px); width: 84px; height: 4px; margin-left: -42px; border-radius: 2px; background: rgba(0,0,0,.45); box-shadow: 0 0 0 1px rgba(255,255,255,.25); opacity: 0; transition: opacity .25s; pointer-events: none; }
 .hud-breath.on { opacity: 1; }
+/* レンジファインダーの距離（照準の下） */
+.hud-rf { position: absolute; left: 50%; top: calc(50% + 46px); transform: translateX(-50%); padding: 1px 6px; border-radius: 3px; background: rgba(0,0,0,.4); color: #ff6a52; font: 800 12px var(--f-head); letter-spacing: .04em; opacity: 0; pointer-events: none; }
+.hud-rf.on { opacity: 1; }
 /* バイポッドの印: 本家は画面の下に小さく出る（research の 72） */
 .hud-bip { position: absolute; left: 50%; bottom: calc(var(--sb) + 78px); transform: translateX(-50%); display: flex; align-items: center; gap: 3px; padding: 1px 6px 1px 3px; border-radius: 3px; background: rgba(0,0,0,.45); color: #e8f0d8; font: 800 11px var(--f-body); opacity: 0; transition: opacity .2s; pointer-events: none; }
 .hud-bip svg { width: 14px; height: 14px; }
@@ -546,6 +549,15 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 /* 出撃の画面（BattleBit の出撃の画面に合わせる。research/WARBIT.md の 10）: 上の帯・地図・分隊の欄・兵科の札・下の帯 */
 .hud-deploy { position: absolute; inset: 0; display: none; z-index: 40; pointer-events: auto; background: #0b0e10; font-family: var(--f-head); color: #eef2f5; touch-action: none; }
 .hud-deploy.on { display: block; }
+/* LOADOUT: 地図を隠して、後ろの画面に描く見本（兵士・銃）を見せる */
+.hud-deploy.lo { background: transparent; }
+/* LOADOUT の間は、後ろの試合の HUD（地図・ボタン・スティック）を隠す（見本が透けて見えるので） */
+#hud.dps-lo-on > :not(.hud-deploy):not(.hud-board) { visibility: hidden !important; }
+.hud-deploy.lo .dps-mapw, .hud-deploy.lo .dps-sq { visibility: hidden; }
+.dps-pvcap { position: absolute; display: none; flex-direction: column; align-items: center; pointer-events: none; text-shadow: 0 1px 3px #000; }
+.hud-deploy.lo .dps-pvcap { display: flex; }
+.dps-pvcap b { font: 900 15px var(--f-head); letter-spacing: .06em; }
+.dps-pvcap span { font: 600 11px var(--f-head); letter-spacing: .12em; color: rgba(255,255,255,.6); }
 .hud-deploy [data-btn] { cursor: pointer; touch-action: none; }
 .dps-top { position: absolute; left: 0; right: 0; top: 0; height: calc(var(--st) + 38px); padding: var(--st) max(var(--sr), 12px) 0 max(var(--sl), 12px); display: flex; align-items: center; gap: 12px; background: #15191d; border-bottom: 1px solid rgba(255,255,255,.1); box-sizing: border-box; }
 .dps-t { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; }
@@ -590,6 +602,8 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .dps-kv span { flex: 0 0 3.6em; color: #8d99a4; font-family: var(--f-body); }
 .dps-kv b { font-weight: 700; font-family: var(--f-body); } .dps-kv.soon b { color: #7f8a94; font-weight: 500; }
 .dps-card.dps-lop { width: min(540px, 62%); }
+/* 兵科の説明が長くて小さい画面に入りきらない時は、板の中を指で送れる */
+.dps-card:not(.dps-lop) { overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; }
 .dps-lop .dps-g { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* LOADOUT の 銃／付属品 の切り替え（11-20） */
 .dps-tabs { display: flex; gap: 4px; margin: 4px 0 2px; }
@@ -600,6 +614,7 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .dps-ab { height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); font-size: 12px; }
 .dps-an { min-width: 0; text-align: center; }
 .dps-an b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dps-an em { display: block; font: 600 10px var(--f-head); letter-spacing: .04em; font-style: normal; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dps-an small { display: block; font-size: 11px; color: #9be37a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dps-x { margin-left: auto; width: 30px; height: 26px; display: flex; align-items: center; justify-content: center; font: 700 18px/1 var(--f-head); background: rgba(255,255,255,.06); }
 .dps-sub { font: 800 11px var(--f-head); letter-spacing: .1em; color: #8d99a4; margin: 6px 0 4px; }

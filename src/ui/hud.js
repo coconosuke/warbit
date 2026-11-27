@@ -57,6 +57,7 @@ export class Hud {
     // 息の残り（息止めの間と、戻るまで。構えているときだけ）
     this.breathEl = el('div', 'hud-breath', '<i></i>'); r.appendChild(this.breathEl);
     // バイポッドが立っている印（11-27。BattleBit も立つと画面の下に印が出る）
+    this.rfEl = el('div', 'hud-rf'); r.appendChild(this.rfEl);
     this.bipEl = el('div', 'hud-bip', '<svg viewBox="0 0 24 24"><path d="M4 7h16M12 7l-5 12M12 7l5 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><b>バイポッド</b>'); r.appendChild(this.bipEl);
     this.hitm = el('div', 'hud-hit', '<i></i><i></i><i></i><i></i>'); r.appendChild(this.hitm);
     // 点（大規模戦）: 照準の下に合計と内訳。続けて入ると足していく
@@ -328,6 +329,8 @@ export class Hud {
       if (this.cache.brKey !== key) { this.cache.brKey = key; this.breathEl.classList.toggle('on', show); this.breathEl.classList.toggle('gasp', !!(ws && ws.gasp > 0)); if (show) this.breathEl.firstChild.style.width = (br * 100).toFixed(0) + '%'; }
     }
     { const bo = !!(p && p.alive && p.bip && ads > 0.3); if (this.cache.bip !== bo) { this.cache.bip = bo; this.bipEl.classList.toggle('on', bo); } }
+    // レンジファインダー: 照準の下に距離
+    { const rm = v.rangeM == null ? '' : v.rangeM + ' m'; if (this.cache.rf !== rm) { this.cache.rf = rm; this.rfEl.textContent = rm; this.rfEl.classList.toggle('on', !!rm); } }
     const retOn = !!(optic && ads > 0.85 && !optic.scope);
     { const rc = 'hud-reticle' + (retOn ? ' on ' + optic.kind : ''); if (this.cache.retC !== rc) { this.cache.retC = rc; this.reticle.className = rc; } }
     // 等倍の照準器: 揺れのうち銃が受け持つ分だけ、点が真ん中からずれる（弾が飛ぶ所。game.js _aimFx）
@@ -678,8 +681,10 @@ export class Hud {
     c.globalAlpha = 1;
   }
   // 出撃の画面（倒れている間・試合の始め）。d: null で隠す / game.js の _warDeployData()
+  // 出撃の画面の LOADOUT の見本を描く所（なければ null）
+  deployPreviewRect() { return this.deployOn && this.dps ? this.dps.previewRect() : null; }
   deploy(d) {
-    if (!d) { if (this.deployOn) { this.deployOn = false; this.deployEl.classList.remove('on'); } return; }
+    if (!d) { if (this.deployOn) { this.deployOn = false; this.deployEl.classList.remove('on', 'lo'); this.root.classList.remove('dps-lo-on'); if (this.dps) this.dps.cache = {}; } return; }
     if (!this.dps) this.dps = new DeployScreen(this.deployEl);
     if (!this.deployOn) { this.deployOn = true; this.deployEl.classList.add('on'); this.dps.cache = {}; }
     this.dps.update(d);

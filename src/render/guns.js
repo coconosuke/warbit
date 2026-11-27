@@ -816,10 +816,32 @@ function holoBody(B, ry, z) {
   sbx(B, 0.02, ry + 0.056, z - 0.045, ry + 0.062, z + 0.04, K.blk);
   sbx(B, 0.0145, ry + 0.02, z + 0.034, ry + 0.024, z + 0.04, K.dg);
 }
+// 本家の銃口（11-27）は形の近い物で描く（独自の形）: 銃身を足す物（ヘビー・ロングバレル・レンジャー）は太さと長さの違う筒、
+//  口径ごとの物（NT-4・DGN-308・SDN-6・VAMB-762）とタクティカルは穴の数の違う箱や筒、ベーシックは短い筒
 function addMuzzle(B, P, kind, cat) {
   const z = P.muzzle, y = P.boreY ?? 0;
-  if (kind === 'supp') {
-    const len = cat === 'pistol' ? 0.15 : cat === 'smg' ? 0.16 : 0.17, r = cat === 'pistol' ? 0.016 : cat === 'smg' ? 0.018 : 0.02;
+  if (kind === 'heavy' || kind === 'long' || kind === 'ranger') {
+    const len = kind === 'long' ? 0.11 : kind === 'ranger' ? 0.08 : 0.07, r = kind === 'heavy' ? 0.0125 : kind === 'ranger' ? 0.0115 : 0.0095;
+    B.tube([0, y, z - 0.01], [0, y, z + len], r, r * 0.95, 10, LAYER.metal, K.dg, { caps: true });
+    if (kind === 'ranger') { sbx(B, 0.014, y - 0.012, z + len - 0.01, y + 0.012, z + len + 0.035, K.blk, LAYER.metal); for (const sx of [1, -1]) bx(B, sx * 0.0141, y - 0.007, z + len + 0.004, sx * 0.0146, y + 0.007, z + len + 0.024, hex('#121316')); P.muzzle = z + len + 0.035; }
+    else P.muzzle = z + len;
+    return;
+  }
+  if (kind === 'basic') { B.tube([0, y, z - 0.012], [0, y, z + 0.02], 0.0105, 0.0105, 8, LAYER.metal, K.blk, { caps: true }); P.muzzle = z + 0.02; return; }
+  if (kind === 'tactical' || kind === 'nt4') {
+    B.tube([0, y, z - 0.02], [0, y, z + 0.04], 0.0118, 0.0118, 8, LAYER.metal, K.blk, { caps: true });
+    for (const dz of kind === 'nt4' ? [0.006, 0.02] : [-0.004, 0.012, 0.026]) for (const sx of [1, -1]) bx(B, sx * 0.0112, y + 0.004, z + dz, sx * 0.0124, y + 0.0118, z + dz + 0.007, hex('#121316'));
+    P.muzzle = z + 0.04; return;
+  }
+  if (kind === 'dgn' || kind === 'sdn6' || kind === 'vamb') {
+    const L = kind === 'vamb' ? 0.06 : 0.045, h = kind === 'sdn6' ? 0.014 : 0.012;
+    sbx(B, 0.0132, y - h, z - 0.012, y + h, z + L, K.blk, LAYER.metal);
+    for (let k = 0; k < (kind === 'dgn' ? 2 : 4); k++) for (const sx of [1, -1]) bx(B, sx * 0.0133, y - 0.006, z + 0.004 + k * 0.012, sx * 0.0139, y + 0.006, z + 0.011 + k * 0.012, hex('#121316'));
+    P.muzzle = z + L; return;
+  }
+  if (kind === 'supp' || kind === 'suppL' || kind === 'osprey') {
+    const ln = kind === 'suppL' ? 1.55 : 1;
+    const len = (cat === 'pistol' ? 0.15 : cat === 'smg' ? 0.16 : 0.17) * ln, r = (cat === 'pistol' ? 0.016 : cat === 'smg' ? 0.018 : 0.02) * (kind === 'osprey' ? 1.15 : 1);
     B.tube([0, y, z - 0.02], [0, y, z + len], r, r, 10, LAYER.metal, K.dg, { caps: true });
     P.muzzle = z + len;
   } else if (kind === 'comp') {
@@ -843,7 +865,10 @@ function addMuzzle(B, P, kind, cat) {
     P.muzzle = z + 0.045;
   }
 }
+// 本家のグリップ（11-27）は形の近い物で描く: 縦の形・斜めの形・短い形
+const GRIP_SHAPE = { vskel: 'vert', rk6: 'vert', vtac: 'vert', fab: 'vert', hera: 'vert', stabil: 'vert', b25: 'stubby', se5: 'angled', bcm: 'angled', magang: 'angled', shift: 'angled' };
 function addGrip(B, P, kind) {
+  kind = GRIP_SHAPE[kind] || kind;
   // 二脚（11-27）: 前の握りの先に留め金と、たたんだ2本の脚（銃身に沿って後ろへ）。下のレールがない銃（狙撃銃）は銃の前 6 割の所
   if (kind === 'bipod') {
     const z = P.rail2 ? P.rail2[1] - 0.02 : (P.muzzle ?? 0.5) * 0.6, y = P.foreY ?? -0.032;
@@ -859,8 +884,11 @@ function addGrip(B, P, kind) {
   else if (kind === 'handstop') { const z2 = P.rail2[1] - 0.008; grip(B, y + 0.002, z2 - 0.004, y - 0.026, z2 + 0.01, 0.011, 0.006, K.blk); P.gripL = [0, y - 0.01, z2 - 0.04]; }
 }
 // ライト・レーザー（横や下のレール）。lightPt: 光の出る所、laserPt: レーザーの出る所
+// 本家の横のレールの物（11-27）は形の近い物で描く: タクティカル・サーチライトはライト、レンジファインダーはレーザーの箱
+const SIDE_SHAPE = { tacl: 'light', search: 'light', range: 'laser' };
 function addSide(B, P, kind) {
   if (!kind || kind === 'none') return;
+  kind = SIDE_SHAPE[kind] || kind;
   if (P.pistol) {
     if (!P.rail2) return;
     const z = (P.rail2[0] + P.rail2[1]) / 2, y = (P.foreY ?? -0.02) - 0.018;

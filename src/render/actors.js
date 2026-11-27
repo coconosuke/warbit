@@ -45,18 +45,18 @@ export class ActorView {
   }
   look(a) {
     let L = this.looks.get(a.id);
-    if (L && L.v === a._lookV) return L;
+    if (L && L.v === a._lookV && L.cls === a.warCls) return L;
     const ar = a.armor || {};
     const kind = a.kind === 'bot' ? 'sus' : a.kind;
     const o = { seed: a.look && a.look.seed || a.id * 977, kind: a.kind === 'swat' || (a.kind === 'bot' && a.team === 0) ? 'swat' : kind, armor: ar.vest || 'none', helmet: ar.helmet || 'none', head: ar.head || 'none', prof: a.ai && a.ai.prof, pro: a.ai && a.ai.prof === 'pro' };
     if (a.pvpSide === 'sus') { o.kind = 'sus'; o.armor = a.pvpArmor === 'light' ? 'none' : 'vestSus'; o.pro = a.pvpArmor === 'heavy'; o.helmet = a.pvpArmor === 'heavy' ? 'helmet' : 'none'; }
     if (a.pvpSide === 'swat') { o.kind = 'swat'; o.armor = 'heavy'; o.helmet = a.pvpArmor === 'light' ? 'none' : 'helmet'; }
     // 大規模戦の兵士: 陣営で服の色が違う（味方側 オリーブ・相手側 砂色）。目出し帽なし
-    if (a.kind === 'soldier') { const t = a.team === 1; Object.assign(o, { kind: 'swat', war: true, armor: 'heavy', helmet: 'helmet', uniform: t ? '#857350' : '#4f5739', gearCol: t ? '#6b5d42' : '#3f4631', helmetCol: t ? '#77684a' : '#4a5036' }); }
+    if (a.kind === 'soldier') { const t = a.team === 1; Object.assign(o, { kind: 'swat', war: true, cls: a.warCls || null, armor: 'heavy', helmet: a.warCls === 'recon' ? 'none' : 'helmet', uniform: t ? '#857350' : '#4f5739', gearCol: t ? '#6b5d42' : '#3f4631', helmetCol: t ? '#77684a' : '#4a5036' }); }
     const lk = lookFor(o);
     const { key, d } = personMeshData(lk);
     if (!this.people.has(key)) this.people.set(key, vaoSkin(this.gl, d.v, d.i));
-    L = { v: a._lookV, key, pal: lk.pal, s: (a.h || 1.8) / 1.8 };
+    L = { v: a._lookV, cls: a.warCls, key, pal: lk.pal, s: (a.h || 1.8) / 1.8 };
     this.looks.set(a.id, L);
     return L;
   }
@@ -78,6 +78,40 @@ export class ActorView {
     let m = this.guns.get(g.key);
     if (!m) { m = { body: makeWorldMesh(this.gl, g.body), mag: g.mag ? makeWorldMesh(this.gl, g.mag) : null, pump: g.pump ? makeWorldMesh(this.gl, g.pump) : null, flip: g.flip ? makeWorldMesh(this.gl, g.flip) : null, g }; this.guns.set(g.key, m); }
     return m;
+  }
+  // 写真の台（出撃の画面の LOADOUT）: 偽の人 fa を描く。o.gun: 銃だけを置く { wi, x, y, z, yaw }（付属品を選ぶ時の大写し）
+  studio(f, fa, o = {}) {
+    const keep = [this.list, this.items, this.nades, this.cams];
+    this.list = []; this.items = []; this.nades = []; this.cams = null;
+    try {
+      if (o.gun) {
+        const gm = this.gunMesh(o.gun.wi.id, o.gun.wi.att); if (!gm) return;
+        const r = this.r, gl = this.gl, W = r.P.world, M = this.M, c = Math.cos(o.gun.yaw), s = Math.sin(o.gun.yaw);
+        r._bindLight(W, f);
+        gl.uniformMatrix4fv(W.u.uVP, false, r.vp);
+        M.fill(0); M[0] = c; M[2] = -s; M[5] = 1; M[8] = s; M[10] = c; M[12] = o.gun.x; M[13] = o.gun.y; M[14] = o.gun.z; M[15] = 1;
+        gl.uniformMatrix4fv(W.u.uModel, false, M);
+        gl.uniform1f(W.u.uRoomOverride, 0);
+        drawMesh(gl, gm.body); if (gm.mag) drawMesh(gl, gm.mag); if (gm.pump) drawMesh(gl, gm.pump); if (gm.flip) drawMesh(gl, gm.flip);
+        r.stats.draws++;
+        return;
+      }
+      const res = computePose(poseInput(fa, this.pi), this.bones);
+      const L = this.look(fa);
+      const mats = this._stM || (this._stM = new Float32Array(NBONE * 16));
+      boneMatrices(this.bones, res.s, mats);
+      const wi = curWeapon(fa);
+      this.list.push({ a: fa, L, mats, room: 0, gun: res.gun && wi ? { wi, f: res.gun } : null, shield: null, x: fa.x, y: fa.y, z: fa.z, zip: null, held: null });
+      this.drawOpaque(f);
+    } finally { [this.list, this.items, this.nades, this.cams] = keep; }
+  }
+  // 銃の形の大きさ（前後の端・高さ。大写しの置き方）
+  gunBox(wid, att) {
+    const g = gunModel(wid, att); if (!g) return null;
+    if (g._bb) return g._bb;
+    let z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const B of [g.body, g.mag, g.pump]) { if (!B || !B.v) continue; for (let i = 0; i < B.n; i++) { const y = B.v[i * 15 + 1], z = B.v[i * 15 + 2]; if (z < z0) z0 = z; if (z > z1) z1 = z; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+    return (g._bb = { z0, z1, y0, y1 });
   }
   // このこまの準備: S（エンジンの状態）、alpha（補間）
   // opts.cull = { x, z, yaw, d, cos }: 大規模戦で、遠すぎる人（d より先。倍率の分だけ遠くまで）と、画面の横より後ろの人（8m より先）は

@@ -8,7 +8,7 @@ import { GEAR } from '../engine/data/equipment.js';
 export const CLASSES = {
   leader: {
     name: '分隊長', en: 'SQUAD LEADER', short: 'LEADER', hp: 100,
-    desc: '分隊を率いる。分隊の1人目だけが選べる。',
+    desc: '分隊を率いる（分隊の1人目だけが選べる）。分隊ポイントで出撃のビーコンを置き、分隊の仲間はそこから出られる。双眼鏡で敵をしるす。小銃・DMR。',
     guns: ['m4a1', 'hk416', 'akm', 'scarh', 'g36c', 'mini14', 'sks'],
     sec: ['m17', 'g19', 'm92'],
     // 手榴弾は1つ（BattleBit の公式 wiki: 援護だけ 2、ほかは 1。research/WARBIT.md の 56）。包帯は wiki の表で突撃・援護・工兵 6、衛生 20、偵察 5
@@ -18,7 +18,7 @@ export const CLASSES = {
   },
   assault: {
     name: '突撃', en: 'ASSAULT', short: 'ASSAULT', hp: 100,
-    desc: '前に出て撃ち合う。リロードと持ち替えが 25%、近い照準器で構えるのが 20% 速い。破片と衝撃の手榴弾を持つ。',
+    desc: '前に出て撃ち合う基本の兵科。リロードと持ち替えが 25%、近い照準器（2 倍まで）で構えるのが 20% 速い。小さい弾薬箱で仲間に弾を配る。大ハンマーで壁を壊せる。',
     guns: ['m4a1', 'akm', 'hk416', 'mk18', 'aks74u', 'vz58', 'g36c', 'scarl', 'aug', 'tavor', 'mcx'],
     sec: ['m17', 'g17', 'm1911'],
     gear: [['frag', 1], ['impact', 1], ['smoke', 2], ['bandage', 6], ['ammosmall', 1], ['hammer', 1]],
@@ -26,7 +26,7 @@ export const CLASSES = {
   },
   medic: {
     name: '衛生', en: 'MEDIC', short: 'MEDIC', hp: 100,
-    desc: '短い銃で仲間についていく。包帯が多く（20）、巻くのが 2 倍速い。医療キットで仲間を治す。',
+    desc: '仲間を生かす。包帯を 20 持ち、巻くのが 2 倍速い。倒れた仲間を 2 倍の速さで起こし（起きた仲間の体力は 3/4）、引きずるのも速い。医療キットで仲間を治す。短機関銃・小銃。',
     guns: ['mp7', 'mp5', 'ump45', 'vector', 'p90', 'mpx', 'bizon', 'mk18', 'aks74u'],
     sec: ['m17', 'g19', 'makarov'],
     gear: [['frag', 1], ['smoke', 2], ['bandage', 20], ['medkit', 1]],
@@ -34,7 +34,7 @@ export const CLASSES = {
   },
   engineer: {
     name: '工兵', en: 'ENGINEER', short: 'ENGINEER', hp: 100,
-    desc: '短い銃・散弾銃・DMR と RPG-7。固まった敵や物陰の敵をロケットで吹き飛ばす。',
+    desc: '爆発物の担当。RPG-7 で固まった敵や物陰の敵を吹き飛ばす（本家では乗り物を壊し、直す役。乗り物はまだない）。小銃・短機関銃・散弾銃・DMR。',
     guns: ['mk18', 'mp7', 'ump45', 'm4super', 'saiga', 'mini14', 'hk417'],
     sec: ['m17', 'g17', 'm92'],
     gear: [['frag', 1], ['smoke', 2], ['bandage', 6]],
@@ -43,7 +43,7 @@ export const CLASSES = {
   },
   support: {
     name: '援護', en: 'SUPPORT', short: 'SUPPORT', hp: 125,
-    desc: '機関銃で制圧する。体力が多い（125）。',
+    desc: '機関銃で撃ち続けて敵を抑える。重い弾薬箱は弾だけでなく包帯・投げ物・RPG・C4 も補給する（道具を補給できるのは援護だけ）。手榴弾 2 つ・体力 125。',
     guns: ['m249', 'rpk'],
     sec: ['m17', 'm92', 'm1911'],
     gear: [['frag', 2], ['smoke', 2], ['bandage', 6], ['ammobig', 2]],
@@ -51,7 +51,7 @@ export const CLASSES = {
   },
   recon: {
     name: '偵察', en: 'RECON', short: 'RECON', hp: 90,
-    desc: '狙撃銃と DMR で遠くから。800m より遠いと胴に1発で倒せる。ヘルメットなし（90）。',
+    desc: '遠くから見張って撃つ。狙撃銃は 800m より遠いと胴に1発で倒せる。双眼鏡で敵をしるす。ヘルメットはかぶれず、包帯は 5・体力 90。',
     guns: ['at308', 'hk417', 'sks', 'mini14', 'g3'],
     sec: ['deagle', 'm17', 'm1911'],
     gear: [['frag', 1], ['smoke', 2], ['bandage', 5], ['binoc', 1], ['hammer', 1]],

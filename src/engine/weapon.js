@@ -1,5 +1,5 @@
 // 銃の動き: 撃つ・弾倉（1本ずつ残弾）・通常/速いリロード・1発ずつ込める・ポンプ・持ち替え・反動（BattleBit式）・散らばり
-import { WEAPONS, AMMO, ATTACH, zoomsOf, zoomOf, swayOf } from './data/weapons.js';
+import { WEAPONS, AMMO, ATTACH, zoomsOf, zoomOf, swayOf, isSupp } from './data/weapons.js';
 import { LONG, HAND_LONG, GEAR } from './data/equipment.js';
 import { curWeapon, curW, magCap } from './actor.js';
 import { spawnBullet, eyeOf } from './combat.js';
@@ -10,11 +10,11 @@ export { hrand };
 const DEG = Math.PI / 180;
 const _amCache = new WeakMap();
 export function attMods(wi) {
-  if (!wi) return { rcv: 1, rch: 1, rcfirst: 1, ads: 0, adsK: 1, drawK: 1, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1 };
+  if (!wi) return { rcv: 1, rch: 1, rcfirst: 1, ads: 0, adsK: 1, drawK: 1, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1, dmg: 1, acc: 1, ctrl: 1 };
   const key = wi.att.sight + wi.att.muzzle + wi.att.grip + wi.att.side + wi.att.mag + wi.att.stock;
   const c = _amCache.get(wi);
   if (c && c.key === key) return c.m;
-  const m = { rcv: 1, rch: 1, rcfirst: 1, ads: 0, adsK: 1, drawK: 1, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1 };
+  const m = { rcv: 1, rch: 1, rcfirst: 1, ads: 0, adsK: 1, drawK: 1, noise: 1, vel: 1, flash: 1, zoom: 1, scope: false, hip: 1, reload: 1, move: 1, spread: 1, dmg: 1, acc: 1, ctrl: 1 };
   const A = ATTACH, a = wi.att;
   for (const x of [A.sight[a.sight], A.muzzle[a.muzzle], A.grip[a.grip], A.side[a.side], A.mag[a.mag], A.stock[a.stock]]) {
     if (!x) continue;
@@ -24,9 +24,10 @@ export function attMods(wi) {
     if (x.ads) m.ads += x.ads; if (x.noise) m.noise *= x.noise; if (x.vel) m.vel *= x.vel; if (x.flash != null) m.flash *= x.flash;
     if (x.zoom) m.zoom = Math.max(m.zoom, x.zoom); if (x.scope) m.scope = true;
     if (x.reload) m.reload *= x.reload; if (x.move) m.move *= x.move; if (x.spread) m.spread *= x.spread;
+    if (x.dmg) m.dmg *= x.dmg; if (x.acc) m.acc *= x.acc; if (x.ctrl) m.ctrl *= x.ctrl;
     if (x.hip && !x.laser) m.hip *= x.hip; // レーザーの腰だめは点けている間だけ（spreadDeg）
   }
-  if (a.muzzle === 'supp' && WEAPONS[wi.id].integral) m.noise = 0.25;
+  if (isSupp(a.muzzle) && WEAPONS[wi.id].integral) m.noise = 0.25;
   m.laserHip = (A.side[a.side] && A.side[a.side].laser && A.side[a.side].hip) || 1;
   _amCache.set(wi, { key, m });
   return m;
@@ -45,6 +46,8 @@ export function spreadDeg(S, a, W, wi) {
   if (a.flash > 0.2 || (a.gas > 0 && a.armor.head !== 'gasmask')) s *= 1.6;
   if (a.supp > 0) s *= 1 + 0.4 * a.supp;
   if ((!a.ground && (a.airT || 0) > 0.12) || a.vault) s += 4;
+  // 銃口の Accuracy（BattleBit の Barrels）
+  s *= am.acc;
   return s;
 }
 
@@ -78,7 +81,9 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
   if (inp.rc > 0 && ws.rp > 0) ws.rp = Math.max(0, ws.rp - Math.min(inp.rc, 30));
   if (W) {
     // バイポッドを付けていて立っていない: 反動の戻り（コントロール）が 4 割弱い（BattleBit Wiki の Bipod）
-    const ctrl = W.rc.ctrl * (since > 0.12 ? 1 : 0.25) * (wi && !a.bip && attMods(wi).bipod ? BIPOD.offCtrl : 1);
+    //  銃口・グリップの Control（BattleBit の Barrels・Grips）も掛ける
+    const amc = wi ? attMods(wi) : null;
+    const ctrl = W.rc.ctrl * (since > 0.12 ? 1 : 0.25) * (amc && !a.bip && amc.bipod ? BIPOD.offCtrl : 1) * (amc ? amc.ctrl : 1);
     const dec = ctrl * dt;
     if (ws.rp > 0) ws.rp = Math.max(0, ws.rp - dec); else ws.rp = Math.min(0, ws.rp + dec);
     ws.ry *= since > 0.12 ? Math.pow(0.02, dt) : Math.pow(0.6, dt);
@@ -466,7 +471,7 @@ function tryFire(S, w, a, W, wi, inp, ev) {
   ws.shots++; ws.lastShot = S.t; a.stats.sh++; ws.pend = false;
   a.fireK = 1;
   // 音と光（AIは聞く）
-  const supp = wi.att.muzzle === 'supp';
+  const supp = isSupp(wi.att.muzzle);
   ev.push({ e: 'shot', id: a.id, wid: wi.id, x: a.x, y: a.y, z: a.z, supp, loud: (W.less ? 0.4 : 1) * m.noise, fl: m.flash, n: ws.shots });
   // ボルトアクション: 撃ったらすぐボルトを操作する（音と薬莢は見る側で、操作の進み具合に合わせて出す）
   if (W.bolt && ws.st === 'pump') ev.push({ e: 'bolt', id: a.id, wid: wi.id, dur: ws.t });

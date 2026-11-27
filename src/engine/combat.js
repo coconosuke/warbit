@@ -89,7 +89,7 @@ export function spawnBullet(S, a, W, wi, am, dx, dy, dz, m, extraPellet) {
   const v = (W.vel || 400) * (m ? m.vel : 1);
   const b = {
     x: eye[0], y: eye[1], z: eye[2], vx: dx * v, vy: dy * v, vz: dz * v,
-    pen: am.pen, pen0: Math.max(1, am.pen), k: 1, owner: a.id, team: a.team, wid: wi.id, cal: W.cal, am: wi.am,
+    pen: am.pen, pen0: Math.max(1, am.pen), k: m && m.dmg ? m.dmg : 1, owner: a.id, team: a.team, wid: wi.id, cal: W.cal, am: wi.am,
     t: 0, dist: 0, pellet: !!am.pellets, tr: !extraPellet && (a.stats.sh % 3 === 0 || W.cat === 'pistol' || W.cat === 'shotgun'),
     lag: a.lag || 0, skip: a.id, less: !!W.less,
   };

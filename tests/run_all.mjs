@@ -764,6 +764,21 @@ try {
     await page.waitForFunction(() => document.querySelector('#hud .dps-card.dps-lop .dps-o'), null, { timeout: 15000 }).catch(() => {});
     const guns = await page.evaluate(() => [...document.querySelectorAll('#hud .dps-card .dps-o[data-btn="dgun"]')].map(e => e.dataset.sub));
     await shot('WAR-装備');
+    // 11-27 15:08: LOADOUT を開くと、地図の代わりに選んだ兵科・銃の兵士の見本。付属品の欄では銃の大写しと、本家の名前（英語の正式名）
+    { await page.waitForTimeout(400);
+      const pv = await page.evaluate(() => { const g = window.__app.game; return { lo: !!document.querySelector('#hud .hud-deploy.lo'), a: !!g._pvA, draws: g.r.stats.draws, cap: (document.querySelector('#hud .dps-pvcap b') || {}).textContent || '' }; });
+      await tapAt(await center('#hud .dps-tab[data-sub="att"]'), 98);
+      await page.waitForFunction(() => window.__app.game.dloTab === 'att', null, { timeout: 8000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      // 1つ目の行を次の物へ（「なし」には英語の名前がない）→ 見たら戻す
+      const nx = await center('#hud .dps-ar .dps-ab[aria-label="次"]');
+      if (nx) { await tapAt(nx, 97); await page.waitForFunction(() => document.querySelector('#hud .dps-an em'), null, { timeout: 5000 }).catch(() => {}); }
+      const pv2 = await page.evaluate(() => { const g = window.__app.game; return { tab: g.dloTab, draws: g.r.stats.draws, en: [...document.querySelectorAll('#hud .dps-an em')].map(e => e.textContent) }; });
+      await shot('WAR-装備-付属品');
+      const pv3 = await center('#hud .dps-ar .dps-ab[aria-label="前"]'); if (nx && pv3) { await tapAt(pv3, 96); await page.waitForTimeout(200); }
+      await tapAt(await center('#hud .dps-tab[data-sub="gun"]'), 99);
+      await page.waitForTimeout(200);
+      rec('WAR BIT', 'LOADOUT: 地図の代わりに兵士の見本・付属品の欄は銃の大写しと本家の名前（英語の正式名）', pv.lo && pv.a && pv.draws > 0 && !!pv.cap && pv2.tab === 'att' && pv2.draws > 0 && pv2.en.length > 0, JSON.stringify({ pv, pv2 })); }
     await tapAt(await center('#hud .dps-lo'), 74);
     await tapAt(await center('#hud .dps-p[data-sub="hq"]'), 75);
     await tapAt(await center('#hud .dps-go'), 76);

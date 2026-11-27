@@ -28,6 +28,15 @@ export class DeployScreen {
     this.sq = el('div', 'dps-sq'); root.appendChild(this.sq);
     this.card = el('div', 'dps-card'); root.appendChild(this.card);
     this.bot = el('div', 'dps-bot'); root.appendChild(this.bot);
+    // LOADOUT を開いている間の見本（兵士・銃）の下に出す名前（3D は game.js が後ろの画面に描く）
+    this.pvcap = el('div', 'dps-pvcap'); root.appendChild(this.pvcap);
+  }
+  // 見本を描く所（画面の座標）: 上の帯の下〜下の帯の上、左の端〜LOADOUT の板の左
+  previewRect() {
+    if (!this.root.classList.contains('lo')) return null;
+    const R = this.root.getBoundingClientRect(), t = this.top.getBoundingClientRect(), b = this.bot.getBoundingClientRect(), c = this.card.getBoundingClientRect();
+    const left = R.left + 8, right = c.width ? c.left - 6 : R.right - 8, top = t.bottom + 4, bottom = b.top - 4;
+    return { left, top, right, bottom, width: right - left, height: bottom - top };
   }
   // d: game.js の _warDeployData()
   update(d) {
@@ -62,7 +71,7 @@ export class DeployScreen {
           this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(d.gunName)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}` +
             // 1行ずつ「◀ 名前 ▶」で切り替える（小さい画面でも全部の枠が見える）。下に効き目
             (d.att || []).map(r => { const i = Math.max(0, r.list.findIndex(o => o.v === r.sel)), n = r.list.length, cur = r.list[i], pv = r.list[(i + n - 1) % n].v, nx = r.list[(i + 1) % n].v;
-              return `<div class="dps-ar"><span>${esc(r.lb)}</span><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${pv}" role="button" aria-label="前">◀</div><div class="dps-an"><b>${esc(cur.name)}</b><small>${esc(cur.fx || '')}</small></div><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${nx}" role="button" aria-label="次">▶</div></div>`; }).join('');
+              return `<div class="dps-ar"><span>${esc(r.lb)}</span><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${pv}" role="button" aria-label="前">◀</div><div class="dps-an"><b>${esc(cur.name)}</b>${cur.en ? `<em>${esc(cur.en)}</em>` : ''}<small>${esc(cur.fx || '')}</small></div><div class="dps-ab" data-btn="datt" data-sub="${r.k}:${nx}" role="button" aria-label="次">▶</div></div>`; }).join('');
         } else {
         this.card.innerHTML = `<div class="dps-h"><span>LOADOUT</span><b>${esc(c.en)}</b><div class="dps-x" data-btn="dlo" role="button" aria-label="閉じる">×</div></div>${tabs}
           <div class="dps-sub">PRIMARY　主の銃</div><div class="dps-g">${d.guns.map(g => `<div class="dps-o${g.id === d.gun ? ' on' : ''}" data-btn="dgun" data-sub="${g.id}" role="button"><b>${esc(g.name)}</b><small>${esc(g.info)}</small></div>`).join('')}</div>
@@ -84,6 +93,11 @@ export class DeployScreen {
         <div class="dps-cls">${d.classes.map(c => `<div class="dps-c${c.id === d.cls ? ' on' : ''}${c.ok ? '' : ' dis'}" data-btn="dcls" data-sub="${c.id}" role="button" aria-label="${esc(c.name)}">${clsIcon(c.id)}<span>${esc(c.short)}</span></div>`).join('')}</div>
         <div class="dps-go${d.canGo ? '' : ' dis'}${d.queued ? ' queued' : ''}" data-btn="dgo" role="button"><b>${go}</b>${d.msg ? `<small>${esc(d.msg)}</small>` : ''}</div>`;
     }
+    // LOADOUT: 地図と分隊の欄を隠し、後ろに描く見本（兵士・銃）を見せる（11-27 15:08「本家みたいにプレビュー」）
+    if (C.lo !== !!d.lo) { C.lo = !!d.lo; this.root.classList.toggle('lo', !!d.lo); if (this.root.parentElement) this.root.parentElement.classList.toggle('dps-lo-on', !!d.lo); }
+    { const cap = d.lo ? `<b>${esc(d.gunName)}</b><span>${esc(d.loTab === 'att' ? '付属品' : (d.classes.find(q => q.id === d.cls) || {}).en || '')}</span>` : '';
+      if (C.cap !== cap) { C.cap = cap; this.pvcap.innerHTML = cap; }
+      if (d.lo) { const r = this.previewRect(); if (r) { const l = Math.round(r.left - this.root.getBoundingClientRect().left) + 'px', w = Math.round(r.width) + 'px', tp = Math.round(r.bottom - this.root.getBoundingClientRect().top - 34) + 'px'; if (this.pvcap.style.left !== l) this.pvcap.style.left = l; if (this.pvcap.style.width !== w) this.pvcap.style.width = w; if (this.pvcap.style.top !== tp) this.pvcap.style.top = tp; } } }
     // 予約をやめられた（選んだ場所が使えなくなった）: 地図の上に「場所を選び直す」・印を点滅
     if (C.pick !== d.pick) { C.pick = d.pick; this.mapw.classList.toggle('pick', !!d.pick); }
     this._map(d);

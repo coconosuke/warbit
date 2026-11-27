@@ -436,6 +436,7 @@ export function tryVault(S, w, a, ev, o = {}) {
   if (!p) return false;
   a.vault = { t: 0, dur: p.dur, x0: a.x, z0: a.z, sx: p.sx, sz: p.sz, y0: a.y, x1: p.x1, z1: p.z1, top: p.top, y1: p.y1, drop: p.drop > 0 ? 1 : 0, onto: p.onto, crouch: p.crouch, pre: p.gk >= 0 ? VAULT.smash : 0, hop: p.hop || 0 };
   if (p.hop && ev) ev.push({ e: 'jump', id: a.id, f: floorOf(w, a).step });
+  else if (ev && w.war && !S.predict) ev.push({ e: 'vault', id: a.id, x: a.x, y: a.y, z: a.z });
   a.vx = a.vz = 0; a.sprint = false;
   // 窓のガラスを割る（手元の先読みでは割らない。ホストが割って知らせる）
   if (p.gk >= 0 && !S.predict && ev) breakGlass(S, w, { k: p.gk, q: 1, x: p.x1, by: a.id }, ev);

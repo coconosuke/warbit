@@ -1,7 +1,7 @@
 // 1回の試合: エンジンを進め、入力を命令にし、出来事を音・効果・HUDへ。カメラ（一人称）と描画。
 import { createGame, step, load } from '../engine/engine.js';
 import { eyeOf, capsOf } from '../engine/combat.js';
-import { curWeapon, curW, ammoCount, makeWeapon, magCap } from '../engine/actor.js';
+import { curWeapon, curW, ammoCount, makeWeapon, magCap, createActor } from '../engine/actor.js';
 import { contextOf, OP_NAME, doorOps, personOps, personPoint } from '../engine/interact.js';
 import { WAR_DOWN_T } from '../engine/status.js';
 import { spreadDeg, magNear } from '../engine/weapon.js';
@@ -14,6 +14,8 @@ import { TC } from '../ui/teamcol.js';
 // 大規模戦のエイムアシストの強さ: [体の上での見回しの速さ]（敵の見かけの動きには 1 - これ だけついていく）
 // 双眼鏡を構えている時の倍率（構えきるまでは 1）
 const BINOC_OPTIC = { kind: 'binoc', scope: true, zoom: 6 };
+// 銃のライトの光の形（フラッシュライト 細く遠く・サーチライト 広く近く・タクティカル 構えている間だけ青）
+function beamOf(wi) { const x = wi && wi.att && ATTACH.side[wi.att.side]; return (x && x.beam) || {}; }
 function binocZoom(p) { const ws = p && p.ws; return ws && ws.slot === 2 && ws.gear === 'binoc' && GEAR.binoc ? (p.ads > 0.5 ? GEAR.binoc.zooms[ws.bz ?? GEAR.binoc.zi] : 1) : 0; }
 const AA_WAR = { off: [1], weak: [0.85], mid: [0.75], strong: [0.65], max: [0.55] };
 import { sideOf, isOpen } from '../engine/doors.js';
@@ -32,7 +34,7 @@ import { vfovOf } from './settings.js';
 import { gfxOf, WAR_SKY, WAR_GRADE } from '../render/renderer.js';
 import { sunVisAt } from '../war/render.js';
 import { carve, breakPane, collapseBld } from '../war/destruct.js';
-import { los as warLos, camClear } from '../war/world.js';
+import { los as warLos, camClear, heightAt, raycast as warRay } from '../war/world.js';
 // 目と壁の間（m）。近くを切る面（0.08m 先・画面の隅まで約 0.13m）が壁に入らないように
 const CAM_CLR = 0.16;
 import { OUT_LIMIT, canSpawnAt, canPick, squadEn, respawnT, WAR_MODES, sizeLabel, canSpawnOn } from '../engine/modes/war.js';
@@ -164,7 +166,8 @@ export class Match {
     //  画面いっぱいの出撃の画面の下でも毎こま描いていた）: 出撃の画面の間は描かない、メニューの間は 4 こまに 1 回
     this._rk = (this._rk || 0) + 1;
     const cover = this.hud.deployOn ? 2 : fo.input === false ? 1 : 0;
-    const drawNow = cover === 0 || (cover === 1 && this._rk % 4 === 0);
+    //  出撃の画面でも LOADOUT を開いている間は、見本（兵士・銃）だけを描く（_render → _renderPreview）
+    const drawNow = cover === 0 || (cover === 1 && this._rk % 4 === 0) || (cover === 2 && !!this.dlo && this.S.war);
     // 始まりの暗転（1.2 秒で明ける）は、描かないこまでも進める。出撃の画面ではすぐ明ける
     //  （11-27 13:23「ゲーム始めると真っ暗」: 0.1.61 で出撃の画面の下を描かなくした時、暗転を明けるのが描く処理の中にあって、出撃するまで黒い幕が残っていた）
     if (this.intro > 0) {
@@ -995,7 +998,10 @@ export class Match {
         case 'draw': if (e.id === me) au.sfx('draw', null, { vol: 0.45 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 10)) au.sfx('draw', [a.x, a.y + 1.1, a.z], { vol: 0.3 }); } break;
         case 'fmode': if (e.id === me) { au.sfx('fmode', null, { vol: 0.5 }); if (!S.war) hud.showBanner(S.war ? (e.m === 'auto' ? 'AUTO' : e.m === 'burst' ? 'BURST' : 'SEMI') : e.m === 'auto' ? '連射' : '単発', 700); } break;
         case 'lightsw': if (e.id === me) au.sfx('click', null, { vol: 0.4 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 6)) au.sfx('click', [a.x, a.y + 1.3, a.z], { vol: 0.25 }); } break;
-        case 'step': { const a = S.byId[e.id]; if (a && a !== p) au.step(e.f, [e.x, e.y, e.z], e.loud); else if (a === p) au.step(e.f, null, e.loud * 0.6); break; }
+        case 'step': { const a = S.byId[e.id]; if (a && a !== p) au.step(e.f, [e.x, e.y, e.z], e.loud); else if (a === p) au.step(e.f, null, e.loud * 0.6);
+          // 走っている（大規模戦）: 一歩ごとに装備が揺れて当たる音（自分は小さく、まわりは近くだけ）
+          if (S.war && a && a.sprint) { if (a === p) au.sfx('gearRun', null, { vol: 0.22, verb: 0.08 }); else if (Math.hypot(e.x - this.cam.x, e.z - this.cam.z) < 14) au.sfx('gearRun', [e.x, e.y + 1, e.z], { vol: 0.4, verb: 0.25 }); }
+          break; }
         case 'shout': { const a = S.byId[e.id]; if (a) this._say(a, e.line > -1 || typeof e.line === 'string' ? e.line : 'swat_police', a === p); break; }
         case 'cmd': {
           const by = S.byId[e.id];
@@ -1077,15 +1083,21 @@ export class Match {
         case 'rico': if (e.x != null) au.sfx('impMetal', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.9 : 0.7, rate: 1.7 }); break;
         case 'plate': if (e.x != null) au.sfx('plateHit', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.8 : 0.6 }); break;
         // 構えの切り替え: 服のこすれ（伏せるときは低く重め）。ほかの人のは近くだけ（伏せ 14m・しゃがむ/立つ 8m）
+        // 構えの切り替え（11-27 14:29「音は重厚感とリアルさ」）: 伏せる（ひざと胸が地面に落ちる・装備が跳ねる）・伏せから起きる・しゃがむ・立つ
         case 'stance': {
-          if (e.id === me) au.sfx('act', null, { vol: e.pose === 2 ? 0.32 : 0.2, rate: e.pose === 2 ? 0.75 : e.pose === 1 ? 1.0 : 1.15 });
+          const a = S.byId[e.id], from = a && a._stPose != null ? a._stPose : 0; if (a) a._stPose = e.pose;
+          const nm = e.pose === 2 ? 'stProne' : from === 2 ? 'stRise' : e.pose === 1 ? 'stCrouch' : 'stStand';
+          if (e.id === me) au.sfx(nm, null, { vol: e.pose === 2 ? 0.6 : 0.42, verb: 0.12 });
           else if (e.x != null) {
             const dd = Math.hypot(e.x - this.cam.x, e.z - this.cam.z);
-            if (e.pose === 2 && dd < 14) au.sfx('act', [e.x, e.y + 0.4, e.z], { vol: 0.4, rate: 0.75 });
-            else if (dd < 8) au.sfx('act', [e.x, e.y + 0.9, e.z], { vol: 0.25, rate: 1.05 });
+            if ((e.pose === 2 || from === 2) && dd < 16) au.sfx(nm, [e.x, e.y + 0.4, e.z], { vol: 0.65, verb: 0.3 });
+            else if (dd < 9) au.sfx(nm, [e.x, e.y + 0.9, e.z], { vol: 0.45, verb: 0.3 });
           }
           break;
         }
+        // 乗り越え: 手を縁につく・体を振り上げる布と装備・向こうへ足をつく
+        case 'vault': { const a = S.byId[e.id]; if (!a) break; const mine = a === p; if (!mine && Math.hypot(e.x - this.cam.x, e.z - this.cam.z) > 22) break;
+          au.sfx('vaultS', mine ? null : [e.x, e.y + 1, e.z], { vol: mine ? 0.6 : 0.7, verb: mine ? 0.12 : 0.3 }); break; }
         // リロードを途中でやめた（自分だけ。手を止める小さな音）
         case 'reloadx': if (e.id === me) au.sfx('click', null, { vol: 0.25, rate: 0.9 }); break;
         case 'wire': { const near = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); if (near < 30) au.sfx('impMetal', e.id === me ? null : [e.x, e.y, e.z], { vol: e.id === me ? 0.35 : 0.55, rate: 1.6 + Math.random() * 0.3 }); break; }
@@ -1221,7 +1233,7 @@ export class Match {
   _render(dt, inp) {
     const S = this.S, p = this.p, r = this.r, st = this.app.settings;
     // 出撃の画面が開いている間は 3D を描かない（地図が画面全体をおおう。電池のため）
-    if (S.war && this.hud.deployOn && !p.alive) { if (this.intro > 0) { this.intro = 0; this.app.fade(0); } return; }
+    if (S.war && this.hud.deployOn && !p.alive) { if (this.intro > 0) { this.intro = 0; this.app.fade(0); } if (this.dlo) { try { this._renderPreview(dt); } catch (e) { console.warn('preview', e); } } return; }
     let cam;
     this._scopeFx = null; this._retOff = null; this._pipMode = false; // のぞいたときの見え方（生きて自分の目で見ているときだけ。_aimFx）
     const drone = this.droneId != null ? S.byId[this.droneId] : null;
@@ -1390,14 +1402,16 @@ export class Match {
     // 動く光: 自分と隊員のライト、銃口・爆発
     const lights = [];
     const roomsFor = (x, y, z, R) => this._lightRooms(x, y, z, R);
-    if (fp && this.vm.out.light) { const o = this.vm.out.light, f = this.vm.out.fwd; lights.push({ x: o[0] + f[0] * 0.05, y: o[1], z: o[2] + f[2] * 0.05, r: 22, col: [5.5, 5.2, 4.6], spot: { dx: f[0], dy: f[1], dz: f[2], cos: Math.cos(0.42) }, rooms: roomsFor(o[0], o[1], o[2], 22) }); }
+    const bm0 = beamOf(curWeapon(p));
+    if (fp && this.vm.out.light && !(bm0.ads && p.ads < 0.5)) { const o = this.vm.out.light, f = this.vm.out.fwd; lights.push({ x: o[0] + f[0] * 0.05, y: o[1], z: o[2] + f[2] * 0.05, r: bm0.r || 22, col: bm0.col ? bm0.col.map(v => v * 1.2) : [5.5, 5.2, 4.6], spot: { dx: f[0], dy: f[1], dz: f[2], cos: Math.cos(bm0.ang || 0.42) }, rooms: roomsFor(o[0], o[1], o[2], 22) }); }
     for (const e2 of this.av.list) {
       if (e2.drone || !e2.gun || !e2.gun.wi || !e2.gun.wi.lightOn || !e2.gun.wi.att.light || lights.length >= 6) continue;
+      const bm = beamOf(e2.gun.wi); if (bm.ads && !(e2.a.ads > 0.5)) continue;
       const g = e2.gun.f, gm = gunModel(e2.gun.wi.id, e2.gun.wi.att);
       const lp = gm && gm.pts.lightPt ? gm.pts.lightPt : [0, 0, 0.3];
       const x = g.p[0] + g.l[0] * lp[0] + g.u[0] * lp[1] + g.f[0] * lp[2], y = g.p[1] + g.l[1] * lp[0] + g.u[1] * lp[1] + g.f[1] * lp[2], z = g.p[2] + g.l[2] * lp[0] + g.u[2] * lp[1] + g.f[2] * lp[2];
       if (Math.hypot(x - cam.x, z - cam.z) > 35) continue;
-      lights.push({ x, y, z, r: 18, col: [4.5, 4.3, 3.8], spot: { dx: g.f[0], dy: g.f[1], dz: g.f[2], cos: Math.cos(0.42) }, rooms: roomsFor(x, y, z, 18) });
+      lights.push({ x, y, z, r: (bm.r || 22) * 0.82, col: bm.col || [4.5, 4.3, 3.8], spot: { dx: g.f[0], dy: g.f[1], dz: g.f[2], cos: Math.cos(bm.ang || 0.42) }, rooms: roomsFor(x, y, z, 18) });
     }
     this.fx.lights(lights, roomsFor);
     lights.sort((a, b) => (a.spot ? 0 : 1) - (b.spot ? 0 : 1));
@@ -1628,6 +1642,7 @@ export class Match {
       c4: !!(p.alive && !p.down && p.ws.slot === 2 && GEAR[p.ws.gear] && GEAR[p.ws.gear].kind === 'c4'), c4left: (p.inv.gear.find(g => g.id === 'c4') || { n: 0 }).n,
       spread: wi ? spreadDeg(S, p, WEAPONS[wi.id], wi) : 2,
       giveup: S.war && S.m.mode !== 'range' && p.alive && p.down ? (this.time - (this._guT ?? -99) < 2.5 ? 2 : 1) : 0,
+      rangeM: this._rangeM(),
       downInfo: S.war && S.m.mode !== 'range' && p.alive && p.down ? this._downInfo() : null,
       optic: p.ws && p.ws.slot === 2 && p.ws.gear === 'binoc' ? BINOC_OPTIC : null, canVault: this.vaultOK !== false, rally: this._rallyBtn(), rl: this._rlProg(p),
       ctxLabel: c && !tooFar(c) ? (c.def.far ? '回り込む' : (OP_NAME[c.def.op] || c.def.op)) : '',
@@ -1847,10 +1862,74 @@ export class Match {
       if (x.rcv && x.rcv !== 1) o.push('縦の反動 ' + pc(x.rcv)); if (x.rch && x.rch !== 1) o.push('横の反動 ' + pc(x.rch)); if (x.rcfirst && x.rcfirst !== 1) o.push('初弾 ' + pc(x.rcfirst));
       if (x.ads) o.push('構え ' + (x.ads > 0 ? '+' : '-') + Math.round(Math.abs(x.ads) * 1000) + 'ms'); if (x.noise && x.noise !== 1) o.push('音 ' + pc(x.noise)); if (x.hip && x.hip !== 1) o.push('腰だめ ' + pc(x.hip)); if (x.light) o.push('ライト');
       if (x.adsK && x.adsK !== 1) o.push('構え ' + pc(x.adsK)); if (x.reload && x.reload !== 1) o.push('リロード ' + pc(x.reload)); if (x.drawK && x.drawK !== 1) o.push('取り出し ' + pc(x.drawK)); if (x.move && x.move !== 1) o.push('走る ' + pc(x.move));
+      if (x.dmg && x.dmg !== 1) o.push('ダメージ ' + pc(x.dmg)); if (x.vel && x.vel !== 1) o.push('弾速 ' + pc(x.vel));
+      if (x.acc && x.acc !== 1) o.push('散らばり ' + pc(x.acc)); if (x.ctrl && x.ctrl !== 1) o.push('反動の戻り ' + pc(x.ctrl));
+      if (x.flash === 0) o.push('炎なし'); else if (x.flash && Math.abs(x.flash - 1) >= 0.05) o.push('炎 ' + pc(x.flash));
       if (x.bipod) o.push('立てると反動 -40%・揺れなし／立てていないと反動 +40%');
       return o.join('・'); };
     const short = (nm) => String(nm).replace(/（.*?）/g, '');
-    return L.filter(([k]) => ao[k] && ao[k].length > 1).map(([k, lb]) => ({ k, lb, sel: w.att[k], list: ao[k].map(v => ({ v, name: short((ATTACH[k][v] || {}).name || v), fx: fx(ATTACH[k][v]) })) }));
+    return L.filter(([k]) => ao[k] && ao[k].length > 1).map(([k, lb]) => ({ k, lb, sel: w.att[k], list: ao[k].map(v => ({ v, name: short((ATTACH[k][v] || {}).name || v), en: (ATTACH[k][v] || {}).en || '', fx: fx(ATTACH[k][v]) })) }));
+  }
+  // 出撃の画面の LOADOUT の見本（11-27 15:08「本家みたいに銃や装備の変更でプレビュー（銃の見た目、装備してるプレイヤーの見た目）」）:
+  //  地図の代わりに左の空いた所へ、選んだ兵科・銃・付属品の兵士を描く（ゆっくり向きを変える）。付属品の欄では銃を横から大きく
+  _renderPreview(dt) {
+    const rc = this.hud.deployPreviewRect(); if (!rc) return false;
+    const S = this.S, p = this.p, r = this.r, cv = r.canvas, cr = cv.getBoundingClientRect();
+    const kx = cv.width / Math.max(1, cr.width), ky = cv.height / Math.max(1, cr.height);
+    const R = [Math.round((rc.left - cr.left) * kx), Math.round((cr.bottom - rc.bottom) * ky), Math.max(2, Math.round(rc.width * kx)), Math.max(2, Math.round(rc.height * ky))];
+    const pk = this._warPick(), W = this._warPrefs();
+    const lo = classLoadout(pk.cls, pk.gun, pk.sec, W.att, pk.gad);
+    const key = JSON.stringify([pk.cls, lo.primary, lo.secondary.id, p.team]);
+    let fa = this._pvA;
+    if (!fa || this._pvK !== key) {
+      const hq = S.m.hq[p.team] || [p.x, p.z], gy = heightAt(this.w, hq[0], hq[1]);
+      fa = createActor({ nextId: -900, actors: [] }, { kind: 'soldier', team: p.team, x: hq[0], z: hq[1], y: Number.isFinite(gy) ? gy : p.y, lo, look: p.look });
+      Object.assign(fa.ws, { st: 'idle', t: 0 }); fa.warCls = pk.cls; fa.low = 1; fa.stateT = 2; fa._lookV = key;
+      this._pvA = fa; this._pvK = key; this._pvT = this._pvT || 0;
+    }
+    this._pvT += dt;
+    const y0 = 0.6, T = this._pvT, gunTab = this.dloTab === 'att';
+    const cx = fa.x, cz = fa.z, gy = fa.y;
+    let cam, draw;
+    const look = (px, py, pz, tx, ty, tz, fov) => ({ x: px, y: py, z: pz, yaw: Math.atan2(tx - px, tz - pz), pitch: Math.atan2(ty - py, Math.hypot(tx - px, tz - pz)), fov });
+    if (gunTab) {
+      // 銃だけを横から（銃口が右）。銃の長さに合わせて離れる
+      const wi = curWeapon(fa); if (!wi) return false;
+      const bb = this.av.gunBox(wi.id, wi.att) || { z0: -0.4, z1: 0.5, y0: -0.15, y1: 0.12 };
+      const L = bb.z1 - bb.z0, asp = R[2] / R[3], fov = 0.5, D = Math.max(0.35, (L * 1.18) / (2 * Math.tan(fov / 2) * Math.min(1.6, asp)));
+      const gyaw = y0 + Math.PI / 2 + Math.sin(T * 0.5) * 0.18, tx = cx, ty = gy + 1.3, tz = cz;
+      const zc = (bb.z0 + bb.z1) / 2, yc = (bb.y0 + bb.y1) / 2;
+      const g = { wi, yaw: gyaw, x: tx - Math.sin(gyaw) * zc, y: ty - yc, z: tz - Math.cos(gyaw) * zc };
+      cam = look(tx + Math.sin(y0 + 0.12) * D, ty + D * 0.12, tz + Math.cos(y0 + 0.12) * D, tx, ty, tz, fov);
+      draw = (f) => this.av.studio(f, fa, { gun: g });
+    } else {
+      // 兵士の全身（斜め前から。ゆっくり向きを変える）
+      fa.yaw = y0 + 0.75 + Math.sin(T * 0.3) * 1.25; fa.pitch = -0.05; // 前から横・背中の方まで（背嚢・無線機が見える）
+      const D = 3.7, fov = 0.62;
+      cam = look(cx + Math.sin(y0) * D, gy + 1.15, cz + Math.cos(y0) * D, cx, gy + 0.95, cz, fov);
+      draw = (f) => this.av.studio(f, fa);
+    }
+    // 明かり: 正面の左上（主）と後ろ（縁）。夜の地図でも見えるように
+    const kxp = cam.x + Math.sin(y0 + 0.9) * 1.5, kzp = cam.z + Math.cos(y0 + 0.9) * 1.5;
+    const kb = gunTab ? 2.4 : 1.5;
+    const lights = [{ x: kxp, y: gy + (gunTab ? 2.0 : 2.6), z: kzp, r: 9, col: [kb, kb * 0.95, kb * 0.87] }, { x: cx - Math.sin(y0) * 2.5, y: gy + 2.2, z: cz - Math.cos(y0) * 2.5, r: 7, col: [0.55, 0.6, 0.7] }];
+    const f = { dt, cam, rect: R, bg: [0.008, 0.01, 0.012], lights, ambMin: gunTab ? 0.5 : 0.32, fogMul: 0, post: { vig: 0.45, exposure: gunTab ? 1.25 : 1.05 } };
+    f.draw = () => draw(f);
+    r.renderStudio(f);
+    return true;
+  }
+  // レンジファインダー（本家の横のレール）: 構えている間、狙った所（地面・建物・物）までの距離（m）。1 秒に 6 回はかる
+  _rangeM() {
+    const S = this.S, p = this.p, wi = curWeapon(p), c = this.cam;
+    if (!S.war || !p.alive || p.down || !wi || wi.att.side !== 'range' || p.ads < 0.6 || !c || c.yaw == null) return null;
+    if (this._rfT != null && this.time - this._rfT < 0.16) return this._rfM;
+    const cp = Math.cos(c.pitch || 0), dx = Math.sin(c.yaw) * cp, dy = Math.sin(c.pitch || 0), dz = Math.cos(c.yaw) * cp;
+    let t = Infinity;
+    for (const h of warRay(this.w, c.x, c.y, c.z, dx, dy, dz, 1500)) if (h.t0 > 0.4 && h.t0 < t) t = h.t0;
+    // 人（敵・味方）にも当てる（体の真ん中の 0.35m の球）
+    for (const a of S.actors) { if (a === p || !a.alive) continue; const ox = a.x - c.x, oy = a.y + 1.1 - c.y, oz = a.z - c.z, along = ox * dx + oy * dy + oz * dz; if (along < 0.5 || along > t) continue; const px = ox - dx * along, py = oy - dy * along, pz = oz - dz * along; if (px * px + py * py * 0.25 + pz * pz < 0.35 * 0.35) t = along; }
+    this._rfT = this.time; this._rfM = Number.isFinite(t) ? Math.round(t) : null;
+    return this._rfM;
   }
   // 予約をやめた理由（DEPLOY の下に出す）
   _dpickMsg() {

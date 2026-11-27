@@ -93,7 +93,9 @@ test('optics: 2・3・4・6・8倍の照準器（実在の物）。等倍に切�
   eq(z('lpvo').zoom, 4); const l1 = z('lpvo', 1); eq(l1.zoom, 1); ok(l1.o.scope && l1.o.wide, '等倍〜4倍の等倍は広い視野のスコープ');
   eq(z('scope6').zoom, 6, '6倍（ACOG TA648）');
   eq(z('lpvo8').zoom, 8, '8倍（NX8 1-8x24）'); eq(z('lpvo8', 1).zoom, 1);
-  for (const k of ['acog2', 'mag3', 'acog', 'lpvo', 'scope6', 'lpvo8', 'sniper']) ok(/（.+）/.test(ATTACH.sight[k].name), `実在の照準器の名前 ${ATTACH.sight[k].name}`);
+  // 11-27 15:08: 本家（BattleBit）に同じ物がある照準器は本家の名前（en に英語の正式名）。ない物は実在の物の名前のまま
+  for (const k of ['acog', 'scope6', 'sniper']) ok(ATTACH.sight[k].en, `本家の名前 ${ATTACH.sight[k].name}（${ATTACH.sight[k].en}）`);
+  for (const k of ['acog2', 'mag3', 'lpvo', 'lpvo8']) ok(/（.+）/.test(ATTACH.sight[k].name), `実在の照準器の名前 ${ATTACH.sight[k].name}`);
   const g = gunModel('hk416', { sight: 'mag3' });
   ok(g.flip && g.pts.flipPivot, 'ブースターは横へ倒れる別の部品');
   for (const k of ['acog2', 'acog', 'lpvo', 'scope6', 'lpvo8']) { const m = gunModel('hk417', { sight: k }); ok(m.pts.optic && m.pts.optic.kind === k && m.pts.optic.scope, `形 ${k}`); }

@@ -280,50 +280,79 @@ export const WEAPONS = {
 // reload リロードの時間、move 歩く速さ、noise 銃声、flash 銃口の炎、zoom 倍率、spread 散弾の広がり）
 export const ATTACH = {
   sight: {
-    iron: { name: 'アイアンサイト', zoom: 1.0, ads: 0 },
-    reddot: { name: 'ドットサイト（Micro T-2）', zoom: 1.1, ads: 0.01 },
-    srs: { name: '広窓ドットサイト（SRS）', zoom: 1.1, ads: 0.014, desc: '窓が広く、まわりが見やすい。少し重い。' },
-    holo: { name: 'ホロサイト（EXPS3）', zoom: 1.1, ads: 0.015 },
+    iron: { name: 'アイアンサイト', en: 'Ironsight', zoom: 1.0, ads: 0 },
+    reddot: { name: 'レッドドット', en: 'Red Dot', zoom: 1.1, ads: 0.01 },
+    srs: { name: 'リフレックス', en: 'Reflex', zoom: 1.1, ads: 0.014, desc: '窓が広く、まわりが見やすい。少し重い。' },
+    holo: { name: 'ホログラフィック', en: 'Holographic', zoom: 1.1, ads: 0.015 },
     // 倍率の照準器（11-12。実在の物を元にした形と照準の模様）。zooms: 構えている間に射撃モードのボタンで切り替える倍率（はじめが既定）。
     // flip: 等倍にするとブースターを横へ倒す（照準はホロサイト）。wide1: 等倍でもスコープをのぞく（視野が広い）
     acog2: { name: '2倍スコープ（ACOG TA47 2x20）', zoom: 2.0, ads: 0.03, scope: true, desc: 'トリジコンの小型のACOG（全長13.5cm）。2倍の固定倍率で、照準は赤い十字（光ファイバーと夜光）。近くも見やすい。' },
     mag3: { name: 'ホロサイト＋3倍ブースター（EXPS3・G33）', zoom: 3.0, zooms: [3, 1], ads: 0.04, scope: true, flip: true, desc: 'EOTech のホロサイトの後ろに3倍のブースター（G33）。構えている間に射撃モードのボタンで、ブースターを横へ倒す（等倍のホロサイト）・戻す（3倍）。' },
-    acog: { name: '4倍スコープ（ACOG TA31 4x32）', zoom: 4.0, ads: 0.05, scope: true, desc: 'トリジコンの4倍の固定スコープ。照準は赤い山形（シェブロン）と、下に5.56mmの距離の目盛り。遠くの頭を狙える。近くは見づらい。' },
+    acog: { name: 'ACOG', en: 'Acog', zoom: 4.0, ads: 0.05, scope: true, desc: 'トリジコンの4倍の固定スコープ。照準は赤い山形（シェブロン）と、下に5.56mmの距離の目盛り。遠くの頭を狙える。近くは見づらい。' },
     lpvo: { name: '等倍〜4倍スコープ（SpecterDR 1-4x）', zoom: 4.0, zooms: [4, 1], ads: 0.06, scope: true, wide1: true, desc: 'ELCAN の等倍と4倍を上のレバーで切り替えるスコープ。構えている間に射撃モードのボタンで切り替える。照準は十字と赤い点。' },
-    scope6: { name: '6倍スコープ（ACOG TA648 6x48）', zoom: 6.0, ads: 0.08, scope: true, desc: '7.62mm NATO の小銃のための大きなACOG（全長23cm・1.1kg）。照準は赤い馬蹄形と点、下に .308 の距離の目盛り。' },
+    scope6: { name: '6倍スコープ', en: '6x Scope', zoom: 6.0, ads: 0.08, scope: true, desc: '7.62mm NATO の小銃のための大きなACOG（全長23cm・1.1kg）。照準は赤い馬蹄形と点、下に .308 の距離の目盛り。' },
     lpvo8: { name: '等倍〜8倍スコープ（NX8 1-8x24）', zoom: 8.0, zooms: [8, 1], ads: 0.07, scope: true, wide1: true, desc: 'ナイトフォースの選抜射手向けのスコープ（全長22cm）。構えている間に射撃モードのボタンで等倍と8倍を切り替える。照準は赤い円と点、細い十字に2ミルごとの目盛り。' },
-    sniper: { name: '狙撃用スコープ（PM II 3-12x50）', zoom: 8.0, zooms: [4, 8], ads: 0.08, scope: true, desc: 'シュミット＆ベンダーの狙撃用スコープ（34mmの胴・50mmの対物レンズ）。射撃モードのボタンで4倍と8倍を切り替える。照準はミルドットの十字。' },
+    sniper: { name: '8倍スコープ', en: '8x Scope', zoom: 8.0, zooms: [4, 8], ads: 0.08, scope: true, desc: 'シュミット＆ベンダーの狙撃用スコープ（34mmの胴・50mmの対物レンズ）。射撃モードのボタンで4倍と8倍を切り替える。照準はミルドットの十字。' },
     // 16 倍より上（11-27。BattleBit の Sights: 15x・20x・PTR-40 Hunter（画像の名前から 40 倍）。research の 50・66）。倍率は固定。照準の模様は狙撃用と同じ
-    scope15: { name: '15倍スコープ', zoom: 15.0, ads: 0.1, scope: true, ret: 'sniper', desc: '15倍の固定倍率。とても遠い的を狙える。視野が狭く、近くはほとんど見えない。構えるのが遅い。' },
-    scope20: { name: '20倍スコープ', zoom: 20.0, ads: 0.11, scope: true, ret: 'sniper', desc: '20倍の固定倍率。揺れが大きく見えるので、伏せるか息を止めて狙う。' },
-    scope40: { name: '40倍スコープ', zoom: 40.0, ads: 0.13, scope: true, ret: 'sniper', desc: '40倍の固定倍率（本家の PTR-40 Hunter に当たる）。1km を超える的のための物。バイポッドと伏せがほぼ要る。' },
-    rmr: { name: 'ピストル用ドットサイト（RMR）', zoom: 1.05, ads: 0.01 },
-    sro: { name: 'ピストル用広窓ドット（SRO）', zoom: 1.05, ads: 0.012, desc: '丸い大きな窓で、ドットを見失いにくい。' },
+    scope15: { name: '15倍スコープ', en: '15x Scope', zoom: 15.0, ads: 0.1, scope: true, ret: 'sniper', desc: '15倍の固定倍率。とても遠い的を狙える。視野が狭く、近くはほとんど見えない。構えるのが遅い。' },
+    scope20: { name: '20倍スコープ', en: '20x Scope', zoom: 20.0, ads: 0.11, scope: true, ret: 'sniper', desc: '20倍の固定倍率。揺れが大きく見えるので、伏せるか息を止めて狙う。' },
+    scope40: { name: 'PTR-40 ハンター', en: 'PTR-40 Hunter', zoom: 40.0, ads: 0.13, scope: true, ret: 'sniper', desc: '40倍の固定倍率（本家の PTR-40 Hunter に当たる）。1km を超える的のための物。バイポッドと伏せがほぼ要る。' },
+    rmr: { name: 'ピストル レッドドット', en: 'Pistol Red Dot', zoom: 1.05, ads: 0.01 },
+    sro: { name: 'ピストル デルタサイト', en: 'Pistol Delta Sight', zoom: 1.05, ads: 0.012, desc: '丸い大きな窓で、ドットを見失いにくい。' },
   },
+  // 銃口（11-27 15:08「名前も本家準拠」: BattleBit の Barrels の名前と数字。research の 73）。
+  //  数字は掛け算: dmg ダメージ・vel 弾の速さ・acc 散らばり（本家の Accuracy 77.5 に足す値 → 77.5/(77.5+値)）・noise 聞こえる距離（Sound Spread）・
+  //  flash 銃口の炎・ctrl 反動の戻り（本家の Control 0.27 に足す値 → 1+値/0.27）
   muzzle: {
     none: { name: 'なし' },
-    supp: { name: '消音器', noise: 0.28, vel: 0.96, rcv: 0.95, flash: 0.1, ads: 0.01, desc: '銃声がとても小さくなり、どこから撃ったか分かりにくい。少し重い。' },
-    comp: { name: 'コンペンセイター', rcv: 0.86, rch: 0.88, noise: 1.08, flash: 1.2, desc: '銃口が跳ね上がるのを抑える。' },
-    brake: { name: 'マズルブレーキ', rcv: 0.92, rch: 0.72, noise: 1.15, flash: 1.35, desc: '横のぶれを大きく抑える。音と炎が大きくなる。' },
-    flash: { name: 'フラッシュハイダー', rcv: 0.98, flash: 0.35, desc: '銃口の炎を小さくし、暗い所で目がくらみにくい。' },
+    basic: { name: 'ベーシック', en: 'Basic', acc: 0.987, flash: 1.02 },
+    comp: { name: 'コンペンセイター', en: 'Compensator', rcv: 0.98, rch: 0.95, acc: 1.149, flash: 0.98 },
+    dgn: { name: 'DGN-308', en: 'DGN-308', rcv: 0.97, rch: 0.97, acc: 1.042 },
+    flash: { name: 'フラッシュハイダー', en: 'Flash Hider', rcv: 1.4, rch: 0.8, acc: 0.968, noise: 1.05, flash: 0.11 },
+    heavy: { name: 'ヘビー', en: 'Heavy', dmg: 1.05, rcv: 1.05, rch: 1.1, rcfirst: 1.5, vel: 1.1, acc: 0.968, noise: 1.2, flash: 1.2, ctrl: 0.37 },
+    long: { name: 'ロングバレル', en: 'Long Barrel', dmg: 1.05, rcv: 1.2, rch: 0.96, rcfirst: 1.01, vel: 1.1, acc: 0.901, flash: 1.25, ctrl: 0.37 },
+    brake: { name: 'マズルブレーキ', en: 'Muzzle Break', rcv: 1.3, rch: 0.96, acc: 1.042, noise: 0.95, flash: 0.12 },
+    nt4: { name: 'NT-4 556', en: 'NT-4 556', rcv: 0.98, rch: 0.98, vel: 1.05, acc: 1.031 },
+    ranger: { name: 'レンジャー', en: 'Ranger', dmg: 1.1, rcv: 1.4, rch: 1.6, rcfirst: 2.0, vel: 1.1, noise: 1.25, flash: 1.2 },
+    sdn6: { name: 'SDN-6 762', en: 'SDN-6 762', dmg: 0.95, rch: 0.95, vel: 1.05, acc: 0.937, ctrl: 0.85 },
+    tactical: { name: 'タクティカル', en: 'Tactical', rcv: 0.89, rch: 0.98, rcfirst: 1.05, acc: 1.02, noise: 1.01, flash: 0.97 },
+    vamb: { name: 'VAMB-762', en: 'VAMB-762', rcv: 0.95, vel: 1.05 },
+    suppL: { name: 'サプレッサー ロング', en: 'Suppressor Long', supp: true, rcv: 1.3, rcfirst: 1.2, acc: 0.993, noise: 0.35, flash: 0 },
+    supp: { name: 'サプレッサー ショート', en: 'Suppressor Short', supp: true, rcv: 1.1, rch: 1.1, rcfirst: 1.1, noise: 0.65, flash: 0 },
+    osprey: { name: 'オスプレイ 9', en: 'Osprey 9', supp: true, vel: 0.93, acc: 0.968, noise: 0.7, flash: 0 },
     choke: { name: 'チョーク', spread: 0.68, desc: '散弾の広がりを狭め、少し遠くまで届く。' },
   },
+  // グリップ（BattleBit の Grips の名前と数字。research の 73）。ctrl は本家の Control 0.46 に足す値 → 1+値/0.46。
+  //  取り出し（Draw Speed）は速さ: +10% → 時間 1/1.1
   grip: {
     none: { name: 'なし' },
-    // BattleBit 3.0 の予定（研究メモ 70）: 縦のグリップは縦の反動と初弾の跳ねを、斜めのグリップは横の反動を抑える。倍率は推測
-    vert: { name: '縦のグリップ', rcv: 0.88, rcfirst: 0.9, ads: 0.01, desc: '縦の反動と初弾の跳ねを抑える。' },
-    angled: { name: '斜めのグリップ', rch: 0.82, ads: -0.01, desc: '横の反動を抑える。構えも少し速い。' },
-    stubby: { name: '短い縦のグリップ', rcv: 0.93, rch: 0.9, desc: '縦と横の反動を少しずつ抑える。' },
+    vert: { name: 'バーティカルグリップ', en: 'Vertical Grip', rcv: 0.8, rch: 1.04, adsK: 1.1 },
+    angled: { name: 'アングルドグリップ', en: 'Angled Grip', rch: 0.98, rcfirst: 1.05, ctrl: 1.2, adsK: 1.2 },
+    stubby: { name: 'スタビーグリップ', en: 'Stubby Grip', rcv: 0.96, rch: 0.94, rcfirst: 1.02, ctrl: 1.04, drawK: 0.91 },
+    b25: { name: 'B-25 URK', en: 'B-25 URK', rcv: 0.95, rch: 0.95, ctrl: 0.85, reload: 0.91, drawK: 0.91 },
+    bcm: { name: 'BCM ガンファイター', en: 'BCM-Gun Fighter', rch: 0.9, reload: 0.99, drawK: 1.02 },
+    fab: { name: 'FAB DTFG', en: 'FAB-DTFG', rcv: 0.94, adsK: 1.05, reload: 1.025, drawK: 1.05 },
+    hera: { name: 'ヘラ CQR フロント', en: 'Hera CQR Front', rcv: 0.93, rch: 0.95, adsK: 1.05 },
+    magang: { name: 'マグプル アングルド', en: 'Magpul Angled', rcv: 0.97, rch: 0.94 },
+    rk6: { name: 'RK-6 フォアグリップ', en: 'RK-6 Foregrip', rcv: 0.97 },
+    se5: { name: 'SE-5 グリップ', en: 'SE-5 Grip', rcv: 0.93, rch: 0.93, adsK: 1.02, reload: 1.025 },
+    shift: { name: 'シフト ショートアングルドグリップ', en: 'Shift Short Angled Grip', rch: 0.93 },
+    stabil: { name: 'スタビルグリップ', en: 'Stabil Grip', rcv: 0.97, rch: 0.97, rcfirst: 0.87, adsK: 1.1 },
+    vskel: { name: 'バーティカルスケルトングリップ', en: 'Vertical Skeleton Grip', rcv: 0.95, adsK: 1.05 },
+    vtac: { name: 'VTAC UVG タクティカルグリップ', en: 'VTACUVG Tactical Grip', rcv: 0.95 },
+    // 本家にない（ハードエントリーの頃の物。大規模戦では選べない）
     handstop: { name: 'ハンドストップ', ads: -0.03, rcfirst: 0.92, desc: '手を前で止めて押し込む。構えがいちばん速い。' },
-    // バイポッド（11-27。BattleBit: 構えている時に、伏せるか物に銃を載せると自動で立つ。立っている間は画面の下に印。research の 50・66・72）。
-    //  付けているだけで: 構え +70%・リロード +25%・取り出し +25%・走る -20%（Wiki の Bipod の数字。幅のあるものは小さい方）。立てていない時は反動が悪い（weapon.js）
-    bipod: { name: 'バイポッド', adsK: 1.7, reload: 1.25, drawK: 1.25, move: 0.8, bipod: true, desc: '構えている時に、伏せるか塀・窓の縁・物の上に銃を載せると自動で立つ。立っている間は揺れがなく反動が小さいが、立てていない時は反動がとても大きく、構え・リロードが遅く、走るのも遅い。' },
+    bipod: { name: 'バイポッド', en: 'Bipod', adsK: 1.7, reload: 1.25, drawK: 1.25, move: 0.8, bipod: true, desc: '構えている時に、伏せるか塀・窓の縁・物の上に銃を載せると自動で立つ。立っている間は揺れがなく反動が小さいが、立てていない時は反動がとても大きく、構え・リロードが遅く、走るのも遅い。' },
   },
   side: {
     none: { name: 'なし' },
-    light: { name: 'ライト', light: true, desc: 'ライトのボタンで点ける。暗い所で見やすいが、相手からも見つかりやすい。' },
-    laser: { name: 'レーザー（赤）', laser: 'red', hip: 0.72, desc: '点けると腰だめがよく当たる。赤い線と点は相手にも見える。' },
-    green: { name: 'レーザー（緑）', laser: 'green', hip: 0.72, desc: '赤と同じ働き。緑は目に明るく、昼の明るい所でも点が見やすい。相手にも見える。' },
+    light: { name: 'フラッシュライト', en: 'Flashlight', light: true, beam: { ang: 0.32, r: 26 }, desc: 'ライトのボタンで点ける。暗い所で見やすいが、相手からも見つかりやすい。' },
+    laser: { name: 'レッドレーザー', en: 'Red Laser', laser: 'red', hip: 0.72, desc: '点けると腰だめがよく当たる。赤い線と点は相手にも見える。' },
+    // 本家の横のレール（research の 73）: タクティカルフラッシュライト（構えている間だけ青い光）・サーチライト（広く近く）・レンジファインダー（距離）
+    tacl: { name: 'タクティカルフラッシュライト', en: 'Tactical Flashlight', light: true, beam: { ang: 0.3, r: 22, col: [2.4, 3.4, 6.2], ads: true }, desc: 'ライトのボタンで点けておくと、構えている間だけ青い光が出る。腰だめでは消えて見つかりにくい。' },
+    search: { name: 'サーチライト', en: 'Searchlight', light: true, beam: { ang: 0.85, r: 12 }, desc: '広く近くを照らす。部屋の中を見渡しやすいが、遠くは届かない。' },
+    range: { name: 'レンジファインダー', en: 'Rangefinder', range: true, desc: '構えると、狙った所までの距離が照準の下に出る。' },
+    green: { name: 'グリーンレーザー', en: 'Green Laser', laser: 'green', hip: 0.72, desc: '赤と同じ働き。緑は目に明るく、昼の明るい所でも点が見やすい。相手にも見える。' },
     combo: { name: 'ライト＋レーザー', light: true, laser: 'red', hip: 0.78, ads: 0.01, desc: 'ライトとレーザーを一緒に点ける。少し重い。' },
     ir: { name: '赤外線レーザー', laser: 'ir', hip: 0.75, desc: '暗視装置でしか見えないレーザー。暗い所でこっそり腰だめを当てる。' },
   },
@@ -351,6 +380,18 @@ export const SLOT_NAME = { sight: '照準器', muzzle: 'マズル', grip: 'グ�
 //  ブースター（ホロ＋3倍）は上のレールが長い物だけ（vz.58 は短いので付かない）。
 //  等倍〜8倍は銃身が長めの物（M4A1・HK416・AUG・Tavor・SCAR-H・HK417）。6倍の ACOG（TA648）は 7.62mm NATO 用（SCAR-H・HK417・G3）。
 //  G3 は爪の台（クローマウント）にドット・2倍・4倍・6倍。G36C は持ち手の上の短いレールにドット・ホロ・2倍。AK・SKS・Mini-14・RPK は照準器なし
+// 本家のグリップ（BattleBit の Grips。バイポッドは銃ごと）・横のレール（ライト・レーザー）・小銃の銃口（口径で付けられる物が違う）
+const GRIPS_BB = ['vert', 'angled', 'stubby', 'b25', 'bcm', 'fab', 'hera', 'magang', 'rk6', 'se5', 'shift', 'stabil', 'vskel', 'vtac'];
+const SIDE_BB = ['none', 'light', 'tacl', 'search', 'laser', 'green', 'range'];
+function rifleMuzzles(W) {
+  const out = ['none', 'basic', 'comp', 'flash', 'brake', 'tactical', 'heavy', 'long', 'ranger'];
+  if (W.cal === '556') out.push('nt4');
+  if (W.cal === '762x51') out.push('dgn', 'sdn6', 'vamb');
+  if (W.cal === '762x39') out.push('sdn6', 'vamb');
+  return out.concat(['supp', 'suppL']);
+}
+// 消音器か（サプレッサー ショート・ロング・オスプレイ 9）
+export const isSupp = (k) => !!(ATTACH.muzzle[k] && ATTACH.muzzle[k].supp);
 function rifleSights(wid, W) {
   const m = W.model, md = W.mdl || {};
   if (m === 'g36') return ['reddot', 'holo', 'acog2', 'iron'];
@@ -375,9 +416,9 @@ export function attachOptions(wid) {
     const fg = (rail && m !== 'aug' && !md.vz) || m === 'g3';
     return {
       sight: rifleSights(wid, W),
-      muzzle: ['none', 'supp', 'comp', 'brake', 'flash'],
-      grip: fg ? ['none', 'vert', 'angled', 'stubby', 'handstop', 'bipod'] : ['none'],
-      side: ['none', 'light', 'laser', 'green', 'combo', 'ir'],
+      muzzle: rifleMuzzles(W),
+      grip: fg ? ['none'].concat(GRIPS_BB, ['bipod']) : ['none'],
+      side: SIDE_BB,
       mag: box ? (W.drum ? ['std', 'ext', 'fast', 'drum'] : ['std', 'ext', 'fast']) : ['std'],
       stock: m === 'aug' || m === 'tavor' ? ['std'] : m === 'g3' ? ['std', 'heavy'] : W.fold || md.fold || md.short || md.stock === 'mcx' || m === 'g36' ? ['std', 'short', 'heavy', 'fold'] : ['std', 'short', 'heavy'],
       finish: ['ak', 'sks', 'mini14', 'g36', 'aug', 'g3'].includes(m) ? ['blk'] : fin,
@@ -386,9 +427,9 @@ export function attachOptions(wid) {
   if (c === 'sniper') {
     return {
       sight: ['sniper', 'lpvo8', 'scope6', 'acog', 'lpvo', 'scope15', 'scope20', 'scope40'],
-      muzzle: ['none', 'brake', 'supp'],
+      muzzle: ['none', 'basic', 'brake', 'heavy', 'long', 'ranger'].concat(W.cal === '762x51' ? ['dgn', 'sdn6', 'vamb'] : [], ['supp', 'suppL']),
       grip: ['none', 'bipod'],
-      side: ['none', 'light', 'laser', 'green', 'combo', 'ir'],
+      side: SIDE_BB,
       mag: ['std'],
       stock: ['std'],
       finish: fin,
@@ -401,9 +442,9 @@ export function attachOptions(wid) {
     return {
       // 9mm の銃でも 2倍の ACOG（TA47 には 9mm 用の目盛りの型がある）。上のレールが長い MPX・UMP・Vector はブースターも
       sight: rail || m === 'mp5' ? ['iron', 'reddot', 'srs', 'holo', 'acog2'].concat(['mpx', 'ump', 'vector'].includes(m) ? ['mag3'] : []) : ['iron'],
-      muzzle: W.integral ? ['none'] : ['none', 'supp', 'comp', 'flash'],
-      grip: fg ? ['none', 'vert', 'angled', 'stubby', 'handstop'] : ['none'],
-      side: m === 'tec9' ? ['none'] : ['none', 'light', 'laser', 'green', 'combo', 'ir'],
+      muzzle: W.integral ? ['none'] : ['none', 'basic', 'comp', 'flash', 'tactical', 'supp', 'suppL'].concat(W.cal === '9mm' ? ['osprey'] : []),
+      grip: fg ? ['none'].concat(GRIPS_BB) : ['none'],
+      side: m === 'tec9' ? ['none'] : SIDE_BB,
       mag: W.mag <= 32 && m !== 'p90' && m !== 'uzi' ? (gripMag ? ['std', 'ext'] : ['std', 'ext', 'fast']) : ['std'],
       stock: W.fold || md.fold || md.k || ['vector', 'mp9', 'evo'].includes(m) ? ['std', 'short', 'fold'] : m === 'uzi' || m === 'mac10' || m === 'tec9' || m === 'p90' ? ['std'] : ['std', 'short', 'heavy'],
       finish: m === 'pepper' || m === 'p90' ? ['blk'] : fin,
@@ -415,7 +456,7 @@ export function attachOptions(wid) {
       sight: saw ? ['iron'] : ['iron', 'reddot', 'holo'],
       muzzle: saw ? ['none'] : ['none', 'choke'],
       grip: m === 'ksg' ? ['none', 'vert', 'angled'] : ['none'],
-      side: saw ? ['none'] : ['none', 'light', 'laser', 'green', 'combo'],
+      side: saw ? ['none'] : SIDE_BB,
       mag: md.saiga ? ['std', 'drum'] : W.tube && !saw && m !== 'ksg' ? ['std', 'ext'] : ['std'],
       stock: m === 'm4super' || md.saiga || md.spas ? ['std', 'short'] : ['std'],
       finish: saw ? ['blk'] : fin,
@@ -426,9 +467,9 @@ export function attachOptions(wid) {
     const rail = slide && m !== 'deagle' && (m !== 'm1911' || !!md.rail);
     return {
       sight: slide ? ['iron', 'rmr', 'sro'] : ['iron'],
-      muzzle: W.revolver || m === 'deagle' ? ['none'] : ['none', 'supp', 'comp'],
+      muzzle: W.revolver || m === 'deagle' ? ['none'] : ['none', 'comp', 'supp'].concat(W.cal === '9mm' ? ['osprey'] : []),
       grip: ['none'],
-      side: rail ? ['none', 'light', 'laser', 'green', 'combo'] : ['none'],
+      side: rail ? SIDE_BB : ['none'],
       mag: slide && m !== 'deagle' ? ['std', 'ext'] : ['std'],
       stock: ['std'],
       finish: m === 'python' || m === 'm1911' || m === 'deagle' || md.coyote ? ['blk'] : fin,

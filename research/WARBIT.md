@@ -607,3 +607,13 @@
 - 伏せ: Dev Blog #2（3.0 の予定）に「伏せている時は向きを変えられる速さに上限があり、それを超えると回るのがずっと遅くなる」とある。腰だめと構えの区別は書かれていない（WAR BIT はどちらも同じ上限。§63）。伏せたままリーンできるかは書かれた所が見つからなかった（WAR BIT は遊ぶ人の頼みで入れた）。
 - 倒れている間の画面: 細かく書かれた所が見つからなかった。WAR BIT の扱い（推測）: 「倒れた」と残りの帯と秒、起こしている人（引きずっている人）、いちばん近い衛生（いなければ味方）までの距離を出す。這うスティックは出したまま、前は見ている向き。GIVE UP はこれまでどおり。
 - WAR BIT での扱い（11-27）: 名前は「二脚」から「バイポッド」へ。構えた時だけ立つ（腰だめでは立たない）。上下 0.44 rad を超えると立たない。立っている間の反動 0.6 倍。立てていない時の反動 1.4 倍・初弾 1.6 倍・反動の戻り 0.6 倍。構える時間 1.7 倍・リロード 1.25 倍・取り出し 1.25 倍・走る速さ 0.8 倍（記事の幅の中ほど）。印は画面の下の真ん中へ移した。
+
+## 73. 付属品の名前と数字（2026-11-27）
+- 出どころ: battlebit.wiki.gg の Attachments・Sights の記事。日本語の正式な訳は見つからなかった（本家の名前をカタカナにし、英語の正式名を添える）。
+- 照準器（Sights）: 近い物は Aim Comp・Holographic・Kobra・OKP7・PK-AS・Red Dot・Reflex・Strikefire・Razor・F You Sight・Holo PK-120・HS401G5、中くらいは 1P78・Acog・M125・Prisma・Slip・Flir（熱線）・Echo・TRI4X32・Burris AR332、遠い物は 6x・8x・15x・20x Scope・PTR-40 Hunter、拳銃は Pistol Delta Sight・Pistol Red Dot・Pistol 8x Scope。ほかに斜めに付ける照準器（Canted: Ironsight・Red Dot・F You Canted・Holo Dot）と上に付ける照準器（Top: Delta Sight Top など）がある。中くらいの物の倍率は記事に書かれていない。
+- 銃口（Barrels）: Basic・Compensator・DGN-308・Flash Hider・Heavy・Long Barrel・Muzzle Break・NT-4 556・Ranger・SDN-6 762・Tactical・VAMB-762・Suppressor Long・Suppressor Short・Osprey 9。表の列は ダメージ・縦と横の反動・初弾の跳ね・弾の速さ・正確さ（基準 77.5 に足す値）・聞こえる距離・銃口の炎・コントロール（基準 0.27 に足す値）。例: Long Barrel はダメージ +5%・縦 +20%・弾速 +10%・正確さ +8.5・炎 +25%・コントロール -0.17。Suppressor Long は縦 +30%・初弾 +20%・聞こえる距離 -65%・炎なし。
+- グリップ（Grips）: Angled Grip・B-25 URK・BCM-Gun Fighter・Bipod・FAB-DTFG・Hera CQR Front・Magpul Angled・RK-6 Foregrip・SE-5 Grip・Shift Short Angled Grip・Stabil Grip・Stubby Grip・Vertical Grip・Vertical Skeleton Grip・VTACUVG Tactical Grip。表の列は 縦・横の反動・初弾・コントロール（基準 0.46 に足す値）・構えるまでの時間・リロードの時間・取り出しの速さ。例: Vertical Grip は縦 -20%・横 +4%・構え +10%。Stabil Grip は縦と横 -3%・初弾 -13%・構え +10%。
+- 横のレール: Red Laser・Green Laser（腰だめに効く）、Flashlight（細く遠い光）・Tactical Flashlight（構えている間だけ青い光）・Searchlight（広く近い光）、Rangefinder（狙った所までの距離）、Target Detector（近くの敵を少しの間しるす）。数字は書かれていない。
+- 弾倉: Short-A（少ない・重い）・Quick-A（リロードが速い）・Extended-A（ドラム。1.5 倍）。銃床の付属品は本家にない。
+- WAR BIT での扱い（11-27）: 銃口とグリップは本家の名前と表の数字にそろえた（大規模戦で選べる物）。コントロールは反動の戻りの速さに掛ける（1＋足す値/基準）。正確さは散らばりに 77.5/(77.5＋足す値) を掛ける。取り出しの速さ +10% は時間を 1/1.1 に。口径で付けられる物を分けた（NT-4 は 5.56mm、DGN-308 は 7.62mm NATO、SDN-6・VAMB-762 は 7.62mm、Osprey 9 は 9mm）。本家にないハンドストップ・ライト＋レーザー・赤外線レーザーは大規模戦では選べなくした。ライト・レーザーと、本家と同じ物がある照準器（Red Dot・Reflex・Holographic・Acog・6x/8x/15x/20x Scope・PTR-40 Hunter・Pistol Red Dot・Pistol Delta Sight）は本家の名前に。形は独自のまま（近い形で描く）。
+- まだ本家と違う所: 2 倍・3 倍＋等倍のブースター・等倍〜4 倍・等倍〜8 倍の照準器は本家に同じ物がない（中くらいの照準器の倍率が分からない）。Tactical Flashlight・Searchlight・Rangefinder・Target Detector、斜め・上の照準器はまだない。

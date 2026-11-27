@@ -233,6 +233,36 @@ const GEAR = {
     B.joint = BI.chest;
     B.box(-0.13, 0.0, -0.27, 0.13, 0.3, -0.13, LAYER.nylon, B.c(PAL.gear));
   },
+  // 大規模戦の兵科の見た目（11-27 15:08「装備してるプレイヤーの見た目」。本家の兵科ごとの背嚢・帽子に近い作り。形は独自）
+  //  援護: 大きい背嚢と上に巻いた毛布、衛生: 背嚢と両わきの袋、工兵: 背嚢にロケットの筒 2 本、分隊長: 背中の無線機とアンテナ、偵察: つばの広い帽子
+  packBig(B, o) {
+    B.joint = BI.chest;
+    B.box(-0.15, -0.06, -0.31, 0.15, 0.3, -0.13, LAYER.nylon, B.c(PAL.gear));
+    B.box(-0.14, 0.3, -0.27, 0.14, 0.37, -0.16, LAYER.fabric, B.c(PAL.dark));
+    for (const sx of [1, -1]) B.box(sx * 0.15 - (sx > 0 ? 0 : 0.04), 0.0, -0.27, sx * 0.15 + (sx > 0 ? 0.04 : 0), 0.18, -0.17, LAYER.nylon, B.c(PAL.gear));
+  },
+  packMed(B, o) {
+    B.joint = BI.chest;
+    B.box(-0.12, 0.02, -0.25, 0.12, 0.28, -0.13, LAYER.nylon, B.c(PAL.gear));
+    for (const sx of [1, -1]) B.box(sx > 0 ? 0.12 : -0.16, 0.04, -0.23, sx > 0 ? 0.16 : -0.12, 0.2, -0.15, LAYER.nylon, B.c(PAL.dark));
+    B.box(-0.05, 0.12, -0.252, 0.05, 0.2, -0.248, LAYER.paint, B.c(PAL.helmet));
+  },
+  packRpg(B, o) {
+    B.joint = BI.chest;
+    B.box(-0.12, 0.0, -0.25, 0.12, 0.26, -0.13, LAYER.nylon, B.c(PAL.gear));
+    for (const sx of [1, -1]) B.loft([{ y: 0.05, rx: 0.035, rz: 0.035, cx: sx * 0.07, cz: -0.29 }, { y: 0.42, rx: 0.035, rz: 0.035, cx: sx * 0.07, cz: -0.29 }], 8, LAYER.paint, B.c(PAL.helmet), { capTop: true, capBot: true });
+  },
+  radio(B, o) {
+    B.joint = BI.chest;
+    B.box(-0.1, 0.05, -0.23, 0.1, 0.27, -0.13, LAYER.nylon, B.c(PAL.gear));
+    B.box(0.04, 0.27, -0.2, 0.07, 0.3, -0.17, LAYER.rubber, B.c(PAL.dark));
+    B.box(0.045, 0.3, -0.195, 0.062, 0.64, -0.178, LAYER.rubber, B.c(PAL.dark));
+  },
+  boonie(B, o) {
+    B.joint = BI.head;
+    B.loft([{ y: 0.12, rx: 0.084, rz: 0.11 }, { y: 0.2, rx: 0.08, rz: 0.104 }, { y: 0.225, rx: 0.06, rz: 0.08 }], 10, LAYER.cloth, B.c(PAL.helmet), { capTop: true, rot: Math.PI / 2 });
+    B.loft([{ y: 0.128, rx: 0.155, rz: 0.175 }, { y: 0.14, rx: 0.088, rz: 0.114 }], 12, LAYER.cloth, B.c(PAL.helmet), { capBot: true, rot: Math.PI / 2 });
+  },
   jacket(B, o) {
     // 上着のすそ（腰まわり）
     B.joint = BI.pelvis;
@@ -305,6 +335,8 @@ export function lookFor(o) {
     // 目出し帽（半分くらい）
     if (!o.war && o.head !== 'gasmask' && rnd(s, 9) < 0.45) { set(PAL.faceU, hex('#1d1e21')); set(PAL.faceL, hex('#1d1e21')); }
     if (o.war) { set(PAL.hands, mulc(hex(o.gearCol || '#3f4631'), 0.8)); set(PAL.shoes, hex('#2a241c')); }
+    // 兵科の見た目（背嚢・無線機・帽子）
+    if (o.war && o.cls) { const g = { support: 'packBig', medic: 'packMed', engineer: 'packRpg', leader: 'radio' }[o.cls]; if (g) gear.push(g); if (o.cls === 'recon') gear.push('boonie'); }
     if (sex === 'f' && o.helmet === 'none') gear.push('hairLong');
   } else if (o.kind === 'sus') {
     const top = pk(TOPS, s, 4), bot = pk(BOTTOMS, s, 5);

@@ -563,6 +563,45 @@ export class Renderer {
     this._post(f.post || {}, W, H);
   }
 
+  // 写真の台（11-27 15:08「本家みたいに銃や装備の変更でプレビュー」）: 世界は描かず、暗い背景の中の rect（画素。左下から）に f.draw で描く。
+  //  f: { cam:{x,y,z,yaw,pitch,fov}, rect:[x,y,w,h], bg:[r,g,b], draw(r), lights, post }。光は世界と同じ（日の向き・空の色）、影はなし
+  renderStudio(f) {
+    const gl = this.gl;
+    if (gl.isContextLost()) return;
+    this.time += f.dt || 0.016;
+    const W = this.canvas.width, H = this.canvas.height;
+    this._targets(W, H);
+    const c = f.cam, R = f.rect, bg = f.bg || [0.01, 0.012, 0.014];
+    const cp = Math.cos(c.pitch), fx = Math.sin(c.yaw) * cp, fy = Math.sin(c.pitch), fz = Math.cos(c.yaw) * cp;
+    this.camPos = [c.x, c.y, c.z];
+    m4lookAt(this.view, c.x, c.y, c.z, c.x + fx, c.y + fy, c.z + fz, 0, 1, 0);
+    m4persp(this.proj, c.fov, Math.max(0.1, R[2] / Math.max(1, R[3])), 0.03, 60);
+    m4mul(this.vp, this.proj, this.view);
+    m4invert(this.invVP, this.vp);
+    frustumPlanes(this.vp, this.planes);
+    this._setLights(f.lights || []);
+    this.shadowOn = false; this.pipOn = false;
+    const target = this.msaa ? this.msF : this.hdrF;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+    gl.viewport(0, 0, W, H);
+    gl.clearColor(bg[0], bg[1], bg[2], 1);
+    gl.depthMask(true);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.viewport(R[0], R[1], R[2], R[3]);
+    gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+    gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
+    gl.disable(gl.BLEND);
+    this.stats.draws = 0; this.stats.tris = 0; this.stats.chunks = 0;
+    if (f.draw) f.draw(this);
+    gl.viewport(0, 0, W, H);
+    if (this.msaa) {
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.msF);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.hdrF);
+      gl.blitFramebuffer(0, 0, W, H, 0, 0, W, H, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    }
+    this._post(f.post || { vig: 0.2 }, W, H);
+  }
+
   // 世界・空・透明な物を target へ描く（本描画とスコープの中の像で同じ）。行列（this.vp など）は呼ぶ前にそろえておく
   _scene(f, c, target, W, H) {
     const gl = this.gl;
