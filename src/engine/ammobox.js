@@ -1,5 +1,6 @@
 // 弾薬箱（大規模戦）: 援護は大きい弾薬箱 ×2、突撃は小さい弾薬箱 ×1。手に持って引き金で足もとの前へ置く（拾えない）。
 // 味方（人）が近く（2m）に立っていると、0.8 秒ごとに弾倉を1本ずつ補給する（スマホ向けに、見て押すのではなく近くにいれば補給）。
+// 主の銃と拳銃はかわるがわる。包帯・投げ物・道具は 4 秒ごとに枠ごと1つ。
 // 箱の中身は弾の数で数える: 大きい 244・小さい 150（BattleBit の Wiki の Heavy Ammo Kit「弾 244」・Small Ammo Kit「弾 150」。research の 39）。
 // 中身がなくなるか、4 分で消える。置いた人以外に補給すると、置いた人に点（1本 10。推測）。research/WARBIT.md §32
 import { magCap } from './actor.js';
@@ -20,8 +21,14 @@ export function placeAmmo(S, a, id, ev) {
 }
 
 // 1本補給する: 弾倉の数が初めより少なければ満タンを1本足す。そうでなければ、いちばん少ない途中の弾倉を満タンに。足した弾の数を返す
-function giveMag(wi, budget) {
-  if (!wi || !wi.mags || budget <= 0) return 0;
+// 弾倉のない銃（散弾銃の筒・中折れ）は、1回に1つの装弾数ぶんの弾を予備へ（出撃した時の予備まで）
+export function giveAmmo(wi, budget) {
+  if (!wi || budget <= 0) return 0;
+  if (!wi.mags) {
+    const need = (wi.spare0 || 0) - (wi.res || 0);
+    if (need <= 0) return 0;
+    const n = Math.min(need, Math.max(1, magCap(wi)), budget); wi.res = (wi.res || 0) + n; return n;
+  }
   const cap = magCap(wi);
   if (wi.mags.length < (wi.spare0 || 0)) { const n = Math.min(cap, budget); wi.mags.push(n); return n; }
   let bi = -1; for (let i = 0; i < wi.mags.length; i++) if (wi.mags[i] < cap && (bi < 0 || wi.mags[i] < wi.mags[bi])) bi = i;
@@ -40,7 +47,8 @@ export function stepAmmo(S, ev, award) {
       if (Math.abs(a.y - b.y) > 1.6 || Math.hypot(a.x - b.x, a.z - b.z) > AMMOBOX.r) continue;
       const due = a._ammoT == null || S.t - a._ammoT >= every;
       if (!due) continue;
-      // 救急と投げ物（大きい箱）: 4 秒に1つ。出撃した時の数まで
+      // 救急・投げ物・道具: 4 秒ごとに、箱の中の別々の枠からそれぞれ1つ（包帯と手榴弾は一緒に戻る）。出撃した時の数まで
+      //  本家の箱は 救急・投げ物・軽い道具・重い道具 の枠が別（Wiki の Heavy Ammo Kit。小さい箱は救急 40 だけ）
       if ((b.aid > 0 || b.thr > 0 || b.gad > 0) && (a._aidT == null || S.t - a._aidT >= Math.round(AIDBOX.every / S.dt))) {
         const gs = (a.inv && a.inv.gear) || [];
         const ban = gs.find(g => g.id === 'bandage' && g.n < (g.n0 || 0));
@@ -48,16 +56,23 @@ export function stepAmmo(S, ev, award) {
         // 工兵の RPG の予備も（BattleBit の重い弾薬箱は道具も補充する。重い道具の枠から 1 発 40）
         const rp = a.inv && a.inv.rpg && a.inv.rpg.n + a.inv.rpg.in < (a.inv.rpg.n0 || 0) + 1 ? a.inv.rpg : null;
         const c4 = gs.find(g => (g.id === 'c4' || g.id === 'apmine' || g.id === 'clay') && g.n < (g.n0 || 0));
-        if (ban && b.aid >= AIDBOX.cost) { ban.n++; b.aid -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'bandage' }); }
-        else if (thr && b.thr >= AIDBOX.cost) { thr.n++; b.thr -= AIDBOX.cost; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: thr.id }); }
-        else if (rp && (b.gad || 0) >= AIDBOX.rpg) { rp.n++; b.gad -= AIDBOX.rpg; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: 'rpg' }); }
-        // C4（Wiki の補給の重さ 20。援護の重い弾薬箱は C4 も補給する）
-        else if (c4 && (b.gad || 0) >= AIDBOX.c4) { c4.n++; b.gad -= AIDBOX.c4; a._aidT = S.t; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g: c4.id }); }
+        let got = false;
+        const give = (g) => { got = true; if (ev) ev.push({ e: 'resupply', id: a.id, box: b.id, g }); };
+        if (ban && b.aid >= AIDBOX.cost) { ban.n++; b.aid -= AIDBOX.cost; give('bandage'); }
+        if (thr && b.thr >= AIDBOX.cost) { thr.n++; b.thr -= AIDBOX.cost; give(thr.id); }
+        if (rp && (b.gad || 0) >= AIDBOX.rpg) { rp.n++; b.gad -= AIDBOX.rpg; give('rpg'); }
+        // C4・地雷（Wiki の補給の重さ 20。援護の重い弾薬箱は C4 も補給する）
+        else if (c4 && (b.gad || 0) >= AIDBOX.c4) { c4.n++; b.gad -= AIDBOX.c4; give(c4.id); }
+        if (got) a._aidT = S.t;
       }
-      // 主の銃から、満タンなら拳銃
+      // 弾: 主の銃と拳銃を、かわるがわる（初めは手に持っている銃。11-27「メイン武器の弾薬だけ」→ 本家は箱を開いて補給する物を選べる。
+      //  スマホは近くに立つだけなので、足りない物を順に。research の 67）
       const w = a.inv && a.inv.w || [];
-      let n = giveMag(w[0], b.left);
-      if (!n) n = giveMag(w[1], b.left);
+      const fresh = a._ammoT == null || S.t - a._ammoT > every * 3;
+      const s0 = !fresh && a._ammoNx != null ? a._ammoNx : (a.ws && a.ws.slot === 1 ? 1 : 0);
+      let n = 0, k = s0;
+      for (let j = 0; j < 2 && !n; j++) { k = (s0 + j) % 2; n = giveAmmo(w[k], b.left); }
+      a._ammoNx = (k + 1) % 2;
       a._ammoT = S.t;
       if (!n) continue;
       b.left -= n;

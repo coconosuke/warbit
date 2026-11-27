@@ -55,7 +55,7 @@ class App {
   // 1こまの内訳（動き＝エンジン×回数・音と効果・描く・HUD。ms）
   _profTxt() { const P = this.game && this.game.prof; if (!P) return ''; const f = (v) => v.toFixed(1); return `（動き${f(P.sim)}・${P.n.toFixed(1)}回 音${f(P.ev)} 描${f(P.rd)} 表${f(P.hud)}）`; }
   // タッチの取り消しなど（あれば fps の表示に。指 取消 a/b・外れ c・残り d）
-  _touchDiag() { const d = this.input && this.input.diag; if (!d || !(d.cancel + d.tcancel + d.lost + d.stale)) return ''; return ` · 指 取消${d.cancel}/${d.tcancel} 外れ${d.lost} 残り${d.stale}`; }
+  _touchDiag() { const d = this.input && this.input.diag; if (!d || !(d.cancel + d.tcancel + d.lost + d.stale + (d.adopt || 0))) return ''; return ` · 指 取消${d.cancel}/${d.tcancel} 外れ${d.lost} 残り${d.stale} 受け直し${d.adopt || 0}`; }
   renderScale() { return (this.settings.scale || 1) * DYN[this.dyn.i][0]; }
   fpsCap() { return this.dyn.cap ? Math.min(this.dyn.cap, this.settings.fps) : this.settings.fps; }
   _dynReset() { this.dyn = { i: 0, ema: 0, slowT: 0, fastT: 0, cool: 1, cap: 0 }; }

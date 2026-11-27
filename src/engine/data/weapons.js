@@ -287,6 +287,10 @@ export const ATTACH = {
     scope6: { name: '6倍スコープ（ACOG TA648 6x48）', zoom: 6.0, ads: 0.08, scope: true, desc: '7.62mm NATO の小銃のための大きなACOG（全長23cm・1.1kg）。照準は赤い馬蹄形と点、下に .308 の距離の目盛り。' },
     lpvo8: { name: '等倍〜8倍スコープ（NX8 1-8x24）', zoom: 8.0, zooms: [8, 1], ads: 0.07, scope: true, wide1: true, desc: 'ナイトフォースの選抜射手向けのスコープ（全長22cm）。構えている間に射撃モードのボタンで等倍と8倍を切り替える。照準は赤い円と点、細い十字に2ミルごとの目盛り。' },
     sniper: { name: '狙撃用スコープ（PM II 3-12x50）', zoom: 8.0, zooms: [4, 8], ads: 0.08, scope: true, desc: 'シュミット＆ベンダーの狙撃用スコープ（34mmの胴・50mmの対物レンズ）。射撃モードのボタンで4倍と8倍を切り替える。照準はミルドットの十字。' },
+    // 16 倍より上（11-27。BattleBit の Sights: 15x・20x・PTR-40 Hunter（画像の名前から 40 倍）。research の 50・66）。倍率は固定。照準の模様は狙撃用と同じ
+    scope15: { name: '15倍スコープ', zoom: 15.0, ads: 0.1, scope: true, ret: 'sniper', desc: '15倍の固定倍率。とても遠い的を狙える。視野が狭く、近くはほとんど見えない。構えるのが遅い。' },
+    scope20: { name: '20倍スコープ', zoom: 20.0, ads: 0.11, scope: true, ret: 'sniper', desc: '20倍の固定倍率。揺れが大きく見えるので、伏せるか息を止めて狙う。' },
+    scope40: { name: '40倍スコープ', zoom: 40.0, ads: 0.13, scope: true, ret: 'sniper', desc: '40倍の固定倍率（本家の PTR-40 Hunter に当たる）。1km を超える的のための物。二脚と伏せがほぼ要る。' },
     rmr: { name: 'ピストル用ドットサイト（RMR）', zoom: 1.05, ads: 0.01 },
     sro: { name: 'ピストル用広窓ドット（SRO）', zoom: 1.05, ads: 0.012, desc: '丸い大きな窓で、ドットを見失いにくい。' },
   },
@@ -304,6 +308,8 @@ export const ATTACH = {
     angled: { name: '斜めのグリップ', rcfirst: 0.85, ads: -0.02, desc: '構えが速く、初弾の跳ねが小さい。' },
     stubby: { name: '短い縦のグリップ', rcv: 0.93, rch: 0.9, desc: '縦と横の反動を少しずつ抑える。' },
     handstop: { name: 'ハンドストップ', ads: -0.03, rcfirst: 0.92, desc: '手を前で止めて押し込む。構えがいちばん速い。' },
+    // 二脚（11-27。BattleBit: 伏せるか、物に銃を当てると自動で立つ。立っている間は印が出る。research の 50・66）。立っている間の効き目は推測
+    bipod: { name: '二脚（バイポッド）', ads: 0.03, bipod: true, desc: '伏せるか、塀・窓の縁・物の上に銃を載せて止まると自動で立つ。立っている間は揺れがなくなり、反動が小さい。構えは少し遅い。' },
   },
   side: {
     none: { name: 'なし' },
@@ -362,7 +368,7 @@ export function attachOptions(wid) {
     return {
       sight: rifleSights(wid, W),
       muzzle: ['none', 'supp', 'comp', 'brake', 'flash'],
-      grip: fg ? ['none', 'vert', 'angled', 'stubby', 'handstop'] : ['none'],
+      grip: fg ? ['none', 'vert', 'angled', 'stubby', 'handstop', 'bipod'] : ['none'],
       side: ['none', 'light', 'laser', 'green', 'combo', 'ir'],
       mag: box ? (W.drum ? ['std', 'ext', 'fast', 'drum'] : ['std', 'ext', 'fast']) : ['std'],
       stock: m === 'aug' || m === 'tavor' ? ['std'] : m === 'g3' ? ['std', 'heavy'] : W.fold || md.fold || md.short || md.stock === 'mcx' || m === 'g36' ? ['std', 'short', 'heavy', 'fold'] : ['std', 'short', 'heavy'],
@@ -371,9 +377,9 @@ export function attachOptions(wid) {
   }
   if (c === 'sniper') {
     return {
-      sight: ['sniper', 'lpvo8', 'scope6', 'acog', 'lpvo'],
+      sight: ['sniper', 'lpvo8', 'scope6', 'acog', 'lpvo', 'scope15', 'scope20', 'scope40'],
       muzzle: ['none', 'brake', 'supp'],
-      grip: ['none'],
+      grip: ['none', 'bipod'],
       side: ['none', 'light', 'laser', 'green', 'combo', 'ir'],
       mag: ['std'],
       stock: ['std'],
@@ -439,7 +445,7 @@ export function opticOf(wi) {
   if (!x) return { kind: 'iron', zoom: 1, scope: false, wide: false };
   const zoom = zoomOf(wi);
   if (x.flip && zoom <= 1) return { kind: 'holo', zoom: 1, scope: false, wide: false };
-  return { kind: sid, zoom, scope: !!x.scope, wide: !!(x.wide1 && zoom <= 1) };
+  return { kind: x.ret || sid, zoom, scope: !!x.scope, wide: !!(x.wide1 && zoom <= 1) };
 }
 // 構えたときの照準の揺れ（度。立って止まっているとき。11-12 22:05: 実際に沿って、どの銃も構えると揺れる。強さは程よく）。
 // 重い銃ほど大きい（腕で支える重さ）。拳銃は銃床で肩に当てないので大きい。狙撃銃は銃ごとの値（AT308 は 6.4kg で 0.2）

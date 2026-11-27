@@ -11,6 +11,7 @@ import { FLOORS, F as FF } from './data/materials.js';
 import { heightAt, raycast as wRaycast } from '../war/world.js';
 import { shatterNear } from '../war/destruct.js';
 import { DEP, wireAt, stepWire } from './deploy.js';
+import { DRAG } from './drag.js';
 
 // 撃つのをやめてから、また走れるまで（秒。続けて撃つ間に銃が下がらないように）
 export const SPRINT_HOLD = 0.4;
@@ -77,7 +78,9 @@ function warSpeed(S, a, st) {
   if (a.sprint) v = (P.sprint + (P.sprint2 - P.sprint) * Math.min(1, (a.sprT || 0) / P.sprintUp)) * (W ? Math.min(1, W.move + 0.03) : 1);
   v *= 1 - 0.04 * Math.min(4, a.inj.leg);
   if (a.stun > 0 || a.flash > 0.5) v *= 0.45;
-  if (a.down || a.dead) v = a.down && a.dbno ? 0.35 : 0;
+  if (a.down || a.dead) v = a.down && a.dbno && a.dragBy == null ? 0.35 : 0;
+  // 倒れた味方を引きずっている（11-27。BattleBit: 引きずりながら動けるが遅い）
+  if (a.drag != null) v = Math.min(v, DRAG.speed);
   if (a.act && a.act.still) v = 0;
   return v;
 }

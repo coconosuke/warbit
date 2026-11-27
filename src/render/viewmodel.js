@@ -158,7 +158,8 @@ export class ViewModel {
     this.flipK = lerp(this.flipK || 0, os && P.optic.kind === 'mag3' && !os.scope ? 1 : 0, 1 - Math.exp(-dt * 12));
     this.flipP = P.flipPivot || null;
     // 状態の重み
-    const ads = sm(a.ads), low = sm(a.low), spr = a.sprint ? 1 : 0;
+    // 倒れた味方を引きずっている間（11-27）も、走る時と同じく銃を下げて横へ（片手がふさがる）
+    const ads = sm(a.ads), low = sm(a.low), spr = a.sprint || a.drag != null ? 1 : 0;
     // 走るのをやめたら速く上げる（エンジンは 0.1〜0.25秒で撃てる。weapon.js sprintOutT）
     this.sprK = lerp(this.sprK || 0, spr, 1 - Math.exp(-dt * (spr ? 10 : 22)));
     let draw = 0;

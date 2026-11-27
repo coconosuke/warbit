@@ -18,6 +18,7 @@ import { bakeLight, HS } from './light.js';
 import { initBars, barGlass, linkBars } from './barricade.js';
 import { WAR_MAPS, warWorld } from '../war/maps/index.js';
 import { restoreWorld } from '../war/destruct.js';
+import { stepDrag } from './drag.js';
 
 const worldCache = new Map();
 // マップの組み立ては重いので1回だけ。試合ごとに壊れる物（ブロック）だけ写す
@@ -119,13 +120,15 @@ export function step(G, inputs = {}) {
   // 動き・銃
   for (const a of S.actors) {
     if (a.isDrone) { if (mod.stepDrone) mod.stepDrone(S, w, a, a.pid != null ? inputs[a.id] : null, dt, ev); continue; }
-    const inp = a._inp;
+    // 倒れた味方を引きずっている（大規模戦）: 走れず、撃てず、構えられない
+    const inp = a.drag != null ? { ...a._inp, sprint: false, fire: false, ads: false } : a._inp;
     moveActor(S, w, a, inp, dt, ev);
     // 近接で振っている間は撃てず、構えられない
     stepWeapon(S, w, a, a.melee ? { ...inp, fire: false, ads: false } : inp, dt, ev);
     if (a.melee) stepMelee(S, w, a, dt, ev);
   }
   separateActors(S, w);
+  if (S.war) stepDrag(S, w, ev);
   stepActs(S, w, dt, ev);
   stepDoors(S, w, dt, ev);
   stepBullets(S, w, dt, ev);

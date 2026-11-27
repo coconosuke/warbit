@@ -454,6 +454,7 @@ export class Renderer {
     if (u.uSunDir) gl.uniform3fv(u.uSunDir, sky.sunDir);
     if (u.uSunCol) gl.uniform3fv(u.uSunCol, sky.sun);
     if (u.uShadowOn) gl.uniform1f(u.uShadowOn, this.shadowOn ? 1 : 0);
+    if (u.uInSun) gl.uniform1f(u.uInSun, this.q.shadow >= 2048 && !(this.dynLite >= 1) ? 1 : 0);
     if (u.uShadowVP) gl.uniformMatrix4fv(u.uShadowVP, false, this.shVP);
     if (u.uShadowTexel) gl.uniform1f(u.uShadowTexel, this.q.shadow ? 1 / this.q.shadow : 0);
     if (u.uShadowOn2) gl.uniform1f(u.uShadowOn2, this.shadowOn && this.sh2 && this.sh2.ok ? 1 : 0);

@@ -56,3 +56,18 @@ test('出る所は立てる所: 頭の上と体のまわりが空いている', 
   }
   ok(okN > 0, '本陣のまわりに立てる所がある ' + okN + '/' + n);
 });
+
+// 11-27 04:01: 待ちの間に押した出撃の予約は、もう一度押すとやめられる（やめると時間が来ても出ない）
+test('出撃の予約をやめると、待ちが終わっても出ない。また押せば出る', () => {
+  const { G, S, me, mate } = setup();
+  me.hp = 0; me.alive = false; me.dead = true; S.m.respawn.push({ id: me.id, at: S.t + Math.round(1 / S.dt) });
+  step(G, { [me.id]: idle(me, { act: [{ a: 'warDeploy', at: 'hq', cls: me.warCls }] }), [mate.id]: idle(mate) });
+  ok(me.deployAt === 'hq', '予約した');
+  step(G, { [me.id]: idle(me, { act: [{ a: 'warDeploy', cancel: true }] }), [mate.id]: idle(mate) });
+  ok(me.deployAt == null, '予約をやめた');
+  for (let i = 0; i < Math.round(2 / S.dt); i++) step(G, { [mate.id]: idle(mate) });
+  ok(!me.alive, '時間が来ても出ない');
+  step(G, { [me.id]: idle(me, { act: [{ a: 'warDeploy', at: 'hq', cls: me.warCls }] }), [mate.id]: idle(mate) });
+  for (let i = 0; i < 5 && !me.alive; i++) step(G, { [mate.id]: idle(mate) });
+  ok(me.alive, 'また押すと出た');
+});

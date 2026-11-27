@@ -533,9 +533,11 @@ try {
       await page.waitForFunction(() => window.__app.game.p.ws.br > 0.5, null, { timeout: 15000 }).catch(() => {});
       await page.evaluate(() => { window.__app.game.adsOn = true; });
       const A = await btn('ads');
-      const pr = page.evaluate(async () => { const g = window.__app.game; let h = false; for (let i = 0; i < 40; i++) { await new Promise(r => setTimeout(r, 30)); if (g.p.ws.holding) h = true; } return h; });
-      await holdAt(A, 1100, 73);
-      const h1 = await pr;
+      // 押したまま、息を止めるまで待つ（描画の遅い環境では 1 秒の長押しが 1 こまに収まり、押している間に一度も止まらないことがある）
+      await touch('touchStart', [{ x: A.x, y: A.y, id: 73 }]);
+      const h1 = await page.waitForFunction(() => !!window.__app.game.p.ws.holding, null, { timeout: 12000 }).then(() => true).catch(() => false);
+      await touch('touchEnd', []);
+      await page.waitForFunction(() => !window.__app.game.p.ws.holding, null, { timeout: 8000 }).catch(() => {});
       await page.waitForTimeout(250);
       const after = await page.evaluate(() => ({ hold: !!window.__app.game.p.ws.holding, ads: window.__app.game.adsOn }));
       await tapAt(A, 74);
@@ -788,7 +790,8 @@ try {
       // HUD のボタンの状態が変わるまで待つ（描画が遅い環境では 0.4 秒では足りないことがある）
       const vis = await page.waitForFunction(() => { const e = document.querySelector('#hud [data-btn="rally"]'); return !!e && !e.classList.contains('na') && !e.classList.contains('dis') && getComputedStyle(e).display !== 'none'; }, null, { timeout: 8000 }).then(() => true).catch(() => false);
       await tapAt(await btn('rally'), 76);
-      await page.waitForTimeout(500);
+      // 置かれるまで待つ（描画が遅いと 0.5 秒では押したのが届かないことがある）
+      await page.waitForFunction(() => { const g = window.__app.game, p = g.p, S = g.S; return (S.rallies || []).some(q => q.team === p.team && q.sq === p.squad); }, null, { timeout: 8000 }).catch(() => {});
       const rl = await page.evaluate(() => { const g = window.__app.game, p = g.p, S = g.S, r = (S.rallies || []).find(q => q.team === p.team && q.sq === p.squad); return r ? { d: +Math.hypot(r.x - p.x, r.z - p.z).toFixed(2), pts: S.m.sqp[p.team + ':' + p.squad] } : null; });
       await shot('WAR-集合地点');
       rec('操作', '集合地点: 分隊長は分隊ポイント 200 で、集合のボタンを押すと目の前に置かれる', vis && !!rl && rl.d < 1.5 && rl.pts === 0, JSON.stringify({ vis, rl }));
@@ -801,10 +804,47 @@ try {
     const rallyOpt = await page.evaluate(() => [...document.querySelectorAll('#hud .dps-p b')].some(e => e.textContent === 'ビーコン'));
     rec('WAR BIT', 'ビーコン（集合地点）があると出撃の画面に「ビーコン」が出る', rallyOpt, String(rallyOpt));
     await shot('WAR-倒れた後の出撃の画面');
+    // 待ちの間に押すと予約（READY）、もう一度押すとやめる（11-27 04:01）
+    { await tapAt(await center('#hud .dps-go'), 86);
+      const q1 = await page.waitForFunction(() => !!window.__app.game.p.deployAt || window.__app.game.p.alive, null, { timeout: 15000 }).then(() => page.evaluate(() => ({ q: !!window.__app.game.p.deployAt, alive: window.__app.game.p.alive, t: (document.querySelector('#hud .dps-go') || {}).textContent || '' }))).catch(() => null);
+      let q2 = null;
+      if (q1 && q1.q && !q1.alive) {
+        await tapAt(await center('#hud .dps-go'), 87);
+        q2 = await page.waitForFunction(() => !window.__app.game.p.deployAt, null, { timeout: 15000 }).then(() => page.evaluate(() => ({ q: !!window.__app.game.p.deployAt, alive: window.__app.game.p.alive, t: (document.querySelector('#hud .dps-go') || {}).textContent || '' }))).catch(() => null);
+      }
+      rec('WAR BIT', '出撃の予約: 待ちの間に DEPLOY を押すと READY（予約）、もう一度押すとやめる', !!q1 && (q1.alive || (q1.q && /READY/.test(q1.t) && /やめる/.test(q1.t) && !!q2 && !q2.q && !q2.alive && /DEPLOY/.test(q2.t))), JSON.stringify({ q1, q2 }));
+      if (q1 && q1.alive) await page.evaluate(() => { const p = window.__app.game.p; p.oob = 9.95; p.x = window.__app.game.S.m.rect[0] - 25; });
+      await page.waitForFunction(() => document.querySelector('#hud .hud-deploy.on .dps-go'), null, { timeout: 90000 }).catch(() => {}); }
     await tapAt(await center('#hud .dps-go'), 77);
     await page.waitForFunction(() => window.__app.game.p.alive, null, { timeout: 90000 }).catch(() => {});
     const rs = await page.evaluate(() => { const g = window.__app.game, p = g.p, hq = g.S.m.hq[p.team]; return { alive: p.alive, d: Math.hypot(p.x - hq[0], p.z - hq[1]), tk: g.S.m.tickets[p.team], cls: p.warCls }; });
     rec('WAR BIT', '倒れたら出撃の画面（DEPLOY に待ちの秒数。先に押すと時間が来たら出る）→ 出撃し直す（チケットが1減る・兵科はそのまま）', /DEPLOY|READY/.test(wait) && rs.alive && rs.d < 25 && rs.tk <= tk0 - 1 && rs.cls === 'support', `「${wait}」・本陣から${rs.d.toFixed(0)}m・チケット${Math.ceil(tk0)}→${Math.ceil(rs.tk)}`);
+    // 倒れた味方を引きずる（11-27。BattleBit の F）: 近くに倒れた味方がいると「拾う」のボタンが「引きずる」になり、押して下がると体がついて来る。「離す」で離す
+    {
+      const set = await page.evaluate(() => {
+        const g = window.__app.game, S = g.S, p = g.p;
+        const b = S.actors.find(q => q !== p && q.team === p.team && q.alive && !q.down && q.ai);
+        if (!b) return null;
+        b.ai = null; window.__dragMate = b.id;
+        const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
+        Object.assign(b, { x: p.x + fx * 1.3, z: p.z + fz * 1.3, y: p.y, vx: 0, vz: 0, hp: 0, down: true, dbno: 20, dbnoCount: 1, downT: 0, stateT: 0, fallYaw: p.yaw });
+        return b.id;
+      });
+      const shown = set != null && await page.waitForFunction(() => { const e = document.querySelector('#hud [data-btn="pick"]'); return e && !e.classList.contains('ads-off') && /引きずる/.test(e.textContent); }, null, { timeout: 15000 }).then(() => true).catch(() => false);
+      await tapAt(await btn('pick'), 84);
+      const on = await page.waitForFunction(() => window.__app.game.p.drag === window.__dragMate, null, { timeout: 15000 }).then(() => true).catch(() => false);
+      const before = await page.evaluate(() => { const b = window.__app.game.S.byId[window.__dragMate]; return [b.x, b.z]; });
+      // 下がる（描画の遅い環境では試合の時間がゆっくり進むので、体が動くまで押し続ける）
+      await page.keyboard.down('KeyS');
+      await page.waitForFunction((b0) => { const b = window.__app.game.S.byId[window.__dragMate]; return Math.hypot(b.x - b0[0], b.z - b0[1]) > 0.6; }, before, { timeout: 90000 }).catch(() => {});
+      await page.keyboard.up('KeyS');
+      const st = await page.evaluate((b0) => { const g = window.__app.game, b = g.S.byId[window.__dragMate], e = document.querySelector('#hud [data-btn="pick"]'); return { moved: +Math.hypot(b.x - b0[0], b.z - b0[1]).toFixed(2), lb: e ? e.textContent : '' }; }, before);
+      await tapAt(await btn('pick'), 85);
+      const off = await page.waitForFunction(() => window.__app.game.p.drag == null, null, { timeout: 15000 }).then(() => true).catch(() => false);
+      await shot('WAR-引きずる');
+      await page.evaluate(() => { const b = window.__app.game.S.byId[window.__dragMate]; if (b) Object.assign(b, { down: false, hp: b.maxHp, dbno: 0 }); });
+      rec('操作', '倒れた味方の近くでは「拾う」のボタンが「引きずる」になり、押して下がると体がついて来る・「離す」で離す', shown && on && st.moved > 0.5 && /離す/.test(st.lb) && off, JSON.stringify({ shown, on, ...st, off }));
+    }
     // スコア表（上の帯を押す）
     await tapAt(await center('#hud .hud-obj'), 78);
     await page.waitForFunction(() => document.querySelector('#hud .hud-board.on'), null, { timeout: 15000 }).catch(() => {});

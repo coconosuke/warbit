@@ -118,7 +118,7 @@ function meBlock(a) {
     m3: a.inv.m320 ? [a.inv.m320.sel, a.inv.m320.flash, a.inv.m320.stinger, a.inv.m320.cs] : null, lt: r2(a.ws.lt || 0),
     pk: a.peek ? [a.peek.k, r2(a.peek.x), r2(a.peek.y), r2(a.peek.z), r3(a.peek.yaw0), r2(a.peek.max), a.peek.door, a.peek.fov] : null,
     st: a.stance, db: a.dbno ? Math.round(a.dbno * 10) / 10 : 0, sp: a.spawnProt > 0 ? 1 : 0, s: [a.stats.k, a.stats.d, a.stats.a, a.stats.sh, a.stats.hi], dr: a.dronesLeft ?? null,
-    zn: a.zone ?? null, ot: a.outT ? Math.round(a.outT * 10) / 10 : 0,
+    zn: a.zone ?? null, ot: a.outT ? Math.round(a.outT * 10) / 10 : 0, dg: a.drag ?? null, bp: a.bip ? 1 : 0,
   };
 }
 
@@ -271,7 +271,7 @@ export class Mirror {
     });
     a.inv.gear = P.g.map(([id, n]) => ({ id, n }));
     a.act = P.act ? { k: P.act[0], t: P.act[1] / 100, dur: P.act[2] / 100, tgt: P.act[3] != null ? [P.act[3] / 100, P.act[4] / 100, P.act[5] / 100] : null, pose: P.act[6] || null, quick: !!P.act[7], kind: P.act[8] || null } : null;
-    a.dbno = P.db; a.spawnProt = P.sp; a.stats.k = P.s[0]; a.stats.d = P.s[1]; a.stats.a = P.s[2]; a.stats.sh = P.s[3]; a.stats.hi = P.s[4];
+    a.dbno = P.db; a.drag = P.dg ?? null; a.bip = !!P.bp; a.spawnProt = P.sp; a.stats.k = P.s[0]; a.stats.d = P.s[1]; a.stats.a = P.s[2]; a.stats.sh = P.s[3]; a.stats.hi = P.s[4];
     if (P.dr != null) a.dronesLeft = P.dr;
     a.zone = P.zn ?? a.zone; a.outT = P.ot || 0;
     if (P.m3) a.inv.m320 = { sel: P.m3[0], flash: P.m3[1], stinger: P.m3[2], cs: P.m3[3] };

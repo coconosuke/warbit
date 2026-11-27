@@ -75,3 +75,35 @@ test('ボット: 守る拠点に着くとクレイモアか地雷を置いて、
   ok(placed > 0, 'ボットが置いた ' + placed);
   ok(holding <= 2, '持ったままのボットは少ない ' + holding);
 });
+
+// 11-27（BattleBit の wiki）: 撃たれると爆発する（作動前でも・どちらの側の弾でも）。1 人 4 つまで。誘爆の距離は爆発物ごと
+import { placeMine, MINE } from '../../src/engine/mines.js';
+import { spawnBullet } from '../../src/engine/combat.js';
+import { curW, curWeapon } from '../../src/engine/actor.js';
+import { AMMO } from '../../src/engine/data/weapons.js';
+test('対人地雷を撃つと爆発する（置いてすぐでも）。近くの敵は巻き込まれる', () => {
+  const { G, S, me, mate, foes, put } = setup();
+  put(mate, 760, 700);
+  const m = placeMine(S, G.w, foes[0], 'apmine', []);
+  m.y = heightAt(G.w, m.x, m.z);
+  put(me, m.x - 6, m.z); put(foes[1], m.x + 0.8, m.z + 0.3); put(foes[0], m.x + 30, m.z);
+  // 自分の銃の弾を、地雷の 1.5m 上から真下へ（撃った弾が地面より先に地雷に当たるように）
+  const W = curW(me), wi = curWeapon(me), am = AMMO[W.cal][wi.am];
+  const b = spawnBullet(S, me, W, wi, am, 0, -1, 0);
+  b.x = m.x; b.y = m.y + 1.5; b.z = m.z; b.dist = 5;
+  for (let i = 0; i < 6; i++) step(G, {});
+  ok(!S.mines.includes(m), '撃って爆発した');
+  ok(!foes[1].alive || foes[1].down, 'そばの敵は倒れた');
+});
+test('置いておけるのは 1 人 4 つまで（5 つ目で古い物が消える）', () => {
+  const { G, S, me } = setup();
+  const L = [];
+  for (let i = 0; i < 5; i++) { me.x += 2; L.push(placeMine(S, G.w, me, 'clay', [])); }
+  const mine = S.mines.filter(q => q.by === me.id && q.kind === 'clay');
+  eq(mine.length, MINE.max, '4 つ');
+  ok(!S.mines.includes(L[0]) && S.mines.includes(L[4]), 'いちばん古い物が消えた');
+});
+test('誘爆の距離: 対人地雷 8m・クレイモア 4m（wiki の Triggerable）', () => {
+  eq(MINE.apmine.trig, 8); eq(MINE.clay.trig, 4);
+  eq(MINE.apmine.blast.r, 5); eq(MINE.clay.blast.r, 4); eq(MINE.clay.blast.dmg, 200);
+});

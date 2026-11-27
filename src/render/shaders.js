@@ -17,7 +17,7 @@ uniform highp sampler2D uAO;      // 床の近くの暗がり
 uniform highp sampler2D uDLR;     // 動く光ごとに、届く部屋（光が壁を抜けない）
 uniform vec4 uLGd;                // W1, D1, NLy, NL
 uniform vec4 uMapD;               // W, D, CS, LH
-uniform vec3 uSunDir; uniform vec3 uSunCol; uniform float uShadowOn; uniform mat4 uShadowVP; uniform highp sampler2DShadow uShadow; uniform float uShadowTexel;
+uniform vec3 uSunDir; uniform vec3 uSunCol; uniform float uShadowOn; uniform mat4 uShadowVP; uniform highp sampler2DShadow uShadow; uniform float uShadowTexel; uniform float uInSun;
 uniform float uShadowOn2; uniform mat4 uShadowVP2; uniform highp sampler2DShadow uShadow2;
 uniform vec3 uSkyCol; uniform float uAmbMin; uniform float uOuter; uniform float uWar; uniform float uFogFar; uniform float uGrassD;
 uniform vec4 uDLp[${MAX_DL}]; uniform vec4 uDLc[${MAX_DL}]; uniform vec4 uDLd[${MAX_DL}]; uniform int uDLn;
@@ -128,7 +128,8 @@ vec3 shade(vec3 p, vec3 n, vec3 alb, float room, float ao, out float outdoor){
       float inr = 1.0 - clamp(room, 0.0, 1.0), sv = 1.0 - inr, nds0 = dot(n, uSunDir);
       if (uShadowOn > 0.5 && nds0 > 0.0) {
         if (sv > 0.0) { float s = sunShadow(p, n); if (s >= 0.0) sv *= s; }
-        else {
+        // 11-27（重くなった・発熱）: 窓から差す日は画質「高」だけ（中の面の 1 画素ごとに影の地図を 4 回読むので重い）
+        else if (uInSun > 0.5) {
           // 建物の中（11-26）: 近くの影の地図の中だけ、窓・戸口・壊れた穴から差す日を入れる（床に日だまり。前は中は日がまったく当たらなかった）。
           //  遠くの影の地図は粗く壁を抜けるので使わない。影の地図の縁へ向かって消す
           vec4 c = uShadowVP * vec4(p + n * 0.04, 1.0); vec3 q = c.xyz * 0.5 + 0.5;

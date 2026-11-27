@@ -9,7 +9,7 @@ import { blastDeps } from './deploy.js';
 import { blastRallies } from './rally.js';
 import { GEAR } from './data/equipment.js';
 import { carve, shatterNear, structHit, collapseBld, bldTop } from '../war/destruct.js';
-import { blastMines } from './mines.js';
+import { blastMines, MINE, TRIG } from './mines.js';
 
 const _rc = { out: [], seenProp: new Set(), seenDoor: new Set() };
 
@@ -280,7 +280,7 @@ export function stepBlasts(S, w, dt, ev) {
     // 集合地点（大規模戦）
     blastRallies(S, b.x, b.y, b.z, (b.r || 4) * 0.6, b.by ?? -1, ev);
     // 地雷・クレイモアの誘爆
-    blastMines(S, b.x, b.y, b.z, b.r || 4);
+    blastMines(S, b.x, b.y, b.z, b.r || 4, b.kind === 'mine' && MINE[b.mk] ? MINE[b.mk].trig : TRIG[b.kind]);
     // 大規模戦: RPG（HEAT）は壁と床に穴を開ける（war/destruct.js）。描く側は 'carve' の出来事で塊を作り直す
     if (w.war && (b.kind === 'rpg' || b.kind === 'c4')) {
       // C4 はコンクリートも 1 回で、穴も大きい（2m）

@@ -348,6 +348,9 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-ammo .mags i { width: 5px; height: 12px; border: 1px solid rgba(255,255,255,.6); border-radius: 1px; background: linear-gradient(0deg, #fff calc(var(--f) * 100%), transparent 0); }
 .hud-breath { position: absolute; left: 50%; top: calc(50% + 64px); width: 84px; height: 4px; margin-left: -42px; border-radius: 2px; background: rgba(0,0,0,.45); box-shadow: 0 0 0 1px rgba(255,255,255,.25); opacity: 0; transition: opacity .25s; pointer-events: none; }
 .hud-breath.on { opacity: 1; }
+.hud-bip { position: absolute; left: 50%; top: calc(50% + 74px); transform: translateX(-50%); display: flex; align-items: center; gap: 3px; padding: 1px 6px 1px 3px; border-radius: 3px; background: rgba(0,0,0,.45); color: #e8f0d8; font: 800 11px var(--f-body); opacity: 0; transition: opacity .2s; pointer-events: none; }
+.hud-bip svg { width: 14px; height: 14px; }
+.hud-bip.on { opacity: 1; }
 .hud-breath i { display: block; height: 100%; width: 100%; border-radius: 2px; background: #dfe8ee; }
 .hud-breath.gasp i { background: #e2574c; }
 .hb.ads-off { visibility: hidden; pointer-events: none; }
@@ -448,6 +451,7 @@ table.board small { color: var(--dim); font-size: max(11px, .72em); margin-left:
 .hud-peek .pk-hint { position: absolute; left: 50%; bottom: calc(var(--sb) + 62px); transform: translateX(-50%); font: 500 11px/1 var(--f-body); color: rgba(255,255,255,.72); text-shadow: 0 1px 3px #000; white-space: nowrap; }
 .hud-peek .pk-x { position: absolute; right: calc(max(var(--sr), 10px) + 12px); top: calc(var(--st) + 44px); pointer-events: auto; padding: 9px 18px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.4); border-radius: 6px; font: 700 14px/1 var(--f-body); }
 #hud.peeking .hud-cross, #hud.peeking .hud-reticle, #hud.peeking .hud-scope, #hud.peeking .hud-prompt, #hud.peeking .hud-ammo { display: none !important; }
+#hud.downed .hb:not([data-btn="pause"]), #hud.downed .hud-cross, #hud.downed .hud-reticle, #hud.downed .hud-scope, #hud.downed .hud-ammo, #hud.downed .hud-stick, #hud.downed .hud-breath, #hud.downed .hud-bip { visibility: hidden !important; pointer-events: none !important; }
 .hud-ammo .mags em { font-style: normal; font-size: 11px; margin-left: 4px; opacity: .55; font-family: var(--f-body); }
 .hud-ammo .mags em.on { opacity: 1; color: var(--accent2); }
 .hud-ammo .cnt b.lname { font-size: 15px; letter-spacing: .02em; }

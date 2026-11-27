@@ -2,20 +2,29 @@
 // research/WARBIT.md の 39・43）。手に持って引き金で足もとの前に置く（拾えない）。置いて 1.5 秒で使えるようになる。
 //   対人地雷: 敵が 1m 以内に入ると爆発（半径 4m・2m までは倒れる）
 //   クレイモア: 前の 3m・左右 35° に敵が入ると、前へ向けて爆発（前の 70° の扇の中だけ・9m まで）
-// 置いた物は 10 分で消える。味方では作動しない。数値は推測（Wiki はダメージの数だけ）
+// 置いた物は 10 分で消える。味方では作動しない。
+// 11-27（BattleBit の wiki の各ページ。research の 64）: 撃たれると爆発する（どちらの側の弾でも）。爆発の届く距離 対人地雷 人 5m・クレイモア 人 4m、
+//  まわりの爆発物を誘爆させる距離（Triggerable）対人地雷 8m・クレイモア 4m・C4 5m。置いておけるのは 1 人 4 つまで（5 つ目で古い物が消える）。
+//  クレイモアのダメージは人 200。置いた人が死んでも残る。作動までの時間・扇の角度は推測
 const D = Math.PI / 180;
 export const MINE = {
-  apmine: { arm: 1.5, r: 1.0, blast: { r: 4, dmg: 400, fall: 2.0 } },
-  clay: { arm: 1.5, reach: 3.0, cos: Math.cos(35 * D), blast: { r: 9, dmg: 260, fall: 1.3, cone: Math.cos(35 * D) } },
-  life: 600,
+  apmine: { arm: 1.5, r: 1.0, trig: 8, blast: { r: 5, dmg: 400, fall: 2.0 } },
+  clay: { arm: 1.5, reach: 3.0, cos: Math.cos(35 * D), trig: 4, blast: { r: 4, dmg: 200, fall: 0.5, cone: Math.cos(35 * D) } },
+  life: 600, max: 4,
 };
+// 爆発物ごとの、まわりの爆発物を誘爆させる距離（wiki の Triggerable）。ほかの爆発（手榴弾・RPG）は推測で届く距離の半分（3m まで）
+export const TRIG = { c4: 5 };
 
 export function placeMine(S, w, a, id, ev, groundY) {
   const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
   const x = a.x + fx * 0.8, z = a.z + fz * 0.8;
   const y = groundY ? groundY(x, z, a.y) : a.y;
   const m = { id: (S.mineN = (S.mineN || 0) + 1), kind: id, team: a.team, by: a.id, x, y, z, yaw: a.yaw, t: S.t, armAt: S.t + Math.round(MINE[id].arm / S.dt) };
-  (S.mines || (S.mines = [])).push(m);
+  const L = S.mines || (S.mines = []);
+  L.push(m);
+  // 1 人 4 つまで（種類ごと）。5 つ目を置くと、いちばん古い物が消える
+  const mine = L.filter(q => q.by === a.id && q.kind === id);
+  if (mine.length > MINE.max) { const old = mine[0]; L.splice(L.indexOf(old), 1); if (ev) ev.push({ e: 'mine', k: 'gone', id: old.id, kind: id }); }
   if (ev) ev.push({ e: 'mine', k: 'place', id: m.id, by: a.id, kind: id, x, y, z });
   return m;
 }
@@ -40,12 +49,20 @@ export function stepMines(S, ev) {
     if (!hit) continue;
     L.splice(i, 1);
     const B = P.blast;
-    S.blasts.push({ x: m.x + fx * (m.kind === 'clay' ? 0.15 : 0), y: m.y + 0.25, z: m.z + fz * (m.kind === 'clay' ? 0.15 : 0), r: B.r, dmg: B.dmg, fall: B.fall, kind: 'mine', by: m.by, t: 0, dir: m.kind === 'clay' ? [fx, fz] : null, cone: B.cone });
+    // 撃って爆発させた: 当てた人の手柄（敵の地雷を撃って敵を倒したら、撃った人の）
+    const by = m.shotBy != null && m.shotTeam !== m.team ? m.shotBy : m.by;
+    S.blasts.push({ x: m.x + fx * (m.kind === 'clay' ? 0.15 : 0), y: m.y + 0.25, z: m.z + fz * (m.kind === 'clay' ? 0.15 : 0), r: B.r, dmg: B.dmg, fall: B.fall, kind: 'mine', mk: m.kind, by, t: 0, dir: m.kind === 'clay' ? [fx, fz] : null, cone: B.cone });
     if (ev) ev.push({ e: 'mine', k: 'boom', id: m.id, kind: m.kind, x: m.x, y: m.y, z: m.z });
   }
 }
-// 爆発で、まわりの地雷・クレイモアも誘爆する（同じ側の物も）
-export function blastMines(S, x, y, z, R) {
+// 爆発で、まわりの地雷・クレイモアも誘爆する（同じ側の物も）。trig: その爆発が誘爆させる距離（なければ届く距離の半分・3m まで）
+export function blastMines(S, x, y, z, R, trig) {
   const L = S.mines; if (!L || !L.length) return;
-  for (const m of L) if (Math.hypot(m.x - x, m.y - y, m.z - z) < Math.min(3, R * 0.5)) m.armAt = -1, m.chain = true;
+  const T = trig ?? Math.min(3, R * 0.5);
+  for (const m of L) if (m.kind && MINE[m.kind] && Math.hypot(m.x - x, m.y - y, m.z - z) < T) m.armAt = -1, m.chain = true;
+}
+// 弾が当たった: 次のステップで爆発する（作動前でも）
+export function shootMine(S, m, b) {
+  if (!m.kind || !MINE[m.kind]) return;
+  m.armAt = -1; m.chain = true; m.shotBy = b.owner; m.shotTeam = b.team;
 }

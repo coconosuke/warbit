@@ -160,7 +160,12 @@ export class Match {
     // まだエンジンに渡していない反動の押さえも、描く向きには先に入れる（指を引いた分がすぐ映るように）
     if (ws && this.rcComp > 0 && !this.done) { if (!keep) keep = [ws.sx, ws.sy, ws.ry, ws.rp]; ws.rp = Math.max(0, (ws.rp || 0) - this.rcComp); }
     const tR = performance.now();
-    try { this._render(dt, inp); } finally { if (keep) { ws.sx = keep[0]; ws.sy = keep[1]; ws.ry = keep[2]; ws.rp = keep[3]; } }
+    // 画面が隠れている間は 3D を描かない・減らす（11-27「重くなった・発熱」。0.1.60 から大規模戦はメニューを開いても試合が進み、
+    //  画面いっぱいの出撃の画面の下でも毎こま描いていた）: 出撃の画面の間は描かない、メニューの間は 4 こまに 1 回
+    this._rk = (this._rk || 0) + 1;
+    const cover = this.hud.deployOn ? 2 : fo.input === false ? 1 : 0;
+    const drawNow = cover === 0 || (cover === 1 && this._rk % 4 === 0);
+    try { if (drawNow) this._render(dt, inp); } finally { if (keep) { ws.sx = keep[0]; ws.sy = keep[1]; ws.ry = keep[2]; ws.rp = keep[3]; } }
     const tH = performance.now();
     this._hud(dt);
     // 1こまの時間の内訳（fps の表示に出す。重い原因を探す）: 動き（エンジン、こまあたり）・回数・出来事（音・効果）・描く・HUD
@@ -390,9 +395,10 @@ export class Match {
         case 'shout': if (k === 'down') this.acts.push({ a: 'shout', line: this._shoutLine() }); break;
         case 'peekx': if (k === 'tap' || k === 'down') this._peekQuit(); break;
         // 落ちた弾倉を拾う（大規模戦。近くにある間だけボタンが出る。キーボードは V）
-        case 'pick': if (k === 'down') this.acts.push({ a: 'pickmag' }); break;
+        // 11-27: 倒れた味方の近くでは「引きずる」、引きずっている間は「離す」（BattleBit の F）
+        case 'pick': if (k === 'down') this._ctxUse(); break;
         case 'use':
-          if (this.S.war) { if (k === 'down') { const rt = this._reviveTgt(); if (rt && p.inv.gear.some(x => x.id === 'bandage' && x.n > 0)) this.acts.push({ a: 'op', k: 'person', id: rt.id, op: 'revive' }); else if (magNear(this.S, p)) this.acts.push({ a: 'pickmag' }); } break; }
+          if (this.S.war) { if (k === 'down') this._ctxUse(); break; }
           if (p.peek) { if (k === 'tap' || (k === 'down' && e.key)) this._peekQuit(); break; }
           if (k === 'tap' || (k === 'down' && e.key)) { if (!e.key || k === 'down') this._useDefault(); }
           else if (k === 'long') this._useMenu(e);
@@ -433,7 +439,9 @@ export class Match {
         // 副の道具（LOADOUT の「道具」）
         case 'dgad': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(); (W.gad || (W.gad = {}))[this.dcls || 'assault'] = e.sub; this._warPickSave(); this.au.ui('tap'); } break;
         case 'datt': if (k === 'down' && this.S.war && !p.alive) { const W = this._warPrefs(), d = this._warDeployData(), [kk, v] = String(e.sub).split(':'); const A = W.att[d.gun] || (W.att[d.gun] = {}); A[kk] = v; this._warPickSave(); this.au.ui('tap'); } break;
-        case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' || String(this.dsel).startsWith('sq:') ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
+        // 出撃の予約（待ちの間に押した）をもう一度押すとやめる（11-27 04:01）。自動で出撃の設定でも、やめたらこの死では予約し直さない
+        case 'dgo': if (k === 'down' && this.S.war && !p.alive && !this.S.m.over && p.deployAt) { this.acts.push({ a: 'warDeploy', cancel: true }); this._adT = this.kiaT; this.au.ui('tap'); break; }
+          if (k === 'down' && this.S.war && !p.alive && !this.S.m.over) { if (this.S.m.mode === 'conquest' && this.S.m.tickets[p.team] <= 0) break; this.acts.push({ a: 'warDeploy', at: this.S.m.mode === 'conquest' || this.dsel === 'rally' || String(this.dsel).startsWith('sq:') ? (this.dsel || 'hq') : 'auto', ...this._warPick() }); this.au.ui('go'); } break;
         case 'pause': if (k === 'tap' || (k === 'down' && e.key)) this.app.pauseGame(); break;
         case 'drone': if (k === 'down') this._droneToggle(); break;
         case 'zone': if (k === 'down') this._zoneNext(); break;
@@ -752,6 +760,20 @@ export class Match {
     out.heal = { lb: rt ? '起こす' : '包帯', n: b ? b.n : 0, dis: !b || b.n <= 0, on: held === 'bandage' || !!rt };
     return out;
   }
+  // 拾う・引きずる・離す（大規模戦の「拾う」のボタンとキーボードの V）: 引きずっていれば離す、近くに倒れた味方がいれば引きずる、でなければ弾倉を拾う
+  _ctxUse() {
+    const S = this.S, p = this.p; if (!S || !S.war || !p.alive || p.down) return;
+    if (p.drag != null) { this.acts.push({ a: 'op', k: 'person', id: p.drag, op: 'drag' }); return; }
+    const rt = this._reviveTgt();
+    if (rt) { this.acts.push({ a: 'op', k: 'person', id: rt.id, op: 'drag' }); return; }
+    if (magNear(S, p)) this.acts.push({ a: 'pickmag' });
+  }
+  _ctxView() {
+    const S = this.S, p = this.p; if (!S || !S.war || !p.alive || p.down) return null;
+    if (p.drag != null) return 'drop';
+    if (this._reviveTgt()) return 'drag';
+    return magNear(S, p) ? 'pick' : null;
+  }
   // 起こせる倒れた味方（大規模戦）: 自分が立っていて、1.8m 以内（横たわった胴の点から。エンジンは 1.9m まで届く）の倒れた味方のうち、近くて前にいる人
   _reviveTgt() {
     const S = this.S, p = this.p;
@@ -859,7 +881,8 @@ export class Match {
         // 近接: 振る音、当たった物の音（体・バリケードはそれぞれの出来事で）
         case 'melee': { const a = S.byId[e.id]; au.sfx('throw', e.id === me || !a ? null : [a.x, a.y + 1.3, a.z], { vol: e.id === me ? 0.75 : 0.55, rate: 1.3 }); break; }
         // C4: 起爆の音・切り替えの音
-        case 'c4': if (e.id === me) { if (e.k === 'det') au.sfx('beep', null, { vol: 0.8, rate: 1.4 }); else if (e.k === 'none') { au.sfx('dry', null, { vol: 0.5 }); hud.showBanner('貼った C4 がない', 1100); } } break; // 投げるは射撃のボタン・起爆は構えのボタン（11-26）
+        // 投げるは射撃のボタン・起爆は構えのボタン（11-26）。貼っていない時の起爆は音だけ（文字は出さない。11-27 04:13: いらない文字を消す）
+        case 'c4': if (e.id === me) { if (e.k === 'det') au.sfx('beep', null, { vol: 0.8, rate: 1.4 }); else if (e.k === 'none') au.sfx('dry', null, { vol: 0.5 }); } break;
         case 'mine': if (e.k === 'place' && e.by === me) au.sfx('cuffs', null, { vol: 0.5, rate: 0.8 }); break;
         case 'stick': { au.sfx('nadeBounce', [e.x, e.y, e.z], { vol: 0.6, rate: 0.7 }); break; }
         // 大ハンマー: 振る音・当たった音と粉（壁は面の色の欠片）
@@ -885,7 +908,7 @@ export class Match {
         }
         case 'down': {
           const v = S.byId[e.id];
-          if (v === p) { hud.showBanner(S.pvp ? 'ダウン — 救助待ち' : '行動不能', 3000, 'bad'); }
+          if (v === p && !S.war) { hud.showBanner(S.pvp ? 'ダウン — 救助待ち' : '行動不能', 3000, 'bad'); } // 大規模戦は倒れた時の案内（残り時間）だけ
           if (v && S.pvp) hud.feed(`${nm(S.byId[e.by])} が ${nm(v)} を倒した（ダウン）`);
           if (S.war && e.by === me && e.id !== me) { hud.hit('kill'); (this._downBy = this._downBy || new Map()).set(e.id, this.time); }
           break;
@@ -913,7 +936,7 @@ export class Match {
           if (e.k === 'locked' && e.id !== me && S.byId[e.id] && S.byId[e.id].kind === 'swat') this._say(S.byId[e.id], 'swat_locked');
           break;
         }
-        case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', fullhp: '体力が満タン', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why) hud.showBanner(why, 1400); au.ui('deny'); } break;
+        case 'deny': if (e.id === me) { const why = { locked: '鍵がかかっている', wedged: 'ウェッジで開かない', barred: 'バリケード', nogear: '残数なし', fullhp: '体力が満タン', nodet: '起爆対象なし', open: '開いている', broken: '破損', needdoor: '閉じた扉を見て使う', nolong: '特殊装備なし', noammo: '弾がない',  blocked: '間に物・人があって届かない', prepout: '準備中は建物の外に出られない', depspace: '前に置く場所がない', depfloor: '平らな床にしか置けない', depperson: '前に人がいる', depair: '立ってから置く' }[e.why]; if (why && !S.war) hud.showBanner(why, 1400); au.ui('deny'); } break; // 大規模戦は音だけ（11-27: いらない文字を消す）
         case 'nade': { if (e.type === 'frag' || e.type === 'impact') break; if (e.type === 'smoke') { for (let i = 0; i < 6; i++) fx.smoke(e.x, e.y + 0.5, e.z, 0.9, [0.62, 0.63, 0.64], 0.6, 3); au.sfx('gasPop', [e.x, e.y, e.z], { rate: 0.8 }); break; } if (e.type === 'cs') { for (let i = 0; i < 8; i++) fx.smoke(e.x, e.y + 0.4, e.z, 1.2, [0.85, 0.85, 0.8], 0.5, 6); au.sfx('gasPop', [e.x, e.y, e.z]); } else { fx.explosion(e.x, e.y, e.z, 3, e.type === 'flash' ? 'flash' : 'stinger'); au.sfx(e.type === 'flash' ? 'flashbang' : 'stinger', [e.x, e.y, e.z]); } const d = Math.hypot(e.x - this.cam.x, e.z - this.cam.z); this.shake = Math.max(this.shake, Math.max(0, 1 - d / 10) * 0.6); break; }
         // 建物が崩れた（大規模戦）: オンラインの参加側は自分の世界でも崩す。土ぼこり・がれき・低いとどろき・近いと揺れる
         case 'collapse': {
@@ -1000,25 +1023,25 @@ export class Match {
         case 'end': hud.showBanner(e.res === 'fail' ? '作戦失敗' : e.res === 'abort' ? '撤収' : '作戦完了', 0, e.res === 'fail' ? 'bad' : 'ok'); au.ui(e.res === 'fail' ? 'lose' : 'win'); break;
         case 'spot': if (e.by === me) { if (e.id < 0) au.ui('back'); else au.ui('spot'); } break;
         case 'score': if (e.id === me && S.war) this._score(e); break;
-        case 'ammoBox': if (e.k === 'place') { au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.6, rate: 1.3 }); if (e.by === me) hud.feed(`${e.big ? '大きい' : '小さい'}弾薬箱を置いた（近くに立つと弾倉を補給）`, 'ok'); } break;
-        case 'medkit': if (e.id === me) { au.sfx('bandage', null, { vol: 0.35, rate: 1.2 }); const t = S.byId[e.tgt]; hud.feed(t === p ? `自分を手当て（体力 ${e.hp}）` : `${t ? t.name : '仲間'} を手当て（体力 ${e.hp}）`, 'ok'); } else if (e.tgt === me) hud.feed(`${S.byId[e.id] ? S.byId[e.id].name : '衛生'} が手当てしている（体力 ${e.hp}）`, 'ok'); break;
-        case 'resupply': if (e.id === me) { au.ui('pickup'); hud.feed(e.g ? `${e.g === 'rpg' ? 'RPG-7 の弾' : GEAR[e.g] ? GEAR[e.g].name.replace(/（.*）/, '') : ''}を補給した` : `弾倉を補給した（+${e.n}発）`, 'ok'); } break;
+        case 'ammoBox': if (e.k === 'place') { au.sfx('land', [e.x, e.y + 0.2, e.z], { vol: 0.6, rate: 1.3 }); if (e.by === me) (S.war ? () => {} : hud.feed.bind(hud))(`${e.big ? '大きい' : '小さい'}弾薬箱を置いた（近くに立つと弾倉を補給）`, 'ok'); } break;
+        case 'medkit': if (e.id === me) { au.sfx('bandage', null, { vol: 0.35, rate: 1.2 }); const t = S.byId[e.tgt]; (S.war ? () => {} : hud.feed.bind(hud))(t === p ? `自分を手当て（体力 ${e.hp}）` : `${t ? t.name : '仲間'} を手当て（体力 ${e.hp}）`, 'ok'); } else if (e.tgt === me) (S.war ? () => {} : hud.feed.bind(hud))(`${S.byId[e.id] ? S.byId[e.id].name : '衛生'} が手当てしている（体力 ${e.hp}）`, 'ok'); break;
+        case 'resupply': if (e.id === me) { au.ui('pickup'); (S.war ? () => {} : hud.feed.bind(hud))(e.g ? `${e.g === 'rpg' ? 'RPG-7 の弾' : GEAR[e.g] ? GEAR[e.g].name.replace(/（.*）/, '') : ''}を補給した` : `弾倉を補給した（+${e.n}発）`, 'ok'); } break;
         case 'magDrop': au.sfx('magOut', [e.x, e.y + 0.1, e.z], { vol: 0.5, rate: 0.8 }); break;
-        case 'magPick': if (e.id === me) { au.ui('pickup'); hud.feed(e.swap != null ? `弾倉を取り替えた（${e.swap}発 → ${e.n}発）` : `弾倉を拾った（${e.n}発）`, 'ok'); } break;
-        case 'magFull': if (e.id === me) { au.ui('deny'); hud.feed('弾倉はいっぱい（持っている弾倉の方が多い）'); } break;
-        case 'consol': if (e.id === me) { au.sfx('magOut', null, { vol: 0.5 }); hud.feed('弾倉をまとめている…', 'ok'); } break;
-        case 'consoled': if (e.id === me) { if (e.none) { au.ui('back'); hud.feed('まとめる弾倉がない（満タンでない弾倉が2本いる）', 'warn'); } else { au.ui('ok'); hud.feed('弾倉をまとめた', 'ok'); } } break;
+        case 'magPick': if (e.id === me) { au.ui('pickup'); if (!S.war) hud.feed(e.swap != null ? `弾倉を取り替えた（${e.swap}発 → ${e.n}発）` : `弾倉を拾った（${e.n}発）`, 'ok'); } break;
+        case 'magFull': if (e.id === me) { au.ui('deny'); if (!S.war) hud.feed('弾倉はいっぱい（持っている弾倉の方が多い）'); } break;
+        case 'consol': if (e.id === me) { au.sfx('magOut', null, { vol: 0.5 }); if (!S.war) hud.feed('弾倉をまとめている…', 'ok'); } break;
+        case 'consoled': if (e.id === me) { if (e.none) { au.ui('back'); (S.war ? () => {} : hud.feed.bind(hud))('まとめる弾倉がない（満タンでない弾倉が2本いる）', 'warn'); } else { au.ui('ok'); (S.war ? () => {} : hud.feed.bind(hud))('弾倉をまとめた', 'ok'); } } break;
         case 'order': if (S.war && e.team === p.team && e.sq === p.squad) { au.ui('spot'); hud.feed(`分隊の目標: 拠点 ${e.f} を${e.k === 'def' ? '守る' : '攻める'}`, 'ok'); } break;
         case 'sqp': if (S.war && e.team === p.team && e.sq === p.squad) hud.sqPoints(e.n, e.pts > 0 ? e.pts : 0); break;
         case 'rally': {
           if (!S.war) break;
           const mine = e.team === p.team && e.sq === p.squad;
-          if (e.k === 'no' && e.by === me) { au.ui('back'); hud.feed(e.why === 'pts' ? `分隊ポイントが足りない（${RALLY.cost} 要る）` : e.why === 'cool' ? 'ビーコンはまだ置けない（壊されたばかり）' : e.why === 'ground' ? '地面に立って置く' : 'ビーコンは分隊長だけ', 'warn'); }
-          else if (e.k === 'place') { if (mine) hud.feed('ビーコンを置いた（分隊はここから出撃できる）', 'ok'); au.sfx('pump', [e.x, e.y + 0.3, e.z], { vol: 0.6, rate: 1.4 }); }
+          if (e.k === 'no' && e.by === me) { au.ui('back'); (S.war ? () => {} : hud.feed.bind(hud))(e.why === 'pts' ? `分隊ポイントが足りない（${RALLY.cost} 要る）` : e.why === 'cool' ? 'ビーコンはまだ置けない（壊されたばかり）' : e.why === 'ground' ? '地面に立って置く' : 'ビーコンは分隊長だけ', 'warn'); }
+          else if (e.k === 'place') {  au.sfx('pump', [e.x, e.y + 0.3, e.z], { vol: 0.6, rate: 1.4 }); }
           else if (e.k === 'gone') { if (mine) hud.feed('ビーコンが壊された', 'warn'); fx.debris(e.x, e.y + 0.35, e.z, [0.29, 0.32, 0.21]); au.sfx('impMetal', [e.x, e.y + 0.3, e.z], { vol: 1 }); }
           break;
         }
-        case 'revive': if (this._downBy) this._downBy.delete(e.id); hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
+        case 'revive': if (this._downBy) this._downBy.delete(e.id); if (e.by === me || e.id === me) hud.feed(`${nm(S.byId[e.by])} が ${nm(S.byId[e.id])} を起こした`, 'ok'); break;
         case 'bandaged': if (e.id === me) au.sfx('bandage', null); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 8)) au.sfx('bandage', [a.x, a.y + 0.9, a.z], { vol: 0.35 }); } break;
         // 息が切れた（あえぐ）: 近くの人にも小さく聞こえる
         case 'gasp': if (e.id === me) au.sfx('gasp', null, { vol: 0.8 }); else { const a = S.byId[e.id]; if (a && this._nearCam(a, 7)) au.sfx('gasp', [a.x, a.y + 1.5, a.z], { vol: 0.3 }); } break;
@@ -1207,12 +1230,8 @@ export class Match {
       // 目の位置もステップの間を補間（大きく飛んだときはそのまま）
       const e = q && kk > 0.001 && Math.hypot(q[0] - p.x, q[2] - p.z) < 1 ? [e0[0] + (q[0] - p.x) * kk, e0[1] + (q[1] - p.y) * kk, e0[2] + (q[2] - p.z) * kk] : e0;
       // 向きは指の動きをすぐ映す（エンジンのステップを待たない）。体が勝手に向く状態（テーザー・拘束）だけは体の向き
-      // 大規模戦で倒れている間（11-26）: 体は倒れた時の向きのまま。首を回せる分だけ見回せる（左右 ±75°・上下 -30°〜+40°）
-      if (p.down && S.war) {
-        const lim = 1.3; let d = Math.atan2(Math.sin(this.yaw - p.yaw), Math.cos(this.yaw - p.yaw));
-        if (Math.abs(d) > lim) this.yaw = p.yaw + Math.sign(d) * lim;
-        this.pitch = Math.max(-0.52, Math.min(0.7, this.pitch));
-      }
+      // 大規模戦で倒れている間: 体は倒れた時の向きのまま回らず、目（頭）の位置も動かない。向きはまわりをぐるっと見渡せる
+      //  （11-27 03:53: 前の版で見回す角度を左右 ±75° に絞ったが、要望は「目が大きく動く・めり込む」を直すことだけだった）
       const lookFree = !p.tased && !p.cuffed && !p.vault;
       const cyaw = lookFree ? this.yaw : p.yaw, cpitch = lookFree ? Math.max(-1.45, Math.min(1.45, this.pitch)) : p.pitch;
       const W = curW(p), wi = curWeapon(p);
@@ -1581,7 +1600,7 @@ export class Match {
     // 射撃の指: 投げ物を持っている間は、ずらすと下投げ（見回さない）
     this.app.input.nadeHeld = nadeHeld;
     const v = {
-      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null, pick: !!(S.war && magNear(S, p)), nadeHeld, underArm: nadeHeld && !!this.app.input.underArm,
+      p, wi, pvp: S.pvp, war: !!S.war, yaw: this.cam ? this.cam.yaw : p.yaw, adsOn: this.adsOn, slots: S.war ? this._slotView() : null, pick: S.war ? this._ctxView() : null, nadeHeld, underArm: nadeHeld && !!this.app.input.underArm,
       // ダッシュを押しているが、ほかの操作（構える・リーン・撃つ・リロード）が先で走っていない
       sprWait: !!(p.alive && !p.sprint && this.app.input && (this.app.input.sprintArm || this.app.input.sprintLock)), leanL: this.leanSide < 0, leanR: this.leanSide > 0, nvgOn: this.nvgOn, hasNvg: p.armor.head === 'nvg',
       gearSel: this.gearSel, gearId: p.ws.gear, team: this.team, c4n: S.war ? (S.nades || []).filter(n => n.type === 'c4' && n.by === p.id).length : 0,
@@ -1672,7 +1691,8 @@ export class Match {
     // 倒れている: 起こしてもらえるまでの残り（起こされている間は止まる）
     if (p.down) { const left = Math.max(0, Math.ceil((p.dbno || 0) / 20 * WAR_DOWN_T)); return p.revT != null && S.t - p.revT <= 2 ? `${(S.byId[p.revBy] || {}).name || '味方'} が起こしている` : `倒れた ― 味方が起こせるのはあと ${left} 秒`; }
     // 近くに倒れた味方: 包帯のボタンで起こす
-    if (!p.act) { const rt = this._reviveTgt(); if (rt) return p.inv.gear.some(x => x.id === 'bandage' && x.n > 0) ? `${rt.name} を起こす ― 包帯のボタン` : `${rt.name} を起こすには包帯が要る`; }
+    if (p.drag != null && !p.act) { const b = S.byId[p.drag]; return `${(b && b.name) || '味方'} を引きずっている ― 離すのボタン・包帯のボタンで起こす`; }
+    if (!p.act) { const rt = this._reviveTgt(); if (rt) return p.inv.gear.some(x => x.id === 'bandage' && x.n > 0) ? `${rt.name} を起こす ― 包帯のボタン（引きずる ― 引きずるのボタン）` : `${rt.name} を起こすには包帯が要る（引きずる ― 引きずるのボタン）`; }
     // 道具の使い方・弾薬箱の説明の文字は出さない（見るのを邪魔する。BattleBit も出さない）
     for (const f of m.flags) {
       if (Math.hypot(p.x - f.x, p.z - f.z) > f.r) continue;
@@ -1845,7 +1865,7 @@ export class Match {
       cls, classes: CLASS_LIST.map(id => ({ id, en: CLASSES[id].en, short: CLASSES[id].short, name: CLASSES[id].name, hp: CLASSES[id].hp, desc: CLASSES[id].desc, tools: CLASSES[id].tools.join('・'), long: toolTxt(CLASSES[id], id), ok: canPick(p, id) })),
       lo: !!this.dlo, loTab: this.dloTab || 'gun', guns, secs, gun, sec, att: this._attRows(gun, W.att[gun] || {}), gad: this._gadRow(cls, (W.gad || {})[cls]), gunName: WEAPONS[gun].name, secName: WEAPONS[sec].name, gear: C.gear.filter(([id]) => isThrow(id)).map(([id, n]) => `${GN[id] || id}×${n}`).join('・'),
       left, queued: !!p.deployAt, canGo: !(m.mode === 'conquest' && m.tickets[p.team] <= 0),
-      msg: m.mode === 'range' ? '射台から' : m.mode === 'conquest' && m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'rally' ? 'ビーコンから' : String(this.dsel).startsWith('sq:') ? `${(S.byId[+String(this.dsel).slice(3)] || {}).name || '仲間'} のそばから` : m.mode === 'conquest' ? (this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
+      msg: p.deployAt && left > 0 ? 'もう一度押すとやめる' : m.mode === 'range' ? '射台から' : m.mode === 'conquest' && m.tickets[p.team] <= 0 ? 'NO TICKETS' : this.dsel === 'rally' ? 'ビーコンから' : String(this.dsel).startsWith('sq:') ? `${(S.byId[+String(this.dsel).slice(3)] || {}).name || '仲間'} のそばから` : m.mode === 'conquest' ? (this.dsel === 'hq' ? 'HQ から' : `拠点 ${this.dsel} から`) : '自陣の側から',
     };
   }
   _visCache(a) {

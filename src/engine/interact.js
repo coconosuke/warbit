@@ -1,6 +1,7 @@
 // 調べる・使う: 見ている物（扉・人・落ちている物・爆弾・壁）と、そのときできる操作。時間のかかる動作の進み。
 import { placeAmmo } from './ammobox.js';
 import { placeMine } from './mines.js';
+import { startDrag, stopDrag } from './drag.js';
 import { raycast, los, CS, LH, levelOfY, NB, isWallish, C, leafEnd, pushOut, rayBox } from './world.js';
 import { M, MATS } from './data/materials.js';
 import { GEAR, LONG, HAND_LONG } from './data/equipment.js';
@@ -160,7 +161,7 @@ function doorDist(d, x, z) {
 export let REACH_WHY = 'dist';
 export function reachOK(S, w, a, k, id, op, slack = 0) {
   // 大規模戦で起こす: 横たわった体のどこかに手が届けばよい（胴の点から 1.9m まで。倒れる途中に始めても、倒れきった胴に届く）
-  const lim = (REACH_D[op] ?? 1.0) + slack + (S.war && op === 'revive' ? 0.9 : 0);
+  const lim = (REACH_D[op] ?? 1.0) + slack + (S.war && (op === 'revive' || op === 'drag') ? 0.9 : 0);
   REACH_WHY = 'dist';
   if (lim >= 90) return true;
   const L = levelOfY(a.y + 0.2);
@@ -466,6 +467,8 @@ export function personOps(S, a, b) {
     // 起こす: 大規模戦は包帯が要る（BattleBit と同じく包帯で起こす。誰でも）
     //  衛生は包帯を 2 倍の速さで使う（公式 wiki。research/WARBIT.md の 57）
     if (b.alive && b.down && b.team === a.team && (!S.war || (a.inv && a.inv.gear.some(g => g.id === 'bandage' && g.n > 0)))) ops.push({ op: 'revive', t: ACT_T.revive * (S.war && a.warCls === 'medic' ? 0.5 : 1) });
+    // 引きずる（大規模戦。BattleBit の F）: すぐ始まる。引きずっている人には「離す」
+    if (S.war && b.alive && b.down && b.team === a.team) ops.push({ op: 'drag', t: 0 });
     return ops;
   }
   if (b.alive && !b.cuffed && (b.comply >= 1 || b.down || b.tased > 0 || b.stun > 1.0 || b.flash > 1.0) && b.kind !== 'swat') ops.push({ op: 'restrain', t: ACT_T.restrain });
@@ -607,6 +610,8 @@ const KNOB_T = 0.24;
 function startOp(S, w, a, ctx, op, ev) {
   const id = ctx.id;
   if (op.op === 'det') { detonateMine(S, w, a, ev); return; }
+  // 引きずっている人をもう一度押した: 離す（届かなくても）
+  if (op.op === 'drag' && a.drag === id) { stopDrag(S, a, ev); return; }
   // 手が届かない（離れている・間に物がある）
   if (op.far ?? !reachOK(S, w, a, ctx.k, id, op.op)) {
     // 間に立っているのが AI の味方なら、脇へよけてもらう（RoN の隊員と同じ）。理由はこの動作で調べ直す
@@ -618,6 +623,7 @@ function startOp(S, w, a, ctx, op, ev) {
     ev.push({ e: 'deny', id: a.id, why: (op.why || REACH_WHY) === 'block' ? 'blocked' : 'far', op: op.op, k: ctx.k });
     return;
   }
+  if (op.op === 'drag') { const b = S.byId[id]; if (b) { const tp = personPoint(S, b); startDrag(S, a, b, [tp[0] - b.x, tp[2] - b.z], ev); } return; }
   if (op.op === 'pickup') { const it = S.items.find(x => x.id === id); if (it && !it.gone) { it.gone = true; a.carry = 'defuser'; a.gest = { k: 'grab', t: 0, dur: 0.7, tgt: [it.x, it.y + 0.05, it.z] }; ev.push({ e: 'defpick', id: a.id }); } return; }
   const tgt = actTarget(S, w, a, ctx.k, id, op.op);
   // 扉を開ける・閉める: 左手をノブへ伸ばしてから（銃は右手のまま、歩きながらでもよい）

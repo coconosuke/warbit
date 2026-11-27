@@ -50,8 +50,8 @@ export const GEAR = {
   // 対人地雷・クレイモア（大規模戦の副の道具。engine/mines.js）
   apmine: { name: '対人地雷', kind: 'mine', max: 2, war: true, desc: '足もとの前に置く。1.5 秒後から、敵が 1m 以内に入ると爆発する（2m までは倒れる）。' },
   clay: { name: 'クレイモア', kind: 'mine', max: 2, war: true, desc: '向いている方へ置く。1.5 秒後から、前の 3m に敵が入ると前へ向けて爆発する（前の扇の中だけ）。' },
-  ammobig: { name: '大きい弾薬箱', kind: 'ammo', max: 2, desc: '足もとの前に置く。近くに立った味方に弾倉を補給する（弾 244 発分）。置いたら拾えない。' },
-  ammosmall: { name: '小さい弾薬箱', kind: 'ammo', max: 1, desc: '足もとの前に置く。近くに立った味方に弾倉を補給する（弾 90 発分）。' },
+  ammobig: { name: '大きい弾薬箱', kind: 'ammo', max: 2, desc: '足もとの前に置く。近くに立った味方に、主の銃と拳銃の弾・包帯・投げ物・道具を補給する（弾 244 発分）。置いたら拾えない。' },
+  ammosmall: { name: '小さい弾薬箱', kind: 'ammo', max: 1, desc: '足もとの前に置く。近くに立った味方に、主の銃と拳銃の弾・包帯を補給する（弾 150 発分）。' },
   bandage: { name: '包帯', kind: 'heal', max: 3, use: 3.5, desc: '止血して体力を40回復する（対戦）。作戦では止血のみ（50%まで回復）。' },
   frame: { name: '壁用の爆破薬（フレームチャージ）', kind: 'wallcharge', max: 1, place: 4.0, desc: '対戦の攻撃側だけ。補強した壁にも大きな穴を開ける。' },
   claymore: { name: '扉の罠（手榴弾とワイヤー）', kind: 'trap', max: 2, place: 3.0, desc: '対戦の守る側だけ。扉に仕掛け、開けた人を吹き飛ばす。ミラーで見つけられ、マルチツールで外せる。' },

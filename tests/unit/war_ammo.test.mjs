@@ -73,3 +73,32 @@ test('大きい弾薬箱は包帯と投げ物も補給する（出撃した時�
   ok(ban.n >= 2, '包帯 ' + ban.n);
   ok(ban.n <= ban.n0, '出撃した時の数まで');
 });
+
+test('主の銃と拳銃をかわるがわる補給する（主の銃が満タンになるまで拳銃を待たせない。11-27「メイン武器の弾薬だけ」）', () => {
+  const G = game(), S = G.S, me = S.actors[0];
+  for (let i = 0; i < 60 && me.ws.st !== 'ready'; i++) step(G, { [me.id]: idle(me) });
+  const w0 = me.inv.w[0], w1 = me.inv.w[1];
+  ok(w1 && w1.mags, '拳銃がある');
+  w0.mags.splice(0); w1.mags.splice(0);
+  S.ammo = [{ id: 1, team: me.team, big: true, aid: 100, thr: 50, gad: 100, left: 244, x: me.x + 1, y: me.y, z: me.z, yaw: 0, t: S.t, by: me.id }];
+  for (let i = 0; i < Math.round(4 / S.dt); i++) step(G, { [me.id]: idle(me) });
+  ok(w0.mags.length >= 2, '主の銃 ' + w0.mags.length);
+  ok(w1.mags.length >= 2, '拳銃も ' + w1.mags.length);
+  ok(Math.abs(w0.mags.length - w1.mags.length) <= 1, 'かわるがわる ' + w0.mags.length + '/' + w1.mags.length);
+});
+
+test('散弾銃（筒に込める銃）も予備の弾が戻る・包帯と手榴弾は一緒に戻る', async () => {
+  const { giveAmmo } = await import('../../src/engine/ammobox.js');
+  const sg = { id: 'm590', mags: null, res: 2, spare0: 16, cap: 8 };
+  eq(giveAmmo(sg, 100), 8, '1回に装弾数ぶん');
+  eq(giveAmmo(sg, 100), 6, '出撃した時の予備まで');
+  eq(giveAmmo(sg, 100), 0, '満タン');
+  eq(sg.res, 16, '予備 16');
+  const G = game(), S = G.S, me = S.actors[0];
+  for (let i = 0; i < 60 && me.ws.st !== 'ready'; i++) step(G, { [me.id]: idle(me) });
+  const ban = me.inv.gear.find(g => g.id === 'bandage'), fr = me.inv.gear.find(g => g.id === 'frag' || g.id === 'smoke');
+  ban.n = 0; fr.n = 0;
+  S.ammo = [{ id: 1, team: me.team, big: true, aid: 100, thr: 50, gad: 100, left: 244, x: me.x + 1, y: me.y, z: me.z, yaw: 0, t: S.t, by: me.id }];
+  for (let i = 0; i < Math.round(1.5 / S.dt); i++) step(G, { [me.id]: idle(me) });
+  ok(ban.n === 1 && fr.n === 1, '包帯 ' + ban.n + '・投げ物 ' + fr.n);
+});

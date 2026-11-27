@@ -217,7 +217,7 @@ function redeploy(S, w, a, at) {
   const C = CLASSES[a.warCls] || CLASSES.assault;
   Object.assign(a, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: 0, vx: 0, vy: 0, vz: 0, alive: true, dead: false, down: false, dbno: 0, dbnoCount: 0, hp: C.hp, maxHp: C.hp, oob: 0,
     stun: 0, flash: 0, gas: 0, tased: 0, deaf: 0, supp: 0, bleed: 0, flinch: 0, act: null, st: 0, stance: 0, vault: null, air: false, airTop: null, lean: 0, ads: 0, low: 0, adsOn: false, lowOn: false, sprint: false, sprT: 0, fat: 0, peek: null, melee: null, gest: null, spot: 0,
-    inj: { arm: 0, leg: 0, head: 0 }, spawnProt: 2, stateT: 0, dmgBy: {}, lastHit: null, deployAt: null, deployed: true });
+    inj: { arm: 0, leg: 0, head: 0 }, spawnProt: 2, stateT: 0, dmgBy: {}, lastHit: null, deployAt: null, deployed: true, drag: null, dragBy: null, dragOff: null });
   // 向き: 敵の本陣の方（仲間の上に出た時は仲間と同じ向き）
   const eh = m.hq[1 - a.team]; a.yaw = onMate ? p.yaw : Math.atan2(eh[0] - a.x, eh[1] - a.z);
   const lo = a.warLo || classLoadout('assault');
@@ -460,6 +460,8 @@ export default {
     }
     if (ac.a !== 'warDeploy') return false;
     if (a.alive) return true;
+    // 出撃の予約をやめる（11-27。待ちの間にもう一度押した）
+    if (ac.cancel) { a.deployAt = null; return true; }
     if (ac.cls) setClass(a, ac.cls, ac.gun, ac.sec, ac.att, ac.gad);
     a.deployAt = ac.at || 'hq';
     return true;

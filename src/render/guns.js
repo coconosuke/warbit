@@ -768,15 +768,17 @@ function addSight(B, P, kind) {
     B.tube([-0.012, y, z + 0.005], [-0.026, y, z + 0.005], 0.0105, 0.0105, 10, LAYER.metal, K.blk, { caps: true });
     B.tube([0.012, y, z + 0.005], [0.024, y, z + 0.005], 0.0118, 0.0118, 10, LAYER.metal, K.dg, { caps: true });
     P.sightY = y; P.eyeZ = zb - 0.09; P.optic = { kind, z, r: 0.013, y, scope: true, zb, rr: 0.0175 };
-  } else if (kind === 'sniper') {
+  } else if (kind === 'sniper' || kind === 'scope15' || kind === 'scope20' || kind === 'scope40') {
     // シュミット＆ベンダー PM II 3-12x50（34mmの胴・50mmの対物）: 2つの輪、太い対物、高い上のつまみ・右・左（距離）
-    const z = (z0 + z1) / 2, y = ry + 0.048, zb = z - 0.17, zf = z + 0.18;
+    // 15・20・40 倍（11-27）: 同じ形で、倍率が高いほど長く、対物レンズが太い
+    const L = { sniper: 1, scope15: 1.1, scope20: 1.18, scope40: 1.3 }[kind], O = { sniper: 1, scope15: 1.12, scope20: 1.22, scope40: 1.38 }[kind];
+    const z = (z0 + z1) / 2, y = ry + 0.048 + 0.012 * (O - 1), zb = z - 0.17 * L, zf = z + 0.18 * L;
     for (const dz of [-0.06, 0.065]) { sbx(B, 0.0125, ry, z + dz - 0.012, ry + 0.032, z + dz + 0.012, K.blk); B.tube([0, y, z + dz - 0.01], [0, y, z + dz + 0.01], 0.0192, 0.0192, 12, LAYER.metal, K.blk, { caps: false }); }
-    B.tube([0, y, z - 0.12], [0, y, z + 0.1], 0.017, 0.017, 14, LAYER.metal, K.blk, { caps: false });
-    B.tube([0, y, z + 0.1], [0, y, zf - 0.04], 0.017, 0.029, 14, LAYER.metal, K.blk, { caps: false });
-    B.tube([0, y, zf - 0.04], [0, y, zf], 0.029, 0.029, 14, LAYER.metal, K.blk, { caps: true });
-    B.tube([0, y, z - 0.136], [0, y, z - 0.12], 0.0205, 0.0205, 12, LAYER.metal, K.dg, { caps: false });
-    B.tube([0, y, zb], [0, y, z - 0.136], 0.0215, 0.0205, 12, LAYER.metal, K.blk, { caps: true });
+    B.tube([0, y, z - 0.12 * L], [0, y, z + 0.1], 0.017, 0.017, 14, LAYER.metal, K.blk, { caps: false });
+    B.tube([0, y, z + 0.1], [0, y, zf - 0.04], 0.017, 0.029 * O, 14, LAYER.metal, K.blk, { caps: false });
+    B.tube([0, y, zf - 0.04], [0, y, zf], 0.029 * O, 0.029 * O, 14, LAYER.metal, K.blk, { caps: true });
+    B.tube([0, y, z - 0.136 * L], [0, y, z - 0.12 * L], 0.0205, 0.0205, 12, LAYER.metal, K.dg, { caps: false });
+    B.tube([0, y, zb], [0, y, z - 0.136 * L], 0.0215, 0.0205, 12, LAYER.metal, K.blk, { caps: true });
     B.tube([0, y + 0.015, z], [0, y + 0.041, z], 0.0135, 0.0135, 12, LAYER.metal, K.dg, { caps: true });
     B.tube([-0.015, y, z], [-0.038, y, z], 0.013, 0.013, 12, LAYER.metal, K.dg, { caps: true });
     B.tube([0.015, y, z - 0.004], [0.034, y, z - 0.004], 0.0152, 0.0152, 12, LAYER.metal, K.dg, { caps: true });
@@ -818,6 +820,13 @@ function addMuzzle(B, P, kind, cat) {
   }
 }
 function addGrip(B, P, kind) {
+  // 二脚（11-27）: 前の握りの先に留め金と、たたんだ2本の脚（銃身に沿って後ろへ）。下のレールがない銃（狙撃銃）は銃の前 6 割の所
+  if (kind === 'bipod') {
+    const z = P.rail2 ? P.rail2[1] - 0.02 : (P.muzzle ?? 0.5) * 0.6, y = P.foreY ?? -0.032;
+    sbx(B, 0.014, y - 0.018, z - 0.016, y, z + 0.016, K.blk);
+    for (const sx of [1, -1]) B.tube([sx * 0.009, y - 0.016, z - 0.004], [sx * 0.011, y - 0.022, z - 0.17], 0.0045, 0.004, 6, LAYER.metal, K.dg, { caps: true });
+    return;
+  }
   if (!P.rail2 || kind === 'none') return;
   const z = P.rail2[0] + (P.rail2[1] - P.rail2[0]) * 0.45, y = P.foreY ?? -0.032;
   if (kind === 'vert') { sbx(B, 0.014, y - 0.095, z - 0.016, y, z + 0.016, K.blk, LAYER.rubber); P.gripL = [0, y - 0.06, z]; P.vgrip = true; }
@@ -1051,7 +1060,8 @@ export function gunModel(wid, att = {}) {
   if ((att.sight === 'rmr' || att.sight === 'sro') && P.pistol) addPistolDot(B, P, att.sight);
   else if (att.sight && att.sight !== 'iron' && att.sight !== 'rmr' && att.sight !== 'sro' && (P.railZ || P.pistol === undefined)) addSight(B, P, att.sight);
   if (att.muzzle && att.muzzle !== 'none' && !W.integral) addMuzzle(B, P, att.muzzle, W.cat);
-  if (att.grip && att.grip !== 'none') {
+  if (att.grip === 'bipod') addGrip(B, P, 'bipod');
+  else if (att.grip && att.grip !== 'none') {
     // 前の握りが動く銃（KSG）は、握りもポンプと一緒に動かす
     if (P.pump && P.rail2) { const pf = P.pump, k = att.grip; P.pump = (M) => { pf(M); addGrip(M, P, k); }; }
     else addGrip(B, P, att.grip);

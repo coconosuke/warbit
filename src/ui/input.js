@@ -61,7 +61,7 @@ export class Input {
     this.onStick = null; this.onRadial = null; this.onBtn = null; this.onDragMenu = null; this.onUnderRing = null;
     this.radial = null; // 開いている円形メニュー {btn, x, y, items, sel, pid}
     // タッチの記録（fps の表示）: cancel 指の取り消し・tcancel タッチの取り消し・lost つかみが外れた・stale 離したのが届かず捨てた
-    this.diag = { cancel: 0, tcancel: 0, lost: 0, stale: 0 };
+    this.diag = { cancel: 0, tcancel: 0, lost: 0, stale: 0, adopt: 0 };
     this.getStickHome = null;
     this._bind();
   }
@@ -139,8 +139,19 @@ export class Input {
     //  指の番号で追い続ける。前は画面の area だけで受けていて、届かないとスティックが止まったり、離したのが届かず残ったりした）
     const onMove = (e) => {
       if (!this.enabled) return;
-      const p = this.ptr.get(e.pointerId);
-      if (!p) return;
+      let p = this.ptr.get(e.pointerId);
+      // 11-27（見回しが時々効かなくなる）: 触れたままの指なのに記録がない（押した時に受け取れなかった・「離した」の代わりに捨てた・
+      //  画面の切り替えで記録を消した）: 画面の右側なら、ここから見回しの指として受け直す（前は離して触れ直すまで見回せなかった）
+      if (!p) {
+        if (e.pointerType !== 'touch' || !(e.buttons & 1) && e.pressure === 0 || this.radial) return;
+        const [ax, ay] = this.stage.toStage(e.clientX, e.clientY);
+        const leftZone = this.S.handed === 'left' ? ax > this.stage.w * 0.55 : ax < this.stage.w * 0.45;
+        if (leftZone) return;
+        p = { kind: 'look', x: ax, y: ay, pt: 'touch' };
+        this.ptr.set(e.pointerId, p); this.diag.adopt = (this.diag.adopt || 0) + 1;
+        try { this.area.setPointerCapture(e.pointerId); } catch (er) { /* なし */ }
+        return;
+      }
       const [sx, sy] = this.stage.toStage(e.clientX, e.clientY);
       if (p.kind === 'stick') this._stickMove(sx, sy);
       else if (p.kind === 'look') { this._lookAdd(e, p, sx, sy); }

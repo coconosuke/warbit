@@ -2,7 +2,8 @@
 import { WEAPONS, AMMO, ATTACH, zoomsOf, zoomOf, swayOf } from './data/weapons.js';
 import { LONG, HAND_LONG, GEAR } from './data/equipment.js';
 import { curWeapon, curW, magCap } from './actor.js';
-import { spawnBullet } from './combat.js';
+import { spawnBullet, eyeOf } from './combat.js';
+import { raycast } from './world.js';
 import { hrand } from './rng.js';
 export { hrand };
 
@@ -18,6 +19,7 @@ export function attMods(wi) {
   for (const x of [A.sight[a.sight], A.muzzle[a.muzzle], A.grip[a.grip], A.side[a.side], A.mag[a.mag], A.stock[a.stock]]) {
     if (!x) continue;
     if (x.rcv) m.rcv *= x.rcv; if (x.rch) m.rch *= x.rch; if (x.rcfirst) m.rcfirst *= x.rcfirst;
+    if (x.bipod) m.bipod = true;
     if (x.ads) m.ads += x.ads; if (x.noise) m.noise *= x.noise; if (x.vel) m.vel *= x.vel; if (x.flash != null) m.flash *= x.flash;
     if (x.zoom) m.zoom = Math.max(m.zoom, x.zoom); if (x.scope) m.scope = true;
     if (x.reload) m.reload *= x.reload; if (x.move) m.move *= x.move; if (x.spread) m.spread *= x.spread;
@@ -45,6 +47,21 @@ export function spreadDeg(S, a, W, wi) {
   return s;
 }
 
+// 二脚が立つか（伏せ: 銃の前 0.8m の地面が体の高さから ±0.3m。立ち・しゃがみ: 止まっていて、銃の 0.6m 先の真下 0.3m 以内に物の面があり、銃の先が壁に入っていない）
+export const BIPOD = { recoil: 0.6 };
+const _bh = [];
+const minT = (h) => { let t = 1e9; for (const q of h) if (q.t0 < t) t = q.t0; return t; };
+function bipodUp(S, w, a) {
+  if (a.sprint || a.vault || a.air || a.down || (a.spd || 0) > 0.35 || Math.abs(a.lean || 0) > 0.3) return false;
+  const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
+  if (a.st > 1.5) {
+    const y0 = a.y + 0.45, t = minT(raycast(w, a.x + fx * 0.8, y0, a.z + fz * 0.8, 0, -1, 0, 0.8, S.doors, { out: _bh }));
+    return t < 0.8 && Math.abs(y0 - t - a.y) < 0.3;
+  }
+  const e = eyeOf(S, a), gy = e[1] - 0.12;
+  if (minT(raycast(w, e[0], gy, e[2], fx, 0, fz, 0.75, S.doors, { out: _bh })) < 0.35) return false;
+  return minT(raycast(w, e[0] + fx * 0.6, gy + 0.02, e[2] + fz * 0.6, 0, -1, 0, 0.32, S.doors, { out: _bh })) < 0.32;
+}
 // 1ステップ。inp: { fire, ads, low } と act の配列（reload/switch/mode/light）
 export function stepWeapon(S, w, a, inp, dt, ev) {
   const ws = a.ws;
@@ -97,6 +114,9 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
       if (!(ws.gasp > 0)) ws.br = Math.min(1, ws.br + dt / 4);
     }
   }
+  // 二脚（11-27）: 伏せるか、止まって銃を物の上に載せると自動で立つ（4 ステップごとに確かめる）
+  if (W && wi && attMods(wi).bipod && (a.ads > 0.3 || inp.fire)) { if (((S.t + a.id) & 3) === 0 || a.bip == null) a.bip = bipodUp(S, w, a); }
+  else a.bip = false;
   if (W && a.ads > 0.01) {
     const still = (a.spd || 0) < 0.3 && a.ads > 0.95;
     ws.calm = still ? Math.min(1, (ws.calm || 0) + dt / 1.5) : Math.max(0, (ws.calm || 0) - dt * 4);
@@ -109,8 +129,10 @@ export function stepWeapon(S, w, a, inp, dt, ev) {
     const t = S.t * S.dt + a.id * 7.3;
     // 息: ふだんは 1.55 rad/秒（約4秒）。走ったあとは大きく、速い息（2.7 rad/秒）が混ざる
     const br = 0.55 * (1 + 1.2 * fat) * Math.sin(t * 1.55) + 0.75 * fat * Math.sin(t * 2.7 + 0.5);
-    ws.sx = A * (0.7 * (Math.sin(t * 0.83) * 0.65 + Math.sin(t * 1.91 + 1.3) * 0.35) + 0.15 * br + 0.05 * Math.sin(t * 10.3 + a.id));
-    ws.sy = A * (0.5 * (Math.sin(t * 1.17 + 2.1) * 0.6 + Math.sin(t * 0.57 + 0.4) * 0.4) + br + 0.05 * Math.sin(t * 12.1 + 2 * a.id));
+    // 二脚が立っている間は揺れない（BattleBit: 伏せて平らな所に置くと二脚が立ち、揺れがなくなる。research の 19）
+    const Ab = a.bip ? 0 : A;
+    ws.sx = Ab * (0.7 * (Math.sin(t * 0.83) * 0.65 + Math.sin(t * 1.91 + 1.3) * 0.35) + 0.15 * br + 0.05 * Math.sin(t * 10.3 + a.id));
+    ws.sy = Ab * (0.5 * (Math.sin(t * 1.17 + 2.1) * 0.6 + Math.sin(t * 0.57 + 0.4) * 0.4) + br + 0.05 * Math.sin(t * 12.1 + 2 * a.id));
   } else { ws.sx = 0; ws.sy = 0; ws.calm = 0; }
   // 走るのをやめた: 銃を上げるまで撃てない（重い銃ほど長い 0.1〜0.25秒）。その間に引いた引き金は覚えておき、上がったら撃つ
   if (ws.sprWas && !a.sprint) ws.so = sprintOutT(W);
@@ -418,6 +440,8 @@ function tryFire(S, w, a, W, wi, inp, ev) {
   let mul = 1 - 0.2 * a.ads;
   if (a.st > 1.5) mul *= 0.7; else if (a.st > 0.5) mul *= 0.85;
   if (a.inj.arm) mul *= 1.6;
+  // 二脚が立っている: 反動が小さい（0.6 倍。数字は推測）
+  if (a.bip) mul *= BIPOD.recoil;
   if (S.rules && S.rules.recoil) mul *= S.rules.recoil;
   ws.rp += kv * mul; ws.ry += kh * mul;
   ws.bloom = Math.min(W.sp.hip * 0.8, ws.bloom + W.sp.hip * 0.1 * (1 - 0.7 * a.ads));

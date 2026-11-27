@@ -56,6 +56,8 @@ export class Hud {
     this.reticle = el('div', 'hud-reticle'); r.appendChild(this.reticle);
     // 息の残り（息止めの間と、戻るまで。構えているときだけ）
     this.breathEl = el('div', 'hud-breath', '<i></i>'); r.appendChild(this.breathEl);
+    // 二脚が立っている印（11-27。BattleBit も立つと印が出る）
+    this.bipEl = el('div', 'hud-bip', '<svg viewBox="0 0 24 24"><path d="M4 7h16M12 7l-5 12M12 7l5 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><b>二脚</b>'); r.appendChild(this.bipEl);
     this.hitm = el('div', 'hud-hit', '<i></i><i></i><i></i><i></i>'); r.appendChild(this.hitm);
     // 点（大規模戦）: 照準の下に合計と内訳。続けて入ると足していく
     this.ptsEl = el('div', 'hud-pts', '<div class="kl"></div><div class="tot"></div><div class="rs"></div>'); r.appendChild(this.ptsEl);
@@ -254,6 +256,9 @@ export class Hud {
   update(v) {
     if (!this.on) return;
     const p = v.p;
+    // 大規模戦で倒れている間（11-27 03:54「本家のダウンに近い形で」）: 撃つ・動かす類のボタン・照準・弾の数を隠し、
+    //  見回し・GIVE UP・メニュー・地図・スコアだけにする（倒れている間は撃てない）
+    { const dn = !!(this.mode.war && p && p.alive && p.down && !this.editing); if (this.cache.downed !== dn) { this.cache.downed = dn; this.root.classList.toggle('downed', dn); } }
     if (this.stickEl && this.cache.sprWait !== !!v.sprWait) { this.cache.sprWait = !!v.sprWait; this.stickEl.classList.toggle('spr-wait', !!v.sprWait); }
     // 照準
     const ads = p ? p.ads : 0;
@@ -274,7 +279,14 @@ export class Hud {
     }
     { const gk = v.giveup || 0; if (this.cache.giveup !== gk) { this.cache.giveup = gk; this.giveup.classList.toggle('on', gk > 0); this.giveup.classList.toggle('arm', gk === 2); this.giveup.lastChild.textContent = gk === 2 ? 'もう一度押すと出撃の画面へ' : '出撃の画面へ'; } }
     // 拾う: 近くに拾える弾倉がある間だけ出す
-    if (this.btn.pick) { const on = !!(v.pick && p && p.alive); if (this.cache.pickOn !== on && !this.editing) { this.cache.pickOn = on; this.btn.pick.classList.toggle('ads-off', !on); } }
+    //  11-27: 倒れた味方の近くでは「引きずる」、引きずっている間は「離す」（絵と文字を変える）
+    if (this.btn.pick) {
+      const k = v.pick && p && p.alive ? (v.pick === true ? 'pick' : v.pick) : '';
+      if (this.cache.pickOn !== k && !this.editing) {
+        this.cache.pickOn = k; this.btn.pick.classList.toggle('ads-off', !k);
+        if (k) { const sv = this.btn.pick.querySelector('svg'), lb = this.btn.pick.querySelector('.lb'), ic = k === 'pick' ? 'pick' : 'drag'; if (sv) sv.innerHTML = ICONS[ic] || ''; if (lb) lb.textContent = k === 'drop' ? '離す' : k === 'drag' ? '引きずる' : '拾う'; this.btn.pick.classList.toggle('on', k === 'drop'); }
+      }
+    }
     // 手に持つ物でボタンの絵を変える（11-26）:
     //  C4: 射撃のボタンは「投げる」、構えのボタンは「起爆」（貼った C4 が無い間は起爆を薄く）
     //  投げ物: 射撃のボタンは「投げる」の絵。押したままボタンの外へ指をずらすと「下投げ」の絵と文字（そこで離すと下投げ）
@@ -300,6 +312,7 @@ export class Hud {
       const key = show ? Math.round(br * 100) + (ws.gasp > 0 ? 'g' : '') : '';
       if (this.cache.brKey !== key) { this.cache.brKey = key; this.breathEl.classList.toggle('on', show); this.breathEl.classList.toggle('gasp', !!(ws && ws.gasp > 0)); if (show) this.breathEl.firstChild.style.width = (br * 100).toFixed(0) + '%'; }
     }
+    { const bo = !!(p && p.alive && p.bip && ads > 0.3); if (this.cache.bip !== bo) { this.cache.bip = bo; this.bipEl.classList.toggle('on', bo); } }
     const retOn = !!(optic && ads > 0.85 && !optic.scope);
     { const rc = 'hud-reticle' + (retOn ? ' on ' + optic.kind : ''); if (this.cache.retC !== rc) { this.cache.retC = rc; this.reticle.className = rc; } }
     // 等倍の照準器: 揺れのうち銃が受け持つ分だけ、点が真ん中からずれる（弾が飛ぶ所。game.js _aimFx）
